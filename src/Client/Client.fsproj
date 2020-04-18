@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <None Include="style.scss" />
+    <Content Include="public\assets\favicon-16x16.ico" />
+    <Content Include="public\assets\favicon-32x32.ico" />
+    <Content Include="public\assets\logo-128x128.png" />
+    <Content Include="public\assets\logo.png" />
+    <None Include="public\assets\logo.svg" />
+    <None Include="public\assets\logo_transparent.svg" />
+    <None Include="public\assets\mini_logo.svg" />
+    <Compile Include="Client.fs" />
+    <Content Include="index.html" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Shared\Shared.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>
