@@ -9,11 +9,11 @@ open Shared
 
 module Client =
     type ClientState = {
-        Forecasts: WeatherForecast[]
+        Forecasts: Building[]
     }
 
     type ClientMessage =
-        | ReceivedForecasts of WeatherForecast []
+        | ReceivedForecasts of Building []
 
     let init () =
         let cmd =

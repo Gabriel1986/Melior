@@ -1,0 +1,16 @@
+group Server    
+    Fable.Remoting.Giraffe
+    FsConfig
+    Giraffe
+    Microsoft.AspNetCore
+    Microsoft.AspNetCore.Authentication.Cookies
+    Microsoft.AspNetCore.Authentication.JwtBearer
+    Microsoft.AspNetCore.Authentication.OpenIdConnect
+    Microsoft.AspNetCore.StaticFiles
+    Microsoft.Extensions.Logging
+    Serilog
+    Serilog.AspNetCore
+    Serilog.Sinks.ColoredConsole
+    Serilog.Sinks.RollingFile
+    Thoth.Json.Net
+    Thoth.Json.Giraffe
