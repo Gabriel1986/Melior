@@ -2,57 +2,82 @@ namespace Shared
 
 open System
 
-module Library =
-    type Building = {
-        BuildingId: Guid
-        IsActive: bool
-        Code: string option
-        Name: string
-        Address: Address
-        OrganizationNumber: string option
-        Remarks: string
-        GeneralMeetingFrom: DateTimeOffset
-        GeneralMeetingUntil: DateTimeOffset
-        Concierge: Concierge option
-        YearOfConstruction: int
-        LinkedLots: LotListItem []
-        Responsible: Responsible
-        OtherLinkedResidents: ResidentListItem []
+module Domain =
+    type CurrentUser = {
+        UserId: Guid
+        EmailAddress: string
+        DisplayName: string
+        PersonId: Guid
+        Role: Role
+        BuildingIds: Guid list
     }
-    and Address = {
-        Street: string
-        ZipCode: string
-        Town: string
-    }
-    and Concierge = {
-        ConciergeId: Guid
-        Name: string
-        MainContactMethod: ContactMethod
-        OtherContactMethods: ContactMethod []
-        Remarks: string
-    }
+    and Role =
+        | Resident
+        | Syndic
+        | SysAdmin
+
+    type Building = 
+        {
+            BuildingId: Guid
+            IsActive: bool
+            Code: string
+            Name: string
+            Address: Address
+            OrganizationNumber: string option
+            Remarks: string option
+            GeneralMeetingFrom: DateTimeOffset option
+            GeneralMeetingUntil: DateTimeOffset option
+            Concierge: Concierge option
+            Syndic: Syndic option
+        }
+        static member Init buildingId = {
+            BuildingId = buildingId
+            IsActive = true
+            Code = ""
+            Name = ""
+            Address = Address.Init
+            OrganizationNumber = None
+            Remarks = None
+            GeneralMeetingFrom = None
+            GeneralMeetingUntil = None
+            Concierge = None
+            Syndic = None
+        }
+    and Address =
+        {
+            Street: string
+            ZipCode: string
+            Town: string
+        }
+        static member Init = { Street = ""; ZipCode = ""; Town = "" }
+    and Concierge =
+        | Resident of Resident
+        | NonResident of Person
     and ContactMethod = {
         ContactMethodId: Guid
         ContactMethodType: ContactMethodType
         IsPrivate: bool
+        Description: string
     }
     and ContactMethodType =
         | PhoneNumber of string
         | EmailAddress of string
         | WebSite of string
-    and Responsible =
-        | Resident of ResidentListItem
-        | Syndic of SyndicListItem
+    and Syndic =
+        | Resident of Resident
+        | ProfessionalSyndic of ProfessionalSyndic
+        | Other of Person
 
     and BuildingListItem = {
         BuildingId: Guid
         IsActive: bool
-        Code: string option
+        Code: string
         Name: string
         Address: Address
-        OrganizationNumber: string
+        OrganizationNumber: string option
     }
     and BankAccount = {
+        CurrencyCode: string
         BankAccountId: Guid
         Number: string
         Iban: string
@@ -92,10 +117,8 @@ module Library =
         IsActive: bool
         OrganizationType: OrganizationType
         Name: string
+        Address: Address
         BankAccount: BankAccount option
-        MainContactMethod: ContactMethod option
-        OtherContactMethods: ContactMethod []
-        LinkedResidents: ResidentListItem []
     }
     and OrganizationType = {
         OrganizationTypeId: Guid
@@ -113,46 +136,57 @@ module Library =
         LastName: string
         Language: Language
         Gender: Gender
-        Address: Address
-        MainContactMethod: ContactMethod
-        OtherContactMethods: ContactMethod []
-        CountryCode: string
-        CurrencyCode: string
-        BankAccount: BankAccount
-        LinkedOrganizations: OrganizationListItem []
+        MainAddress: Address
+        OtherAddresses: Address list
+        BankAccount: BankAccount option
     }
     and Gender =
         | Male
         | Female of married: bool
+        | Other
     and Language = {
         LanguageId: Guid
         Name: string
         //ISO 639-1 Code
         Code: string
     }
-    //Inhabitant of a building
+    //This is a many to many link between persons and buildings
+    //In theory, the same person can be a resident multiple times for the same building (at different times)
+    //A same person can also be a resident of multiple buildings
     and Resident = {
+        ResidentId: Guid
         Person: Person
         BuildingId: Guid
         IsActive: bool
         MovedInDate: DateTimeOffset
         MovedOutDate: DateTimeOffset option
-        LinkedLots: LotListItem []
+    }
+    and ProfessionalSyndic = {
+        ProfessionalSyndicId: Guid
+        Person: Person
+        IsActive: bool
+        StartDate: DateTimeOffset
+        EndDate: DateTimeOffset option
     }
     and ResidentListItem = {
-        BuildingId: Guid
         PersonId: Guid
+        BuildingId: Guid
         FirstName: string
         LastName: string
         IsActive: bool
         MovedInDate: DateTimeOffset
         MovedOutDate: DateTimeOffset option
     }
-    and SyndicListItem = {
-        BuildingId: Guid
-        PersonId: Guid
+    and ProfessionalSyndicListItem = {
+        ProfessionalSyndicId: Guid
         FirstName: string
         LastName: string
+        IsActive: bool
         StartDate: DateTimeOffset
         EndDate: DateTimeOffset option
+    }
+
+    type InvariantError = {
+        Path: string option
+        Message: string
     }

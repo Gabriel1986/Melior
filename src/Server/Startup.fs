@@ -1,20 +1,12 @@
 namespace Server
 
 open Giraffe
-open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Hosting
-open Microsoft.AspNetCore.HttpOverrides
-open Microsoft.AspNetCore.Authentication
-open Microsoft.AspNetCore.Authentication.Cookies
-open Microsoft.AspNetCore.Authentication.JwtBearer
 open Microsoft.AspNetCore.Builder
-open Microsoft.AspNetCore.Http
-open Microsoft.Extensions.Primitives
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.Hosting
-open Microsoft.IdentityModel.Tokens
 open Thoth.Json.Net
 open Thoth.Json.Giraffe
 
@@ -40,8 +32,6 @@ type Startup private () =
 
         if (env.IsDevelopment()) then
             app.UseDeveloperExceptionPage() |> ignore
-
-        let build = Application.build ()
 
         app
             .UseHttpsRedirection()

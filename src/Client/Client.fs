@@ -4,45 +4,101 @@ open Elmish
 open Elmish.Debug
 open Elmish.React
 open Elmish.Navigation
+open Fable
 open Fable.React
-open Shared
+open Fable.React.Props
+open Fable.Core.JsInterop
+open Feliz.Router
+
+open Shared.Domain
+
+open Routing
+open Client
+open Client.Buildings
+open Client.ClientStyle
 
 module Client =
-    type ClientState = {
-        Forecasts: Building[]
+    importAll "./public/styles/bootstrap.min.css"
+
+    type ClientState =
+        | Initializing
+        | Running of RunningState
+        | Stopped of fatalError: exn
+    and RunningState = {
+        CurrentUser: CurrentUser
+        CurrentPage: Page
     }
 
     type ClientMessage =
-        | ReceivedForecasts of Building []
+        | StartApplication of CurrentUser
+        | StopApplication of exn
+        | PageNotFound
+        | ChangePage of Routing.Page
 
     let init () =
         let cmd =
-            Cmd.OfPromise.perform
-                (fun () -> Thoth.Fetch.Fetch.get ("/api/WeatherForecast", caseStrategy = Thoth.Json.CaseStrategy.CamelCase))
+            Cmd.OfAsync.either
+                (Remoting.getRemotingApi().GetCurrentUser)
                 ()
-                (fun foreCasts -> ReceivedForecasts foreCasts)
-
-        { Forecasts = [||] }, cmd
+                StartApplication
+                StopApplication
+        Initializing, cmd
 
     let update (message: ClientMessage) (state: ClientState) =
         match message with
-        | ReceivedForecasts foreCasts -> 
-            { state with Forecasts = foreCasts }, Cmd.none
+        | StartApplication currentUser ->
+            let currentPage = Routing.parseUrl (Router.currentUrl ())
+
+            Running {
+                CurrentUser = currentUser
+                CurrentPage = currentPage
+            }, Cmd.none
+        | StopApplication e ->
+            Stopped e, Cmd.none
+        | PageNotFound ->
+            match state with
+            | Running running ->
+                Running { running with CurrentPage = NotFound }, Cmd.none
+            | _ ->
+                state, Cmd.none
+        | ChangePage newPage ->
+            match state with
+            | Running running ->
+                Running { running with CurrentPage = newPage }, Cmd.none   
+            | _ ->
+                state, Cmd.none
 
     let view (state: ClientState) (dispatch: ClientMessage -> unit) =
-        match state.Forecasts with
-        | [||] ->
-            div [] [
-                h2 [] [ str "Hello world." ]
+        match state with
+        | Initializing ->
+            div [] [                
+                Navbar.render {| CurrentPage = None; CurrentUser = None |}
+                div [ Class MeliorStyle.py3 ] [ h2 [] [ str "De app wordt gestart" ] ] 
             ]
-        | foreCasts ->
+        | Running runningState ->
+            let currentPage =
+                div [ Class (sprintf "%s %s" MeliorStyle.containerFluid MeliorStyle.py3) ] [
+                    match runningState.CurrentPage with
+                    | Page.Portal -> 
+                        PortalPage.render {| CurrentUser = runningState.CurrentUser |}
+                    | Page.BuildingList ->
+                        BuildingsPage.render {| CurrentUser = runningState.CurrentUser; BuildingId = None |}
+                    | Page.BuildingDetails buildingId ->
+                        BuildingsPage.render {| CurrentUser = runningState.CurrentUser; BuildingId = Some buildingId |}
+                    | Page.NotFound        -> div [] [ p [] [ str "Pagina werd niet gevonden." ] ]
+                ]
+
             div [] [
-                for forecast in foreCasts do
-                    yield div [] [ str (forecast.Date.ToString("O")) ]
-                    yield div [] [ str (string forecast.TemperatureC) ]
-                    yield div [] [ str (string forecast.TemperatureF) ]
-                    yield div [] [ str forecast.Summary ]
-                    yield hr []
+                Navbar.render {| CurrentPage = Some runningState.CurrentPage; CurrentUser = Some runningState.CurrentUser |}
+                Router.router [
+                    Router.onUrlChanged (Routing.parseUrl >> ChangePage >> dispatch)
+                    Router.application currentPage
+                ]
+            ]
+        | Stopped _ ->
+            div [] [
+                Navbar.render {| CurrentPage = None; CurrentUser = None |}
+                str "Er is iets misgelopen bij het laden van de applicatie."
             ]
 
     Program.mkProgram init update view

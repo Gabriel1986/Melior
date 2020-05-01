@@ -5,8 +5,12 @@
     <LangVersion>preview</LangVersion>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="ClientStyle.fs" />
+    <Compile Include="Version.fs" />
     <None Include="paket.references" />
     <None Include="style.scss" />
+    <None Include="public\styles\bootstrap.min.css.map" />
+    <Content Include="public\styles\bootstrap.min.css" />
     <Content Include="public\assets\favicon-16x16.ico" />
     <Content Include="public\assets\favicon-32x32.ico" />
     <Content Include="public\assets\logo-128x128.png" />
@@ -14,6 +18,16 @@
     <None Include="public\assets\logo.svg" />
     <None Include="public\assets\logo_transparent.svg" />
     <None Include="public\assets\mini_logo.svg" />
+    <Compile Include="Remoting.fs" />
+    <Compile Include="Routing.fs" />
+    <Compile Include="Components\SimpleContactMethodComponent.fs" />
+    <Compile Include="Components\SimpleOrganizationComponent.fs" />
+    <Compile Include="Components\SimpleResidentComponent.fs" />
+    <Compile Include="Components\SimpleLotComponent.fs" />
+    <Compile Include="Buildings\BuildingDetails.fs" />
+    <Compile Include="Buildings\BuildingsPage.fs" />
+    <Compile Include="PortalPage.fs" />
+    <Compile Include="Navbar.fs" />
     <Compile Include="Client.fs" />
     <Content Include="index.html" />
   </ItemGroup>

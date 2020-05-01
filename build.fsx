@@ -112,7 +112,7 @@ Target.create "Run" (fun _ ->
     }
     let browser = async {
         do! Async.Sleep 5000
-        openBrowser "http://localhost:8092"
+        openBrowser "http://localhost:8091"
     }
 
     let tasks =

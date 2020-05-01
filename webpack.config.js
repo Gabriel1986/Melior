@@ -43,7 +43,7 @@ var commonPlugins = [
     new HtmlWebpackPlugin({
         filename: 'main.html',
         template: resolve(CONFIG.indexHtmlTemplate),
-        chunks: isProduction ? [ "app" ] : [ "app", "style" ]
+        chunks: isProduction ? [ "app" ] : [ "app", "style" ]        
     })
 ];
 
@@ -66,7 +66,10 @@ module.exports = {
     // to prevent browser caching if code changes
     output: {
         path: resolve(CONFIG.outputDir),
-        filename: isProduction ? '[name].[hash].js' : '[name].js'
+        filename: isProduction ? '[name].[hash].js' : '[name].js',
+        //Making sure the HtmlWebPackPlugin writes the entire URL of where the .js files can be found (in production):
+        //Used 127.0.0.1 here in stead of localhost because it was failing on linux.
+        publicPath: isProduction ? undefined : 'http://127.0.0.1:' + CONFIG.devServerPort + "/"
     },
     mode: isProduction ? 'production' : 'development',
     devtool: isProduction ? 'source-map' : 'eval-source-map',
@@ -86,7 +89,7 @@ module.exports = {
         commonPlugins.concat(
             isProduction ?
             [
-                new MiniCssExtractPlugin({ filename: '[name].css', chunkFilename: '[id].css' }),
+                new MiniCssExtractPlugin({ filename: '[name].[hash].css', chunkFilename: '[id].[hash].css' }),
                 new CopyWebpackPlugin([{ from: resolve(CONFIG.assetsDir) }]),
             ]
             : [
