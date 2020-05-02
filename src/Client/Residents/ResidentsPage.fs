@@ -1,4 +1,4 @@
-﻿module Client.Buildings.BuildingsPage
+﻿module Client.Residents.ResidentsPage
 
 open System
 open Elmish
@@ -11,79 +11,36 @@ open Feliz.ElmishComponents
 open Shared.Domain
 open Client
 open Client.ClientStyle
-open Client.SortableTable
-
-type SortableAttribute =
-    | Code
-    | Name
-    | OrganizationNumber
-    | Street
-    | ZipCode
-    | Town
-    | IsActive
-    member me.ToString' () =
-        match me with
-        | Code -> "Code"
-        | Name -> "Naam"
-        | OrganizationNumber -> "OndernemingsNr"
-        | Street -> "Straat"
-        | ZipCode -> "Postcode"
-        | Town -> "Plaats"
-        | IsActive -> "Actief"
-    member me.StringValueOf': BuildingListItem -> string =
-        match me with
-        | Name -> (fun li -> li.Name)
-        | Code -> (fun li -> li.Code)
-        | OrganizationNumber -> (fun li -> li.OrganizationNumber |> Option.defaultValue "")
-        | Street -> (fun li -> li.Address.Street)
-        | ZipCode -> (fun li -> li.Address.ZipCode)
-        | Town -> (fun li -> li.Address.Town)
-        | IsActive -> (fun li -> if li.IsActive then "Ja" else "Nee")
-        | _ -> (fun li -> printf "Something went wrong..."; "")
-    member me.Compare': BuildingListItem -> BuildingListItem -> int =
-        match me with
-        | IsActive -> 
-            fun li otherLi -> 
-                if li.IsActive = otherLi.IsActive then 0 
-                elif li.IsActive && not otherLi.IsActive then 1 else -1
-        | _        -> 
-            fun li otherLi ->
-                let result = me.StringValueOf'(li).CompareTo(me.StringValueOf'(otherLi))
-                result
-    static member All = [ Code; Name; OrganizationNumber; Street; ZipCode; Town; IsActive ]
-    interface ISortableAttribute<BuildingListItem> with
-        member me.ToString = me.ToString'
-        member me.StringValueOf = me.StringValueOf'
-        member me.Compare li otherLi = me.Compare' li otherLi
+open Client.Components.SimpleResidentComponent
 
 type State = {
     CurrentUser: CurrentUser
-    SelectedListItems: BuildingListItem list
+    SelectedListItems: ResidentListItem list
     SelectedTab: Tab
     LoadingListItems: bool
-    ListItems: BuildingListItem list
+    ListItems: ResidentListItem list
 }
 and Tab =
     | List
-    | Details of BuildingListItem
+    | Details of ResidentListItem
     | New
 type Msg =
-    | AddDetailTab of BuildingListItem
-    | RemoveDetailTab of BuildingListItem
+    | AddDetailTab of ResidentListItem
+    | RemoveDetailTab of ResidentListItem
     | SelectTab of Tab
     | RemotingError of exn
-    | Loaded of listItems: BuildingListItem list * selectedListItemId: Guid option
-    | RemoveListItem of BuildingListItem
-    | ListItemRemoved of Result<BuildingListItem, InvariantError>
-    | Created of Building
-    | Edited of Building
+    | Loaded of listItems: ResidentListItem list * selectedListItemId: Guid option
+    | RemoveListItem of ResidentListItem
+    | ListItemRemoved of Result<ResidentListItem, InvariantError>
+    | Created of Resident
+    | Edited of Resident
 
-type BuildingsPageProps = {|
+type LotsPageProps = {|
     CurrentUser: CurrentUser
-    BuildingId: Guid option
+    ResidentId: Guid option
 |}
 
-let init (props: BuildingsPageProps) =
+let init (props: LotsPageProps) =
     let state = { 
         CurrentUser = props.CurrentUser
         SelectedListItems = []
@@ -94,43 +51,45 @@ let init (props: BuildingsPageProps) =
     
     let cmd =
         Cmd.OfAsync.either
-            (Remoting.getRemotingApi().GetBuildings)
+            (Remoting.getRemotingApi().GetResidents)
             ()
-            (fun buildings -> Loaded (buildings, props.BuildingId))
+            (fun residents -> Loaded (residents, props.ResidentId))
             RemotingError
     state, cmd
 
 let update (msg: Msg) (state: State): State * Cmd<Msg> =
-    let toListItem (building: Building): BuildingListItem = {
-        BuildingId = building.BuildingId
-        IsActive = building.IsActive
-        Code = building.Code
-        Name = building.Name
-        Address = building.Address
-        OrganizationNumber = building.OrganizationNumber
+    let toListItem (resident: Resident): ResidentListItem = {
+        ResidentId = resident.ResidentId
+        BuildingId = resident.BuildingId
+        FirstName = resident.Person.FirstName
+        LastName = resident.Person.LastName
+        IsActive = resident.IsActive
+        MovedInDate = resident.MovedInDate
+        MovedOutDate = resident.MovedOutDate
     }
 
     match msg with
     | AddDetailTab listItem ->
         let newlySelectedItems = 
-            if state.SelectedListItems |> List.exists (fun li -> li.BuildingId = listItem.BuildingId)
+            if state.SelectedListItems |> List.exists (fun li -> li.ResidentId = listItem.ResidentId)
             then state.SelectedListItems
             else listItem::state.SelectedListItems
-            |> List.sortBy (fun li -> li.Code)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }, Routing.navigateToPage (Routing.Page.BuildingDetails listItem.BuildingId)
+            |> List.sortBy (fun li -> li.LastName)
+            |> List.sortBy (fun li -> li.FirstName)
+        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }, Routing.navigateToPage (Routing.Page.ResidentDetails listItem.ResidentId)
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
-            |> List.filter (fun li -> li.BuildingId <> listItem.BuildingId)
+            |> List.filter (fun li -> li.ResidentId <> listItem.ResidentId)
         { state with SelectedListItems = updatedTabs; SelectedTab = List }, Cmd.none
     | SelectTab tab ->
         { state with SelectedTab = tab }, Cmd.none
-    | Loaded (buildings, selectedBuildingId) ->
-        let newState = { state with ListItems = buildings; LoadingListItems = false }
+    | Loaded (residents, selectedResidentId) ->
+        let newState = { state with ListItems = residents; LoadingListItems = false }
         let cmd =
-            match selectedBuildingId with
-            | Some selectedBuildingId ->
-                let selectedListItem = buildings |> List.tryFind (fun building -> building.BuildingId = selectedBuildingId)
+            match selectedResidentId with
+            | Some selectedResidentId ->
+                let selectedListItem = residents |> List.tryFind (fun listItem -> listItem.ResidentId = selectedResidentId)
                 match selectedListItem with
                 | Some selected -> AddDetailTab selected |> Cmd.ofMsg
                 | None -> Cmd.none
@@ -139,16 +98,16 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | RemoveListItem building ->
         let cmd =
             Cmd.OfAsync.either
-                (Remoting.getRemotingApi().DeleteBuilding)
-                building.BuildingId
+                (Remoting.getRemotingApi().DeleteLot)
+                building.ResidentId
                 (fun r -> r |> Result.map (fun _ -> building) |> ListItemRemoved)
                 RemotingError
 
         let newSelection =
-            state.SelectedListItems |> List.filter (fun selected -> selected.BuildingId <> building.BuildingId)
+            state.SelectedListItems |> List.filter (fun selected -> selected.ResidentId <> building.ResidentId)
 
         let newItems =
-            state.ListItems |> List.filter (fun item -> item.BuildingId <> building.BuildingId)
+            state.ListItems |> List.filter (fun item -> item.ResidentId <> building.ResidentId)
 
         { state with SelectedListItems = newSelection; ListItems = newItems }, cmd
     | ListItemRemoved result ->
@@ -159,15 +118,15 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | RemotingError e ->
         //TODO.
         state, Cmd.none
-    | Created building ->
-        let listItem = toListItem building
+    | Created resident ->
+        let listItem = toListItem resident
         let newListItems = listItem :: state.ListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
         { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
-    | Edited building ->
-        let listItem = toListItem building
-        let newListItems = state.ListItems |> List.map (fun li -> if li.BuildingId = building.BuildingId then listItem else li)
-        let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.BuildingId = building.BuildingId then listItem else li)
+    | Edited resident ->
+        let listItem = toListItem resident
+        let newListItems = state.ListItems |> List.map (fun li -> if li.ResidentId = resident.ResidentId then listItem else li)
+        let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.ResidentId = resident.ResidentId then listItem else li)
         { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
@@ -192,12 +151,12 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     yield li [ Class Bootstrap.navItem ] [
                         a 
                             [ Class (determineNavItemStyle (Details selected)); OnClick (fun _ -> SelectTab (Details selected) |> dispatch) ] 
-                            [ str (sprintf "%s: %s" selected.Code selected.Name) ]
+                            [ str (sprintf "%s %s" selected.LastName selected.FirstName) ]
                     ]
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle New); OnClick (fun _ -> SelectTab New |> dispatch) ] 
-                        [ str "Nieuw gebouw" ]
+                        [ str "Nieuwe bewoner" ]
                 ]
             ]
         ]
@@ -206,7 +165,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             SortableTable.render 
                 {|
                     ListItems = state.ListItems
-                    DisplayAttributes = SortableAttribute.All
+                    DisplayAttributes = SortableResidentListItemAttribute.All
                     ExtraColumnHeaders = [ 
                         th [] []; 
                         th [] [] 
@@ -242,16 +201,16 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             match state.SelectedTab with
             | List -> list state
             | Details listItem -> 
-                BuildingDetails.render 
+                ResidentDetails.render 
                     {| 
                         CurrentUser = state.CurrentUser 
-                        Identifier = listItem.BuildingId
+                        Identifier = listItem.ResidentId
                         IsNew = false
                         NotifyCreated = fun b -> dispatch (Created b)
                         NotifyEdited = fun b -> dispatch (Edited b)
                     |}
             | New ->
-                BuildingDetails.render 
+                ResidentDetails.render 
                     {| 
                         CurrentUser = state.CurrentUser 
                         Identifier = Guid.NewGuid()
@@ -262,5 +221,5 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
         ]
     ]
 
-let render (props: BuildingsPageProps) =
-    React.elmishComponent ("BuildingsPage", init props, update, view)
+let render (props: LotsPageProps) =
+    React.elmishComponent ("LotsPage", init props, update, view)

@@ -4,11 +4,13 @@ open System
 open Elmish
 open Fable
 open Fable.React
+open Fable.React.Props
 open Feliz
 open Feliz.ElmishComponents
 
 open Shared.Domain
 open Client
+open Client.ClientStyle
 
 open Shared.Buildings
 
@@ -119,121 +121,133 @@ let view (model: Model) (dispatch: Msg -> unit) =
             div [] [ str "TODO: editeren en aanmaken van gebouwen" ]
     | Viewing detail ->
         div [] [
-            fieldset [] [
-                legend [] [ h2 [] [ str "Algemeen" ] ]
-                div [] [
-                    label [] [ str "Code" ]
-                    p [] [ str detail.Code ]
-                ]
-                div [] [
-                    label [] [ str "Naam" ]
-                    p [] [ str detail.Name ]
-                ]
-                div [] [
-                    label [] [ str "Adres" ]
-                    p [] [ str detail.Address.Street ]
-                ]
-                div [] [
-                    label [] [ str "Postcode" ]
-                    p [] [ str detail.Address.ZipCode ]
-                ]
-                div [] [
-                    label [] [ str "Woonplaats" ]
-                    p [] [ str detail.Address.Town ]
-                ]
-                div [] [
-                    match detail.OrganizationNumber with
-                    | Some number ->
-                        label [] [ str "Ondernemingsnummer" ]
-                        p [] [ str number ]
-                    | None ->
-                        null
-                ]
-                div [] [
-                    match detail.Remarks with
-                    | Some remarks ->
-                        label [] [ str "Opmerkingen" ]
-                        p [] [ str remarks ]
-                    | None ->
-                        null
-                ]
-                div [] [
-                    match detail.GeneralMeetingFrom, detail.GeneralMeetingUntil with
-                    | Some from, Some until ->
-                        label [] [ str "Periode algemene vergadering: " ]
-                        p [] [ str (sprintf "Tussen %s en %s" (from.ToString("dd-MM-yyyy")) (until.ToString("dd-MM-yyyy"))) ]
-                    | _ ->
-                        null
-                ]
-                div [] [
-                    label [] [ str "Actief" ]
-                    p [] [ str (if detail.IsActive then "Ja" else "Nee") ]
-                ]
-            ]
-            match detail.Concierge with
-            | Some concierge ->
+            div [] [
                 fieldset [] [
-                    legend [] [ h2 [] [ str "Concierge" ] ]
-                    let person, isResident = 
-                        match concierge with 
-                        | Concierge.Resident resident -> resident.Person, true 
-                        | Concierge.NonResident person -> person, false
-
+                    legend [] [ h2 [] [ str "Algemeen" ] ]
                     div [] [
-                        label [] [ str "Opmerking: je kan een inwoner linken aan een concierge, in dat geval worden gegevens automatisch geupdated wanneer de inwoner geupdated wordt" ]
-                        label [] [ str "Inwoner van het gebouw?" ]
-                        p [] [ str (if isResident then "Ja" else "Nee") ]
+                        label [] [ str "Code" ]
+                        p [] [ str detail.Code ]
                     ]
                     div [] [
                         label [] [ str "Naam" ]
-                        p [] [ str person.LastName ]
+                        p [] [ str detail.Name ]
                     ]
                     div [] [
-                        label [] [ str "Voornaam" ]
-                        p [] [ str person.FirstName ]
+                        label [] [ str "Adres" ]
+                        p [] [ str detail.Address.Street ]
                     ]
                     div [] [
-                        label [] [ str "Contactgegevens" ]
-                        p [] [ str "TODO..." ]
+                        label [] [ str "Postcode" ]
+                        p [] [ str detail.Address.ZipCode ]
+                    ]
+                    div [] [
+                        label [] [ str "Woonplaats" ]
+                        p [] [ str detail.Address.Town ]
+                    ]
+                    div [] [
+                        match detail.OrganizationNumber with
+                        | Some number ->
+                            label [] [ str "Ondernemingsnummer" ]
+                            p [] [ str number ]
+                        | None ->
+                            null
+                    ]
+                    div [] [
+                        match detail.Remarks with
+                        | Some remarks ->
+                            label [] [ str "Opmerkingen" ]
+                            p [] [ str remarks ]
+                        | None ->
+                            null
+                    ]
+                    div [] [
+                        match detail.GeneralMeetingFrom, detail.GeneralMeetingUntil with
+                        | Some from, Some until ->
+                            label [] [ str "Periode algemene vergadering: " ]
+                            p [] [ str (sprintf "Tussen %s en %s" (from.ToString("dd-MM-yyyy")) (until.ToString("dd-MM-yyyy"))) ]
+                        | _ ->
+                            null
+                    ]
+                    div [] [
+                        label [] [ str "Actief" ]
+                        p [] [ str (if detail.IsActive then "Ja" else "Nee") ]
                     ]
                 ]
-            | None ->
-                null
-            match detail.Syndic with
-            | Some syndic ->
-                let person = 
-                    match syndic with
-                    | Syndic.Resident resident -> resident.Person
-                    | Syndic.ProfessionalSyndic pro -> pro.Person
-                    | Syndic.Other person -> person
+                match detail.Concierge with
+                | Some concierge ->
+                    fieldset [] [
+                        legend [] [ h2 [] [ str "Concierge" ] ]
+                        let person, isResident = 
+                            match concierge with 
+                            | Concierge.Resident resident -> resident.Person, true 
+                            | Concierge.NonResident person -> person, false
 
-                fieldset [] [
-                    legend [] [ h2 [] [ str "Syndicus" ] ]
-                    div [] [
-                        label [] [ str "Net als bij de concierge, kan ook een inwoner gekoppeld worden aan de syndicus (of een pro syndicus -> nog in te stellen)" ]
-                        label [] [ str "Type" ]
-                        p [] [ 
-                            str (match syndic with 
-                                | Syndic.Resident _ -> "Inwoner"
-                                | Syndic.ProfessionalSyndic _ -> "Professionele syndicus"
-                                | Syndic.Other _ -> "Andere")  
+                        div [] [
+                            label [] [ str "Opmerking: je kan een inwoner linken aan een concierge, in dat geval worden gegevens automatisch geupdated wanneer de inwoner geupdated wordt" ]
+                            label [] [ str "Inwoner van het gebouw?" ]
+                            p [] [ str (if isResident then "Ja" else "Nee") ]
+                        ]
+                        div [] [
+                            label [] [ str "Naam" ]
+                            p [] [ str person.LastName ]
+                        ]
+                        div [] [
+                            label [] [ str "Voornaam" ]
+                            p [] [ str person.FirstName ]
+                        ]
+                        div [] [
+                            label [] [ str "Contactgegevens" ]
+                            p [] [ str "TODO..." ]
                         ]
                     ]
-                    div [] [
-                        label [] [ str "Naam" ]
-                        p [] [ str person.LastName ]
+                | None ->
+                    null
+                match detail.Syndic with
+                | Some syndic ->
+                    let person = 
+                        match syndic with
+                        | Syndic.Resident resident -> resident.Person
+                        | Syndic.ProfessionalSyndic pro -> pro.Person
+                        | Syndic.Other person -> person
+
+                    fieldset [] [
+                        legend [] [ h2 [] [ str "Syndicus" ] ]
+                        div [] [
+                            label [] [ str "Net als bij de concierge, kan ook een inwoner gekoppeld worden aan de syndicus (of een pro syndicus -> nog in te stellen)" ]
+                            label [] [ str "Type" ]
+                            p [] [ 
+                                str (match syndic with 
+                                    | Syndic.Resident _ -> "Inwoner"
+                                    | Syndic.ProfessionalSyndic _ -> "Professionele syndicus"
+                                    | Syndic.Other _ -> "Andere")  
+                            ]
+                        ]
+                        div [] [
+                            label [] [ str "Naam" ]
+                            p [] [ str person.LastName ]
+                        ]
+                        div [] [
+                            label [] [ str "Voornaam" ]
+                            p [] [ str person.FirstName ]
+                        ]
+                        div [] [
+                            label [] [ str "Contactgegevens" ]
+                            p [] [ str "TODO..." ]
+                        ]
                     ]
-                    div [] [
-                        label [] [ str "Voornaam" ]
-                        p [] [ str person.FirstName ]
-                    ]
-                    div [] [
-                        label [] [ str "Contactgegevens" ]
-                        p [] [ str "TODO..." ]
-                    ]
-                ]
-            | None ->
-                null
+                | None ->
+                    null
+            ]
+            Client.Components.SimpleLotComponent.render 
+                {| 
+                    Key = "LotsForBuilding"
+                    GetLots = (fun _ -> Remoting.getRemotingApi().GetLotsForBuilding detail.BuildingId) 
+                |}
+            Client.Components.SimpleResidentComponent.render 
+                {| 
+                    Key = "ResidentsForBuilding"
+                    GetResidents = (fun _ -> Remoting.getRemotingApi().GetResidentsForBuilding detail.BuildingId) 
+                |}
         ]
 
 

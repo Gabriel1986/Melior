@@ -26,7 +26,7 @@ module Query =
         {
             BuildingId = Guid.NewGuid()
             IsActive = true
-            Code = "BUILD01"
+            Code = "BUILD02"
             Name = "Gebouw met alles ingevuld"
             Address = {
                 Street = "Teststraat"
@@ -41,6 +41,7 @@ module Query =
                     PersonId = Guid.NewGuid()
                     FirstName = "Joske"
                     LastName = "Vermeulen"
+                    LetterPreamble = "Mr."
                     MainAddress = {
                         Street = "Trammezandlei 122"
                         ZipCode = "2900"
@@ -53,13 +54,13 @@ module Query =
                     }
                     Gender = Gender.Male
                     OtherAddresses = []
-                    BankAccount = None
                 }
             )
             Syndic = Some (Syndic.Other {
                     PersonId = Guid.NewGuid()
                     FirstName = "Jeanneke"
                     LastName = "Vermeulen"
+                    LetterPreamble = "Mr."
                     MainAddress = {
                         Street = "Trammezandlei 122"
                         ZipCode = "2900"
@@ -70,9 +71,8 @@ module Query =
                         Name = "Nederlands"
                         Code = "nl-be"
                     }
-                    Gender = Gender.Female true
+                    Gender = Gender.Female
                     OtherAddresses = []
-                    BankAccount = None
                 }
             )
         }

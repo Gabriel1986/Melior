@@ -30,7 +30,8 @@ let view (state: State) (dispatch: Msg -> unit) =
     div [] [
         div [] [
             button [ OnClick (fun _ -> Msg.OpenPage BuildingList |> dispatch) ] [ str "Gebouwen" ]
-            button [] [ str "Bewoners (TODO)" ]
+            button [ OnClick (fun _ -> Msg.OpenPage ResidentList |> dispatch) ] [ str "Bewoners" ]
+            button [ OnClick (fun _ -> Msg.OpenPage LotList |> dispatch) ] [ str "Kavels" ]
             button [] [ str "Organisaties (TODO)" ]
             button [] [ str "Gebruikers (TODO)" ]
         ]

@@ -38,31 +38,48 @@ let view (state: NavbarState) (dispatch: NavbarMsg -> unit) =
         | Some (Page.Portal) -> Some NavigablePage.Portal
         | Some (Page.BuildingList)
         | Some (Page.BuildingDetails _) -> Some NavigablePage.BuildingList
-        | _ -> None
+        | Some (Page.ResidentList)
+        | Some (Page.ResidentDetails _) -> Some NavigablePage.ResidentList
+        | Some (Page.LotList)
+        | Some (Page.LotDetails _) -> Some NavigablePage.LotList
+        | Some (Page.NotFound) -> None
+        | None -> None
 
     let determineStyle navigablePage =
         let extraClasses =
             match currentlySelectedNavigablePage with
             | Some currentNavigablePage when navigablePage = currentNavigablePage -> 
-                [ MeliorStyle.active ]
+                [ Bootstrap.active ]
             | _ -> 
                 []
-        String.Join(" ", MeliorStyle.navLink::extraClasses)
+        String.Join(" ", Bootstrap.navLink::extraClasses)
 
-    nav [ Class (sprintf "%s %s %s %s" MeliorStyle.navbar MeliorStyle.navbarExpandLg MeliorStyle.navbarDark MeliorStyle.bgDark) ] [ 
-        a [ Class MeliorStyle.navbarBrand; Href "#" ] [ str "Top secret project" ]
-        ul [ Class MeliorStyle.navbarNav ] [ 
-            li [ Class MeliorStyle.navItem ] [ 
+    nav [ Class (sprintf "%s %s %s %s" Bootstrap.navbar Bootstrap.navbarExpandLg Bootstrap.navbarDark Bootstrap.bgDark) ] [ 
+        a [ Class Bootstrap.navbarBrand; Href "#" ] [ str "Top secret project" ]
+        ul [ Class Bootstrap.navbarNav ] [ 
+            li [ Class Bootstrap.navItem ] [ 
                 a [ 
                     Class (determineStyle NavigablePage.Portal)
                     OnClick (fun _ -> NavigateToPage NavigablePage.Portal |> dispatch) 
                 ] [ str "Portaal" ]
             ]
-            li [ Class MeliorStyle.navItem ] [
+            li [ Class Bootstrap.navItem ] [
                 a [ 
                     Class (determineStyle NavigablePage.BuildingList)
                     OnClick (fun _ -> NavigateToPage NavigablePage.BuildingList |> dispatch) 
                 ] [ str "Gebouwen" ]
+            ]
+            li [ Class Bootstrap.navItem ] [
+                a [
+                    Class (determineStyle NavigablePage.ResidentList)
+                    OnClick (fun _ -> NavigateToPage NavigablePage.ResidentList |> dispatch)
+                ] [ str "Bewoners" ]
+            ]
+            li [ Class Bootstrap.navItem ] [
+                a [
+                    Class (determineStyle NavigablePage.LotList)
+                    OnClick (fun _ -> NavigateToPage NavigablePage.LotList |> dispatch)
+                ] [ str "Kavels" ]
             ]
         ]
     ]

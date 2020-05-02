@@ -86,28 +86,42 @@ module Domain =
 
     and Lot = {
         LotId: Guid
-        BuildingId: Guid
+        Building: {| BuildingId: Guid; Code: string |}
+        Code: string
         LotType: LotType
-        Description: string
+        Description: string option
         //Which floor this lot is on
         Floor: int
         //Surface in square metres, if necessary, could be calculated in square feet
         Surface: int
         IsActive: bool
-        LinkedResidents: ResidentListItem []
     }
     and LotType =
         | Appartment
         | ParkingSpace
         | Store
+        | PlaceOfBusiness
         | Garage
         | Basement
+        | Storage
         | Other
+        override me.ToString() =
+            match me with
+            | Appartment -> "Appartement"
+            | ParkingSpace -> "Parkeerplaats"
+            | Store -> "Winkel"
+            | PlaceOfBusiness -> "Bedrijfsruimte"
+            | Garage -> "Garage"
+            | Basement -> "Kelder"
+            | Storage -> "Opslagruimte"
+            | Other -> "Andere"
     and LotListItem = {
         LotId: Guid
-        BuildingId: Guid
+        Building: {| BuildingId: Guid; Code: string |}
+        Code: string
         LotType: LotType
-        Description: string
+        Floor: int
+        Description: string option
         IsActive: bool
     }
 
@@ -136,13 +150,14 @@ module Domain =
         LastName: string
         Language: Language
         Gender: Gender
+        //Sir, Madame, etc.
+        LetterPreamble: string
         MainAddress: Address
         OtherAddresses: Address list
-        BankAccount: BankAccount option
     }
     and Gender =
         | Male
-        | Female of married: bool
+        | Female
         | Other
     and Language = {
         LanguageId: Guid
@@ -155,8 +170,8 @@ module Domain =
     //A same person can also be a resident of multiple buildings
     and Resident = {
         ResidentId: Guid
-        Person: Person
         BuildingId: Guid
+        Person: Person
         IsActive: bool
         MovedInDate: DateTimeOffset
         MovedOutDate: DateTimeOffset option
@@ -169,7 +184,7 @@ module Domain =
         EndDate: DateTimeOffset option
     }
     and ResidentListItem = {
-        PersonId: Guid
+        ResidentId: Guid
         BuildingId: Guid
         FirstName: string
         LastName: string

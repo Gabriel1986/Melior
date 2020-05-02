@@ -6,10 +6,26 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="ClientStyle.fs" />
+    <Compile Include="SortableTable.fs" />
     <Compile Include="Version.fs" />
     <None Include="paket.references" />
     <None Include="style.scss" />
-    <None Include="public\styles\bootstrap.min.css.map" />
+    <None Include="public\webfonts\fa-brands-400.svg" />
+    <None Include="public\webfonts\fa-brands-400.woff2" />
+    <None Include="public\webfonts\fa-regular-400.svg" />
+    <None Include="public\webfonts\fa-regular-400.woff2" />
+    <None Include="public\webfonts\fa-solid-900.svg" />
+    <None Include="public\webfonts\fa-solid-900.woff2" />
+    <Content Include="public\webfonts\fa-brands-400.eot" />
+    <Content Include="public\webfonts\fa-brands-400.ttf" />
+    <Content Include="public\webfonts\fa-brands-400.woff" />
+    <Content Include="public\webfonts\fa-regular-400.eot" />
+    <Content Include="public\webfonts\fa-regular-400.ttf" />
+    <Content Include="public\webfonts\fa-regular-400.woff" />
+    <Content Include="public\webfonts\fa-solid-900.eot" />
+    <Content Include="public\webfonts\fa-solid-900.ttf" />
+    <Content Include="public\webfonts\fa-solid-900.woff" />
+    <Content Include="public\styles\fontawesome.all.min.css" />
     <Content Include="public\styles\bootstrap.min.css" />
     <Content Include="public\assets\favicon-16x16.ico" />
     <Content Include="public\assets\favicon-32x32.ico" />
@@ -24,6 +40,10 @@
     <Compile Include="Components\SimpleOrganizationComponent.fs" />
     <Compile Include="Components\SimpleResidentComponent.fs" />
     <Compile Include="Components\SimpleLotComponent.fs" />
+    <Compile Include="Residents\ResidentDetails.fs" />
+    <Compile Include="Residents\ResidentsPage.fs" />
+    <Compile Include="Lots\LotDetails.fs" />
+    <Compile Include="Lots\LotsPage.fs" />
     <Compile Include="Buildings\BuildingDetails.fs" />
     <Compile Include="Buildings\BuildingsPage.fs" />
     <Compile Include="PortalPage.fs" />

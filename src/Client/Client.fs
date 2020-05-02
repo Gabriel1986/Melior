@@ -16,9 +16,12 @@ open Routing
 open Client
 open Client.Buildings
 open Client.ClientStyle
+open Client.Residents
+open Client.Lots
 
 module Client =
     importAll "./public/styles/bootstrap.min.css"
+    importAll "./public/styles/fontawesome.all.min.css"
 
     type ClientState =
         | Initializing
@@ -68,16 +71,38 @@ module Client =
             | _ ->
                 state, Cmd.none
 
+    let private shouldChangePage (oldPage: Page) (newPage: Page) =
+        match oldPage with
+        | Page.BuildingDetails _
+        | Page.BuildingList -> 
+            match newPage with 
+            | Page.BuildingDetails _ 
+            | Page.BuildingList -> false
+            | _ -> true
+        | Page.ResidentDetails _
+        | Page.ResidentList ->
+            match newPage with
+            | Page.ResidentDetails _
+            | Page.ResidentList -> false
+            | _ -> true
+        | Page.LotDetails _
+        | Page.LotList ->
+            match newPage with
+            | Page.LotDetails _
+            | Page.LotList -> false
+            | _ -> true
+        | _ -> true
+
     let view (state: ClientState) (dispatch: ClientMessage -> unit) =
         match state with
         | Initializing ->
             div [] [                
                 Navbar.render {| CurrentPage = None; CurrentUser = None |}
-                div [ Class MeliorStyle.py3 ] [ h2 [] [ str "De app wordt gestart" ] ] 
+                div [ Class Bootstrap.py3 ] [ h2 [] [ str "De app wordt gestart" ] ] 
             ]
         | Running runningState ->
             let currentPage =
-                div [ Class (sprintf "%s %s" MeliorStyle.containerFluid MeliorStyle.py3) ] [
+                div [ Class (sprintf "%s %s" Bootstrap.containerFluid Bootstrap.py3) ] [
                     match runningState.CurrentPage with
                     | Page.Portal -> 
                         PortalPage.render {| CurrentUser = runningState.CurrentUser |}
@@ -85,13 +110,26 @@ module Client =
                         BuildingsPage.render {| CurrentUser = runningState.CurrentUser; BuildingId = None |}
                     | Page.BuildingDetails buildingId ->
                         BuildingsPage.render {| CurrentUser = runningState.CurrentUser; BuildingId = Some buildingId |}
+                    | Page.ResidentList ->
+                        ResidentsPage.render {| CurrentUser = runningState.CurrentUser; ResidentId = None |}
+                    | Page.ResidentDetails residentId ->
+                        ResidentsPage.render {| CurrentUser = runningState.CurrentUser; ResidentId = Some residentId |}
+                    | Page.LotList ->
+                        LotsPage.render {| CurrentUser = runningState.CurrentUser; LotId = None |}
+                    | Page.LotDetails lotId ->
+                        LotsPage.render {| CurrentUser = runningState.CurrentUser; LotId = Some lotId |}
                     | Page.NotFound        -> div [] [ p [] [ str "Pagina werd niet gevonden." ] ]
                 ]
 
             div [] [
                 Navbar.render {| CurrentPage = Some runningState.CurrentPage; CurrentUser = Some runningState.CurrentUser |}
                 Router.router [
-                    Router.onUrlChanged (Routing.parseUrl >> ChangePage >> dispatch)
+                    Router.onUrlChanged (fun urlParts ->
+                        let newPage = Routing.parseUrl urlParts
+                        if runningState.CurrentPage = newPage then ()
+                        elif shouldChangePage runningState.CurrentPage newPage then ChangePage newPage |> dispatch
+                        else ()
+                    )
                     Router.application currentPage
                 ]
             ]

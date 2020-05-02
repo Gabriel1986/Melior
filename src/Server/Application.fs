@@ -52,6 +52,30 @@ module Application =
             GetBuildings = fun () ->
                 createMsg ()
                 |> Server.Buildings.Query.getBuildings connectionString
+            GetLotsForBuilding = fun buildingId ->
+                createMsg buildingId
+                |> Server.Lots.Query.getLotsForBuilding connectionString
+            GetResidentsForBuilding = fun buildingId ->
+                createMsg buildingId
+                |> Server.Residents.Query.getResidentsForBuilding connectionString
+            DeleteResident = fun residentId ->
+                createMsg residentId
+                |> Server.Residents.Workflow.deleteResident connectionString
+            GetResidents = fun () ->
+                createMsg ()
+                |> Server.Residents.Query.getResidents connectionString
+            GetResident = fun residentId ->
+                createMsg residentId
+                |> Server.Residents.Query.getResident connectionString
+            DeleteLot = fun lotId ->
+                createMsg lotId
+                |> Server.Lots.Workflow.deleteLot connectionString
+            GetLots = fun () ->
+                createMsg ()
+                |> Server.Lots.Query.getLots connectionString
+            GetLot = fun lotId ->
+                createMsg lotId
+                |> Server.Lots.Query.getLot connectionString
         }
 
 
