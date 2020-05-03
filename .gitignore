@@ -9,4 +9,6 @@ bin/
 output/
 .fake/
 temp/
+deploy/
 settings.json
+.vs/
