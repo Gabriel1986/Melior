@@ -37,5 +37,9 @@
     "webpack-dev-server": "^3.1.14",
     "whatwg-fetch": "^3.0.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "flatpickr": "^4.6.3",
+    "react-flatpickr": "^3.10.0",
+    "sweetalert2": "^8.14.0"
+  }
 }

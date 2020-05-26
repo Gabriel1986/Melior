@@ -1,4 +1,4 @@
-﻿module ResidentDetails
+﻿module Client.Owners.OwnerDetails
 
 open Fable.React
 

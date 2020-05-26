@@ -6,9 +6,13 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="ClientStyle.fs" />
+    <Compile Include="Components\BasicModal.fs" />
+    <Compile Include="Components\OrganizationNumberEditComponent.fs" />
+    <Compile Include="Components\AddressEditComponent.fs" />
+    <Compile Include="Components\PersonViewComponent.fs" />
+    <Compile Include="Components\PersonEditComponent.fs" />
     <Compile Include="SortableTable.fs" />
     <Compile Include="Version.fs" />
-    <None Include="paket.references" />
     <None Include="style.scss" />
     <None Include="public\webfonts\fa-brands-400.svg" />
     <None Include="public\webfonts\fa-brands-400.woff2" />
@@ -25,6 +29,7 @@
     <Content Include="public\webfonts\fa-solid-900.eot" />
     <Content Include="public\webfonts\fa-solid-900.ttf" />
     <Content Include="public\webfonts\fa-solid-900.woff" />
+    <Content Include="public\styles\flatpickr.css" />
     <Content Include="public\styles\fontawesome.all.min.css" />
     <Content Include="public\styles\bootstrap.min.css" />
     <Content Include="public\assets\favicon-16x16.ico" />
@@ -36,14 +41,18 @@
     <None Include="public\assets\mini_logo.svg" />
     <Compile Include="Remoting.fs" />
     <Compile Include="Routing.fs" />
-    <Compile Include="Components\SimpleContactMethodComponent.fs" />
-    <Compile Include="Components\SimpleOrganizationComponent.fs" />
-    <Compile Include="Components\SimpleResidentComponent.fs" />
-    <Compile Include="Components\SimpleLotComponent.fs" />
-    <Compile Include="Residents\ResidentDetails.fs" />
-    <Compile Include="Residents\ResidentsPage.fs" />
+    <Compile Include="ProfessionalSyndic\ProfessionalSyndicsPage.fs" />
+    <Compile Include="ProfessionalSyndic\ProfessionalSyndicDetails.fs" />
+    <Compile Include="Organizations\OrganizationDetails.fs" />
+    <Compile Include="Organizations\OrganizationPage.fs" />
+    <Compile Include="Owners\OwnerDetails.fs" />
+    <Compile Include="Owners\OwnersPage.fs" />
     <Compile Include="Lots\LotDetails.fs" />
     <Compile Include="Lots\LotsPage.fs" />
+    <Compile Include="Buildings\ConciergeModal.fs" />
+    <Compile Include="Buildings\SyndicModal.fs" />
+    <Compile Include="Buildings\BuildingViewComponent.fs" />
+    <Compile Include="Buildings\BuildingEditComponent.fs" />
     <Compile Include="Buildings\BuildingDetails.fs" />
     <Compile Include="Buildings\BuildingsPage.fs" />
     <Compile Include="PortalPage.fs" />

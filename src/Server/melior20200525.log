@@ -1,0 +1,219 @@
+2020-05-25 08:09:02.893 +02:00 [ERR] An 'NpgsqlException' exception with message 'Exception while connecting' happened during migration
+Npgsql.NpgsqlException (0x80004005): Exception while connecting
+ ---> System.Net.Sockets.SocketException (10061): No connection could be made because the target machine actively refused it.
+   at Npgsql.NpgsqlConnector.Connect(NpgsqlTimeout timeout)
+   at Npgsql.NpgsqlConnector.Connect(NpgsqlTimeout timeout)
+   at Npgsql.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.ConnectorPool.AllocateLong(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<>c__DisplayClass32_0.<<Open>g__OpenLong|0>d.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at Npgsql.NpgsqlConnection.Open()
+   at SimpleMigrations.DatabaseProvider.DatabaseProviderBaseWithAdvisoryLock..ctor(DbConnection connection)
+   at SimpleMigrations.DatabaseProvider.PostgresqlDatabaseProvider..ctor(DbConnection connection)
+   at Server.Migrations.run@9.Invoke(NpgsqlConnection connection) in C:\Workspace\Melior\src\Server\Migrations.fs:line 12
+2020-05-25 08:11:27.251 +02:00 [ERR] An 'NpgsqlException' exception with message 'Exception while connecting' happened during migration
+Npgsql.NpgsqlException (0x80004005): Exception while connecting
+ ---> System.Net.Sockets.SocketException (10061): No connection could be made because the target machine actively refused it.
+   at Npgsql.NpgsqlConnector.Connect(NpgsqlTimeout timeout)
+   at Npgsql.NpgsqlConnector.Connect(NpgsqlTimeout timeout)
+   at Npgsql.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.ConnectorPool.AllocateLong(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<>c__DisplayClass32_0.<<Open>g__OpenLong|0>d.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at Npgsql.NpgsqlConnection.Open()
+   at SimpleMigrations.DatabaseProvider.DatabaseProviderBaseWithAdvisoryLock..ctor(DbConnection connection)
+   at SimpleMigrations.DatabaseProvider.PostgresqlDatabaseProvider..ctor(DbConnection connection)
+   at Server.Migrations.run@9.Invoke(NpgsqlConnection connection) in C:\Workspace\Melior\src\Server\Migrations.fs:line 12
+2020-05-25 08:23:39.950 +02:00 [ERR] Something went wrong while trying to retrieve multiple rows of data.
+System.AggregateException: One or more errors occurred. (Exception while connecting)
+ ---> Npgsql.NpgsqlException (0x80004005): Exception while connecting
+ ---> System.Net.Internals.SocketExceptionFactory+ExtendedSocketException (10061): No connection could be made because the target machine actively refused it. 127.0.0.1:5432
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(Exception source)
+   at System.Net.Sockets.Socket.EndConnect(IAsyncResult asyncResult)
+   at System.Net.Sockets.Socket.<>c.<ConnectAsync>b__274_0(IAsyncResult iar)
+--- End of stack trace from previous location where exception was thrown ---
+   at Npgsql.TaskExtensions.WithCancellation(Task task, CancellationToken cancellationToken)
+   at Npgsql.TaskExtensions.WithTimeout(Task task, NpgsqlTimeout timeout)
+   at Npgsql.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.ConnectorPool.AllocateLong(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<>c__DisplayClass32_0.<<Open>g__OpenLong|0>d.MoveNext()
+   --- End of inner exception stack trace ---
+2020-05-25 08:25:21.134 +02:00 [ERR] ErrorOutput at /remoting/RemotingApi/CreatePerson on method CreatePerson
+2020-05-25 08:25:21.138 +02:00 [ERR] Exception
+System.AggregateException: One or more errors occurred. (Exception while connecting)
+ ---> Npgsql.NpgsqlException (0x80004005): Exception while connecting
+ ---> System.Net.Internals.SocketExceptionFactory+ExtendedSocketException (10061): No connection could be made because the target machine actively refused it. 127.0.0.1:5432
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(Exception source)
+   at System.Net.Sockets.Socket.EndConnect(IAsyncResult asyncResult)
+   at System.Net.Sockets.Socket.<>c.<ConnectAsync>b__274_0(IAsyncResult iar)
+--- End of stack trace from previous location where exception was thrown ---
+   at Npgsql.TaskExtensions.WithCancellation(Task task, CancellationToken cancellationToken)
+   at Npgsql.TaskExtensions.WithTimeout(Task task, NpgsqlTimeout timeout)
+   at Npgsql.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.ConnectorPool.AllocateLong(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<>c__DisplayClass32_0.<<Open>g__OpenLong|0>d.MoveNext()
+   --- End of inner exception stack trace ---
+   at Server.PostgreSQL.Sql.writeAsync@28.Invoke(FSharpResult`2 _arg1) in C:\Workspace\Melior\src\Server\PostgreSQL.fs:line 32
+   at Npgsql.FSharp.Async.map@19-1.Invoke(a _arg1)
+   at Microsoft.FSharp.Control.AsyncPrimitives.CallThenInvokeNoHijackCheck[a,b](AsyncActivation`1 ctxt, FSharpFunc`2 userCode, b result1) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 417
+   at <StartupCode$FSharp-Core>.$Async.Return@1066.Invoke(AsyncActivation`1 ctxt) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 1066
+   at Microsoft.FSharp.Control.Trampoline.Execute(FSharpFunc`2 firstAction) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 109
+2020-05-25 08:26:42.083 +02:00 [ERR] ErrorOutput at /remoting/RemotingApi/CreatePerson on method CreatePerson
+2020-05-25 08:26:42.085 +02:00 [ERR] Exception
+System.AggregateException: One or more errors occurred. (42804: column "mainaddress" is of type json but expression is of type text)
+ ---> Npgsql.PostgresException (0x80004005): 42804: column "mainaddress" is of type json but expression is of type text
+   at Npgsql.NpgsqlConnector.<>c__DisplayClass160_0.<<DoReadMessage>g__ReadMessageLong|0>d.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at Npgsql.NpgsqlConnector.<>c__DisplayClass160_0.<<DoReadMessage>g__ReadMessageLong|0>d.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming)
+   at Npgsql.NpgsqlCommand.ExecuteReaderAsync(CommandBehavior behavior, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteNonQuery(Boolean async, CancellationToken cancellationToken)
+  Exception data:
+    Severity: ERROR
+    SqlState: 42804
+    MessageText: column "mainaddress" is of type json but expression is of type text
+    Hint: You will need to rewrite or cast the expression.
+    Position: 751
+    File: parse_target.c
+    Line: 592
+    Routine: transformAssignedExpr
+   --- End of inner exception stack trace ---
+   at Server.PostgreSQL.Sql.writeAsync@28.Invoke(FSharpResult`2 _arg1) in C:\Workspace\Melior\src\Server\PostgreSQL.fs:line 32
+   at Npgsql.FSharp.Async.map@19-1.Invoke(a _arg1)
+   at Microsoft.FSharp.Control.AsyncPrimitives.CallThenInvokeNoHijackCheck[a,b](AsyncActivation`1 ctxt, FSharpFunc`2 userCode, b result1) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 417
+   at <StartupCode$FSharp-Core>.$Async.Return@1066.Invoke(AsyncActivation`1 ctxt) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 1066
+   at Microsoft.FSharp.Control.Trampoline.Execute(FSharpFunc`2 firstAction) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 109
+2020-05-25 08:29:13.584 +02:00 [INF] Migrating DB
+2020-05-25 08:29:13.704 +02:00 [INF] Finished migrating db
+2020-05-25 08:29:24.762 +02:00 [INF] Migrating DB
+2020-05-25 08:29:24.841 +02:00 [INF] Finished migrating db
+2020-05-25 08:29:48.006 +02:00 [INF] Migrating DB
+2020-05-25 08:29:48.088 +02:00 [INF] Finished migrating db
+2020-05-25 08:30:24.127 +02:00 [INF] Migrating DB
+2020-05-25 08:30:24.210 +02:00 [INF] Finished migrating db
+2020-05-25 08:31:43.089 +02:00 [ERR] ErrorOutput at /remoting/RemotingApi/CreatePerson on method CreatePerson
+2020-05-25 08:31:43.094 +02:00 [ERR] Exception
+System.AggregateException: One or more errors occurred. (42601: syntax error at or near "as")
+ ---> Npgsql.PostgresException (0x80004005): 42601: syntax error at or near "as"
+   at Npgsql.NpgsqlConnector.<>c__DisplayClass160_0.<<DoReadMessage>g__ReadMessageLong|0>d.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at Npgsql.NpgsqlConnector.<>c__DisplayClass160_0.<<DoReadMessage>g__ReadMessageLong|0>d.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming)
+   at Npgsql.NpgsqlCommand.ExecuteReaderAsync(CommandBehavior behavior, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteNonQuery(Boolean async, CancellationToken cancellationToken)
+  Exception data:
+    Severity: ERROR
+    SqlState: 42601
+    MessageText: syntax error at or near "as"
+    Position: 755
+    File: scan.l
+    Line: 1149
+    Routine: scanner_yyerror
+   --- End of inner exception stack trace ---
+   at Server.PostgreSQL.Sql.writeAsync@28.Invoke(FSharpResult`2 _arg1) in C:\Workspace\Melior\src\Server\PostgreSQL.fs:line 32
+   at Npgsql.FSharp.Async.map@19-1.Invoke(a _arg1)
+   at Microsoft.FSharp.Control.AsyncPrimitives.CallThenInvokeNoHijackCheck[a,b](AsyncActivation`1 ctxt, FSharpFunc`2 userCode, b result1) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 417
+   at <StartupCode$FSharp-Core>.$Async.Return@1066.Invoke(AsyncActivation`1 ctxt) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 1066
+   at Microsoft.FSharp.Control.Trampoline.Execute(FSharpFunc`2 firstAction) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 109
+2020-05-25 08:38:21.259 +02:00 [INF] Migrating DB
+2020-05-25 08:38:21.357 +02:00 [INF] Finished migrating db
+2020-05-25 08:45:05.335 +02:00 [ERR] Something went wrong while trying to retrieve a single row of data.
+System.AggregateException: One or more errors occurred. (42601: syntax error at or near "NOT")
+ ---> Npgsql.PostgresException (0x80004005): 42601: syntax error at or near "NOT"
+   at Npgsql.NpgsqlConnector.<>c__DisplayClass160_0.<<DoReadMessage>g__ReadMessageLong|0>d.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at Npgsql.NpgsqlConnector.<>c__DisplayClass160_0.<<DoReadMessage>g__ReadMessageLong|0>d.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming)
+   at Npgsql.NpgsqlCommand.ExecuteReaderAsync(CommandBehavior behavior, Boolean async, CancellationToken cancellationToken)
+  Exception data:
+    Severity: ERROR
+    SqlState: 42601
+    MessageText: syntax error at or near "NOT"
+    Position: 178
+    File: scan.l
+    Line: 1149
+    Routine: scanner_yyerror
+   --- End of inner exception stack trace ---
+2020-05-25 08:47:24.327 +02:00 [INF] Migrating DB
+2020-05-25 08:47:24.408 +02:00 [INF] Finished migrating db
+2020-05-25 08:52:31.544 +02:00 [ERR] Something went wrong while trying to retrieve a single row of data.
+System.Exception: Could not read column 'BuildingId' as guid. Available columns are [buildingid:uuid], [isactive:boolean], [code:character varying(16)], [name:character varying(255)], [address:json], [organizationnumber:character varying(10)], [remarks:character varying], [generalmeetingfrom:date], [generalmeetinguntil:date], [conciergepersonid:uuid], [conciergeownerid:uuid], [syndicownerid:uuid], [syndicprofessionalsyndicid:uuid], [syndicpersonid:uuid], [yearofconstruction:integer], [yearofdelivery:integer]
+   at Microsoft.FSharp.Core.PrintfModule.PrintFormatToStringThenFail@1637.Invoke(String message) in E:\A\_work\130\s\src\fsharp\FSharp.Core\printf.fs:line 1637
+   at Server.Buildings.Query.Readers.readBuilding(RowReader reader) in C:\Workspace\Melior\src\Server\Buildings\Query.fs:line 33
+   at Server.Buildings.Query.getBuilding@101-1.Invoke(RowReader reader) in C:\Workspace\Melior\src\Server\Buildings\Query.fs:line 101
+   at Npgsql.FSharp.SqlModule.executeRowAsync@744-11.Invoke(NpgsqlDataReader _arg6)
+   at Microsoft.FSharp.Control.AsyncPrimitives.CallThenInvoke[T,TResult](AsyncActivation`1 ctxt, TResult result1, FSharpFunc`2 part2) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 398
+   at Microsoft.FSharp.Control.Trampoline.Execute(FSharpFunc`2 firstAction) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 109
+2020-05-25 08:53:51.554 +02:00 [INF] Migrating DB
+2020-05-25 08:53:51.635 +02:00 [INF] Finished migrating db
+2020-05-25 08:53:52.862 +02:00 [ERR] Something went wrong while trying to retrieve a single row of data.
+System.Exception: Could not read column 'IsActive' as bool. Available columns are [buildingid:uuid], [isactive:boolean], [code:character varying(16)], [name:character varying(255)], [address:json], [organizationnumber:character varying(10)], [remarks:character varying], [generalmeetingfrom:date], [generalmeetinguntil:date], [conciergepersonid:uuid], [conciergeownerid:uuid], [syndicownerid:uuid], [syndicprofessionalsyndicid:uuid], [syndicpersonid:uuid], [yearofconstruction:integer], [yearofdelivery:integer]
+   at Microsoft.FSharp.Core.PrintfModule.PrintFormatToStringThenFail@1637.Invoke(String message) in E:\A\_work\130\s\src\fsharp\FSharp.Core\printf.fs:line 1637
+   at Server.Buildings.Query.Readers.readBuilding(RowReader reader) in C:\Workspace\Melior\src\Server\Buildings\Query.fs:line 33
+   at Server.Buildings.Query.getBuilding@101-1.Invoke(RowReader reader) in C:\Workspace\Melior\src\Server\Buildings\Query.fs:line 101
+   at Npgsql.FSharp.SqlModule.executeRowAsync@744-11.Invoke(NpgsqlDataReader _arg6)
+   at Microsoft.FSharp.Control.AsyncPrimitives.CallThenInvoke[T,TResult](AsyncActivation`1 ctxt, TResult result1, FSharpFunc`2 part2) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 398
+   at Microsoft.FSharp.Control.Trampoline.Execute(FSharpFunc`2 firstAction) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 109
+2020-05-25 08:54:17.164 +02:00 [INF] Migrating DB
+2020-05-25 08:54:17.246 +02:00 [INF] Finished migrating db
+2020-05-25 08:54:23.181 +02:00 [ERR] Something went wrong while trying to retrieve a single row of data.
+System.AggregateException: One or more errors occurred. (42601: syntax error at or near "'BuildingId'")
+ ---> Npgsql.PostgresException (0x80004005): 42601: syntax error at or near "'BuildingId'"
+   at Npgsql.NpgsqlConnector.<>c__DisplayClass160_0.<<DoReadMessage>g__ReadMessageLong|0>d.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at Npgsql.NpgsqlConnector.<>c__DisplayClass160_0.<<DoReadMessage>g__ReadMessageLong|0>d.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming)
+   at Npgsql.NpgsqlCommand.ExecuteReaderAsync(CommandBehavior behavior, Boolean async, CancellationToken cancellationToken)
+  Exception data:
+    Severity: ERROR
+    SqlState: 42601
+    MessageText: syntax error at or near "'BuildingId'"
+    Position: 61
+    File: scan.l
+    Line: 1149
+    Routine: scanner_yyerror
+   --- End of inner exception stack trace ---
+2020-05-25 08:55:10.050 +02:00 [INF] Migrating DB
+2020-05-25 08:55:10.132 +02:00 [INF] Finished migrating db
+2020-05-25 08:56:03.967 +02:00 [INF] Migrating DB
+2020-05-25 08:56:04.050 +02:00 [INF] Finished migrating db
+2020-05-25 08:57:13.403 +02:00 [INF] Migrating DB
+2020-05-25 08:57:13.487 +02:00 [INF] Finished migrating db
+2020-05-25 08:57:35.405 +02:00 [ERR] Something went wrong while trying to retrieve a single row of data.
+System.Exception: Could not read column 'BuildingId' as guid. Available columns are [buildingid:uuid], [isactive:boolean], [code:character varying(16)], [name:character varying(255)], [address:json], [organizationnumber:character varying(10)], [remarks:character varying], [generalmeetingfrom:date], [generalmeetinguntil:date], [conciergepersonid:uuid], [conciergeownerid:uuid], [syndicownerid:uuid], [syndicprofessionalsyndicid:uuid], [syndicpersonid:uuid], [yearofconstruction:integer], [yearofdelivery:integer]
+   at Microsoft.FSharp.Core.PrintfModule.PrintFormatToStringThenFail@1637.Invoke(String message) in E:\A\_work\130\s\src\fsharp\FSharp.Core\printf.fs:line 1637
+   at Server.Buildings.Query.Readers.readBuilding(RowReader reader) in C:\Workspace\Melior\src\Server\Buildings\Query.fs:line 33
+   at Server.Buildings.Query.getBuilding@101-1.Invoke(RowReader reader) in C:\Workspace\Melior\src\Server\Buildings\Query.fs:line 101
+   at Npgsql.FSharp.SqlModule.executeRowAsync@744-11.Invoke(NpgsqlDataReader _arg6)
+   at Microsoft.FSharp.Control.AsyncPrimitives.CallThenInvoke[T,TResult](AsyncActivation`1 ctxt, TResult result1, FSharpFunc`2 part2) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 398
+   at Microsoft.FSharp.Control.Trampoline.Execute(FSharpFunc`2 firstAction) in E:\A\_work\130\s\src\fsharp\FSharp.Core\async.fs:line 109
+2020-05-25 08:57:58.298 +02:00 [INF] Migrating DB
+2020-05-25 08:57:58.382 +02:00 [INF] Finished migrating db
+2020-05-25 08:59:08.203 +02:00 [INF] Migrating DB
+2020-05-25 08:59:08.285 +02:00 [INF] Finished migrating db
+2020-05-25 09:01:01.436 +02:00 [INF] Migrating DB
+2020-05-25 09:01:01.519 +02:00 [INF] Finished migrating db
+2020-05-25 09:01:33.431 +02:00 [INF] Migrating DB
+2020-05-25 09:01:33.514 +02:00 [INF] Finished migrating db
+2020-05-25 09:14:59.508 +02:00 [INF] Migrating DB
+2020-05-25 09:14:59.587 +02:00 [INF] Finished migrating db
+2020-05-25 09:33:44.949 +02:00 [INF] Migrating DB
+2020-05-25 09:33:45.041 +02:00 [INF] Finished migrating db
+2020-05-25 10:06:15.250 +02:00 [INF] Migrating DB
+2020-05-25 10:06:15.346 +02:00 [INF] Finished migrating db
+2020-05-25 11:04:06.108 +02:00 [INF] Migrating DB
+2020-05-25 11:04:06.189 +02:00 [INF] Finished migrating db
+2020-05-25 11:04:21.134 +02:00 [INF] Migrating DB
+2020-05-25 11:04:21.214 +02:00 [INF] Finished migrating db

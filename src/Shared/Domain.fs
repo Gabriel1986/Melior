@@ -1,18 +1,36 @@
 namespace Shared
 
 open System
+open System.Globalization
+open Library
+
+//Kavels -> toevoegen aandeel (= facturatie begrip) (= quotiteit volgens wetgeving)
+
+//Verdeelsleutels ->
+//	Vaste 10 verdeelsleutels
 
 module Domain =
+    open ConstrainedTypes
+
+    type GeneralMeetingPeriod = {
+        FromDay: int
+        FromMonth: int
+        UntilDay: int
+        UntilMonth: int
+    }
+
     type CurrentUser = {
         UserId: Guid
         EmailAddress: string
         DisplayName: string
         PersonId: Guid
         Role: Role
+        IsActive: bool
         BuildingIds: Guid list
+        PreferredLanguageCode: string
     }
     and Role =
-        | Resident
+        | Owner
         | Syndic
         | SysAdmin
 
@@ -23,48 +41,84 @@ module Domain =
             Code: string
             Name: string
             Address: Address
-            OrganizationNumber: string option
+            OrganizationNumber: OrganizationNumber option
             Remarks: string option
-            GeneralMeetingFrom: DateTimeOffset option
-            GeneralMeetingUntil: DateTimeOffset option
+            GeneralMeetingPeriod: GeneralMeetingPeriod option
             Concierge: Concierge option
             Syndic: Syndic option
+            YearOfConstruction: int option
+            YearOfDelivery: int option
         }
-        static member Init buildingId = {
-            BuildingId = buildingId
+        static member Init () = {
+            BuildingId = Guid.NewGuid()
             IsActive = true
             Code = ""
             Name = ""
             Address = Address.Init
             OrganizationNumber = None
             Remarks = None
-            GeneralMeetingFrom = None
-            GeneralMeetingUntil = None
+            GeneralMeetingPeriod = None
             Concierge = None
             Syndic = None
+            YearOfConstruction = None
+            YearOfDelivery = None
+        }
+        member me.ToListItem (): BuildingListItem = {
+            BuildingId = me.BuildingId
+            IsActive = me.IsActive
+            Code = me.Code
+            Name = me.Name
+            Address = me.Address
+            OrganizationNumber = me.OrganizationNumber
         }
     and Address =
         {
             Street: string
             ZipCode: string
             Town: string
+            Country: string
         }
-        static member Init = { Street = ""; ZipCode = ""; Town = "" }
+        static member Init = { Street = ""; ZipCode = ""; Town = ""; Country = "België" }
+        override me.ToString () =
+            let street = defaultArg (me.Street |> String.toOption) ""
+            let zipCode = defaultArg (me.ZipCode |> String.toOption) ""
+            let town = defaultArg (me.Town |> String.toOption) ""
+            let country = defaultArg (me.Country |> String.toOption) ""
+
+            sprintf "%s, %s %s, %s" street zipCode town country
+    and OtherAddress = 
+        {
+            Name: string
+            Description: string
+            Address: Address
+        }
+        static member Init = {
+            Name = ""
+            Description = ""
+            Address = Address.Init
+        }
+
     and Concierge =
-        | Resident of Resident
-        | NonResident of Person
-    and ContactMethod = {
-        ContactMethodId: Guid
-        ContactMethodType: ContactMethodType
-        IsPrivate: bool
-        Description: string
-    }
+        | Owner of Owner
+        | NonOwner of Person
+    and ContactMethod = 
+        {
+            ContactMethodType: ContactMethodType
+            Value: string
+            Description: string
+        }
+        static member Init () = {
+            ContactMethodType = ContactMethodType.PhoneNumber
+            Value = ""
+            Description = ""
+        }
     and ContactMethodType =
-        | PhoneNumber of string
-        | EmailAddress of string
-        | WebSite of string
+        | PhoneNumber
+        | EmailAddress
+        | WebSite
+        | Other
     and Syndic =
-        | Resident of Resident
+        | Owner of Owner
         | ProfessionalSyndic of ProfessionalSyndic
         | Other of Person
 
@@ -74,19 +128,22 @@ module Domain =
         Code: string
         Name: string
         Address: Address
-        OrganizationNumber: string option
+        OrganizationNumber: OrganizationNumber option
     }
-    and BankAccount = {
-        CurrencyCode: string
-        BankAccountId: Guid
-        Number: string
-        Iban: string
-        Bic: string
-    }
+    //and BankAccount = {
+    //    CurrencyCode: string
+    //    BankAccountId: Guid
+    //    Number: string
+    //    Iban: string
+    //    Bic: string
+    //}
 
+    //Gemeenschappelijke ruimte
+    and CommonSpace = string list
     and Lot = {
         LotId: Guid
-        Building: {| BuildingId: Guid; Code: string |}
+        Building: {| BuildingId: Guid; Name: string |}
+        CurrentOwner: LotOwner
         Code: string
         LotType: LotType
         Description: string option
@@ -96,28 +153,30 @@ module Domain =
         Surface: int
         IsActive: bool
     }
+    and LotOwner =
+        | Person of {| PersonId: Guid; FirstName: string; LastName: string |}
+        | Organization of {| OrganizationId: Guid; Name: string |}
     and LotType =
         | Appartment
+        | Studio
         | ParkingSpace
-        | Store
-        | PlaceOfBusiness
+        | CommercialProperty
         | Garage
-        | Basement
         | Storage
         | Other
         override me.ToString() =
             match me with
             | Appartment -> "Appartement"
-            | ParkingSpace -> "Parkeerplaats"
-            | Store -> "Winkel"
-            | PlaceOfBusiness -> "Bedrijfsruimte"
+            | Studio -> "Studio"
+            | ParkingSpace -> "Staanplaats"
+            | CommercialProperty -> "Handelspand"
             | Garage -> "Garage"
-            | Basement -> "Kelder"
             | Storage -> "Opslagruimte"
             | Other -> "Andere"
     and LotListItem = {
         LotId: Guid
-        Building: {| BuildingId: Guid; Code: string |}
+        Building: {| BuildingId: Guid; Name: string |}
+        CurrentOwner: LotOwner
         Code: string
         LotType: LotType
         Floor: int
@@ -127,81 +186,116 @@ module Domain =
 
     //A (non-building) organization
     and Organization = {
-        OrganizationNumber: string
+        OrganizationId: Guid
+        OrganizationNumber: OrganizationNumber
         IsActive: bool
         OrganizationType: OrganizationType
         Name: string
         Address: Address
-        BankAccount: BankAccount option
+        MainContactPerson: ContactPerson
+        OtherContactPersons: ContactPerson list
+    }
+    and ContactPerson = {
+        OrganizationId: Guid
+        Person: Person
     }
     and OrganizationType = {
         OrganizationTypeId: Guid
         Name: string
     }
     and OrganizationListItem = {
-        OrganizationNumber: string
-        OrganizationType: OrganizationType
+        OrganizationId: Guid
+        OrganizationNumber: OrganizationNumber
+        OrganizationType: string
         Name: string
     }
     //A flesh and blood person
-    and Person = {
-        PersonId: Guid
-        FirstName: string
-        LastName: string
-        Language: Language
-        Gender: Gender
-        //Sir, Madame, etc.
-        LetterPreamble: string
-        MainAddress: Address
-        OtherAddresses: Address list
-    }
+    and Person = 
+        {
+            PersonId: Guid
+            FirstName: string option
+            LastName: string option
+            LanguageCode: string option
+            Gender: Gender
+            //Sir, Madame, etc.
+            Title: string option
+            MainAddress: Address
+            ContactAddress: ContactAddress
+            OtherAddresses: OtherAddress list
+            MainTelephoneNumber: string option
+            MainTelephoneNumberComment: string option
+            MainEmailAddress: string option
+            MainEmailAddressComment: string option
+            OtherContactMethods: ContactMethod list
+        }
+        static member Init () = {
+            PersonId = Guid.NewGuid()
+            FirstName = None
+            LastName = None
+            LanguageCode = Some "nl-BE"
+            Gender = Male
+            Title = None
+            MainAddress = Address.Init
+            ContactAddress = MainAddress
+            OtherAddresses = []
+            MainTelephoneNumber = None
+            MainTelephoneNumberComment = None
+            MainEmailAddress = None
+            MainEmailAddressComment = None
+            OtherContactMethods = []
+        }
+    and ContactAddress =
+        | MainAddress
+        | ContactAddress of Address
     and Gender =
         | Male
         | Female
         | Other
-    and Language = {
-        LanguageId: Guid
-        Name: string
-        //ISO 639-1 Code
-        Code: string
-    }
-    //This is a many to many link between persons and buildings
-    //In theory, the same person can be a resident multiple times for the same building (at different times)
-    //A same person can also be a resident of multiple buildings
-    and Resident = {
-        ResidentId: Guid
+        static member FromString (str: string) =
+            match str with
+            | x when x = string Male   -> Male
+            | x when x = string Female -> Female
+            | _                        -> Other
+
+    and Owner = {
         BuildingId: Guid
         Person: Person
         IsActive: bool
-        MovedInDate: DateTimeOffset
-        MovedOutDate: DateTimeOffset option
+        IsResident: bool
+        //Lots: LotListItem list
+    }
+    and Tenant = {
+        TenantId: Guid
+        Person: Person
+        IsActive: bool
+        MoveInDate: DateTimeOffset
+        MoveOutDate: DateTimeOffset option
+        //Lots: LotListItem list
     }
     and ProfessionalSyndic = {
         ProfessionalSyndicId: Guid
         Person: Person
         IsActive: bool
-        StartDate: DateTimeOffset
-        EndDate: DateTimeOffset option
     }
-    and ResidentListItem = {
-        ResidentId: Guid
+    and OwnerListItem = {
         BuildingId: Guid
+        PersonId: Guid
+        FirstName: string option
+        LastName: string option
+        IsResident: bool
+        IsActive: bool
+    }
+    and TenantListItem = {
+        TenantId: Guid
         FirstName: string
         LastName: string
         IsActive: bool
-        MovedInDate: DateTimeOffset
-        MovedOutDate: DateTimeOffset option
+        MoveInDate: DateTimeOffset
+        MoveOutDate: DateTimeOffset option
     }
     and ProfessionalSyndicListItem = {
         ProfessionalSyndicId: Guid
-        FirstName: string
-        LastName: string
+        FirstName: string option
+        LastName: string option
         IsActive: bool
-        StartDate: DateTimeOffset
-        EndDate: DateTimeOffset option
-    }
-
-    type InvariantError = {
-        Path: string option
-        Message: string
     }

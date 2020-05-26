@@ -1,27 +1,50 @@
 ﻿module Client.Routing
     open System
     open Elmish
+    open Shared.ConstrainedTypes
+
+    type BuildingSpecificListProps = {
+        BuildingId: Guid
+    }
+
+    type BuildingSpecificDetailProps = {
+        BuildingId: Guid
+        DetailId: Guid
+    }
 
     type Page =
         | Portal
         | BuildingList
         | BuildingDetails of Guid
-        | ResidentList
-        | ResidentDetails of Guid
-        | LotList
-        | LotDetails of Guid
+        | OwnerList of BuildingSpecificListProps
+        | OwnerDetails of BuildingSpecificDetailProps
+        | LotList of BuildingSpecificListProps
+        | LotDetails of BuildingSpecificDetailProps
+        | OrganizationList of BuildingSpecificListProps
+        | OrganizationDetails of BuildingSpecificDetailProps
         | NotFound
 
     type NavigablePage =
         | Portal
         | BuildingList
-        | ResidentList
-        | LotList
+        | OwnerList of BuildingSpecificListProps
+        | LotList of BuildingSpecificListProps
+        | OrganizationList of BuildingSpecificListProps
     
     let [<Literal>] private BuildingsPage: string = "buildings"
     let [<Literal>] private PortalPage: string = ""
-    let [<Literal>] private ResidentsPage: string = "residents"
+    let [<Literal>] private OwnersPage: string = "owners"
     let [<Literal>] private LotsPage: string = "lots"
+    let [<Literal>] private OrganizationsPage: string = "organizations"
+
+    let private navigateToDetailsPage (identifier: Guid) (page: string) =
+        Feliz.Router.Router.navigate(page, string identifier)
+
+    let private navigateToBuildingSpecificListPage (props: BuildingSpecificListProps) (page: string) =
+        Feliz.Router.Router.navigate(BuildingsPage, string props.BuildingId, page)
+
+    let private navigateToBuildingSpecificDetailsPage (props: BuildingSpecificDetailProps) (page: string) =
+        Feliz.Router.Router.navigate(BuildingsPage, string props.BuildingId, page, string props.DetailId)
 
     let navigateToPage =
         function
@@ -29,16 +52,20 @@
             Feliz.Router.Router.navigate(PortalPage)
         | Page.BuildingList -> 
             Feliz.Router.Router.navigate(BuildingsPage)
-        | Page.BuildingDetails buildingId -> 
-            Feliz.Router.Router.navigate(BuildingsPage, string buildingId)
-        | Page.ResidentList ->
-            Feliz.Router.Router.navigate(ResidentsPage)
-        | Page.ResidentDetails residentId ->
-            Feliz.Router.Router.navigate(ResidentsPage, string residentId)
-        | Page.LotList ->
-            Feliz.Router.Router.navigate(LotsPage)
-        | Page.LotDetails lotId ->
-            Feliz.Router.Router.navigate(LotsPage, string lotId)
+        | Page.BuildingDetails props ->
+            BuildingsPage |> navigateToDetailsPage props
+        | Page.OwnerList props ->
+            OwnersPage |> navigateToBuildingSpecificListPage props 
+        | Page.OwnerDetails props ->
+            OwnersPage |> navigateToBuildingSpecificDetailsPage props
+        | Page.LotList props ->
+            LotsPage |> navigateToBuildingSpecificListPage props
+        | Page.LotDetails props ->
+            LotsPage |> navigateToBuildingSpecificDetailsPage props
+        | Page.OrganizationList props ->
+            OrganizationsPage |> navigateToBuildingSpecificListPage props
+        | Page.OrganizationDetails props ->
+            OrganizationsPage |> navigateToBuildingSpecificDetailsPage props
         | Page.NotFound ->
             //Do nothing... you're not supposed to go to the loading or notfound page from code...
             Cmd.none
@@ -47,15 +74,28 @@
         function
         | NavigablePage.Portal -> navigateToPage Page.Portal
         | NavigablePage.BuildingList -> navigateToPage Page.BuildingList
-        | NavigablePage.ResidentList -> navigateToPage Page.ResidentList
-        | NavigablePage.LotList -> navigateToPage Page.LotList
+        | NavigablePage.OwnerList props -> navigateToPage (Page.OwnerList props)
+        | NavigablePage.LotList props  -> navigateToPage (Page.LotList props)
+        | NavigablePage.OrganizationList props -> navigateToPage (Page.OrganizationList props)
 
     let parseUrl = function
-        | [ ]                                                    -> Page.Portal
-        | [ BuildingsPage ]                                      -> Page.BuildingList
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId ] -> Page.BuildingDetails buildingId
-        | [ ResidentsPage ]                                      -> Page.ResidentList
-        | [ ResidentsPage ; Feliz.Router.Route.Guid residentId ] -> Page.ResidentDetails residentId
-        | [ LotsPage ]                                           -> Page.LotList
-        | [ LotsPage ; Feliz.Router.Route.Guid lotId ]           -> Page.LotDetails lotId
-        | _                                                      -> Page.NotFound
+        | [ ] -> 
+            Page.Portal
+        | [ BuildingsPage ] -> 
+            Page.BuildingList
+        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId ] -> 
+            Page.BuildingDetails buildingId
+        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; OwnersPage ] -> 
+            Page.OwnerList { BuildingId = buildingId }
+        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; OwnersPage ; Feliz.Router.Route.Guid personId ] -> 
+            Page.OwnerDetails { BuildingId = buildingId; DetailId = personId }
+        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; LotsPage ] -> 
+            Page.LotList { BuildingId = buildingId }
+        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; LotsPage ; Feliz.Router.Route.Guid lotId ] -> 
+            Page.LotDetails { BuildingId = buildingId; DetailId = lotId }
+        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; OrganizationsPage ] -> 
+            Page.OrganizationList { BuildingId = buildingId }
+        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; OrganizationsPage ; Feliz.Router.Route.Guid orgId ] -> 
+            Page.OrganizationDetails { BuildingId = buildingId; DetailId = orgId }
+        | _ -> 
+            Page.NotFound

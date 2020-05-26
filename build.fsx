@@ -53,14 +53,6 @@ let runDotNet cmd workingDir =
         DotNet.exec (DotNet.Options.withWorkingDirectory workingDir) cmd ""
     if result.ExitCode <> 0 then failwithf "'dotnet %s' failed in %s" cmd workingDir
 
-let openBrowser url =
-    //https://github.com/dotnet/corefx/issues/10361
-    Command.ShellCommand url
-    |> CreateProcess.fromCommand
-    |> CreateProcess.ensureExitCodeWithMessage "opening browser failed"
-    |> Proc.run
-    |> ignore
-
 Target.create "Clean" (fun _ ->
     [ deployDir
       clientDeployPath ]
@@ -110,15 +102,10 @@ Target.create "Run" (fun _ ->
     let client = async {
         runTool npxTool "webpack-dev-server" __SOURCE_DIRECTORY__
     }
-    let browser = async {
-        do! Async.Sleep 5000
-        openBrowser "http://localhost:8091"
-    }
 
     let tasks =
         [ yield server
-          yield client
-          yield browser ]
+          yield client ]
 
     tasks
     |> Async.Parallel

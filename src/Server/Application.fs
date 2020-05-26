@@ -2,7 +2,6 @@
 
 open System
 open Microsoft.AspNetCore.Http
-open Microsoft.Extensions.Hosting
 open Giraffe
 open Fable.Remoting.Server
 open Fable.Remoting.Giraffe
@@ -14,16 +13,16 @@ open Shared.Domain
 open FSharp.Control.Tasks
 open System.Net.Http
 open System.Threading.Tasks
+open Server.AppSettings
 
 module Application =
-    let meliorBff (ctx: HttpContext): RemotingApi = 
+    let meliorBff (settings: AppSettings) (ctx: HttpContext): RemotingApi = 
         let createMsg payload: Message<'T> = {
             CreatedAt = DateTimeOffset.Now
             Context = ctx
             Payload = payload
         } 
-        let connectionString = "TODO"
-        let buildingStorage = Buildings.Storage.buildStorage connectionString
+        let connectionString = settings.Database.ConnectionString
 
         {
             GetCurrentUser = fun _ -> async {
@@ -35,47 +34,64 @@ module Application =
                     PersonId = Guid.NewGuid()
                     Role = Role.SysAdmin
                     BuildingIds = []
+                    IsActive = true
+                    PreferredLanguageCode = "nl-BE"
                 }
             }
             CreateBuilding = fun building -> 
                 createMsg building
-                |> Server.Buildings.Workflow.createBuilding buildingStorage
+                |> Server.Buildings.Workflow.createBuilding connectionString
             UpdateBuilding = fun building ->
                 createMsg building
-                |> Server.Buildings.Workflow.updateBuilding buildingStorage
+                |> Server.Buildings.Workflow.updateBuilding connectionString
             DeleteBuilding = fun buildingId ->
                 createMsg buildingId
-                |> Server.Buildings.Workflow.deleteBuilding buildingStorage
+                |> Server.Buildings.Workflow.deleteBuilding connectionString
             GetBuilding = fun buildingId ->
-                createMsg buildingId
+                buildingId
                 |> Server.Buildings.Query.getBuilding connectionString
             GetBuildings = fun () ->
-                createMsg ()
+                ()
                 |> Server.Buildings.Query.getBuildings connectionString
-            GetLotsForBuilding = fun buildingId ->
-                createMsg buildingId
-                |> Server.Lots.Query.getLotsForBuilding connectionString
-            GetResidentsForBuilding = fun buildingId ->
-                createMsg buildingId
-                |> Server.Residents.Query.getResidentsForBuilding connectionString
-            DeleteResident = fun residentId ->
-                createMsg residentId
-                |> Server.Residents.Workflow.deleteResident connectionString
-            GetResidents = fun () ->
-                createMsg ()
-                |> Server.Residents.Query.getResidents connectionString
-            GetResident = fun residentId ->
-                createMsg residentId
-                |> Server.Residents.Query.getResident connectionString
+            DeleteOwner = fun ownerId ->
+                createMsg ownerId
+                |> Server.Owners.Workflow.deleteOwner connectionString
+            GetOwners = fun buildingFilter ->
+                {| BuildingId = buildingFilter.BuildingId |}
+                |> Server.Owners.Query.getOwners connectionString            
+            GetOwner = fun ownerId ->
+                ownerId
+                |> Server.Owners.Query.getOwner connectionString
             DeleteLot = fun lotId ->
                 createMsg lotId
                 |> Server.Lots.Workflow.deleteLot connectionString
-            GetLots = fun () ->
-                createMsg ()
+            GetLots = fun buildingFilter ->
+                {| BuildingId = buildingFilter.BuildingId |}
                 |> Server.Lots.Query.getLots connectionString
             GetLot = fun lotId ->
-                createMsg lotId
+                lotId
                 |> Server.Lots.Query.getLot connectionString
+            DeleteOrganization = fun orgNr ->
+                createMsg orgNr
+                |> Server.Organizations.Workflow.deleteOrganization connectionString
+            GetOrganizations = fun buildingFilter ->
+                {| BuildingId = buildingFilter.BuildingId |}
+                |> Server.Organizations.Query.getOrganizations connectionString
+            GetOrganization = fun orgNr ->
+                orgNr
+                |> Server.Organizations.Query.getOrganization connectionString
+            CreatePerson = fun pers ->
+                createMsg pers
+                |> Server.Persons.Workflow.createPerson connectionString
+            UpdatePerson = fun pers ->
+                createMsg pers
+                |> Server.Persons.Workflow.updatePerson connectionString
+            GetProfessionalSyndics = fun _ ->
+                ()
+                |> Server.ProfessionalSyndics.Query.getProfessionalSyndics connectionString
+            GetProfessionalSyndic = fun syndicId ->
+                syndicId
+                |> Server.ProfessionalSyndics.Query.getProfessionalSyndic connectionString
         }
 
 
@@ -86,7 +102,7 @@ module Application =
         logger.Error(ex, "Exception")
         Ignore
 
-    let build env next ctx =
+    let build (settings: AppSettings) next ctx =
         choose [
             route "/" >=> (fun next ctx -> 
                 #if DEBUG
@@ -106,7 +122,7 @@ module Application =
             )
             Remoting.createApi()
             |> Remoting.withRouteBuilder Shared.Remoting.routeBuilder
-            |> Remoting.fromContext meliorBff
+            |> Remoting.fromContext (meliorBff settings)
             |> Remoting.withDiagnosticsLogger (printfn "%s")
             |> Remoting.withErrorHandler errorHandler
             |> Remoting.buildHttpHandler

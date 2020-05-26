@@ -9,10 +9,12 @@ open Feliz
 open Feliz.ElmishComponents
 
 open Shared.Domain
+open Shared.Remoting
+open Shared.Buildings
+
 open Client
 open Client.ClientStyle
-
-open Shared.Buildings
+open Client.ClientStyle.Helpers
 
 type Model = {
     BuildingId: Guid
@@ -24,16 +26,19 @@ type Model = {
 and State =
     | Loading
     | Viewing  of detail: Building
-    | Editing  of detail: Building * isSaving: bool
-    | Creating of detail: Building * isSaving: bool
+    | Editing  of isSaving: bool * buildingEditState: BuildingEditComponent.State
+    | Creating of isSaving: bool * buildingEditState: BuildingEditComponent.State
     | BuildingNotFound
     | RemotingError of exn
 
 type Msg =
+    | BuildingEditMsg of BuildingEditComponent.Message
     | View of Building option
+    | Edit of Building
     | RemotingError of exn
     | Save
-    | ProcessSaveResult of Result<Building, InvariantError>
+    | ProcessCreateResult of Result<Building, CreateBuildingError>
+    | ProcessUpdateResult of Result<Building, UpdateBuildingError>
 
 type DetailsProps = {|
     CurrentUser: CurrentUser
@@ -53,10 +58,13 @@ let private getBuildingCmd buildingId =
 let init (props: DetailsProps): Model * Cmd<Msg> =
     let state, cmd =
         if props.IsNew then
-            Creating (Building.Init props.Identifier, false), Cmd.none
+            let building = { Building.Init () with BuildingId = props.Identifier }
+            let buildingEditState, buildingEditCmd = BuildingEditComponent.init building
+            Creating (false, buildingEditState), buildingEditCmd |> Cmd.map BuildingEditMsg
         else
             Loading, getBuildingCmd props.Identifier
-    { 
+
+    {
         CurrentUser = props.CurrentUser
         BuildingId = props.Identifier
         State = state
@@ -72,35 +80,62 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             { model with State = Viewing building }, Cmd.none
         | None ->
             { model with State = BuildingNotFound }, Cmd.none
+    | Edit building ->
+        let buildingEditState, buildingEditCmd = BuildingEditComponent.init building
+        { model with State = Editing (false, buildingEditState) }, buildingEditCmd |> Cmd.map BuildingEditMsg
+    | BuildingEditMsg componentMsg ->
+        let updateComponentState s (isSaving, componentState) =
+            let newComponentState, newComponentCmd = BuildingEditComponent.update componentMsg componentState
+            { model with State = s (isSaving, newComponentState) }, 
+            newComponentCmd |> Cmd.map BuildingEditMsg
+
+
+        match model.State with
+        | Editing (isSaving, componentState) ->
+            updateComponentState Editing (isSaving, componentState)
+        | Creating (isSaving, componentState) ->
+            updateComponentState Creating (isSaving, componentState)
+        | _ ->
+            model, Cmd.none            
     | Save ->
         match model.State with
-        | Editing (building, _) ->
+        | Editing (_, componentState) ->
             let cmd = 
                 Cmd.OfAsync.either
                     (Remoting.getRemotingApi().UpdateBuilding)
-                    (UpdateBuildingRequest.From building)
-                    (fun result -> result |> Result.map (fun _ -> building) |> ProcessSaveResult)
+                    (BuildingRequest.From componentState.Building)
+                    (fun result -> result |> Result.map (fun _ -> componentState.Building) |> ProcessUpdateResult)
                     RemotingError
-            { model with State = Editing (building, true) }, cmd
-        | Creating (building, _) ->
+            { model with State = Editing (true, componentState) }, cmd
+        | Creating (_, componentState) ->
             let cmd =
                 Cmd.OfAsync.either
                     (Remoting.getRemotingApi().CreateBuilding)
-                    (CreateBuildingRequest.From building)
-                    (fun result -> result |> Result.map (fun _ -> building) |> ProcessSaveResult)
+                    (BuildingRequest.From componentState.Building)
+                    (fun result -> result |> Result.map (fun _ -> componentState.Building) |> ProcessCreateResult)
                     RemotingError
-            { model with State = Creating(building, true) }, cmd
+            { model with State = Creating(true, componentState) }, cmd
         | _ ->
             //Do nothing, unexpected message O_o
             model, Cmd.none
     | RemotingError e ->
         { model with State = State.RemotingError e }, Cmd.none
-    | ProcessSaveResult result ->
+    | ProcessCreateResult result ->
+        match result with
+        | Ok result ->
+            match model.State with
+            | Creating _ -> model.NotifyCreated result
+            | _ -> ()
+            { model with State = Viewing result }, Cmd.none
+        | Error e ->
+            //TODO!
+            model, Cmd.none
+
+    | ProcessUpdateResult result ->
         match result with
         | Ok result ->
             match model.State with
             | Editing _ -> model.NotifyEdited result
-            | Creating _ -> model.NotifyCreated result
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
@@ -111,146 +146,39 @@ let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with
     | Loading ->  div [] [ str "Details worden geladen" ]
     | BuildingNotFound -> div [] [ str "Het door u gekozen gebouw werd niet gevonden in de databank..." ]
-    | State.RemotingError e -> div [] [ str "Er is iets misgelopen bij het ophalen van de gegevens, gelieve de pagina te verversen" ]
-    | Editing (detail, isSaving)
-    | Creating (detail, isSaving) ->
+    | State.RemotingError _ -> div [] [ str "Er is iets misgelopen bij het ophalen van de gegevens, gelieve de pagina te verversen" ]
+    | Editing (isSaving, editState)
+    | Creating (isSaving, editState) ->
         if isSaving 
         then
             div [] [ str "Het gebouw wordt bewaard" ]
         else
-            div [] [ str "TODO: editeren en aanmaken van gebouwen" ]
-    | Viewing detail ->
-        div [] [
             div [] [
-                fieldset [] [
-                    legend [] [ h2 [] [ str "Algemeen" ] ]
-                    div [] [
-                        label [] [ str "Code" ]
-                        p [] [ str detail.Code ]
-                    ]
-                    div [] [
-                        label [] [ str "Naam" ]
-                        p [] [ str detail.Name ]
-                    ]
-                    div [] [
-                        label [] [ str "Adres" ]
-                        p [] [ str detail.Address.Street ]
-                    ]
-                    div [] [
-                        label [] [ str "Postcode" ]
-                        p [] [ str detail.Address.ZipCode ]
-                    ]
-                    div [] [
-                        label [] [ str "Woonplaats" ]
-                        p [] [ str detail.Address.Town ]
-                    ]
-                    div [] [
-                        match detail.OrganizationNumber with
-                        | Some number ->
-                            label [] [ str "Ondernemingsnummer" ]
-                            p [] [ str number ]
-                        | None ->
-                            null
-                    ]
-                    div [] [
-                        match detail.Remarks with
-                        | Some remarks ->
-                            label [] [ str "Opmerkingen" ]
-                            p [] [ str remarks ]
-                        | None ->
-                            null
-                    ]
-                    div [] [
-                        match detail.GeneralMeetingFrom, detail.GeneralMeetingUntil with
-                        | Some from, Some until ->
-                            label [] [ str "Periode algemene vergadering: " ]
-                            p [] [ str (sprintf "Tussen %s en %s" (from.ToString("dd-MM-yyyy")) (until.ToString("dd-MM-yyyy"))) ]
-                        | _ ->
-                            null
-                    ]
-                    div [] [
-                        label [] [ str "Actief" ]
-                        p [] [ str (if detail.IsActive then "Ja" else "Nee") ]
+                BuildingEditComponent.view editState (BuildingEditMsg >> dispatch)
+                div [] [
+                    button [ 
+                        classes [ Bootstrap.btn; Bootstrap.btnSuccess ]
+                        OnClick (fun _ -> Save |> dispatch) 
+                    ] [
+                        str "Bewaren"
                     ]
                 ]
-                match detail.Concierge with
-                | Some concierge ->
-                    fieldset [] [
-                        legend [] [ h2 [] [ str "Concierge" ] ]
-                        let person, isResident = 
-                            match concierge with 
-                            | Concierge.Resident resident -> resident.Person, true 
-                            | Concierge.NonResident person -> person, false
-
-                        div [] [
-                            label [] [ str "Opmerking: je kan een inwoner linken aan een concierge, in dat geval worden gegevens automatisch geupdated wanneer de inwoner geupdated wordt" ]
-                            label [] [ str "Inwoner van het gebouw?" ]
-                            p [] [ str (if isResident then "Ja" else "Nee") ]
-                        ]
-                        div [] [
-                            label [] [ str "Naam" ]
-                            p [] [ str person.LastName ]
-                        ]
-                        div [] [
-                            label [] [ str "Voornaam" ]
-                            p [] [ str person.FirstName ]
-                        ]
-                        div [] [
-                            label [] [ str "Contactgegevens" ]
-                            p [] [ str "TODO..." ]
-                        ]
-                    ]
-                | None ->
-                    null
-                match detail.Syndic with
-                | Some syndic ->
-                    let person = 
-                        match syndic with
-                        | Syndic.Resident resident -> resident.Person
-                        | Syndic.ProfessionalSyndic pro -> pro.Person
-                        | Syndic.Other person -> person
-
-                    fieldset [] [
-                        legend [] [ h2 [] [ str "Syndicus" ] ]
-                        div [] [
-                            label [] [ str "Net als bij de concierge, kan ook een inwoner gekoppeld worden aan de syndicus (of een pro syndicus -> nog in te stellen)" ]
-                            label [] [ str "Type" ]
-                            p [] [ 
-                                str (match syndic with 
-                                    | Syndic.Resident _ -> "Inwoner"
-                                    | Syndic.ProfessionalSyndic _ -> "Professionele syndicus"
-                                    | Syndic.Other _ -> "Andere")  
-                            ]
-                        ]
-                        div [] [
-                            label [] [ str "Naam" ]
-                            p [] [ str person.LastName ]
-                        ]
-                        div [] [
-                            label [] [ str "Voornaam" ]
-                            p [] [ str person.FirstName ]
-                        ]
-                        div [] [
-                            label [] [ str "Contactgegevens" ]
-                            p [] [ str "TODO..." ]
-                        ]
-                    ]
-                | None ->
-                    null
             ]
-            Client.Components.SimpleLotComponent.render 
-                {| 
-                    Key = "LotsForBuilding"
-                    GetLots = (fun _ -> Remoting.getRemotingApi().GetLotsForBuilding detail.BuildingId) 
-                |}
-            Client.Components.SimpleResidentComponent.render 
-                {| 
-                    Key = "ResidentsForBuilding"
-                    GetResidents = (fun _ -> Remoting.getRemotingApi().GetResidentsForBuilding detail.BuildingId) 
-                |}
+    | Viewing detail ->
+        div [] [
+            BuildingViewComponent.render {| Building = detail |}
+            div [] [
+                button [ 
+                    classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
+                    OnClick (fun _ -> Edit detail |> dispatch) 
+                ] [
+                    str "Aanpassen"
+                ]
+            ]
         ]
 
 
+
 let render (props: DetailsProps) =
-    React.elmishComponent ("Details", init props, update, view, string props.Identifier)
+    React.elmishComponent ("BuildingDetails", init props, update, view, string props.Identifier)
 

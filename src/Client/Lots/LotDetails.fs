@@ -1,4 +1,4 @@
-﻿module LotDetails
+﻿module Client.Lots.LotDetails
 
 open Fable.React
 

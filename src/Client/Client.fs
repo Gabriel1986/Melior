@@ -1,5 +1,6 @@
 ﻿namespace Client
 
+open System
 open Elmish
 open Elmish.Debug
 open Elmish.React
@@ -16,12 +17,15 @@ open Routing
 open Client
 open Client.Buildings
 open Client.ClientStyle
-open Client.Residents
+open Client.ClientStyle.Helpers
+open Client.Owners
+open Client.Organizations
 open Client.Lots
 
 module Client =
     importAll "./public/styles/bootstrap.min.css"
     importAll "./public/styles/fontawesome.all.min.css"
+    importAll "./public/styles/flatpickr.css"
 
     type ClientState =
         | Initializing
@@ -29,6 +33,7 @@ module Client =
         | Stopped of fatalError: exn
     and RunningState = {
         CurrentUser: CurrentUser
+        CurrentBuilding: BuildingListItem option
         CurrentPage: Page
     }
 
@@ -37,6 +42,8 @@ module Client =
         | StopApplication of exn
         | PageNotFound
         | ChangePage of Routing.Page
+        | CurrentBuildingChanged of BuildingListItem
+        | ChangeCurrentBuildingAndPage of BuildingListItem * Routing.Page
 
     let init () =
         let cmd =
@@ -47,14 +54,43 @@ module Client =
                 StopApplication
         Initializing, cmd
 
+    let private fetchBuildingAndChangePage buildingId page =
+        Cmd.OfAsync.either
+            (Remoting.getRemotingApi().GetBuilding) 
+            buildingId
+            (fun result -> 
+                match result with 
+                | Some building -> ChangeCurrentBuildingAndPage (building.ToListItem(), page)
+                | None -> ChangePage NotFound)
+            StopApplication
+
+    let private setCurrentBuilding (running: RunningState) (newBuilding: BuildingListItem) =
+        let currentBuildingStr = Thoth.Json.Encode.Auto.toString(0, newBuilding)
+        Browser.WebStorage.localStorage.setItem("currentBuilding", currentBuildingStr)
+        { running with CurrentBuilding = Some newBuilding }
+
     let update (message: ClientMessage) (state: ClientState) =
         match message with
         | StartApplication currentUser ->
             let currentPage = Routing.parseUrl (Router.currentUrl ())
+            let currentBuilding = 
+                let currentBuildingStr = Browser.WebStorage.localStorage.getItem("currentBuilding")
+                if currentBuildingStr = null || currentBuildingStr.Length < 0 
+                then None
+                else 
+                    let r = Thoth.Json.Decode.Auto.fromString<BuildingListItem>(Browser.WebStorage.localStorage.getItem("currentBuilding"))
+                    match r with
+                    | Ok r -> 
+                        if currentUser.BuildingIds |> List.contains r.BuildingId then
+                            Some r
+                        else
+                            None
+                    | Error _ -> None
 
             Running {
                 CurrentUser = currentUser
                 CurrentPage = currentPage
+                CurrentBuilding = currentBuilding
             }, Cmd.none
         | StopApplication e ->
             Stopped e, Cmd.none
@@ -67,9 +103,41 @@ module Client =
         | ChangePage newPage ->
             match state with
             | Running running ->
-                Running { running with CurrentPage = newPage }, Cmd.none   
+                let currentBuildingId = running.CurrentBuilding |> Option.map (fun b -> b.BuildingId) |> Option.defaultValue (Guid.NewGuid())                
+                match newPage with
+                | Page.LotList props
+                | Page.OwnerList props
+                | Page.OrganizationList props when currentBuildingId <> props.BuildingId ->
+                    state, fetchBuildingAndChangePage props.BuildingId newPage
+                | Page.LotDetails props
+                | Page.OwnerDetails props
+                | Page.OrganizationDetails props when currentBuildingId <> props.BuildingId ->
+                    //Fetch building and set it as current building, then go to page.
+                    state, fetchBuildingAndChangePage props.BuildingId newPage
+                | _ ->
+                    Running { running with CurrentPage = newPage }, Cmd.none
             | _ ->
                 state, Cmd.none
+        | CurrentBuildingChanged newBuilding ->
+            match state with
+            | Running running ->
+                match running.CurrentBuilding with
+                | Some currentBuilding when currentBuilding.BuildingId = newBuilding.BuildingId ->
+                    state, Cmd.none
+                | _ ->
+                    let newState = setCurrentBuilding running newBuilding
+                    Running newState, Cmd.none
+            | _ ->
+                state, Cmd.none
+        | ChangeCurrentBuildingAndPage (newBuilding, newPage) ->
+            match state with
+            | Running running ->
+                let newRunningState = setCurrentBuilding running newBuilding
+                Running { newRunningState with CurrentPage = newPage }, Cmd.none
+            | _ ->
+                state, Cmd.none
+
+
 
     let private shouldChangePage (oldPage: Page) (newPage: Page) =
         match oldPage with
@@ -79,50 +147,104 @@ module Client =
             | Page.BuildingDetails _ 
             | Page.BuildingList -> false
             | _ -> true
-        | Page.ResidentDetails _
-        | Page.ResidentList ->
+        | Page.OwnerDetails _
+        | Page.OwnerList _ ->
             match newPage with
-            | Page.ResidentDetails _
-            | Page.ResidentList -> false
+            | Page.OwnerDetails _
+            | Page.OwnerList _ -> false
             | _ -> true
         | Page.LotDetails _
-        | Page.LotList ->
+        | Page.LotList _ ->
             match newPage with
             | Page.LotDetails _
-            | Page.LotList -> false
+            | Page.LotList _ -> false
             | _ -> true
         | _ -> true
+
+    let notFound = div [] [ p [] [ str "Pagina werd niet gevonden." ] ]
 
     let view (state: ClientState) (dispatch: ClientMessage -> unit) =
         match state with
         | Initializing ->
             div [] [                
-                Navbar.render {| CurrentPage = None; CurrentUser = None |}
+                Navbar.render {| CurrentPage = None; CurrentUser = None; CurrentBuilding = None |}
                 div [ Class Bootstrap.py3 ] [ h2 [] [ str "De app wordt gestart" ] ] 
             ]
         | Running runningState ->
             let currentPage =
-                div [ Class (sprintf "%s %s" Bootstrap.containerFluid Bootstrap.py3) ] [
-                    match runningState.CurrentPage with
-                    | Page.Portal -> 
-                        PortalPage.render {| CurrentUser = runningState.CurrentUser |}
-                    | Page.BuildingList ->
-                        BuildingsPage.render {| CurrentUser = runningState.CurrentUser; BuildingId = None |}
-                    | Page.BuildingDetails buildingId ->
-                        BuildingsPage.render {| CurrentUser = runningState.CurrentUser; BuildingId = Some buildingId |}
-                    | Page.ResidentList ->
-                        ResidentsPage.render {| CurrentUser = runningState.CurrentUser; ResidentId = None |}
-                    | Page.ResidentDetails residentId ->
-                        ResidentsPage.render {| CurrentUser = runningState.CurrentUser; ResidentId = Some residentId |}
-                    | Page.LotList ->
-                        LotsPage.render {| CurrentUser = runningState.CurrentUser; LotId = None |}
-                    | Page.LotDetails lotId ->
-                        LotsPage.render {| CurrentUser = runningState.CurrentUser; LotId = Some lotId |}
-                    | Page.NotFound        -> div [] [ p [] [ str "Pagina werd niet gevonden." ] ]
+                div [ classes [ Bootstrap.containerFluid; Bootstrap.py3 ] ] [
+                    match runningState.CurrentPage, runningState.CurrentBuilding with
+                    | Page.Portal, _ -> 
+                        PortalPage.render 
+                            {| 
+                                CurrentUser = runningState.CurrentUser
+                                CurrentBuildingId = 
+                                    runningState.CurrentBuilding 
+                                    |> Option.map (fun b -> b.BuildingId) 
+                            |}
+                    | Page.BuildingList, _ ->
+                        BuildingsPage.render 
+                            {| 
+                                CurrentUser = runningState.CurrentUser
+                                BuildingId = None
+                                CurrentBuildingId = runningState.CurrentBuilding |> Option.map (fun b -> b.BuildingId)
+                                OnCurrentBuildingChanged = (CurrentBuildingChanged >> dispatch)
+                            |}
+                    | Page.BuildingDetails buildingId, _ ->
+                        BuildingsPage.render 
+                            {| 
+                                CurrentUser = runningState.CurrentUser
+                                BuildingId = Some buildingId
+                                CurrentBuildingId = runningState.CurrentBuilding |> Option.map (fun b -> b.BuildingId)
+                                OnCurrentBuildingChanged = (CurrentBuildingChanged >> dispatch)
+                            |}
+                    | Page.OwnerList _, Some building ->
+                        OwnersPage.render 
+                            {| 
+                                CurrentUser = runningState.CurrentUser
+                                CurrentBuilding = building
+                                PersonId = None
+                            |}
+                    | Page.OwnerDetails props, Some building ->
+                        OwnersPage.render 
+                            {| 
+                                CurrentUser = runningState.CurrentUser
+                                CurrentBuilding = building
+                                PersonId = Some props.DetailId
+                            |}
+                    | Page.LotList _, Some building ->
+                        LotsPage.render 
+                            {| 
+                                CurrentUser = runningState.CurrentUser
+                                CurrentBuilding = building
+                                LotId = None
+                            |}
+                    | Page.LotDetails props, Some building ->
+                        LotsPage.render 
+                            {| 
+                                CurrentUser = runningState.CurrentUser
+                                CurrentBuilding = building
+                                LotId = Some props.DetailId
+                            |}                    
+                    | Page.OrganizationList _, Some building ->
+                        OrganizationsPage.render 
+                            {| 
+                                CurrentUser = runningState.CurrentUser
+                                CurrentBuilding = building
+                                OrganizationId = None
+                            |}
+                    | Page.OrganizationDetails props, Some building ->
+                        OrganizationsPage.render 
+                            {| 
+                                CurrentUser = runningState.CurrentUser
+                                CurrentBuilding = building
+                                OrganizationId = Some props.DetailId
+                            |}
+                    | _ -> notFound
                 ]
 
             div [] [
-                Navbar.render {| CurrentPage = Some runningState.CurrentPage; CurrentUser = Some runningState.CurrentUser |}
+                Navbar.render {| CurrentPage = Some runningState.CurrentPage; CurrentUser = Some runningState.CurrentUser; CurrentBuilding = runningState.CurrentBuilding |}
                 Router.router [
                     Router.onUrlChanged (fun urlParts ->
                         let newPage = Routing.parseUrl urlParts
@@ -135,7 +257,7 @@ module Client =
             ]
         | Stopped _ ->
             div [] [
-                Navbar.render {| CurrentPage = None; CurrentUser = None |}
+                Navbar.render {| CurrentPage = None; CurrentUser = None; CurrentBuilding = None |}
                 str "Er is iets misgelopen bij het laden van de applicatie."
             ]
 

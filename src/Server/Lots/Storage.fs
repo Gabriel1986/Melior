@@ -1,4 +1,3 @@
-﻿namespace Server.Lots
+﻿module Server.Lots.Storage
 
-module Storage =
-    ()
+()

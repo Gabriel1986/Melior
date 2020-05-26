@@ -1,6 +1,6 @@
 ﻿module Client.PortalPage
 
-open Shared.Domain
+open System
 open Elmish
 open Fable
 open Fable.React
@@ -8,18 +8,20 @@ open Fable.React.Props
 open Feliz
 open Feliz.ElmishComponents
 open Routing
+open Shared.Domain
 
 type State = {
     CurrentUser: CurrentUser
+    CurrentBuildingId: Guid option
 }
 
 type Msg =
     | OpenPage of NavigablePage
 
-type PortalPageProps = {| CurrentUser: CurrentUser |}
+type PortalPageProps = {| CurrentUser: CurrentUser; CurrentBuildingId: Guid option |}
 
 let init (props: PortalPageProps) =
-    { CurrentUser = props.CurrentUser }, Cmd.none
+    { CurrentUser = props.CurrentUser; CurrentBuildingId = props.CurrentBuildingId }, Cmd.none
 
 let update (msg: Msg) (state: State) =
     match msg with
@@ -29,11 +31,28 @@ let update (msg: Msg) (state: State) =
 let view (state: State) (dispatch: Msg -> unit) =
     div [] [
         div [] [
-            button [ OnClick (fun _ -> Msg.OpenPage BuildingList |> dispatch) ] [ str "Gebouwen" ]
-            button [ OnClick (fun _ -> Msg.OpenPage ResidentList |> dispatch) ] [ str "Bewoners" ]
-            button [ OnClick (fun _ -> Msg.OpenPage LotList |> dispatch) ] [ str "Kavels" ]
-            button [] [ str "Organisaties (TODO)" ]
-            button [] [ str "Gebruikers (TODO)" ]
+                yield
+                    button
+                        [ OnClick (fun _ -> Msg.OpenPage BuildingList |> dispatch) ]
+                        [ str "Gebouwen" ]
+                yield!
+                    match state.CurrentBuildingId with
+                    | Some currentBuildingId -> [
+                            button
+                                [ OnClick (fun _ -> Msg.OpenPage (LotList { BuildingId = currentBuildingId }) |> dispatch) ]
+                                [ str "Kavels" ]
+                            button
+                                [ OnClick (fun _ -> Msg.OpenPage (OwnerList { BuildingId = currentBuildingId }) |> dispatch) ]
+                                [ str "Eigenaars" ]
+                            button
+                                [ OnClick (fun _ -> Msg.OpenPage (OrganizationList { BuildingId = currentBuildingId }) |> dispatch) ]
+                                [ str "Organisaties" ]
+                            button
+                                []
+                                [ str "Gebruikers (TODO)" ]
+                        ]
+                    | None ->
+                        []
         ]
     ]
 

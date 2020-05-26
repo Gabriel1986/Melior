@@ -9,11 +9,15 @@ open Microsoft.Extensions.Logging
 open Microsoft.Extensions.Hosting
 open Thoth.Json.Net
 open Thoth.Json.Giraffe
+open Serilog
+open Server.AppSettings
 
 type Startup private () =
     new (configuration: IConfiguration) as this =
         Startup() then
         this.Configuration <- configuration
+
+    member this.AppConfiguration = this.Configuration.Get<AppSettings>()
 
     // This method gets called by the runtime. Use this method to add services to the container.
     member this.ConfigureServices(services: IServiceCollection) =
@@ -25,6 +29,8 @@ type Startup private () =
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     member this.Configure(app: IApplicationBuilder, env: IWebHostEnvironment) =
+        Migrations.run Log.Logger this.AppConfiguration.Database.ConnectionString
+
         let handleErrors: ErrorHandler =
             fun ex logger ->
                 logger.LogError (EventId(), ex, "An unhandled exception has occurred while executing the request.")
@@ -39,6 +45,6 @@ type Startup private () =
             .UseStaticFiles()
             //.UseAuthentication()
             .UseGiraffeErrorHandler(handleErrors)
-            .UseGiraffe(Application.build ())
+            .UseGiraffe(Application.build this.AppConfiguration)
 
     member val Configuration : IConfiguration = null with get, set

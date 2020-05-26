@@ -3,3 +3,7 @@
 .fa-trash-alt { color: red }
 .nav-link { cursor: pointer }
 .btn-link { cursor: pointer }
+.modal { display: block; z-index: -1 }
+.modal.show { z-index: 1050 }
+.modal-body { max-height: 75vh; overflow: auto; }
+.pointer { cursor: pointer }

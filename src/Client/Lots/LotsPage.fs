@@ -9,12 +9,15 @@ open Feliz
 open Feliz.ElmishComponents
 
 open Shared.Domain
+open Shared.Remoting
 open Client
 open Client.ClientStyle
-open Client.Components.SimpleLotComponent
+open Client.ClientStyle.Helpers
+open Client.SortableTable
 
 type State = {
     CurrentUser: CurrentUser
+    CurrentBuilding: BuildingListItem
     SelectedListItems: LotListItem list
     SelectedTab: Tab
     LoadingListItems: bool
@@ -31,18 +34,62 @@ type Msg =
     | RemotingError of exn
     | Loaded of listItems: LotListItem list * selectedListItemId: Guid option
     | RemoveListItem of LotListItem
-    | ListItemRemoved of Result<LotListItem, InvariantError>
+    | ListItemRemoved of Result<LotListItem, AuthorizationError>
     | Created of Lot
     | Edited of Lot
 
 type LotsPageProps = {|
     CurrentUser: CurrentUser
+    CurrentBuilding: BuildingListItem
     LotId: Guid option
 |}
+
+type SortableLotListItemAttribute =
+    | BuildingCode
+    | OwnerName
+    | Code
+    | LotType
+    | Floor
+    | Description
+    | IsActive
+    member me.ToString' () =
+        match me with
+        | BuildingCode -> "Gebouw"
+        | OwnerName -> "Eigenaar"
+        | Code -> "Code"
+        | LotType -> "Type"
+        | Floor -> "Verdieping"
+        | Description -> "Omschrijving"
+        | IsActive -> "Actief"
+    member me.StringValueOf': LotListItem -> string =
+        match me with
+        | BuildingCode -> (fun li -> li.Building.Name)
+        | OwnerName -> (fun li -> match li.CurrentOwner with | Person p -> sprintf "%s %s" p.LastName p.FirstName | Organization o -> o.Name)
+        | Code -> (fun li -> li.Code)
+        | LotType -> (fun li -> string li.LotType)
+        | Floor -> (fun li -> string li.Floor)
+        | Description -> (fun li -> li.Description |> Option.defaultValue "")
+        | IsActive -> (fun li -> if li.IsActive then "Ja" else "Nee")
+    member me.Compare': LotListItem -> LotListItem -> int =
+        match me with
+        | Floor -> 
+            fun li otherLi -> li.Floor - otherLi.Floor
+        | IsActive -> 
+            fun li otherLi ->
+                if li.IsActive = otherLi.IsActive then 0 
+                elif li.IsActive && not otherLi.IsActive then 1 else -1
+        | _     -> 
+            fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
+    static member All = [ BuildingCode; Code;  LotType; Floor; Description; IsActive ]
+    interface ISortableAttribute<LotListItem> with
+        member me.ToString = me.ToString'
+        member me.StringValueOf = me.StringValueOf'
+        member me.Compare li otherLi = me.Compare' li otherLi
 
 let init (props: LotsPageProps) =
     let state = { 
         CurrentUser = props.CurrentUser
+        CurrentBuilding = props.CurrentBuilding
         SelectedListItems = []
         SelectedTab = List
         ListItems = []
@@ -52,7 +99,7 @@ let init (props: LotsPageProps) =
     let cmd =
         Cmd.OfAsync.either
             (Remoting.getRemotingApi().GetLots)
-            ()
+            {| BuildingId = props.CurrentBuilding.BuildingId |}
             (fun lots -> Loaded (lots, props.LotId))
             RemotingError
     state, cmd
@@ -62,6 +109,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         LotId = lot.LotId
         Code = lot.Code
         Building = lot.Building
+        CurrentOwner = lot.CurrentOwner
         LotType = lot.LotType
         Floor = lot.Floor
         Description = lot.Description
@@ -76,7 +124,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.Description)
             |> List.sortBy (fun li -> li.Floor)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }, Routing.navigateToPage (Routing.Page.LotDetails listItem.LotId)
+        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }, Routing.navigateToPage (Routing.Page.LotDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.LotId })
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
@@ -95,19 +143,19 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
                 | None -> Cmd.none
             | None -> Cmd.none
         newState, cmd
-    | RemoveListItem building ->
+    | RemoveListItem lot ->
         let cmd =
             Cmd.OfAsync.either
                 (Remoting.getRemotingApi().DeleteLot)
-                building.LotId
-                (fun r -> r |> Result.map (fun _ -> building) |> ListItemRemoved)
+                lot.LotId
+                (fun r -> r |> Result.map (fun _ -> lot) |> ListItemRemoved)
                 RemotingError
 
         let newSelection =
-            state.SelectedListItems |> List.filter (fun selected -> selected.LotId <> building.LotId)
+            state.SelectedListItems |> List.filter (fun selected -> selected.LotId <> lot.LotId)
 
         let newItems =
-            state.ListItems |> List.filter (fun item -> item.LotId <> building.LotId)
+            state.ListItems |> List.filter (fun item -> item.LotId <> lot.LotId)
 
         { state with SelectedListItems = newSelection; ListItems = newItems }, cmd
     | ListItemRemoved result ->
@@ -141,7 +189,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
 
     div [ Class Bootstrap.row ] [
         div [ Class Bootstrap.col3 ] [
-            div [ Class (sprintf "%s %s %s" Bootstrap.nav Bootstrap.flexColumn Bootstrap.navPills) ] [
+            div [ classes [ Bootstrap.nav; Bootstrap.flexColumn; Bootstrap.navPills ] ] [
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle List); OnClick (fun _ -> SelectTab List |> dispatch) ] 
@@ -151,7 +199,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     yield li [ Class Bootstrap.navItem ] [
                         a 
                             [ Class (determineNavItemStyle (Details selected)); OnClick (fun _ -> SelectTab (Details selected) |> dispatch) ] 
-                            [ str (sprintf "%s: %s" selected.Building.Code selected.Code) ]
+                            [ str selected.Code ]
                     ]
                 yield li [ Class Bootstrap.navItem ] [
                     a 
@@ -173,28 +221,28 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     ExtraColumns = (fun li -> 
                         seq {
                             td [] [ 
-                                button 
+                                a 
                                     [ 
-                                        Class (sprintf "%s %s" Bootstrap.btn Bootstrap.btnLink)
+                                        classes [ Bootstrap.textPrimary; "pointer" ]
                                         OnClick (fun _ -> AddDetailTab li |> dispatch) 
                                     ] 
                                     [
-                                        i [ Class (sprintf "%s %s" FontAwesome.fa FontAwesome.faExternalLinkAlt) ] []
+                                        i [ classes [ FontAwesome.fa; FontAwesome.faExternalLinkAlt ] ] []
                                     ] 
                             ]
                             td [] [ 
-                                button 
+                                a 
                                     [
-                                        Class (sprintf "%s %s" Bootstrap.btn Bootstrap.btnLink)
+                                        classes [ Bootstrap.textDanger; "pointer" ]
                                         OnClick (fun _ -> RemoveListItem li |> dispatch) 
                                     ] 
                                     [
-                                        i [ Class (sprintf "%s %s" FontAwesome.far FontAwesome.faTrashAlt) ] []
+                                        i [ classes [ FontAwesome.far; FontAwesome.faTrashAlt ] ] []
                                     ] 
                             ]
                         }
                     )
-                    Key = "BuildingsPageTable"
+                    Key = "LotsPageTable"
                 |}
 
         div [ Class Bootstrap.col ] [

@@ -22,7 +22,7 @@ var CONFIG = {
     indexHtmlTemplate: './src/Client/index.html',
     devServerPort: 8092,
     devServerProxy: {
-        '/api': 'http://localhost:8091'
+        '/api': 'http://127.0.0.1:8095'
     },
     babel: {
         presets: [

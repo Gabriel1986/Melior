@@ -12,77 +12,99 @@ open Shared.Domain
 open Routing
 open Client
 open Client.ClientStyle
+open Client.ClientStyle.Helpers
 
 type NavbarState = {
     CurrentUser: CurrentUser option
     CurrentPage: Page option
+    CurrentBuilding: BuildingListItem option
 }
 
 type NavbarMsg =
-    | NavigateToPage of page: NavigablePage
+    | NavigateToPage of page: Page
 
-let init (props: {| CurrentUser: CurrentUser option; CurrentPage: Page option |}) =
+let init (props: {| CurrentUser: CurrentUser option; CurrentPage: Page option; CurrentBuilding: BuildingListItem option |}) =
     {
         CurrentUser = props.CurrentUser
         CurrentPage = props.CurrentPage
+        CurrentBuilding = props.CurrentBuilding
     }, Cmd.none
 
 let update (msg: NavbarMsg) (currentState: NavbarState): NavbarState * Cmd<NavbarMsg> =
     match msg with
     | NavigateToPage page ->
-        currentState, Routing.navigateToNavigablePage page
+        currentState, Routing.navigateToPage page
 
-let view (state: NavbarState) (dispatch: NavbarMsg -> unit) =
-    let currentlySelectedNavigablePage =
-        match state.CurrentPage with
-        | Some (Page.Portal) -> Some NavigablePage.Portal
-        | Some (Page.BuildingList)
-        | Some (Page.BuildingDetails _) -> Some NavigablePage.BuildingList
-        | Some (Page.ResidentList)
-        | Some (Page.ResidentDetails _) -> Some NavigablePage.ResidentList
-        | Some (Page.LotList)
-        | Some (Page.LotDetails _) -> Some NavigablePage.LotList
-        | Some (Page.NotFound) -> None
-        | None -> None
+let determineStyle selectedPage page =
+    let extraClasses =
+        match selectedPage with
+        | Some currentNavigablePage when page = currentNavigablePage -> 
+            [ Bootstrap.active ]
+        | _ -> 
+            []
+    String.Join(" ", Bootstrap.navLink::extraClasses)
 
-    let determineStyle navigablePage =
-        let extraClasses =
-            match currentlySelectedNavigablePage with
-            | Some currentNavigablePage when navigablePage = currentNavigablePage -> 
-                [ Bootstrap.active ]
-            | _ -> 
-                []
-        String.Join(" ", Bootstrap.navLink::extraClasses)
-
-    nav [ Class (sprintf "%s %s %s %s" Bootstrap.navbar Bootstrap.navbarExpandLg Bootstrap.navbarDark Bootstrap.bgDark) ] [ 
-        a [ Class Bootstrap.navbarBrand; Href "#" ] [ str "Top secret project" ]
-        ul [ Class Bootstrap.navbarNav ] [ 
-            li [ Class Bootstrap.navItem ] [ 
-                a [ 
-                    Class (determineStyle NavigablePage.Portal)
-                    OnClick (fun _ -> NavigateToPage NavigablePage.Portal |> dispatch) 
-                ] [ str "Portaal" ]
-            ]
-            li [ Class Bootstrap.navItem ] [
-                a [ 
-                    Class (determineStyle NavigablePage.BuildingList)
-                    OnClick (fun _ -> NavigateToPage NavigablePage.BuildingList |> dispatch) 
-                ] [ str "Gebouwen" ]
-            ]
-            li [ Class Bootstrap.navItem ] [
-                a [
-                    Class (determineStyle NavigablePage.ResidentList)
-                    OnClick (fun _ -> NavigateToPage NavigablePage.ResidentList |> dispatch)
-                ] [ str "Bewoners" ]
-            ]
-            li [ Class Bootstrap.navItem ] [
-                a [
-                    Class (determineStyle NavigablePage.LotList)
-                    OnClick (fun _ -> NavigateToPage NavigablePage.LotList |> dispatch)
-                ] [ str "Kavels" ]
-            ]
+let renderBuildingSpecificNavigation (currentPage: Page option) (building: BuildingListItem) (dispatch: NavbarMsg -> unit) = 
+    let buildingSpecificProps = { BuildingId = building.BuildingId }
+    [
+        li [ Class Bootstrap.navItem ] [
+            a [
+                Class (determineStyle currentPage (Page.OwnerList buildingSpecificProps))
+                OnClick (fun _ -> NavigateToPage (Page.OwnerList buildingSpecificProps) |> dispatch)
+            ] [ str "Eigenaars" ]
+        ]
+        li [ Class Bootstrap.navItem ] [
+            a [
+                Class (determineStyle currentPage (Page.LotList buildingSpecificProps))
+                OnClick (fun _ -> NavigateToPage (Page.LotList buildingSpecificProps) |> dispatch)
+            ] [ str "Kavels" ]
+        ]
+        li [ Class Bootstrap.navItem ] [
+            a [
+                Class (determineStyle currentPage (Page.OrganizationList buildingSpecificProps))
+                OnClick (fun _ -> NavigateToPage (Page.OrganizationList buildingSpecificProps) |> dispatch)
+            ] [ str "Organizaties" ]
         ]
     ]
 
-let render (props: {| CurrentUser: CurrentUser option; CurrentPage: Page option |}) =
+let view (state: NavbarState) (dispatch: NavbarMsg -> unit) =
+    let currentPage =
+        match state.CurrentPage with
+        | Some (Page.Portal)                -> Some Page.Portal
+        | Some (Page.BuildingList)   
+        | Some (Page.BuildingDetails _)     -> Some Page.BuildingList
+        | Some (Page.OwnerList p)           -> Some (Page.OwnerList p)        
+        | Some (Page.OwnerDetails p)        -> Some (Page.OwnerList { BuildingId = p.BuildingId })
+        | Some (Page.LotList p)             -> Some (Page.LotList p)        
+        | Some (Page.LotDetails p)          -> Some (Page.LotList { BuildingId = p.BuildingId })
+        | Some (Page.OrganizationList p)    -> Some (Page.OrganizationList p)
+        | Some (Page.OrganizationDetails p) -> Some (Page.OrganizationList { BuildingId = p.BuildingId })
+        | Some (Page.NotFound)
+        | None                              -> None
+
+    nav [ classes [ Bootstrap.navbar; Bootstrap.navbarExpandLg; Bootstrap.navbarDark; Bootstrap.bgDark ] ] [ 
+        a [ Class Bootstrap.navbarBrand; Href "#" ] [ str "Top secret project" ]
+        ul [ Class Bootstrap.navbarNav ] [ 
+            yield
+                li [ Class Bootstrap.navItem ] [ 
+                    a [ 
+                        Class (determineStyle currentPage Page.Portal)
+                        OnClick (fun _ -> NavigateToPage Page.Portal |> dispatch) 
+                    ] [ str "Portaal" ]
+                ]
+            yield
+                li [ Class Bootstrap.navItem ] [
+                    a [ 
+                        Class (determineStyle currentPage Page.BuildingList)
+                        OnClick (fun _ -> NavigateToPage Page.BuildingList |> dispatch) 
+                    ] [ str "Gebouwen" ]
+                ]
+            yield!
+                match state.CurrentBuilding with
+                | Some building -> renderBuildingSpecificNavigation currentPage building dispatch
+                | None -> []
+        ]
+    ]
+
+let render (props: {| CurrentUser: CurrentUser option; CurrentPage: Page option; CurrentBuilding: BuildingListItem option |}) =
     React.elmishComponent ("BuildingsPage", init props, update, view)

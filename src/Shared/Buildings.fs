@@ -2,79 +2,57 @@
 
 open System
 open Shared.Domain
+open Shared.ConstrainedTypes
 
 type SyndicId =
-    | ResidentId of Guid
+    | OwnerId of Guid
     | ProfessionalSyndicId of Guid
-    | Other of Person
+    | OtherId of Guid
 
 type ConciergeId =
-    | ResidentId of Guid
-    | NonResident of Person
+    | OwnerId of Guid
+    | NonOwnerId of Guid
 
 let private mapSyndicToSyndicId =
     function
     | Syndic.ProfessionalSyndic prof -> 
         SyndicId.ProfessionalSyndicId prof.ProfessionalSyndicId
-    | Syndic.Resident resident ->
-        SyndicId.ResidentId resident.ResidentId
+    | Syndic.Owner owner ->
+        SyndicId.OwnerId owner.Person.PersonId
     | Syndic.Other person ->
-        SyndicId.Other person
+        SyndicId.OtherId person.PersonId
 
 let private mapConciergeToConciergeId =
     function
-    | Concierge.Resident resident ->
-        ConciergeId.ResidentId resident.ResidentId
-    | Concierge.NonResident person ->
-        ConciergeId.NonResident person
+    | Concierge.Owner owner ->
+        ConciergeId.OwnerId owner.Person.PersonId
+    | Concierge.NonOwner person ->
+        ConciergeId.NonOwnerId person.PersonId
 
-type CreateBuildingRequest = 
+type BuildingRequest = 
     {
         BuildingId: Guid
         Code: string
         Name: string
         Address: Address
-        OrganizationNumber: string option
+        OrganizationNumber: OrganizationNumber option
         Remarks: string option
-        GeneralMeetingFrom: DateTimeOffset option
-        GeneralMeetingUntil: DateTimeOffset option
-        Syndic: SyndicId option
-        Concierge: ConciergeId option
+        GeneralMeetingPeriod: GeneralMeetingPeriod option
+        SyndicId: SyndicId option
+        ConciergeId: ConciergeId option
+        YearOfConstruction: int option
+        YearOfDelivery: int option
     }
-    static member From (building: Building): CreateBuildingRequest = {
+    static member From (building: Building): BuildingRequest = {
         BuildingId = building.BuildingId
         Code = building.Code
         Name = building.Name
         Address = building.Address
         OrganizationNumber = building.OrganizationNumber
         Remarks = building.Remarks
-        GeneralMeetingFrom = building.GeneralMeetingFrom
-        GeneralMeetingUntil = building.GeneralMeetingUntil
-        Syndic = building.Syndic |> Option.map mapSyndicToSyndicId
-        Concierge = building.Concierge |> Option.map mapConciergeToConciergeId
-    }
-
-
-type UpdateBuildingRequest = 
-    {
-        BuildingId: Guid
-        Name: string
-        Address: Address
-        OrganizationNumber: string option
-        Remarks: string option
-        GeneralMeetingFrom: DateTimeOffset option
-        GeneralMeetingUntil: DateTimeOffset option
-        Syndic: SyndicId option
-        Concierge: ConciergeId option
-    }
-    static member From (building: Building): UpdateBuildingRequest = {
-        BuildingId = building.BuildingId
-        Name = building.Name
-        Address = building.Address
-        OrganizationNumber = building.OrganizationNumber
-        Remarks = building.Remarks
-        GeneralMeetingFrom = building.GeneralMeetingFrom
-        GeneralMeetingUntil = building.GeneralMeetingUntil
-        Syndic = building.Syndic |> Option.map mapSyndicToSyndicId
-        Concierge = building.Concierge |> Option.map mapConciergeToConciergeId
+        GeneralMeetingPeriod = building.GeneralMeetingPeriod
+        SyndicId = building.Syndic |> Option.map mapSyndicToSyndicId
+        ConciergeId = building.Concierge |> Option.map mapConciergeToConciergeId
+        YearOfConstruction = building.YearOfConstruction
+        YearOfDelivery = building.YearOfDelivery
     }

@@ -1,4 +1,3 @@
-﻿namespace Server.Organizations
+﻿module Server.Organizations.Storage
 
-module Storage =
-    ()
+()

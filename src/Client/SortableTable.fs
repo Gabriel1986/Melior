@@ -8,6 +8,7 @@ open Feliz
 open Feliz.ElmishComponents
 
 open Client.ClientStyle
+open Client.ClientStyle.Helpers
 open Fable.Core
 
 type ISortableAttribute<'T> =
@@ -105,7 +106,7 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
             [ OnClick (dispatchSortOn attr) ]
             [ str (sprintf "%s%s" (attr.ToString ()) (sortingIndexNumber attr)) ]
 
-    table [ Class (sprintf "%s %s %s" Bootstrap.table Bootstrap.tableStriped Bootstrap.tableHover) ] [
+    table [ classes [ Bootstrap.table; Bootstrap.tableStriped; Bootstrap.tableHover ] ] [
         thead [] [
             tr [] [
                 yield! state.DisplayAttributes |> List.map (fun attr -> header attr)

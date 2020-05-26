@@ -9,8 +9,10 @@ open Feliz
 open Feliz.ElmishComponents
 
 open Shared.Domain
+open Shared.Remoting
 open Client
 open Client.ClientStyle
+open Client.ClientStyle.Helpers
 open Client.SortableTable
 
 type SortableAttribute =
@@ -34,12 +36,11 @@ type SortableAttribute =
         match me with
         | Name -> (fun li -> li.Name)
         | Code -> (fun li -> li.Code)
-        | OrganizationNumber -> (fun li -> li.OrganizationNumber |> Option.defaultValue "")
+        | OrganizationNumber -> (fun li -> li.OrganizationNumber |> Option.map string |> Option.defaultValue "")
         | Street -> (fun li -> li.Address.Street)
         | ZipCode -> (fun li -> li.Address.ZipCode)
         | Town -> (fun li -> li.Address.Town)
         | IsActive -> (fun li -> if li.IsActive then "Ja" else "Nee")
-        | _ -> (fun li -> printf "Something went wrong..."; "")
     member me.Compare': BuildingListItem -> BuildingListItem -> int =
         match me with
         | IsActive -> 
@@ -74,13 +75,15 @@ type Msg =
     | RemotingError of exn
     | Loaded of listItems: BuildingListItem list * selectedListItemId: Guid option
     | RemoveListItem of BuildingListItem
-    | ListItemRemoved of Result<BuildingListItem, InvariantError>
+    | ListItemRemoved of Result<BuildingListItem, AuthorizationError>
     | Created of Building
     | Edited of Building
 
 type BuildingsPageProps = {|
     CurrentUser: CurrentUser
     BuildingId: Guid option
+    CurrentBuildingId: Guid option
+    OnCurrentBuildingChanged: BuildingListItem -> unit
 |}
 
 let init (props: BuildingsPageProps) =
@@ -101,15 +104,6 @@ let init (props: BuildingsPageProps) =
     state, cmd
 
 let update (msg: Msg) (state: State): State * Cmd<Msg> =
-    let toListItem (building: Building): BuildingListItem = {
-        BuildingId = building.BuildingId
-        IsActive = building.IsActive
-        Code = building.Code
-        Name = building.Name
-        Address = building.Address
-        OrganizationNumber = building.OrganizationNumber
-    }
-
     match msg with
     | AddDetailTab listItem ->
         let newlySelectedItems = 
@@ -124,7 +118,12 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             |> List.filter (fun li -> li.BuildingId <> listItem.BuildingId)
         { state with SelectedListItems = updatedTabs; SelectedTab = List }, Cmd.none
     | SelectTab tab ->
-        { state with SelectedTab = tab }, Cmd.none
+        let cmd =
+            match tab with
+            | List -> Routing.navigateToPage (Routing.Page.BuildingList)
+            | Details li -> Routing.navigateToPage (Routing.Page.BuildingDetails li.BuildingId)
+            | New -> Routing.navigateToPage (Routing.Page.BuildingList)
+        { state with SelectedTab = tab }, cmd
     | Loaded (buildings, selectedBuildingId) ->
         let newState = { state with ListItems = buildings; LoadingListItems = false }
         let cmd =
@@ -160,15 +159,21 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         //TODO.
         state, Cmd.none
     | Created building ->
-        let listItem = toListItem building
+        let listItem = building.ToListItem()
         let newListItems = listItem :: state.ListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
+        { state with 
+            ListItems = newListItems
+            SelectedListItems = newSelectedListItems
+        }, (SelectTab (Tab.Details listItem)) |> Cmd.ofMsg
     | Edited building ->
-        let listItem = toListItem building
+        let listItem = building.ToListItem()
         let newListItems = state.ListItems |> List.map (fun li -> if li.BuildingId = building.BuildingId then listItem else li)
         let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.BuildingId = building.BuildingId then listItem else li)
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
+        { state with 
+            ListItems = newListItems
+            SelectedListItems = newSelectedListItems
+        }, (SelectTab (Tab.Details listItem)) |> Cmd.ofMsg
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =
@@ -181,8 +186,8 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
         String.Join(" ", Bootstrap.navLink::extraClasses)
 
     div [ Class Bootstrap.row ] [
-        div [ Class Bootstrap.col3 ] [
-            div [ Class (sprintf "%s %s %s" Bootstrap.nav Bootstrap.flexColumn Bootstrap.navPills) ] [
+        div [ Class Bootstrap.colMd3 ] [
+            div [ classes [ Bootstrap.nav; Bootstrap.flexMdColumn; Bootstrap.navPills ] ] [
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle List); OnClick (fun _ -> SelectTab List |> dispatch) ] 
@@ -214,23 +219,23 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     ExtraColumns = (fun li -> 
                         seq {
                             td [] [ 
-                                button 
+                                a 
                                     [ 
-                                        Class (sprintf "%s %s" Bootstrap.btn Bootstrap.btnLink)
+                                        classes [ Bootstrap.textPrimary; "pointer" ]
                                         OnClick (fun _ -> AddDetailTab li |> dispatch) 
                                     ] 
                                     [
-                                        i [ Class (sprintf "%s %s" FontAwesome.fa FontAwesome.faExternalLinkAlt) ] []
+                                        i [ classes [ FontAwesome.fa; FontAwesome.faExternalLinkAlt] ] []
                                     ] 
                             ]
                             td [] [ 
-                                button 
+                                a 
                                     [
-                                        Class (sprintf "%s %s" Bootstrap.btn Bootstrap.btnLink)
+                                        classes [ Bootstrap.textDanger; "pointer" ]
                                         OnClick (fun _ -> RemoveListItem li |> dispatch) 
                                     ] 
                                     [
-                                        i [ Class (sprintf "%s %s" FontAwesome.far FontAwesome.faTrashAlt) ] []
+                                        i [ classes [ FontAwesome.far; FontAwesome.faTrashAlt ] ] []
                                     ] 
                             ]
                         }

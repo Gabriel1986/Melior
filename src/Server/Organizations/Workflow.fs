@@ -1,4 +1,8 @@
-﻿namespace Server.Organizations
+﻿module Server.Organizations.Workflow
 
-module Workflow =
-    ()
+open System
+open Server.Library
+
+let deleteOrganization (connectionString: string) (msg: Message<Guid>) = async {
+    return Ok ()
+}

@@ -1,8 +1,7 @@
-﻿namespace Server.Lots
+﻿module Server.Lots.Workflow
 
-open Shared.Domain
+open Shared.Remoting
 
-module Workflow =
-    let deleteLot connectionString message: Async<Result<unit, InvariantError>> = async {
-        return Ok ()
-    }
+let deleteLot connectionString message: Async<Result<unit, AuthorizationError>> = async {
+    return Ok ()
+}
