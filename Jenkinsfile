@@ -4,7 +4,7 @@ node {
 
     docker.withRegistry('https://registry.hub.docker.com', 'dockerHub') {
 
-        def customImage = docker.build("vlakmaker/Melior")
+        def customImage = docker.build("vlakmaker/melior")
 
         /* Push the container to the custom Registry */
         customImage.push()
