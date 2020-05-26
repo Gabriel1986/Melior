@@ -41,8 +41,8 @@
     <None Include="public\assets\mini_logo.svg" />
     <Compile Include="Remoting.fs" />
     <Compile Include="Routing.fs" />
-    <Compile Include="ProfessionalSyndic\ProfessionalSyndicsPage.fs" />
     <Compile Include="ProfessionalSyndic\ProfessionalSyndicDetails.fs" />
+    <Compile Include="ProfessionalSyndic\ProfessionalSyndicsPage.fs" />
     <Compile Include="Organizations\OrganizationDetails.fs" />
     <Compile Include="Organizations\OrganizationPage.fs" />
     <Compile Include="Owners\OwnerDetails.fs" />

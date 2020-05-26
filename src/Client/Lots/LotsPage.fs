@@ -188,8 +188,8 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
         String.Join(" ", Bootstrap.navLink::extraClasses)
 
     div [ Class Bootstrap.row ] [
-        div [ Class Bootstrap.col3 ] [
-            div [ classes [ Bootstrap.nav; Bootstrap.flexColumn; Bootstrap.navPills ] ] [
+        div [ Class Bootstrap.colMd3 ] [
+            div [ classes [ Bootstrap.nav; Bootstrap.flexMdColumn; Bootstrap.navPills ] ] [
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle List); OnClick (fun _ -> SelectTab List |> dispatch) ] 
