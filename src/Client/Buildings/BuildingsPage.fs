@@ -6,7 +6,6 @@ open Fable
 open Fable.React
 open Fable.React.Props
 open Feliz
-open Feliz.ElmishComponents
 
 open Shared.Domain
 open Shared.Remoting
@@ -61,6 +60,7 @@ type State = {
     CurrentUser: CurrentUser
     SelectedListItems: BuildingListItem list
     SelectedTab: Tab
+    CurrentBuildingId: Guid option
     LoadingListItems: bool
     ListItems: BuildingListItem list
 }
@@ -78,12 +78,12 @@ type Msg =
     | ListItemRemoved of Result<BuildingListItem, AuthorizationError>
     | Created of Building
     | Edited of Building
+    | CurrentBuildingChanged of BuildingListItem
 
 type BuildingsPageProps = {|
     CurrentUser: CurrentUser
     BuildingId: Guid option
     CurrentBuildingId: Guid option
-    OnCurrentBuildingChanged: BuildingListItem -> unit
 |}
 
 let init (props: BuildingsPageProps) =
@@ -93,6 +93,7 @@ let init (props: BuildingsPageProps) =
         SelectedTab = List
         ListItems = []
         LoadingListItems = true
+        CurrentBuildingId = props.CurrentBuildingId
     }
     
     let cmd =
@@ -125,7 +126,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             | New -> Routing.navigateToPage (Routing.Page.BuildingList)
         { state with SelectedTab = tab }, cmd
     | Loaded (buildings, selectedBuildingId) ->
-        let newState = { state with ListItems = buildings; LoadingListItems = false }
+        let newState = { state with ListItems = buildings |> List.sortBy (fun b -> b.Code); LoadingListItems = false }
         let cmd =
             match selectedBuildingId with
             | Some selectedBuildingId ->
@@ -174,6 +175,9 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             ListItems = newListItems
             SelectedListItems = newSelectedListItems
         }, (SelectTab (Tab.Details listItem)) |> Cmd.ofMsg
+    | CurrentBuildingChanged building ->
+        { state with CurrentBuildingId = Some building.BuildingId }, Cmd.none
+
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =
@@ -208,38 +212,16 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
         ]
               
         let list (state: State) =
+            let currentBuildingId = state.CurrentBuildingId |> Option.defaultValue (Guid.Empty)
+
             SortableTable.render 
                 {|
                     ListItems = state.ListItems
                     DisplayAttributes = SortableAttribute.All
-                    ExtraColumnHeaders = [ 
-                        th [] []; 
-                        th [] [] 
-                    ]
-                    ExtraColumns = (fun li -> 
-                        seq {
-                            td [] [ 
-                                a 
-                                    [ 
-                                        classes [ Bootstrap.textPrimary; "pointer" ]
-                                        OnClick (fun _ -> AddDetailTab li |> dispatch) 
-                                    ] 
-                                    [
-                                        i [ classes [ FontAwesome.fa; FontAwesome.faExternalLinkAlt] ] []
-                                    ] 
-                            ]
-                            td [] [ 
-                                a 
-                                    [
-                                        classes [ Bootstrap.textDanger; "pointer" ]
-                                        OnClick (fun _ -> RemoveListItem li |> dispatch) 
-                                    ] 
-                                    [
-                                        i [ classes [ FontAwesome.far; FontAwesome.faTrashAlt ] ] []
-                                    ] 
-                            ]
-                        }
-                    )
+                    IsSelected = Some (fun li -> li.BuildingId = currentBuildingId)
+                    OnSelect = Some (CurrentBuildingChanged >> dispatch)
+                    OnEdit = Some (AddDetailTab >> dispatch)
+                    OnDelete = Some (RemoveListItem >> dispatch)
                     Key = "BuildingsPageTable"
                 |}
 
@@ -266,6 +248,3 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     |}
         ]
     ]
-
-let render (props: BuildingsPageProps) =
-    React.elmishComponent ("BuildingsPage", init props, update, view)

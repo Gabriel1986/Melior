@@ -60,7 +60,7 @@ type CreateInitialTables() =
                     Code VARCHAR(16) NOT NULL,
                     Name VARCHAR(255) NOT NULL,
                     Address JSONB NOT NULL,
-                    OrganizationNumber VARCHAR(10),
+                    OrganizationNumber VARCHAR(12),
                     Remarks VARCHAR,
                     GeneralMeetingFrom DATE,
                     GeneralMeetingUntil DATE,
@@ -90,7 +90,7 @@ type CreateInitialTables() =
 
                 CREATE TABLE Organizations (
                     OrganizationId UUID PRIMARY KEY,
-                    OrganizationNumber VARCHAR(10),
+                    OrganizationNumber VARCHAR(12),
                     IsActive Boolean Default TRUE,
                     OrganizationTypeId UUID References OrganizationTypes(OrganizationTypeId),
                     Name VARCHAR(255),

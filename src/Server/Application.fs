@@ -26,14 +26,15 @@ module Application =
 
         {
             GetCurrentUser = fun _ -> async {
-                do! Async.AwaitTask (Task.Delay (1000))
+                let! buildings = Server.Buildings.Query.getBuildings connectionString ()
+
                 return {
                     UserId = Guid.NewGuid()
                     EmailAddress = "test@melior.be"
                     DisplayName = "Testy de tester"
                     PersonId = Guid.NewGuid()
                     Role = Role.SysAdmin
-                    BuildingIds = []
+                    BuildingIds = buildings |> List.map (fun b -> b.BuildingId)
                     IsActive = true
                     PreferredLanguageCode = "nl-BE"
                 }

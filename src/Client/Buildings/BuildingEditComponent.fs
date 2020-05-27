@@ -10,6 +10,8 @@ open Client.ClientStyle.Helpers
 open Client.Components
 open Shared.Domain
 open Shared.Library
+open Shared.ConstrainedTypes
+open Shared
 
 type Message =
     | BuildingNameChanged of string
@@ -77,7 +79,12 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | BuildingAddressChanged addr ->
         changeBuilding (fun b -> { b with Address = addr }), Cmd.none
     | BuildingOrganizationNumberChanged (x, y, z) ->
-        { state with OrganizationNumber = x, y, z }, Cmd.none
+        let buildingOrgNr = OrganizationNumber.Of (x, y, z) |> Trial.toResult
+        let newBuilding =
+            match buildingOrgNr with
+            | Ok orgNr -> { state.Building with OrganizationNumber = Some orgNr }
+            | Error _ ->  { state.Building with OrganizationNumber = None }
+        { state with Building = newBuilding; OrganizationNumber = x, y, z }, Cmd.none
     | BuildingRemarksChanged x ->
         changeBuilding (fun b -> { b with Remarks = x |> String.toOption }), Cmd.none
     | GeneralMeetingPeriodChanged periodOption ->

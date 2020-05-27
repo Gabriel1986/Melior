@@ -35,8 +35,10 @@ module Client =
         CurrentUser: CurrentUser
         CurrentBuilding: BuildingListItem option
         CurrentPage: Page
+        CurrentState: PageState option
     }
-
+    and PageState =
+        | BuildingPageState of BuildingsPage.State
     type ClientMessage =
         | StartApplication of CurrentUser
         | StopApplication of exn
@@ -44,6 +46,7 @@ module Client =
         | ChangePage of Routing.Page
         | CurrentBuildingChanged of BuildingListItem
         | ChangeCurrentBuildingAndPage of BuildingListItem * Routing.Page
+        | BuildingPageMsg of BuildingsPage.Msg
 
     let init () =
         let cmd =
@@ -78,20 +81,47 @@ module Client =
                 if currentBuildingStr = null || currentBuildingStr.Length < 0 
                 then None
                 else 
-                    let r = Thoth.Json.Decode.Auto.fromString<BuildingListItem>(Browser.WebStorage.localStorage.getItem("currentBuilding"))
+                    let r = Thoth.Json.Decode.Auto.fromString<BuildingListItem>(currentBuildingStr)
                     match r with
                     | Ok r -> 
                         if currentUser.BuildingIds |> List.contains r.BuildingId then
                             Some r
                         else
                             None
-                    | Error _ -> None
+                    | Error e -> 
+                        printf "%A" e
+                        None
+
+            let currentPageState, currentPageCmd =
+                match currentPage with
+                | Page.BuildingList ->
+                    let s, cmd =
+                        BuildingsPage.init 
+                            {| 
+                                CurrentUser = currentUser
+                                BuildingId = None
+                                CurrentBuildingId = currentBuilding |> Option.map (fun b -> b.BuildingId)
+                            |}
+                    s |> BuildingPageState |> Some, cmd |> Cmd.map BuildingPageMsg |> Some
+                | Page.BuildingDetails buildingId ->
+                    let s, cmd =
+                        BuildingsPage.init 
+                            {| 
+                                CurrentUser = currentUser
+                                BuildingId = Some buildingId
+                                CurrentBuildingId = currentBuilding |> Option.map (fun b -> b.BuildingId)
+                            |}
+                    s |> BuildingPageState |> Some, cmd |> Cmd.map BuildingPageMsg |> Some
+                | _ ->
+                    None, None
+
 
             Running {
                 CurrentUser = currentUser
                 CurrentPage = currentPage
                 CurrentBuilding = currentBuilding
-            }, Cmd.none
+                CurrentState = currentPageState
+            }, match currentPageCmd with | Some cmd -> cmd | None -> Cmd.none
         | StopApplication e ->
             Stopped e, Cmd.none
         | PageNotFound ->
@@ -136,6 +166,25 @@ module Client =
                 Running { newRunningState with CurrentPage = newPage }, Cmd.none
             | _ ->
                 state, Cmd.none
+        | BuildingPageMsg msg ->
+            match state with
+            | Running running ->
+                let newState, newCmd =
+                    match running.CurrentState with
+                    | Some (BuildingPageState s) ->
+                        let updatedPageState, pageCommand = BuildingsPage.update msg s
+
+                        let updatedRunningState =
+                            match msg with
+                            | BuildingsPage.Msg.CurrentBuildingChanged newCurrentBuilding -> { running with CurrentBuilding = Some newCurrentBuilding }
+                            | _ -> running
+
+                        { updatedRunningState with CurrentState = updatedPageState |> BuildingPageState |> Some }, pageCommand |> Cmd.map BuildingPageMsg |> Some
+                    | _ ->
+                        running, None
+                Running newState, match newCmd with | Some cmd -> cmd | None -> Cmd.none
+            | _ ->
+                state, Cmd.none
 
 
 
@@ -173,67 +222,53 @@ module Client =
         | Running runningState ->
             let currentPage =
                 div [ classes [ Bootstrap.containerFluid; Bootstrap.py3 ] ] [
-                    match runningState.CurrentPage, runningState.CurrentBuilding with
-                    | Page.Portal, _ -> 
+                    match runningState.CurrentPage, runningState.CurrentState, runningState.CurrentBuilding with
+                    | Page.Portal, _, _ -> 
                         PortalPage.render 
                             {| 
                                 CurrentUser = runningState.CurrentUser
-                                CurrentBuildingId = 
-                                    runningState.CurrentBuilding 
-                                    |> Option.map (fun b -> b.BuildingId) 
+                                CurrentBuilding = runningState.CurrentBuilding
                             |}
-                    | Page.BuildingList, _ ->
-                        BuildingsPage.render 
-                            {| 
-                                CurrentUser = runningState.CurrentUser
-                                BuildingId = None
-                                CurrentBuildingId = runningState.CurrentBuilding |> Option.map (fun b -> b.BuildingId)
-                                OnCurrentBuildingChanged = (CurrentBuildingChanged >> dispatch)
-                            |}
-                    | Page.BuildingDetails buildingId, _ ->
-                        BuildingsPage.render 
-                            {| 
-                                CurrentUser = runningState.CurrentUser
-                                BuildingId = Some buildingId
-                                CurrentBuildingId = runningState.CurrentBuilding |> Option.map (fun b -> b.BuildingId)
-                                OnCurrentBuildingChanged = (CurrentBuildingChanged >> dispatch)
-                            |}
-                    | Page.OwnerList _, Some building ->
+                    | Page.BuildingList, Some (BuildingPageState s), _ ->
+                        BuildingsPage.view s (BuildingPageMsg >> dispatch)
+                    | Page.BuildingDetails _, Some (BuildingPageState s), _ ->
+                        BuildingsPage.view s (BuildingPageMsg >> dispatch)
+                    | Page.OwnerList _, _, Some building ->
                         OwnersPage.render 
                             {| 
                                 CurrentUser = runningState.CurrentUser
                                 CurrentBuilding = building
                                 PersonId = None
                             |}
-                    | Page.OwnerDetails props, Some building ->
+                    | Page.OwnerDetails props, _, Some building ->
                         OwnersPage.render 
                             {| 
                                 CurrentUser = runningState.CurrentUser
                                 CurrentBuilding = building
                                 PersonId = Some props.DetailId
                             |}
-                    | Page.LotList _, Some building ->
+                    | Page.LotList _, _, Some building ->
                         LotsPage.render 
                             {| 
                                 CurrentUser = runningState.CurrentUser
                                 CurrentBuilding = building
                                 LotId = None
                             |}
-                    | Page.LotDetails props, Some building ->
+                    | Page.LotDetails props, _, Some building ->
                         LotsPage.render 
                             {| 
                                 CurrentUser = runningState.CurrentUser
                                 CurrentBuilding = building
                                 LotId = Some props.DetailId
                             |}                    
-                    | Page.OrganizationList _, Some building ->
+                    | Page.OrganizationList _, _, Some building ->
                         OrganizationsPage.render 
                             {| 
                                 CurrentUser = runningState.CurrentUser
                                 CurrentBuilding = building
                                 OrganizationId = None
                             |}
-                    | Page.OrganizationDetails props, Some building ->
+                    | Page.OrganizationDetails props, _, Some building ->
                         OrganizationsPage.render 
                             {| 
                                 CurrentUser = runningState.CurrentUser

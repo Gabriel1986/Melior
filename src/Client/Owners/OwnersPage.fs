@@ -207,34 +207,10 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 {|
                     ListItems = state.ListItems
                     DisplayAttributes = SortableOwnerListItemAttribute.All
-                    ExtraColumnHeaders = [ 
-                        th [] []; 
-                        th [] [] 
-                    ]
-                    ExtraColumns = (fun li -> 
-                        seq {
-                            td [] [ 
-                                a 
-                                    [ 
-                                        classes [ Bootstrap.textPrimary; "pointer" ]
-                                        OnClick (fun _ -> AddDetailTab li |> dispatch) 
-                                    ] 
-                                    [
-                                        i [ classes [ FontAwesome.fa; FontAwesome.faExternalLinkAlt ] ] []
-                                    ] 
-                            ]
-                            td [] [ 
-                                a 
-                                    [
-                                        classes [ Bootstrap.textDanger; "pointer" ]
-                                        OnClick (fun _ -> RemoveListItem li |> dispatch) 
-                                    ] 
-                                    [
-                                        i [ classes [ FontAwesome.far; FontAwesome.faTrashAlt ] ] []
-                                    ] 
-                            ]
-                        }
-                    )
+                    IsSelected = None
+                    OnSelect = None
+                    OnEdit = Some (AddDetailTab >> dispatch)
+                    OnDelete = Some (RemoveListItem >> dispatch)
                     Key = "OwnersPageTable"
                 |}
 

@@ -51,19 +51,19 @@ let renderBuildingSpecificNavigation (currentPage: Page option) (building: Build
             a [
                 Class (determineStyle currentPage (Page.OwnerList buildingSpecificProps))
                 OnClick (fun _ -> NavigateToPage (Page.OwnerList buildingSpecificProps) |> dispatch)
-            ] [ str "Eigenaars" ]
+            ] [ str (sprintf "Eigenaars van %s" building.Code) ]
         ]
         li [ Class Bootstrap.navItem ] [
             a [
                 Class (determineStyle currentPage (Page.LotList buildingSpecificProps))
                 OnClick (fun _ -> NavigateToPage (Page.LotList buildingSpecificProps) |> dispatch)
-            ] [ str "Kavels" ]
+            ] [ str (sprintf "Kavels van %s" building.Code) ]
         ]
         li [ Class Bootstrap.navItem ] [
             a [
                 Class (determineStyle currentPage (Page.OrganizationList buildingSpecificProps))
                 OnClick (fun _ -> NavigateToPage (Page.OrganizationList buildingSpecificProps) |> dispatch)
-            ] [ str "Organizaties" ]
+            ] [ str (sprintf "Organizaties van %s" building.Code) ]
         ]
     ]
 

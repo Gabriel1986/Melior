@@ -1,5 +1,6 @@
 ﻿module Client.SortableTable
 
+open System
 open Elmish
 open Fable
 open Fable.React
@@ -21,17 +22,21 @@ type SortableTableProps<'T, 'U when 'U :> ISortableAttribute<'T>> =
     {|
         ListItems: 'T list
         DisplayAttributes: 'U list
-        ExtraColumnHeaders: ReactElement seq
-        ExtraColumns: 'T -> ReactElement seq
         Key: string
+        IsSelected: ('T -> bool) option
+        OnSelect: ('T -> unit) option
+        OnEdit: ('T -> unit) option
+        OnDelete: ('T -> unit) option
     |}
 
 type State<'T, 'U when 'U :> ISortableAttribute<'T>> = {
     ListItems: 'T list
     DisplayAttributes: 'U list
-    ExtraColumnHeaders: ReactElement seq
-    ExtraColumns: 'T -> ReactElement seq
     SortOn: (ISortableAttribute<'T> * bool) list
+    IsSelected: ('T -> bool) option
+    OnSelect: ('T -> unit) option
+    OnEdit: ('T -> unit) option
+    OnDelete: ('T -> unit) option
 }
 
 type Msg<'T> =
@@ -44,9 +49,11 @@ let init (props: SortableTableProps<'T, 'U>): State<'T, 'U> * Cmd<Msg<'T>> =
     {
         ListItems = props.ListItems
         DisplayAttributes = props.DisplayAttributes
-        ExtraColumnHeaders = props.ExtraColumnHeaders
-        ExtraColumns = props.ExtraColumns
         SortOn = []
+        IsSelected = props.IsSelected
+        OnSelect = props.OnSelect
+        OnDelete = props.OnDelete
+        OnEdit = props.OnEdit
     }, Cmd.none
 
 let [<Global>] console: JS.Console = jsNative
@@ -101,6 +108,54 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
         |> Option.map (fun index -> sprintf " (%s)" (string (index + 1)))
         |> Option.defaultValue ""
 
+    let extraColumnHeaders =
+        [ 
+            if state.OnSelect.IsSome && state.IsSelected.IsSome then yield th [] [] 
+            if state.OnEdit.IsSome then yield th [] []
+            if state.OnDelete.IsSome then yield th [] []
+        ]
+
+    let extraColumns (li: 'T) =
+        seq {
+            if state.OnSelect.IsSome && state.IsSelected.IsSome then
+                yield
+                    td [] [
+                        if state.IsSelected.Value (li) then
+                            yield a [
+                                Class Bootstrap.textPrimary                                      
+                            ] [
+                                str "Geselecteerd"
+                            ]
+                        else 
+                            yield a [
+                                classes [ Bootstrap.textInfo; "pointer" ]
+                                OnClick (fun _ -> state.OnSelect.Value (li) )
+                            ] [
+                                str "Selecteren"
+                            ]
+                    ]
+            if state.OnEdit.IsSome then
+                yield
+                    td [] [ 
+                        a [ 
+                            classes [ Bootstrap.textPrimary; "pointer" ]
+                            OnClick (fun _ -> state.OnEdit.Value (li))
+                        ] [
+                            i [ classes [ FontAwesome.fa; FontAwesome.faExternalLinkAlt] ] []
+                        ] 
+                    ]
+            if state.OnDelete.IsSome then
+                yield
+                    td [] [ 
+                        a [
+                            classes [ Bootstrap.textDanger; "pointer" ]
+                            OnClick (fun _ -> state.OnDelete.Value (li)) 
+                        ] [
+                            i [ classes [ FontAwesome.far; FontAwesome.faTrashAlt ] ] []
+                        ] 
+                    ]
+        }
+
     let header (attr: ISortableAttribute<'T>) =
         th 
             [ OnClick (dispatchSortOn attr) ]
@@ -110,7 +165,7 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
         thead [] [
             tr [] [
                 yield! state.DisplayAttributes |> List.map (fun attr -> header attr)
-                yield! state.ExtraColumnHeaders
+                yield! extraColumnHeaders
             ]
         ]
         tbody []
@@ -118,11 +173,15 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
             |> List.map (fun li -> 
                 tr [] [
                     yield! (state.DisplayAttributes |> List.map (fun attr -> td [] [ str (attr.StringValueOf li) ]))
-                    yield! (state.ExtraColumns li)
+                    yield! (extraColumns li)
                 ]
             ))
     ]
 
 
-let render<'T, 'U when 'U :> ISortableAttribute<'T>> (props: SortableTableProps<'T, 'U>) =
-    React.elmishComponent("SortableTable", init props, update, view, props.Key)
+let render<'T, 'U when 'U :> ISortableAttribute<'T>> =
+    FunctionComponent.Of (
+        (fun (props: SortableTableProps<'T, 'U>) -> React.elmishComponent("SortableTable", init props, update, view, props.Key)),
+        displayName = "SortableTableView",
+        memoizeWith = memoEqualsButFunctions
+    )
