@@ -72,6 +72,10 @@ module Client =
         Browser.WebStorage.localStorage.setItem("currentBuilding", currentBuildingStr)
         { running with CurrentBuilding = Some newBuilding }
 
+    let private initializeBuildingsPage props =
+        let s, cmd = BuildingsPage.init props
+        s |> BuildingPageState |> Some, cmd |> Cmd.map BuildingPageMsg |> Some
+
     let update (message: ClientMessage) (state: ClientState) =
         match message with
         | StartApplication currentUser ->
@@ -95,23 +99,19 @@ module Client =
             let currentPageState, currentPageCmd =
                 match currentPage with
                 | Page.BuildingList ->
-                    let s, cmd =
-                        BuildingsPage.init 
-                            {| 
-                                CurrentUser = currentUser
-                                BuildingId = None
-                                CurrentBuildingId = currentBuilding |> Option.map (fun b -> b.BuildingId)
-                            |}
-                    s |> BuildingPageState |> Some, cmd |> Cmd.map BuildingPageMsg |> Some
+                    initializeBuildingsPage 
+                        {| 
+                            CurrentUser = currentUser
+                            BuildingId = None
+                            CurrentBuildingId = currentBuilding |> Option.map (fun b -> b.BuildingId)
+                        |}
                 | Page.BuildingDetails buildingId ->
-                    let s, cmd =
-                        BuildingsPage.init 
-                            {| 
-                                CurrentUser = currentUser
-                                BuildingId = Some buildingId
-                                CurrentBuildingId = currentBuilding |> Option.map (fun b -> b.BuildingId)
-                            |}
-                    s |> BuildingPageState |> Some, cmd |> Cmd.map BuildingPageMsg |> Some
+                    initializeBuildingsPage
+                        {| 
+                            CurrentUser = currentUser
+                            BuildingId = Some buildingId
+                            CurrentBuildingId = currentBuilding |> Option.map (fun b -> b.BuildingId)
+                        |}
                 | _ ->
                     None, None
 
@@ -144,7 +144,25 @@ module Client =
                 | Page.OrganizationDetails props when currentBuildingId <> props.BuildingId ->
                     //Fetch building and set it as current building, then go to page.
                     state, fetchBuildingAndChangePage props.BuildingId newPage
-                | _ ->
+                | Page.BuildingDetails buildingId ->
+                    let currentPageState, currentPageCmd =
+                        initializeBuildingsPage 
+                            {| 
+                                CurrentUser = running.CurrentUser
+                                BuildingId = Some buildingId
+                                CurrentBuildingId = running.CurrentBuilding |> Option.map (fun b -> b.BuildingId)
+                            |}
+                    Running { running with CurrentPage = newPage; CurrentState = currentPageState }, currentPageCmd |> Option.defaultValue Cmd.none
+                | Page.BuildingList ->
+                    let currentPageState, currentPageCmd =
+                        initializeBuildingsPage 
+                            {| 
+                                CurrentUser = running.CurrentUser
+                                BuildingId = None
+                                CurrentBuildingId = running.CurrentBuilding |> Option.map (fun b -> b.BuildingId)
+                            |}
+                    Running { running with CurrentPage = newPage; CurrentState = currentPageState }, currentPageCmd |> Option.defaultValue Cmd.none
+                | newPage ->
                     Running { running with CurrentPage = newPage }, Cmd.none
             | _ ->
                 state, Cmd.none
