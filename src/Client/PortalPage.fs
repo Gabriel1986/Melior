@@ -46,7 +46,7 @@ let private inCol (element: ReactElement) =
 
 let view (state: State) (dispatch: Msg -> unit) =
     div [] [
-        div [ classes [ Bootstrap.row; Bootstrap.rowCols4 ] ] [
+        div [ classes [ Bootstrap.row; Bootstrap.rowColsLg4; Bootstrap.rowCols2 ] ] [
                 yield
                     button [ 
                         OnClick (fun _ -> Msg.OpenPage BuildingList |> dispatch) 
