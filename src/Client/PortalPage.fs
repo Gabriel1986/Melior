@@ -34,7 +34,6 @@ let private inCard (body: string) (imgUrl: string) (element: ReactElement) =
     div [ Class Bootstrap.card ] [
         img [ Class Bootstrap.cardImgTop; Src imgUrl; Alt "Image missing :(" ]
         div [ Class Bootstrap.cardBody ] [
-            h5 [ Class Bootstrap.cardTitle ] [ str "Test." ]
             p [ Class Bootstrap.cardText ] [ str body ]
             element
         ]
