@@ -32,6 +32,7 @@ module Program =
         WebHostBuilder()
             .UseConfiguration(config)
             .UseKestrel(fun _ options -> options.Configure(config.GetSection("Kestrel")) |> ignore)
+            .UseWebRoot(contentPath)
             .UseContentRoot(contentPath)
             .UseStartup<Startup>()
 
