@@ -7,7 +7,7 @@ services:
   adminer:
     image: adminer
     ports:
-      - 8080:8080
+      - 8585:8080
       
   postgres:
     image: postgres
@@ -22,6 +22,6 @@ services:
     build: .
     depends_on: [ postgres ]
     ports:
-      - 8095:8095
+      - 8383:8095
     environment:
       - Database:ConnectionString=Host=postgres;Port=5432;Database=melior_db;Username=melior_user;Password=melior_user_password;
