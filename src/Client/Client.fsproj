@@ -29,6 +29,7 @@
     <Content Include="public\webfonts\fa-solid-900.eot" />
     <Content Include="public\webfonts\fa-solid-900.ttf" />
     <Content Include="public\webfonts\fa-solid-900.woff" />
+    <Content Include="public\styles\b4vtabs.min.css" />
     <Content Include="public\styles\flatpickr.css" />
     <Content Include="public\styles\fontawesome.all.min.css" />
     <Content Include="public\styles\bootstrap.min.css" />

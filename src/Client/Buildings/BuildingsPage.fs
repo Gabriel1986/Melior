@@ -186,7 +186,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle List); OnClick (fun _ -> SelectTab List |> dispatch) ] 
-                        [ str "Overview" ] 
+                        [ str "Overzicht" ] 
                 ]
                 for selected in state.SelectedListItems do
                     yield li [ Class Bootstrap.navItem ] [
