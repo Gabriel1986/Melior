@@ -26,7 +26,7 @@ let private renderOtherContactMethodsFor (person: Person) =
 
 let view (withAddresses: bool) (person: Person) =
     div [] [
-        yield readonlyFormElement "Naam" (sprintf "%s %s" (defaultArg person.FirstName "")  (defaultArg person.LastName ""))
+        yield readonlyFormElement "Naam" person.FullName
 
         if withAddresses then yield! renderAddressesFor person
 

@@ -45,7 +45,6 @@ type LotsPageProps = {|
 |}
 
 type SortableLotListItemAttribute =
-    | BuildingCode
     | OwnerName
     | Code
     | LotType
@@ -54,7 +53,6 @@ type SortableLotListItemAttribute =
     | IsActive
     member me.ToString' () =
         match me with
-        | BuildingCode -> "Gebouw"
         | OwnerName -> "Eigenaar"
         | Code -> "Code"
         | LotType -> "Type"
@@ -63,8 +61,11 @@ type SortableLotListItemAttribute =
         | IsActive -> "Actief"
     member me.StringValueOf': LotListItem -> string =
         match me with
-        | BuildingCode -> (fun li -> li.Building.Name)
-        | OwnerName -> (fun li -> match li.CurrentOwner with | Person p -> sprintf "%s %s" p.LastName p.FirstName | Organization o -> o.Name)
+        | OwnerName -> (fun li ->
+            match li.CurrentOwner with 
+            | Some (LotOwnerListItem.Owner o) -> o.Name 
+            | Some (LotOwnerListItem.Organization o) -> o.Name
+            | None -> "")
         | Code -> (fun li -> li.Code)
         | LotType -> (fun li -> string li.LotType)
         | Floor -> (fun li -> string li.Floor)
@@ -73,14 +74,14 @@ type SortableLotListItemAttribute =
     member me.Compare': LotListItem -> LotListItem -> int =
         match me with
         | Floor -> 
-            fun li otherLi -> li.Floor - otherLi.Floor
+            fun li otherLi -> (defaultArg li.Floor -1000) - (defaultArg otherLi.Floor -1000)
         | IsActive -> 
             fun li otherLi ->
                 if li.IsActive = otherLi.IsActive then 0 
                 elif li.IsActive && not otherLi.IsActive then 1 else -1
         | _     -> 
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
-    static member All = [ BuildingCode; Code;  LotType; Floor; Description; IsActive ]
+    static member All = [ Code;  LotType; Floor; Description; IsActive ]
     interface ISortableAttribute<LotListItem> with
         member me.ToString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
@@ -104,12 +105,19 @@ let init (props: LotsPageProps) =
             RemotingError
     state, cmd
 
+let private mapCurrentOwner =
+    function
+    | LotOwner.Owner owner -> 
+        LotOwnerListItem.Owner {| PersonId = owner.Person.PersonId; Name = owner.Person.FullName |}
+    | LotOwner.Organization organization -> 
+        LotOwnerListItem.Organization {| OrganizationId = organization.OrganizationId; Name = organization.Name |}
+
 let update (msg: Msg) (state: State): State * Cmd<Msg> =
     let toListItem (lot: Lot): LotListItem = {
         LotId = lot.LotId
+        BuildingId = lot.BuildingId
         Code = lot.Code
-        Building = lot.Building
-        CurrentOwner = lot.CurrentOwner
+        CurrentOwner = lot.CurrentOwner |> Option.map mapCurrentOwner
         LotType = lot.LotType
         Floor = lot.Floor
         Description = lot.Description
@@ -228,6 +236,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 LotDetails.render 
                     {| 
                         CurrentUser = state.CurrentUser 
+                        CurrentBuilding = state.CurrentBuilding
                         Identifier = listItem.LotId
                         IsNew = false
                         NotifyCreated = fun b -> dispatch (Created b)
@@ -237,6 +246,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 LotDetails.render 
                     {| 
                         CurrentUser = state.CurrentUser 
+                        CurrentBuilding = state.CurrentBuilding
                         Identifier = Guid.NewGuid()
                         IsNew = true
                         NotifyCreated = fun b -> dispatch (Created b)

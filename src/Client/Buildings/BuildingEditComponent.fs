@@ -12,14 +12,14 @@ open Shared.Read
 open Shared.Library
 
 type Message =
-    | BuildingNameChanged of string
-    | BuildingCodeChanged of string
-    | BuildingAddressChanged of Address
-    | BuildingOrganizationNumberChanged of string
-    | BuildingRemarksChanged of string
+    | NameChanged of string
+    | CodeChanged of string
+    | AddressChanged of Address
+    | OrganizationNumberChanged of string
+    | RemarksChanged of string
     | GeneralMeetingPeriodChanged of (DateTime * DateTime) option
-    | BuildingYearOfConstructionChanged of string
-    | BuildingYearOfDeliveryChanged of string
+    | YearOfConstructionChanged of string
+    | YearOfDeliveryChanged of string
     | ChangeSyndic
     | SyndicChanged of Syndic option
     | SyndicChangeCanceled
@@ -74,26 +74,26 @@ let update (message: Message) (state: State): State * Cmd<Message> =
 
 
     match message with
-    | BuildingNameChanged x ->
+    | NameChanged x ->
         changeBuilding (fun building -> { building with Name = x }), Cmd.none
-    | BuildingCodeChanged x ->
+    | CodeChanged x ->
         changeBuilding (fun b -> { b with Code = x }), Cmd.none
-    | BuildingAddressChanged addr ->
+    | AddressChanged addr ->
         changeBuilding (fun b -> { b with Address = addr }), Cmd.none
-    | BuildingOrganizationNumberChanged x ->
+    | OrganizationNumberChanged x ->
         let organizationNumber =
             x
             |> String.toOption
             |> Option.map formatOrganizationNumber
 
         changeBuilding (fun b -> { b with OrganizationNumber = organizationNumber }), Cmd.none
-    | BuildingRemarksChanged x ->
+    | RemarksChanged x ->
         changeBuilding (fun b -> { b with Remarks = x |> String.toOption }), Cmd.none
     | GeneralMeetingPeriodChanged periodOption ->
         { state with GeneralMeetingPeriod = periodOption }, Cmd.none
-    | BuildingYearOfConstructionChanged s ->
+    | YearOfConstructionChanged s ->
         changeBuilding (fun b -> { b with YearOfConstruction = parseInt s }), Cmd.none
-    | BuildingYearOfDeliveryChanged s ->
+    | YearOfDeliveryChanged s ->
         changeBuilding (fun b -> { b with YearOfDelivery = parseInt s }), Cmd.none
     | ChangeSyndic ->
         { state with ShowingSyndicModal = true }, Cmd.none
@@ -118,7 +118,7 @@ let renderEditConcierge concierge dispatch =
             | Some (Concierge.Owner o)    -> Some o.Person
             | Some (Concierge.NonOwner p) -> Some p
             | None                        -> None
-        person |> Option.map (fun p -> (p.FirstName |> Option.defaultValue "") + " " + (p.LastName |> Option.defaultValue ""))
+        person |> Option.map (fun p -> p.FullName)
 
     match conciergeName with
     | Some conciergeName ->
@@ -154,7 +154,7 @@ let renderEditSyndic syndic dispatch =
             | Some (Syndic.ProfessionalSyndic p) -> Some p.Person
             | Some (Syndic.Other p)              -> Some p
             | None                               -> None
-        person |> Option.map (fun p -> (p.FirstName |> Option.defaultValue "") + " " + (p.LastName |> Option.defaultValue ""))
+        person |> Option.map (fun p -> p.FullName)
 
     match syndicName with
     | Some syndicName ->
@@ -196,7 +196,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Type "text"
                     MaxLength 255.0
                     Helpers.valueOrDefault state.Building.Name
-                    OnChange (fun e -> BuildingNameChanged e.Value |> dispatch)
+                    OnChange (fun e -> NameChanged e.Value |> dispatch)
                 ] 
                 FormError (errorFor (nameof state.Building.Name))
             ]
@@ -207,7 +207,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Type "text"
                     MaxLength 16.0
                     Helpers.valueOrDefault state.Building.Code
-                    OnChange (fun e -> BuildingCodeChanged e.Value |> dispatch)
+                    OnChange (fun e -> CodeChanged e.Value |> dispatch)
                 ] 
                 FormError (errorFor (nameof state.Building.Code))
             ]
@@ -216,7 +216,7 @@ let view (state: State) (dispatch: Message -> unit) =
         AddressEditComponent.render 
             ""
             state.Building.Address 
-            (BuildingAddressChanged >> dispatch)
+            (AddressChanged >> dispatch)
             (nameof state.Building.Address)
             state.Errors
 
@@ -230,7 +230,7 @@ let view (state: State) (dispatch: Message -> unit) =
                         MaxLength 12.0
                         Placeholder "xxxx.xxx.xxx"
                         Helpers.valueOrDefault state.Building.OrganizationNumber
-                        OnChange (fun e -> BuildingOrganizationNumberChanged e.Value |> dispatch)
+                        OnChange (fun e -> OrganizationNumberChanged e.Value |> dispatch)
                     ] 
                     FormError (errorFor (nameof state.Building.OrganizationNumber))
                 ]
@@ -258,7 +258,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 TextArea [
                     Rows 4
                     Helpers.valueOrDefault state.Building.Remarks
-                    OnChange (fun e -> BuildingRemarksChanged e.Value |> dispatch)
+                    OnChange (fun e -> RemarksChanged e.Value |> dispatch)
                 ] 
             ]
             |> inColomn
@@ -276,7 +276,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 Input [
                     Type "number"
                     Helpers.valueOrDefault state.Building.YearOfConstruction
-                    OnChange (fun e -> BuildingYearOfConstructionChanged e.Value |> dispatch)
+                    OnChange (fun e -> YearOfConstructionChanged e.Value |> dispatch)
                 ]
                 FormError (errorFor (nameof state.Building.YearOfConstruction))
             ]
@@ -286,7 +286,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 Input [
                     Type "number"
                     Helpers.valueOrDefault state.Building.YearOfDelivery
-                    OnChange (fun e -> BuildingYearOfDeliveryChanged e.Value |> dispatch)
+                    OnChange (fun e -> YearOfDeliveryChanged e.Value |> dispatch)
                 ]
                 FormError (errorFor (nameof state.Building.YearOfDelivery))
             ]

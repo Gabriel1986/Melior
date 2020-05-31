@@ -142,22 +142,34 @@ and BuildingListItem = {
 
 //Gemeenschappelijke ruimte
 and CommonSpace = string list
-and Lot = {
-    LotId: Guid
-    Building: {| BuildingId: Guid; Name: string |}
-    CurrentOwner: LotOwner
-    Code: string
-    LotType: LotType
-    Description: string option
-    //Which floor this lot is on
-    Floor: int
-    //Surface in square metres, if necessary, could be calculated in square feet
-    Surface: int
-    IsActive: bool
-}
-and LotOwner =
-    | Person of {| PersonId: Guid; FirstName: string; LastName: string |}
-    | Organization of {| OrganizationId: Guid; Name: string |}
+and Lot = 
+    {
+        LotId: Guid
+        BuildingId: Guid
+        CurrentOwner: LotOwner option
+        Code: string
+        LotType: LotType
+        Description: string option
+        //Which floor this lot is on
+        Floor: int option
+        //Surface in square metres, if necessary, could be calculated in square feet
+        Surface: int option
+        IsActive: bool
+    }
+    static member Init (buildingId: Guid) = {
+        LotId = Guid.NewGuid()
+        BuildingId = buildingId
+        CurrentOwner = None
+        Code = ""
+        LotType = LotType.Appartment
+        Description = None
+        Floor = None
+        Surface = None
+        IsActive = true
+    }
+and LotOwner = 
+    | Owner of Owner
+    | Organization of Organization
 and LotType =
     | Appartment
     | Studio
@@ -177,14 +189,17 @@ and LotType =
         | Other -> "Andere"
 and LotListItem = {
     LotId: Guid
-    Building: {| BuildingId: Guid; Name: string |}
-    CurrentOwner: LotOwner
+    BuildingId: Guid
+    CurrentOwner: LotOwnerListItem option
     Code: string
     LotType: LotType
-    Floor: int
+    Floor: int option
     Description: string option
     IsActive: bool
 }
+and LotOwnerListItem =
+    | Owner of {| PersonId: Guid; Name: string |}
+    | Organization of {| OrganizationId: Guid; Name: string |}
 
 //A (non-building) organization
 and Organization = {
@@ -200,6 +215,8 @@ and Organization = {
 and ContactPerson = {
     OrganizationId: Guid
     Person: Person
+    RoleWithinOrganization: string
+
 }
 and OrganizationType = {
     OrganizationTypeId: Guid
@@ -230,6 +247,7 @@ and Person =
         MainEmailAddressComment: string option
         OtherContactMethods: ContactMethod list
     }
+    member me.FullName = sprintf "%s %s" (defaultArg me.FirstName "") (defaultArg me.LastName "")
     static member Init () = {
         PersonId = Guid.NewGuid()
         FirstName = None

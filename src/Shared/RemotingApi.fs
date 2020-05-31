@@ -44,6 +44,13 @@ type UpdatePersonError =
     | NotFound
     | ValidationError of PersonValidationError
 
+type CreateLotError =
+    | AuthorizationError of AuthorizationError
+
+type UpdateLotError =
+    | AuthorizationError of AuthorizationError
+    | NotFound
+
 type OwnerId = {
     PersonId: Guid
     BuildingId: Guid
@@ -59,6 +66,8 @@ type RemotingApi = {
     GetBuilding:          Guid            -> Async<Building option>
     GetBuildings:         unit            -> Async<BuildingListItem list>
 
+    CreateLot: ValidatedLot -> Async<Result<unit, CreateLotError>>
+    UpdateLot: ValidatedLot -> Async<Result<unit, UpdateLotError>>
     DeleteLot: Guid -> Async<Result<unit, AuthorizationError>>
     GetLot:    Guid -> Async<Lot option>
     GetLots:   {| BuildingId: Guid |} -> Async<LotListItem list>

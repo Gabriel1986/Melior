@@ -8,153 +8,158 @@ let dummyLots: Lot list = [
     {
         LotId = Guid.NewGuid()
         Code = "A101"
-        Building = {| BuildingId = Guid.NewGuid(); Name = "Building 1" |}
-        CurrentOwner = Person {| FirstName = "Jefke"; LastName = "Janssens"; PersonId = Guid.NewGuid() |}
+        BuildingId = Guid.NewGuid()
+        CurrentOwner = None
         LotType = LotType.Appartment
         Description = Some "Appartement 101"
-        Floor = 1
-        Surface = 100
+        Floor = Some 1
+        Surface = Some 100
         IsActive = true
     }
     {
         LotId = Guid.NewGuid()
         Code = "A102"
-        Building = {| BuildingId = Guid.NewGuid(); Name = "Building 1" |}
-        CurrentOwner = Person {| FirstName = "Jefke"; LastName = "Janssens"; PersonId = Guid.NewGuid() |}
+        BuildingId = Guid.NewGuid()
+        CurrentOwner = None
         LotType = LotType.Appartment
         Description = Some "Appartement 102"
-        Floor = 1
-        Surface = 120
+        Floor = Some 1
+        Surface = Some 120
         IsActive = true
     }
     {
         LotId = Guid.NewGuid()
         Code = "A201"
-        Building = {| BuildingId = Guid.NewGuid(); Name = "Building 1" |}
-        CurrentOwner = Person {| FirstName = "Jefke"; LastName = "Janssens"; PersonId = Guid.NewGuid() |}
+        BuildingId = Guid.NewGuid()
+        CurrentOwner = None
         LotType = LotType.Appartment
         Description = Some "Appartement 201"
-        Floor = 2
-        Surface = 100
+        Floor = Some 2
+        Surface = Some 100
         IsActive = true
     }
     {
         LotId = Guid.NewGuid()
         Code = "A202"
-        Building = {| BuildingId = Guid.NewGuid(); Name = "Building 1" |}
-        CurrentOwner = Person {| FirstName = "Jefke"; LastName = "Janssens"; PersonId = Guid.NewGuid() |}
+        BuildingId = Guid.NewGuid()
+        CurrentOwner = None
         LotType = LotType.Appartment
         Description = Some "Appartement 202"
-        Floor = 2
-        Surface = 100
+        Floor = Some 2
+        Surface = Some 100
         IsActive = true
     }
     {
         LotId = Guid.NewGuid()
         Code = "A301"
-        Building = {| BuildingId = Guid.NewGuid(); Name = "Building 1" |}
-        CurrentOwner = Person {| FirstName = "Jefke"; LastName = "Janssens"; PersonId = Guid.NewGuid() |}
+        BuildingId = Guid.NewGuid()
+        CurrentOwner = None
         LotType = LotType.Appartment
         Description = Some "Appartement 301"
-        Floor = 3
-        Surface = 100
+        Floor = Some 3
+        Surface = Some 100
         IsActive = true
     }
     {
         LotId = Guid.NewGuid()
         Code = "A302"
-        Building = {| BuildingId = Guid.NewGuid(); Name = "Building 1" |}
-        CurrentOwner = Person {| FirstName = "Jefke"; LastName = "Janssens"; PersonId = Guid.NewGuid() |}
+        BuildingId = Guid.NewGuid()
+        CurrentOwner = None
         LotType = LotType.Appartment
         Description = Some "Appartement 302"
-        Floor = 3
-        Surface = 100
+        Floor = Some 3
+        Surface = Some 100
         IsActive = true
     }
     {
         LotId = Guid.NewGuid()
         Code = "GB001"
-        Building = {| BuildingId = Guid.NewGuid(); Name = "Building 1" |}
-        CurrentOwner = Person {| FirstName = "Jefke"; LastName = "Janssens"; PersonId = Guid.NewGuid() |}
+        BuildingId = Guid.NewGuid()
+        CurrentOwner = None
         LotType = LotType.Garage
         Description = Some "Garagebox 1"
-        Floor = -1
-        Surface = 100
+        Floor = Some -1
+        Surface = Some 100
         IsActive = true
     }
     {
         LotId = Guid.NewGuid()
         Code = "GB002"
-        Building = {| BuildingId = Guid.NewGuid(); Name = "Building 1" |}
-        CurrentOwner = Person {| FirstName = "Jefke"; LastName = "Janssens"; PersonId = Guid.NewGuid() |}
+        BuildingId = Guid.NewGuid()
+        CurrentOwner = None
         LotType = LotType.Garage
         Description = Some "Garagebox 2"
-        Floor = -1
-        Surface = 100
+        Floor = Some -1
+        Surface = Some 100
         IsActive = true
     }
     {
         LotId = Guid.NewGuid()
         Code = "P001"
-        Building = {| BuildingId = Guid.NewGuid(); Name = "Building 1" |}
-        CurrentOwner = Person {| FirstName = "Jefke"; LastName = "Janssens"; PersonId = Guid.NewGuid() |}
+        BuildingId = Guid.NewGuid()
+        CurrentOwner = None
         LotType = LotType.ParkingSpace
         Description = Some "Bovengrondse parkeerplaats 1 naast het gebouw"
-        Floor = 0
-        Surface = 100
+        Floor = Some 0
+        Surface = Some 100
         IsActive = true
     }
     {
         LotId = Guid.NewGuid()
         Code = "P002"
-        Building = {| BuildingId = Guid.NewGuid(); Name = "Building 1" |}
-        CurrentOwner = Person {| FirstName = "Jefke"; LastName = "Janssens"; PersonId = Guid.NewGuid() |}
+        BuildingId = Guid.NewGuid()
+        CurrentOwner = None
         LotType = LotType.ParkingSpace
         Description = Some "Bovengrondse parkeerplaats 2 naast het gebouw"
-        Floor = 0
-        Surface = 100
+        Floor = Some 0
+        Surface = Some 100
         IsActive = true
     }
     {
         LotId = Guid.NewGuid()
         Code = "OHK001"
-        Building = {| BuildingId = Guid.NewGuid(); Name = "Building 1" |}
-        CurrentOwner = Person {| FirstName = "Jefke"; LastName = "Janssens"; PersonId = Guid.NewGuid() |}
+        BuildingId = Guid.NewGuid()
+        CurrentOwner = None
         LotType = LotType.Storage
         Description = Some "Onderhoudskast op de gang"
-        Floor = 1
-        Surface = 100
+        Floor = Some 1
+        Surface = Some 100
         IsActive = true
     }
     {
         LotId = Guid.NewGuid()
         Code = "W001"
-        Building = {| BuildingId = Guid.NewGuid(); Name = "Building 1" |}
-        CurrentOwner = Person {| FirstName = "Jefke"; LastName = "Janssens"; PersonId = Guid.NewGuid() |}
+        BuildingId = Guid.NewGuid()
+        CurrentOwner = None
         LotType = LotType.CommercialProperty
         Description = Some "Winkeltje op het gelijkvloers - 'De Grote Honger'"
-        Floor = 0
-        Surface = 100
+        Floor = Some 0
+        Surface = Some 100
         IsActive = true
     }
     {
         LotId = Guid.NewGuid()
         Code = "TUIN"
-        Building = {| BuildingId = Guid.NewGuid(); Name = "Building 1" |}
-        CurrentOwner = Person {| FirstName = "Jefke"; LastName = "Janssens"; PersonId = Guid.NewGuid() |}
+        BuildingId = Guid.NewGuid()
+        CurrentOwner = None
         LotType = LotType.Other
         Description = Some "Gemeenschappelijke stadstuin"
-        Floor = 0
-        Surface = 100
+        Floor = Some 0
+        Surface = Some 100
         IsActive = true
     }
 ]
 
+let mapCurrentOwner (lotOwner: LotOwner): LotOwnerListItem =
+    match lotOwner with
+    | LotOwner.Owner o -> LotOwnerListItem.Owner {| Name = o.Person.FullName; PersonId = o.Person.PersonId |}
+    | LotOwner.Organization o -> LotOwnerListItem.Organization {| Name = o.Name; OrganizationId = o.OrganizationId |}
+
 let toListItem (lot: Lot): LotListItem = {
     LotId = lot.LotId
     Code = lot.Code
-    Building = lot.Building
-    CurrentOwner = lot.CurrentOwner
+    BuildingId = lot.BuildingId
+    CurrentOwner = lot.CurrentOwner |> Option.map mapCurrentOwner
     LotType = lot.LotType
     Floor = lot.Floor
     Description = lot.Description

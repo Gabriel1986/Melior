@@ -63,6 +63,12 @@ module Application =
             GetOwner = fun ownerId ->
                 ownerId
                 |> Server.Owners.Query.getOwner connectionString
+            CreateLot = fun lot ->
+                createMsg lot
+                |> Server.Lots.Workflow.createLot connectionString
+            UpdateLot = fun lot ->
+                createMsg lot
+                |> Server.Lots.Workflow.updateLot connectionString
             DeleteLot = fun lotId ->
                 createMsg lotId
                 |> Server.Lots.Workflow.deleteLot connectionString

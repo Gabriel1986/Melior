@@ -44,10 +44,15 @@
     <Compile Include="Routing.fs" />
     <Compile Include="ProfessionalSyndic\ProfessionalSyndicDetails.fs" />
     <Compile Include="ProfessionalSyndic\ProfessionalSyndicsPage.fs" />
+    <Compile Include="Organizations\OrganizationViewComponent.fs" />
     <Compile Include="Organizations\OrganizationDetails.fs" />
     <Compile Include="Organizations\OrganizationPage.fs" />
+    <Compile Include="Owners\OwnerViewComponent.fs" />
     <Compile Include="Owners\OwnerDetails.fs" />
     <Compile Include="Owners\OwnersPage.fs" />
+    <Compile Include="Lots\LotOwnerModal.fs" />
+    <Compile Include="Lots\LotViewComponent.fs" />
+    <Compile Include="Lots\LotEditComponent.fs" />
     <Compile Include="Lots\LotDetails.fs" />
     <Compile Include="Lots\LotsPage.fs" />
     <Compile Include="Buildings\ConciergeModal.fs" />

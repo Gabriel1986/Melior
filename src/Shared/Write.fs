@@ -180,3 +180,43 @@ type ValidatedBuilding =
             }
         }
         |> Trial.toResult
+
+
+type LotOwnerId =
+    | OwnerId of Guid
+    | OrganizationId of Guid
+
+let private mapLotOwner =
+    function
+    | LotOwner.Owner owner -> OwnerId owner.Person.PersonId
+    | LotOwner.Organization organization -> OrganizationId organization.OrganizationId
+
+type ValidatedLot = 
+    {
+        LotId: Guid
+        BuildingId: Guid
+        CurrentOwnerId: LotOwnerId option
+        Code: String16
+        LotType: LotType
+        Description: string option
+        Floor: int option //Floor can be negative, it's only constrained in range
+        Surface: PositiveInt option
+        IsActive: bool
+    }
+    static member Validate (lot: Lot) = 
+        trial {
+            from code in String16.Of (nameof lot.Code) lot.Code
+            also surface in validateOptional (PositiveInt.Of (nameof lot.Surface)) lot.Surface
+            yield {
+                LotId = lot.LotId
+                BuildingId = lot.BuildingId
+                CurrentOwnerId = lot.CurrentOwner |> Option.map mapLotOwner
+                Code = code
+                LotType = lot.LotType
+                Description = lot.Description
+                Floor = lot.Floor
+                Surface = surface
+                IsActive = lot.IsActive
+            }
+        }
+        |> Trial.toResult

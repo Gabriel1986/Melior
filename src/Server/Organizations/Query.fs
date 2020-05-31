@@ -21,6 +21,7 @@ let dummyOrganizations: Organization list = [
         }
         MainContactPerson = {
             OrganizationId = Guid.NewGuid() //This is incorrect, but whatever...
+            RoleWithinOrganization = "Handige Harry"
             Person = {
                 PersonId = Guid.NewGuid()
                 FirstName = Some "Flarry"
