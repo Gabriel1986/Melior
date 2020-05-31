@@ -7,12 +7,13 @@ open Fable.React.Props
 
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
-open Shared.Domain
+open Shared.Read
 open Shared.Library
 
 type State = {
     Person: Person
     CreateOrUpdate: CreateOrUpdate
+    Errors: (string * string) list
 }
 
 type Message =
@@ -42,7 +43,11 @@ let init (person: Person option) =
         match person with
         | Some person -> person, Update
         | None        -> Person.Init (), Create
-    { Person = person; CreateOrUpdate = createOrUpdate }, Cmd.none
+    { 
+        Person = person
+        CreateOrUpdate = createOrUpdate
+        Errors  = [] 
+    }, Cmd.none
 
 let update (message: Message) (state: State): State * Cmd<Message> =
     let changePerson alterFunc =
@@ -190,10 +195,16 @@ let private languageOptions dispatch currentLanguageCode: FormRadioButton list =
 
 let private renderAddress = AddressEditComponent.render
 
-let private renderMainAddress (mainAddress: Address) dispatch =
-    renderAddress "Hoofdadres" mainAddress (MainAddressChanged >> dispatch)
+let private renderMainAddress (state: State) dispatch =
+    renderAddress 
+        "Hoofdadres" 
+        state.Person.MainAddress 
+        (MainAddressChanged >> dispatch)
+        (nameof state.Person.MainAddress)
+        state.Errors
 
-let private renderContactAddress (contactAddress: ContactAddress) dispatch =
+let private renderContactAddress (state: State) dispatch =
+    let contactAddress = state.Person.ContactAddress
     let yesNo = [
         {
             Id = "contactAddressSame"
@@ -215,12 +226,19 @@ let private renderContactAddress (contactAddress: ContactAddress) dispatch =
         yield formGroup [ Label "Contactadres zelfde als hoofdadres?"; Radio { Inline = true; RadioButtons = yesNo } ]
         match contactAddress with
         | ContactAddress addr -> 
-            yield renderAddress "Contact adres" addr (ContactAddress >> ContactAddressChanged >> dispatch)
+            yield 
+                renderAddress 
+                    "Contact adres" 
+                    addr 
+                    (ContactAddress >> ContactAddressChanged >> dispatch)
+                    (nameof state.Person.ContactAddress)
+                    state.Errors
         | MainAddress -> 
             ()
     ]
 
-let private renderOtherAddresses (addresses: OtherAddress list) dispatch =
+let private renderOtherAddresses (state: State) dispatch =
+    let addresses = state.Person.OtherAddresses
     [
         yield! addresses |> List.mapi (fun index a ->
             div [] [
@@ -235,7 +253,12 @@ let private renderOtherAddresses (addresses: OtherAddress list) dispatch =
                 button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> OtherAddressRemoved index |> dispatch) ] [
                     i [ classes [ FontAwesome.fa; FontAwesome.faXing ] ] []
                 ]
-                renderAddress a.Description a.Address (fun newA -> OtherAddressAddressChanged (index, newA) |> dispatch)
+                renderAddress 
+                    a.Description 
+                    a.Address 
+                    (fun newA -> OtherAddressAddressChanged (index, newA) |> dispatch)
+                    (sprintf "%s.[%i]"  (nameof (state.Person.OtherAddresses)) index)
+                    state.Errors
             ]
         )
         yield 
@@ -368,13 +391,13 @@ let view state dispatch =
                 OnChange (fun e -> TitleChanged e.Value |> dispatch)
             ] 
         ]
-        yield renderMainAddress state.Person.MainAddress dispatch
-        yield! renderContactAddress state.Person.ContactAddress dispatch
-        yield! renderOtherAddresses state.Person.OtherAddresses dispatch
+        yield renderMainAddress state dispatch
+        yield! renderContactAddress state dispatch
+        yield! renderOtherAddresses state dispatch
         yield formGroup [ 
             Label "Tel."
             Input [ 
-                Type "text"
+                Type "tel"
                 MaxLength 32.0 
                 Helpers.valueOrDefault state.Person.MainTelephoneNumber
                 OnChange (fun e -> MainTelephoneNumberChanged e.Value |> dispatch)
@@ -392,7 +415,7 @@ let view state dispatch =
         yield formGroup [ 
             Label "E-mail"
             Input [ 
-                Type "text"
+                Type "email"
                 MaxLength 255.0 
                 Helpers.valueOrDefault state.Person.MainEmailAddress
                 OnChange (fun e -> MainEmailAddressChanged e.Value |> dispatch)

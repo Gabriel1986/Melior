@@ -1,59 +1,38 @@
 ﻿module Server.Buildings.Storage
 
 open System
-open NodaTime
-open Shared.ConstrainedTypes
 open Npgsql.FSharp
 open Server.Addresses.Workflow
 open Server.PostgreSQL
-
-type ValidatedBuilding = {
-    BuildingId: Guid
-    Code: String16
-    Name: String255
-    Address: ValidatedAddress
-    OrganizationNumber: OrganizationNumber option
-    Remarks: string option
-    GeneralMeetingFrom: LocalDate option
-    GeneralMeetingUntil: LocalDate option
-    ConciergeId: ConciergeId option
-    SyndicId: SyndicId option
-    YearOfConstruction: PositiveInt option
-    YearOfDelivery: PositiveInt option
-}
-and ConciergeId =
-    | OwnerId of Guid
-    | PersonId of Guid
-and SyndicId =
-    | OwnerId of Guid
-    | ProfessionalSyndicId of Guid
-    | PersonId of Guid
+open Shared.Write
+open NodaTime
 
 let private mapConciergeId =
     function
-    | Some (ConciergeId.OwnerId ownerId)   -> Some ownerId, None
-    | Some (ConciergeId.PersonId personId) -> None, Some personId
-    | None                                 -> None, None
+    | Some (ConciergeId.OwnerId ownerId)     -> Some ownerId, None
+    | Some (ConciergeId.NonOwnerId personId) -> None, Some personId
+    | None                                   -> None, None
 
 let private mapSyndicId =
     function
-    | Some (OwnerId ownerId)            -> Some ownerId, None, None
-    | Some (ProfessionalSyndicId proId) -> None, Some proId, None
-    | Some (PersonId personId)          -> None, None , Some personId
-    | None                              -> None, None , None
+    | Some (SyndicId.OwnerId ownerId)            -> Some ownerId, None, None
+    | Some (SyndicId.ProfessionalSyndicId proId) -> None, Some proId, None
+    | Some (SyndicId.OtherId personId)           -> None, None , Some personId
+    | None                                       -> None, None , None
 
 
 let createBuilding (connectionString: string) (validated: ValidatedBuilding) =
+    let today = DateTime.Today
     let conciergeOwnerId, conciergePersonId = mapConciergeId validated.ConciergeId
     let syndicOwnerId, syndicProfessionalSyndicId, syndicPersonId = mapSyndicId validated.SyndicId
 
     let generalMeetingFrom =
-        validated.GeneralMeetingFrom 
-        |> Option.map (fun d -> d.ToDateTimeUnspecified()) 
+        validated.GeneralMeetingPeriod 
+        |> Option.map (fun d -> (new LocalDate(today.Year, d.FromMonth, d.FromDay)).ToDateTimeUnspecified())
 
     let generalMeetingUntil =
-        validated.GeneralMeetingUntil
-        |> Option.map (fun d -> d.ToDateTimeUnspecified())
+        validated.GeneralMeetingPeriod
+        |> Option.map (fun d -> (new LocalDate(today.Year, d.UntilMonth, d.UntilDay)).ToDateTimeUnspecified())
 
     Sql.connect connectionString
     |> Sql.query
@@ -115,16 +94,17 @@ let createBuilding (connectionString: string) (validated: ValidatedBuilding) =
     |> Sql.writeAsync
 
 let updateBuilding (connectionString: string) (validated: ValidatedBuilding) =
+    let today = DateTime.Today
     let conciergeOwnerId, conciergePersonId = mapConciergeId validated.ConciergeId
     let syndicOwnerId, syndicProfessionalSyndicId, syndicPersonId = mapSyndicId validated.SyndicId
 
     let generalMeetingFrom =
-        validated.GeneralMeetingFrom 
-        |> Option.map (fun d -> d.ToDateTimeUnspecified()) 
+        validated.GeneralMeetingPeriod 
+        |> Option.map (fun d -> (new LocalDate(today.Year, d.FromMonth, d.FromDay)).ToDateTimeUnspecified())
 
     let generalMeetingUntil =
-        validated.GeneralMeetingUntil
-        |> Option.map (fun d -> d.ToDateTimeUnspecified())
+        validated.GeneralMeetingPeriod
+        |> Option.map (fun d -> (new LocalDate(today.Year, d.UntilMonth, d.UntilDay)).ToDateTimeUnspecified())
 
     Sql.connect connectionString
     |> Sql.query

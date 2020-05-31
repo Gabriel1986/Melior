@@ -3,21 +3,21 @@
 open System
 open Shared
 open Shared.ConstrainedTypes
-open Shared.Domain
+open Shared.Read
 open Server.Library
 
 let dummyOrganizations: Organization list = [
     {
         OrganizationId = Guid.NewGuid()
-        OrganizationNumber = (OrganizationNumber.Of ("0888", "555", "666")) |> Trial.toOption |> Option.defaultWith (failwithf "Invariant exception...")
+        OrganizationNumber = OrganizationNumber.Of "OrganizationNumber" ("0888", "555", "666") |> Trial.toOption |> Option.defaultWith (failwithf "Invariant exception...")
         IsActive = true
         OrganizationType = { OrganizationTypeId = Guid.NewGuid(); Name = "Leverancier" }
         Name = ""
         Address = {
-            Street = "Some street 33"
-            ZipCode = "0000"
-            Town = "Some town"
-            Country = "Belgium"
+            Street = Some "Some street 33"
+            ZipCode = Some "0000"
+            Town = Some "Some town"
+            Country = Some "Belgium"
         }
         MainContactPerson = {
             OrganizationId = Guid.NewGuid() //This is incorrect, but whatever...

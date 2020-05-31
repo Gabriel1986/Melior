@@ -7,7 +7,7 @@ open Fable.React
 open Fable.React.Props
 open Feliz
 
-open Shared.Domain
+open Shared.Read
 open Shared.Remoting
 open Client
 open Client.ClientStyle
@@ -21,7 +21,6 @@ type SortableAttribute =
     | Street
     | ZipCode
     | Town
-    | IsActive
     member me.ToString' () =
         match me with
         | Code -> "Code"
@@ -30,27 +29,19 @@ type SortableAttribute =
         | Street -> "Straat"
         | ZipCode -> "Postcode"
         | Town -> "Plaats"
-        | IsActive -> "Actief"
     member me.StringValueOf': BuildingListItem -> string =
         match me with
         | Name -> (fun li -> li.Name)
         | Code -> (fun li -> li.Code)
-        | OrganizationNumber -> (fun li -> li.OrganizationNumber |> Option.map string |> Option.defaultValue "")
-        | Street -> (fun li -> li.Address.Street)
-        | ZipCode -> (fun li -> li.Address.ZipCode)
-        | Town -> (fun li -> li.Address.Town)
-        | IsActive -> (fun li -> if li.IsActive then "Ja" else "Nee")
+        | OrganizationNumber -> (fun li -> defaultArg li.OrganizationNumber "")
+        | Street -> (fun li -> defaultArg li.Address.Street "")
+        | ZipCode -> (fun li -> defaultArg li.Address.ZipCode "")
+        | Town -> (fun li -> defaultArg li.Address.Town "")
     member me.Compare': BuildingListItem -> BuildingListItem -> int =
-        match me with
-        | IsActive -> 
-            fun li otherLi -> 
-                if li.IsActive = otherLi.IsActive then 0 
-                elif li.IsActive && not otherLi.IsActive then 1 else -1
-        | _        -> 
-            fun li otherLi ->
-                let result = me.StringValueOf'(li).CompareTo(me.StringValueOf'(otherLi))
-                result
-    static member All = [ Code; Name; OrganizationNumber; Street; ZipCode; Town; IsActive ]
+        fun li otherLi ->
+            let result = me.StringValueOf'(li).CompareTo(me.StringValueOf'(otherLi))
+            result
+    static member All = [ Code; Name; OrganizationNumber; Street; ZipCode; Town ]
     interface ISortableAttribute<BuildingListItem> with
         member me.ToString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
@@ -191,7 +182,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
 
     div [ Class Bootstrap.row ] [
         div [ Class Bootstrap.colMd3 ] [
-            div [ classes [ Bootstrap.nav; Bootstrap.flexMdColumn; Bootstrap.navPills ] ] [
+            div [ classes [ Bootstrap.nav; Bootstrap.navTabs; "left-tabs" ] ] [
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle List); OnClick (fun _ -> SelectTab List |> dispatch) ] 
@@ -225,26 +216,28 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     Key = "BuildingsPageTable"
                 |}
 
-        div [ Class Bootstrap.col ] [
-            match state.SelectedTab with
-            | List -> list state
-            | Details listItem -> 
-                BuildingDetails.render 
-                    {| 
-                        CurrentUser = state.CurrentUser 
-                        Identifier = listItem.BuildingId
-                        IsNew = false
-                        NotifyCreated = fun b -> dispatch (Created b)
-                        NotifyEdited = fun b -> dispatch (Edited b)
-                    |}
-            | New ->
-                BuildingDetails.render 
-                    {| 
-                        CurrentUser = state.CurrentUser 
-                        Identifier = Guid.NewGuid()
-                        IsNew = true
-                        NotifyCreated = fun b -> dispatch (Created b)
-                        NotifyEdited = fun b -> dispatch (Edited b)
-                    |}
+        div [ Class Bootstrap.colMd9 ] [
+            div [ Class Bootstrap.tabContent ] [
+                match state.SelectedTab with
+                | List -> list state
+                | Details listItem -> 
+                    BuildingDetails.render 
+                        {| 
+                            CurrentUser = state.CurrentUser 
+                            Identifier = listItem.BuildingId
+                            IsNew = false
+                            NotifyCreated = fun b -> dispatch (Created b)
+                            NotifyEdited = fun b -> dispatch (Edited b)
+                        |}
+                | New ->
+                    BuildingDetails.render 
+                        {| 
+                            CurrentUser = state.CurrentUser 
+                            Identifier = Guid.NewGuid()
+                            IsNew = true
+                            NotifyCreated = fun b -> dispatch (Created b)
+                            NotifyEdited = fun b -> dispatch (Edited b)
+                        |}
+            ]
         ]
     ]

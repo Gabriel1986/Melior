@@ -8,7 +8,6 @@
     <Compile Include="Library.fs" />
     <Compile Include="ClientStyle.fs" />
     <Compile Include="Components\BasicModal.fs" />
-    <Compile Include="Components\OrganizationNumberEditComponent.fs" />
     <Compile Include="Components\AddressEditComponent.fs" />
     <Compile Include="Components\PersonViewComponent.fs" />
     <Compile Include="Components\PersonEditComponent.fs" />

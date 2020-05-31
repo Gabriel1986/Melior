@@ -1,6 +1,6 @@
 ﻿module Client.Library
 
-open Shared.Domain
+open Shared.Read
 
 let getCurrentBuilding (currentUser: CurrentUser) =
     let currentBuildingStr = Browser.WebStorage.localStorage.getItem("currentBuilding")

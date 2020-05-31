@@ -9,7 +9,7 @@ open Serilog
 
 open Shared.Remoting
 open Server.Library
-open Shared.Domain
+open Shared.Read
 open FSharp.Control.Tasks
 open System.Net.Http
 open System.Threading.Tasks

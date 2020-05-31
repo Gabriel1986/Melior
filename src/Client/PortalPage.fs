@@ -8,7 +8,7 @@ open Fable.React.Props
 open Feliz
 open Feliz.ElmishComponents
 open Routing
-open Shared.Domain
+open Shared.Read
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 

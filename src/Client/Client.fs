@@ -11,7 +11,7 @@ open Fable.React.Props
 open Fable.Core.JsInterop
 open Feliz.Router
 
-open Shared.Domain
+open Shared.Read
 
 open Routing
 open Client
@@ -26,6 +26,7 @@ module Client =
     importAll "./public/styles/bootstrap.min.css"
     importAll "./public/styles/fontawesome.all.min.css"
     importAll "./public/styles/flatpickr.css"
+    importAll "./public/styles/b4vtabs.min.css"
 
     type ClientState =
         | Initializing
@@ -194,8 +195,10 @@ module Client =
 
                         let updatedRunningState =
                             match msg with
-                            | BuildingsPage.Msg.CurrentBuildingChanged newCurrentBuilding -> { running with CurrentBuilding = Some newCurrentBuilding }
-                            | _ -> running
+                            | BuildingsPage.Msg.CurrentBuildingChanged newCurrentBuilding -> 
+                                setCurrentBuilding running newCurrentBuilding
+                            | _ -> 
+                                running
 
                         { updatedRunningState with CurrentState = updatedPageState |> BuildingPageState |> Some }, pageCommand |> Cmd.map BuildingPageMsg |> Some
                     | _ ->

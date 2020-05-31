@@ -7,13 +7,14 @@ open Fable.React
 open Fable.React.Props
 open Feliz
 open Feliz.ElmishComponents
-open Shared.Domain
+open Shared.Read
 open Client.Components
 open Client.Components.BasicModal
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Shared.Remoting
 open Shared.Library
+open Shared.Write
 
 type Model = {
     IsOpen: bool
@@ -207,19 +208,23 @@ let update onSyndicChanged onCanceled message model =
     | SavePerson ->
         match model.State with
         | EditingPerson componentState ->
-            let cmd =
-                match componentState.CreateOrUpdate with
-                | Create -> 
-                    Cmd.OfAsync.either
-                        (Client.Remoting.getRemotingApi()).CreatePerson componentState.Person
-                        (fun result -> match result with | Ok _ -> PersonSaved | Error e -> CreatePersonError e)
-                        RemotingError
-                | Update ->
-                    Cmd.OfAsync.either
-                        (Client.Remoting.getRemotingApi()).UpdatePerson componentState.Person
-                        (fun result -> match result with | Ok _ -> PersonSaved | Error e -> UpdatePersonError e)
-                        RemotingError     
-            { model with State = SavingPerson componentState }, cmd
+            match ValidatedPerson.Validate componentState.Person with
+            | Ok person ->
+                let cmd =
+                    match componentState.CreateOrUpdate with
+                    | Create -> 
+                        Cmd.OfAsync.either
+                            (Client.Remoting.getRemotingApi()).CreatePerson person
+                            (fun result -> match result with | Ok _ -> PersonSaved | Error e -> CreatePersonError e)
+                            RemotingError
+                    | Update ->
+                        Cmd.OfAsync.either
+                            (Client.Remoting.getRemotingApi()).UpdatePerson person
+                            (fun result -> match result with | Ok _ -> PersonSaved | Error e -> UpdatePersonError e)
+                            RemotingError     
+                { model with State = SavingPerson componentState }, cmd
+            | Error e ->
+                { model with State = EditingPerson { componentState with Errors = e } }, Cmd.none
         | _ ->
             model, Cmd.none
     | CreatePersonError e ->

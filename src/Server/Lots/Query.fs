@@ -1,7 +1,7 @@
 ﻿module Server.Lots.Query
 
 open System
-open Shared.Domain
+open Shared.Read
 open Server.Library
 
 let dummyLots: Lot list = [

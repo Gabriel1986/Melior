@@ -8,7 +8,7 @@ open Fable.React.Props
 open Feliz
 open Feliz.ElmishComponents
 
-open Shared.Domain
+open Shared.Read
 open Routing
 open Client
 open Client.ClientStyle
@@ -47,23 +47,27 @@ let determineStyle selectedPage page =
 let renderBuildingSpecificNavigation (currentPage: Page option) (building: BuildingListItem) (dispatch: NavbarMsg -> unit) = 
     let buildingSpecificProps = { BuildingId = building.BuildingId }
     [
+        li [ classes [ Bootstrap.navbarText; Bootstrap.plSm5 ] ] [
+            span [] [ str (sprintf "%s: "building.Code) ]
+        ]
+
         li [ Class Bootstrap.navItem ] [
             a [
                 Class (determineStyle currentPage (Page.OwnerList buildingSpecificProps))
                 OnClick (fun _ -> NavigateToPage (Page.OwnerList buildingSpecificProps) |> dispatch)
-            ] [ str (sprintf "Eigenaars van %s" building.Code) ]
+            ] [ str "Eigenaars" ]
         ]
         li [ Class Bootstrap.navItem ] [
             a [
                 Class (determineStyle currentPage (Page.LotList buildingSpecificProps))
                 OnClick (fun _ -> NavigateToPage (Page.LotList buildingSpecificProps) |> dispatch)
-            ] [ str (sprintf "Kavels van %s" building.Code) ]
+            ] [ str "Kavels" ]
         ]
         li [ Class Bootstrap.navItem ] [
             a [
                 Class (determineStyle currentPage (Page.OrganizationList buildingSpecificProps))
                 OnClick (fun _ -> NavigateToPage (Page.OrganizationList buildingSpecificProps) |> dispatch)
-            ] [ str (sprintf "Organizaties van %s" building.Code) ]
+            ] [ str "Organizaties" ]
         ]
     ]
 
@@ -82,7 +86,7 @@ let view (state: NavbarState) (dispatch: NavbarMsg -> unit) =
         | Some (Page.NotFound)
         | None                              -> None
 
-    nav [ classes [ Bootstrap.navbar; Bootstrap.navbarExpandLg; Bootstrap.navbarDark; Bootstrap.bgDark ] ] [ 
+    nav [ classes [ Bootstrap.navbar; Bootstrap.navbarExpandSm; Bootstrap.navbarDark; Bootstrap.bgDark ] ] [ 
         a [ Class Bootstrap.navbarBrand; Href "#" ] [ str "Top secret project" ]
         ul [ Class Bootstrap.navbarNav ] [ 
             yield

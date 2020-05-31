@@ -1,7 +1,7 @@
 ﻿module Server.Addresses.Library
 
 open Thoth.Json.Net
-open Shared.Domain
+open Shared.Read
 
 [<RequireQualifiedAccess>]
 module Address = 

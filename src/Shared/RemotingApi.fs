@@ -1,8 +1,8 @@
 ﻿module Shared.Remoting
 
 open System
-open Shared.Domain
-open Shared.Buildings
+open Shared.Read
+open Shared.Write
 
 type AuthorizationError = string
 
@@ -32,12 +32,10 @@ type PersonValidationError = {
 
 type CreateBuildingError =
     | AuthorizationError of AuthorizationError
-    | ValidationError of BuildingValidationError
 
 type UpdateBuildingError =
     | AuthorizationError of AuthorizationError
     | NotFound
-    | ValidationError of BuildingValidationError
 
 type CreatePersonError = 
     | ValidationError of PersonValidationError
@@ -55,8 +53,8 @@ type OwnerId = {
 type RemotingApi = {
     GetCurrentUser: unit                  -> Async<CurrentUser>
 
-    CreateBuilding:       BuildingRequest -> Async<Result<unit, CreateBuildingError>>
-    UpdateBuilding:       BuildingRequest -> Async<Result<unit, UpdateBuildingError>>
+    CreateBuilding:       ValidatedBuilding -> Async<Result<unit, CreateBuildingError>>
+    UpdateBuilding:       ValidatedBuilding -> Async<Result<unit, UpdateBuildingError>>
     DeleteBuilding:       Guid            -> Async<Result<unit, AuthorizationError>>
     GetBuilding:          Guid            -> Async<Building option>
     GetBuildings:         unit            -> Async<BuildingListItem list>
@@ -73,8 +71,8 @@ type RemotingApi = {
     GetOrganization:    Guid -> Async<Organization option>
     GetOrganizations:   {| BuildingId: Guid |} -> Async<OrganizationListItem list>
 
-    CreatePerson: Person -> Async<Result<unit, CreatePersonError>>
-    UpdatePerson: Person -> Async<Result<unit, UpdatePersonError>>
+    CreatePerson: ValidatedPerson -> Async<Result<unit, CreatePersonError>>
+    UpdatePerson: ValidatedPerson -> Async<Result<unit, UpdatePersonError>>
 
     GetProfessionalSyndics: unit -> Async<ProfessionalSyndicListItem list>
     GetProfessionalSyndic: Guid -> Async<ProfessionalSyndic option>

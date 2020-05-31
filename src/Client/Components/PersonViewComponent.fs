@@ -1,7 +1,7 @@
 ﻿module Client.Components.PersonViewComponent
 
 open Fable.React
-open Shared.Domain
+open Shared.Read
 open Client.ClientStyle.Helpers
 
 let private renderOtherAddress (other: OtherAddress) =

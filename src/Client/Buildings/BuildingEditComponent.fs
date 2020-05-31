@@ -8,16 +8,14 @@ open Elmish.React
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Components
-open Shared.Domain
+open Shared.Read
 open Shared.Library
-open Shared.ConstrainedTypes
-open Shared
 
 type Message =
     | BuildingNameChanged of string
     | BuildingCodeChanged of string
     | BuildingAddressChanged of Address
-    | BuildingOrganizationNumberChanged of string * string * string
+    | BuildingOrganizationNumberChanged of string
     | BuildingRemarksChanged of string
     | GeneralMeetingPeriodChanged of (DateTime * DateTime) option
     | BuildingYearOfConstructionChanged of string
@@ -31,10 +29,10 @@ type Message =
 
 type State = {
     Building: Building
-    OrganizationNumber: string * string * string
     GeneralMeetingPeriod: (DateTime * DateTime) option
     ShowingSyndicModal: bool
     ShowingConciergeModal: bool
+    Errors: (string * string) list
 }
 
 let init (building: Building) =
@@ -49,14 +47,18 @@ let init (building: Building) =
 
     { 
         Building = building
-        OrganizationNumber = 
-            building.OrganizationNumber 
-            |> Option.map (fun o -> o.ToStrings()) 
-            |> Option.defaultValue ("", "", "")
         GeneralMeetingPeriod = period
         ShowingConciergeModal = false
         ShowingSyndicModal = false
+        Errors = []
     }, Cmd.none
+
+let private formatOrganizationNumber (orgNr: string) =
+    let digitString = orgNr |> String.filter Char.IsDigit
+    match digitString.Length with
+    | x when x > 7 -> sprintf "%s.%s.%s" digitString.[0..3] digitString.[4..6] digitString.[7..]
+    | x when x > 4 -> sprintf "%s.%s" digitString.[0..3] digitString.[4..]
+    | _ -> digitString
 
 let update (message: Message) (state: State): State * Cmd<Message> =
     let changeBuilding f =
@@ -78,13 +80,13 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         changeBuilding (fun b -> { b with Code = x }), Cmd.none
     | BuildingAddressChanged addr ->
         changeBuilding (fun b -> { b with Address = addr }), Cmd.none
-    | BuildingOrganizationNumberChanged (x, y, z) ->
-        let buildingOrgNr = OrganizationNumber.Of (x, y, z) |> Trial.toResult
-        let newBuilding =
-            match buildingOrgNr with
-            | Ok orgNr -> { state.Building with OrganizationNumber = Some orgNr }
-            | Error _ ->  { state.Building with OrganizationNumber = None }
-        { state with Building = newBuilding; OrganizationNumber = x, y, z }, Cmd.none
+    | BuildingOrganizationNumberChanged x ->
+        let organizationNumber =
+            x
+            |> String.toOption
+            |> Option.map formatOrganizationNumber
+
+        changeBuilding (fun b -> { b with OrganizationNumber = organizationNumber }), Cmd.none
     | BuildingRemarksChanged x ->
         changeBuilding (fun b -> { b with Remarks = x |> String.toOption }), Cmd.none
     | GeneralMeetingPeriodChanged periodOption ->
@@ -183,13 +185,8 @@ let renderEditSyndic syndic dispatch =
         ]
 
 let view (state: State) (dispatch: Message -> unit) =
-    let syndicName =
-        let person =
-            function
-            | Syndic.Owner o -> o.Person
-            | Syndic.ProfessionalSyndic p -> p.Person
-            | Syndic.Other p -> p
-        person >> (fun p -> (p.FirstName |> Option.defaultValue "") + " " + (p.LastName |> Option.defaultValue ""))
+    let errorFor (path: string) =
+        state.Errors |> List.tryPick (fun (p, error) -> if p = path then Some error else None)
 
     div [] [
         formGroup [ 
@@ -200,6 +197,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 Helpers.valueOrDefault state.Building.Name
                 OnChange (fun e -> BuildingNameChanged e.Value |> dispatch)
             ] 
+            FormError (errorFor (nameof state.Building.Name))
         ]
         formGroup [ 
             Label "Code"
@@ -209,9 +207,27 @@ let view (state: State) (dispatch: Message -> unit) =
                 Helpers.valueOrDefault state.Building.Code
                 OnChange (fun e -> BuildingCodeChanged e.Value |> dispatch)
             ] 
+            FormError (errorFor (nameof state.Building.Code))
         ]
-        AddressEditComponent.render "" state.Building.Address (BuildingAddressChanged >> dispatch)
-        OrganizationNumberEditComponent.render "Ondernemingsnr." state.OrganizationNumber (BuildingOrganizationNumberChanged >> dispatch)
+        AddressEditComponent.render 
+            ""
+            state.Building.Address 
+            (BuildingAddressChanged >> dispatch)
+            (nameof state.Building.Address)
+            state.Errors
+
+        formGroup [
+            Label "Ondernemingsnr."
+            Input [ 
+                Type "text"
+                Pattern "[0-9]{4}\.[0-9]{3}\.[0-9]{3}"
+                MaxLength 12.0
+                Placeholder "xxxx.xxx.xxx"
+                Helpers.valueOrDefault state.Building.OrganizationNumber
+                OnChange (fun e -> BuildingOrganizationNumberChanged e.Value |> dispatch)
+            ] 
+            FormError (errorFor (nameof state.Building.OrganizationNumber))
+        ]
         formGroup [ 
             Label "Opmerkingen"
             Input [ 
@@ -246,6 +262,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 Helpers.valueOrDefault state.Building.YearOfConstruction
                 OnChange (fun e -> BuildingYearOfConstructionChanged e.Value |> dispatch)
             ]
+            FormError (errorFor (nameof state.Building.YearOfConstruction))
         ]
         formGroup [
             Label "Opleveringsjaar"
@@ -254,6 +271,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 Helpers.valueOrDefault state.Building.YearOfDelivery
                 OnChange (fun e -> BuildingYearOfDeliveryChanged e.Value |> dispatch)
             ]
+            FormError (errorFor (nameof state.Building.YearOfDelivery))
         ]
 
         SyndicModal.render 

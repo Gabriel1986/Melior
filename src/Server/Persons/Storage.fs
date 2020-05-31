@@ -3,19 +3,13 @@
 open System
 open Npgsql.FSharp
 
-open Shared.ConstrainedTypes
-open Shared.Domain
+open Shared.Read
+open Shared.Write
 open Server.Library
 open Server.PostgreSQL
 open Server.Addresses.Workflow
 open Server.ContactMethods.Workflow
 open Server.Persons.Library
-
-type ValidatedOtherAddress = {
-    Name: String255
-    Description: string
-    Address: ValidatedAddress
-}
 
 module ValidatedOtherAddress =
     let toOtherAddress (validated: ValidatedOtherAddress): OtherAddress = {
@@ -29,23 +23,6 @@ module ValidatedOtherAddress =
 
     let listToJson (validated: ValidatedOtherAddress list): string =
         validated |> List.map toOtherAddress |> OtherAddress.listToJson
-
-type ValidatedPerson = {
-    PersonId: Guid
-    FirstName: String255 option
-    LastName: String255 option
-    LanguageCode: String16 option
-    Gender: Gender
-    Title: String32 option
-    MainAddress: ValidatedAddress
-    ContactAddress: ValidatedAddress option
-    OtherAddresses: ValidatedOtherAddress list
-    MainTelephoneNumber: String32 option
-    MainTelephoneNumberComment: String255 option
-    MainEmailAddress: String255 option
-    MainEmailAddressComment: String255 option
-    OtherContactMethods: ValidatedContactMethod list
-}
 
 let createPerson (connectionString: string) (validated: ValidatedPerson) =
     Sql.connect connectionString
@@ -115,10 +92,10 @@ let updatePerson connectionString validated =
                     MainAddress = @MainAddress,
                     ContactAddress = @ContactAddress,
                     OtherAddresses = @OtherAddresses,
-                    MainTelephoneNumber = @MainTelephoneNumber
-                    MainTelephoneNumberComment = @MainTelephoneNumberComment
-                    MainEmailAddress = @MainEmailAddress
-                    MainEmailAddressComment = @MainEmailAddressComment
+                    MainTelephoneNumber = @MainTelephoneNumber,
+                    MainTelephoneNumberComment = @MainTelephoneNumberComment,
+                    MainEmailAddress = @MainEmailAddress,
+                    MainEmailAddressComment = @MainEmailAddressComment,
                     OtherContactMethods = @OtherContactMethods
                 WHERE PersonId = @PersonId
             """
@@ -135,7 +112,7 @@ let updatePerson connectionString validated =
             "@MainTelephoneNumber"       , Sql.stringOrNone (validated.MainTelephoneNumber |> Option.map string)
             "@MainTelephoneNumberComment", Sql.stringOrNone (validated.MainTelephoneNumberComment |> Option.map string)
             "@MainEmailAddress"          , Sql.stringOrNone (validated.MainEmailAddress |> Option.map string)
-            "@MainEmailAddressComment"   , Sql.stringOrNone (validated.MainTelephoneNumberComment |> Option.map string)
+            "@MainEmailAddressComment"   , Sql.stringOrNone (validated.MainEmailAddressComment |> Option.map string)
             "@OtherContactMethods"       , Sql.jsonb        (validated.OtherContactMethods |> ValidatedContactMethod.listToJson)
         ]
     |> Sql.writeAsync

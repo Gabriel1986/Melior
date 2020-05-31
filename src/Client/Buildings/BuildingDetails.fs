@@ -8,9 +8,9 @@ open Fable.React.Props
 open Feliz
 open Feliz.ElmishComponents
 
-open Shared.Domain
+open Shared.Read
 open Shared.Remoting
-open Shared.Buildings
+open Shared.Write
 
 open Client
 open Client.ClientStyle
@@ -100,21 +100,30 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
     | Save ->
         match model.State with
         | Editing (_, componentState) ->
-            let cmd = 
-                Cmd.OfAsync.either
-                    (Remoting.getRemotingApi().UpdateBuilding)
-                    (BuildingRequest.From componentState.Building)
-                    (fun result -> result |> Result.map (fun _ -> componentState.Building) |> ProcessUpdateResult)
-                    RemotingError
-            { model with State = Editing (true, componentState) }, cmd
+            match ValidatedBuilding.Validate componentState.Building with
+            | Ok building ->
+                let cmd = 
+                    Cmd.OfAsync.either
+                        (Remoting.getRemotingApi().UpdateBuilding)
+                        building
+                        (fun result -> result |> Result.map (fun _ -> componentState.Building) |> ProcessUpdateResult)
+                        RemotingError
+                { model with State = Editing (true, componentState) }, cmd
+            | Error e ->
+                printf "%A" e
+                { model with State = Editing (false, { componentState with Errors = e }) }, Cmd.none
         | Creating (_, componentState) ->
-            let cmd =
-                Cmd.OfAsync.either
-                    (Remoting.getRemotingApi().CreateBuilding)
-                    (BuildingRequest.From componentState.Building)
-                    (fun result -> result |> Result.map (fun _ -> componentState.Building) |> ProcessCreateResult)
-                    RemotingError
-            { model with State = Creating(true, componentState) }, cmd
+            match ValidatedBuilding.Validate componentState.Building with
+            | Ok building ->
+                let cmd =
+                    Cmd.OfAsync.either
+                        (Remoting.getRemotingApi().CreateBuilding)
+                        building
+                        (fun result -> result |> Result.map (fun _ -> componentState.Building) |> ProcessCreateResult)
+                        RemotingError
+                { model with State = Creating(true, componentState) }, cmd
+            | Error e ->
+                { model with State = Creating(false, { componentState with Errors = e }) }, Cmd.none
         | _ ->
             //Do nothing, unexpected message O_o
             model, Cmd.none

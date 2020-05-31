@@ -110,7 +110,7 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
 
     let extraColumnHeaders =
         [ 
-            if state.OnSelect.IsSome && state.IsSelected.IsSome then yield th [] [] 
+            if state.OnSelect.IsSome && state.IsSelected.IsSome then yield th [] [ str "Actief" ] 
             if state.OnEdit.IsSome then yield th [] []
             if state.OnDelete.IsSome then yield th [] []
         ]
@@ -120,26 +120,20 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
             if state.OnSelect.IsSome && state.IsSelected.IsSome then
                 yield
                     td [] [
-                        if state.IsSelected.Value (li) then
-                            yield a [
-                                Class Bootstrap.textPrimary                                      
-                            ] [
-                                str "Geselecteerd"
+                        div [ Class Bootstrap.formCheck ] [
+                            input [ 
+                                Type "radio"
+                                Class Bootstrap.formCheckInline 
+                                Checked (state.IsSelected.Value li)
                             ]
-                        else 
-                            yield a [
-                                classes [ Bootstrap.textInfo; "pointer" ]
-                                OnClick (fun _ -> state.OnSelect.Value (li) )
-                            ] [
-                                str "Selecteren"
-                            ]
+                        ]
                     ]
             if state.OnEdit.IsSome then
                 yield
                     td [] [ 
                         a [ 
                             classes [ Bootstrap.textPrimary; "pointer" ]
-                            OnClick (fun _ -> state.OnEdit.Value (li))
+                            OnClick (fun e -> e.preventDefault(); e.stopPropagation(); state.OnEdit.Value (li))
                         ] [
                             i [ classes [ FontAwesome.fa; FontAwesome.faExternalLinkAlt] ] []
                         ] 
@@ -149,7 +143,7 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
                     td [] [ 
                         a [
                             classes [ Bootstrap.textDanger; "pointer" ]
-                            OnClick (fun _ -> state.OnDelete.Value (li)) 
+                            OnClick (fun e -> e.preventDefault(); e.stopPropagation(); state.OnDelete.Value (li)) 
                         ] [
                             i [ classes [ FontAwesome.far; FontAwesome.faTrashAlt ] ] []
                         ] 
@@ -171,7 +165,10 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
         tbody []
             (state.ListItems
             |> List.map (fun li -> 
-                tr [] [
+                tr [ 
+                    if state.OnSelect.IsSome then yield OnClick (fun _ -> state.OnSelect.Value li) 
+                    if (state.IsSelected.IsSome && state.IsSelected.Value li) then yield (Class Bootstrap.tablePrimary)
+                ] [
                     yield! (state.DisplayAttributes |> List.map (fun attr -> td [] [ str (attr.StringValueOf li) ]))
                     yield! (extraColumns li)
                 ]

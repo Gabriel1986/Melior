@@ -2,7 +2,7 @@
 
 open System
 open Fable.React
-open Shared.Domain
+open Shared.Read
 open Client.Components
 open Client.ClientStyle.Helpers
 
@@ -12,13 +12,22 @@ let view (detail: Building) =
             yield legend [] [ h2 [] [ str "Algemeen" ] ]
             yield readonlyFormElement "Code" detail.Code
             yield readonlyFormElement "Naam" detail.Name
-            yield readonlyFormElement "Straat + nr." detail.Address.Street
-            yield readonlyFormElement "Postcode" detail.Address.ZipCode
-            yield readonlyFormElement "Woonplaats" detail.Address.Town
+            yield readonlyFormElement "Straat + nr." (defaultArg detail.Address.Street "")
+            yield readonlyFormElement "Postcode" (defaultArg detail.Address.ZipCode "")
+            yield readonlyFormElement "Woonplaats" (defaultArg detail.Address.Town "")
+            
+            match detail.Address.Country with 
+            | Some country when country <> "België" -> 
+                yield readonlyFormElement "Land" country
+            | _ -> 
+                ()
+            
+            yield readonlyFormElement "Bouwjaar" (detail.YearOfConstruction |> Option.map string |> Option.defaultValue "")
+            yield readonlyFormElement "Opleveringsjaar" (detail.YearOfDelivery |> Option.map string |> Option.defaultValue "")
 
             match detail.OrganizationNumber with
             | Some number ->
-                yield readonlyFormElement "Ondernemingsnummer" (string number)
+                yield readonlyFormElement "Ondernemingsnummer" number
             | None ->
                 ()
 

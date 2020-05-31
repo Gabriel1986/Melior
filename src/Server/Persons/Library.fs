@@ -1,6 +1,6 @@
 ﻿module Server.Persons.Library
 
-open Shared.Domain
+open Shared.Read
 open Thoth.Json.Net
 
 module OtherAddress =

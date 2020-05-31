@@ -8,7 +8,7 @@ open Server.Addresses.Library
 open Server.ContactMethods.Library
 open Server.PostgreSQL
 open Server.PostgreSQL.Sql
-open Shared.Domain
+open Shared.Read
 
 [<AutoOpen>]
 module private Readers =

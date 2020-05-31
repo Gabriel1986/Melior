@@ -1,7 +1,7 @@
 ﻿module Server.Owners.Query
 
 open System
-open Shared.Domain
+open Shared.Read
 open Server.Library
 
 let dummyOwners: Owner list = [
@@ -15,10 +15,10 @@ let dummyOwners: Owner list = [
             LanguageCode = Some "nl-BE"
             Gender = Gender.Male
             MainAddress = {
-                Street = "Teststraat 100 bus 101"
-                ZipCode = "0001"
-                Town = "Testgemeente"
-                Country = "Belgium"
+                Street = Some "Teststraat 100 bus 101"
+                ZipCode = Some "0001"
+                Town = Some "Testgemeente"
+                Country = Some "Belgium"
             }
             ContactAddress = MainAddress
             OtherAddresses = []
@@ -41,10 +41,10 @@ let dummyOwners: Owner list = [
             LanguageCode = Some "en-US"
             Gender = Gender.Male
             MainAddress = {
-                Street = "Teststraat 100 bus 101"
-                ZipCode = "0001"
-                Town = "Testgemeente"
-                Country = "Belgium"
+                Street = Some "Teststraat 100 bus 101"
+                ZipCode = Some "0001"
+                Town = Some "Testgemeente"
+                Country = Some "Belgium"
             }
             ContactAddress = MainAddress
             OtherAddresses = []
@@ -67,16 +67,16 @@ let dummyOwners: Owner list = [
             LanguageCode = Some "nl-BE"
             Gender = Gender.Female
             MainAddress = {
-                Street = "Teststraat 100 bus 102"
-                ZipCode = "0001"
-                Town = "Testgemeente"
-                Country = "Belgium"
+                Street = Some "Teststraat 100 bus 102"
+                ZipCode = Some "0001"
+                Town = Some "Testgemeente"
+                Country = Some "Belgium"
             }
             ContactAddress = ContactAddress.ContactAddress {  
-                Street = "Teststraat 102"
-                ZipCode = "0001"
-                Town = "Testgemeente"
-                Country = "Belgium"
+                Street = Some "Teststraat 102"
+                ZipCode = Some "0001"
+                Town = Some "Testgemeente"
+                Country = Some "Belgium"
 
             }
             OtherAddresses = []
@@ -99,10 +99,10 @@ let dummyOwners: Owner list = [
             LanguageCode = Some "nl-BE"
             Gender = Gender.Other
             MainAddress = {
-                Street = "Teststraat 100 bus 201"
-                ZipCode = "0001"
-                Town = "Testgemeente"
-                Country = "Belgium"
+                Street = Some "Teststraat 100 bus 201"
+                ZipCode = Some "0001"
+                Town = Some "Testgemeente"
+                Country = Some "Belgium"
             }
             ContactAddress = MainAddress
             OtherAddresses = []

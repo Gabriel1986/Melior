@@ -8,7 +8,7 @@ open Fable.React.Props
 open Feliz
 open Feliz.ElmishComponents
 
-open Shared.Domain
+open Shared.Read
 open Shared.Remoting
 open Client
 open Client.ClientStyle
@@ -182,7 +182,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
 
     div [ Class Bootstrap.row ] [
         div [ Class Bootstrap.colMd3 ] [
-            div [ classes [ Bootstrap.nav; Bootstrap.flexMdColumn; Bootstrap.navPills ] ] [
+            div [ classes [ Bootstrap.nav; Bootstrap.navTabs; "left-tabs" ] ] [
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle List); OnClick (fun _ -> SelectTab List |> dispatch) ] 
@@ -214,7 +214,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     Key = "OwnersPageTable"
                 |}
 
-        div [ Class Bootstrap.col ] [
+        div [ Class Bootstrap.colMd9 ] [
             match state.SelectedTab with
             | List -> list state
             | Details listItem -> 

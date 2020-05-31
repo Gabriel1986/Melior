@@ -1,13 +1,11 @@
 ﻿module Server.Buildings.Query
 
 open System
-open Shared.Domain
+open Shared.Read
 open Server.Library
 open Npgsql.FSharp
 open Server.Addresses.Library
-open Shared.ConstrainedTypes
 open Server.PostgreSQL
-open Serilog
 open Server.PostgreSQL.Sql
 
 [<AutoOpen>]
@@ -146,10 +144,8 @@ let getBuilding connectionString (buildingId: Guid): Async<Building option> = as
             IsActive = dbModel.IsActive
             Code = dbModel.Code
             Name = dbModel.Name
-            Address = dbModel.Address |> forceAddress                
-            OrganizationNumber = 
-                dbModel.OrganizationNumber
-                |> Option.bind OrganizationNumber.OfString
+            Address = dbModel.Address |> forceAddress
+            OrganizationNumber = dbModel.OrganizationNumber
             Remarks = dbModel.Remarks
             GeneralMeetingPeriod =
                 match dbModel.GeneralMeetingFrom, dbModel.GeneralMeetingUntil with
@@ -189,8 +185,6 @@ let getBuildings connectionString (): Async<BuildingListItem list> = async {
         Code = dbModel.Code
         Name = dbModel.Name
         Address = dbModel.Address |> forceAddress
-        OrganizationNumber = 
-            dbModel.OrganizationNumber
-            |> Option.bind OrganizationNumber.OfString
+        OrganizationNumber = dbModel.OrganizationNumber
     })
 }
