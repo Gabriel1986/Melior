@@ -164,24 +164,29 @@ let view (model: Model) (dispatch: Msg -> unit) =
         else
             div [] [
                 BuildingEditComponent.view editState (BuildingEditMsg >> dispatch)
-                div [] [
-                    button [ 
-                        classes [ Bootstrap.btn; Bootstrap.btnSuccess ]
-                        OnClick (fun _ -> Save |> dispatch) 
-                    ] [
-                        str "Bewaren"
+
+                div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+                    div [ Class Bootstrap.cardBody ] [
+                        button [ 
+                            classes [ Bootstrap.btn; Bootstrap.btnSuccess ]
+                            OnClick (fun _ -> Save |> dispatch) 
+                        ] [
+                            str "Bewaren"
+                        ]
                     ]
                 ]
             ]
     | Viewing detail ->
         div [] [
             BuildingViewComponent.render {| Building = detail |}
-            div [] [
-                button [ 
-                    classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
-                    OnClick (fun _ -> Edit detail |> dispatch) 
-                ] [
-                    str "Aanpassen"
+            div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+                div [ Class Bootstrap.cardBody ] [
+                    button [ 
+                        classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
+                        OnClick (fun _ -> Edit detail |> dispatch) 
+                    ] [
+                        str "Aanpassen"
+                    ]
                 ]
             ]
         ]

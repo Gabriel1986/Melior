@@ -24,6 +24,7 @@ module Helpers =
         | Name of string
         | Label of string
         | Input of IHTMLProp seq
+        | TextArea of IHTMLProp seq
         | Select of FormSelect
         | Radio of FormRadio
         | Date of Flatpickr.IFlatpickrOption list
@@ -86,6 +87,7 @@ module Helpers =
         let name = props |> List.tryPick (function | Name x -> Some x | _ -> None)
         let lbl = props |> List.tryPick (function | Label x -> Some x | _ -> None)
         let inputAttributes = props |> List.tryPick (function | Input x -> Some x | _ -> None)
+        let textAreaAttributes = props |> List.tryPick (function | TextArea x -> Some x | _ -> None)
         let selectProps = props |> List.tryPick (function | Select x -> Some x | _ -> None)
         let radioProps = props |> List.tryPick (function | Radio x -> Some x | _ -> None)
         let dateProps = props |> List.tryPick (function | Date x -> Some x | _ -> None)
@@ -98,6 +100,8 @@ module Helpers =
                 yield label [ HtmlFor theName ] [ str lbl.Value ]
             if inputAttributes.IsSome then
                 yield input (Seq.append inputAttributes.Value [ classes [ yield Bootstrap.formControl; if error.IsSome then yield Bootstrap.isInvalid ] ])
+            if textAreaAttributes.IsSome then
+                yield textarea (Seq.append textAreaAttributes.Value [ classes [ yield Bootstrap.formControl; if error.IsSome then yield Bootstrap.isInvalid ] ]) []
             if selectProps.IsSome then
                 yield formSelect selectProps.Value
             if radioProps.IsSome then

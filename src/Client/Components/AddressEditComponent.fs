@@ -21,7 +21,7 @@ let render (addressDescription: string) (address: Address) (onChange: Address ->
         ]
 
         div [ Class Bootstrap.row ] [
-            div [ Class Bootstrap.col ] [
+            div [ Class Bootstrap.colMd5 ] [
                 formGroup [ 
                     Label "Straat + nr"
                     Input [ 
@@ -45,7 +45,7 @@ let render (addressDescription: string) (address: Address) (onChange: Address ->
                     FormError (findError (nameof address.ZipCode))
                 ]
             ]
-            div [ Class Bootstrap.col ] [
+            div [ Class Bootstrap.colMd4 ] [
                 formGroup [ 
                     Label "Woonplaats"
                     Input [ 

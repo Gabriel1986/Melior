@@ -126,10 +126,9 @@ let renderEditConcierge concierge dispatch =
             label [] [ str "Concierge" ]
             div [ Class Bootstrap.formInline ] [
                 div [ Class Bootstrap.formGroup ] [
-                    label [ Style [ MarginRight "5px" ] ] [ str conciergeName ]
+                    label [ Class Bootstrap.mr2 ] [ str conciergeName ]
                     button [ 
-                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm ]
-                        Style [ MarginRight "5px" ]
+                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm; Bootstrap.mr2 ]
                         OnClick (fun _ -> ChangeConcierge |> dispatch) 
                     ] [ i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] [] ]
                     button [
@@ -163,16 +162,15 @@ let renderEditSyndic syndic dispatch =
             label [] [ str "Syndicus" ]
             div [ Class Bootstrap.formInline ] [
                 div [ Class Bootstrap.formGroup ] [
-                    label [ Style [ MarginRight "5px" ] ] [ str syndicName ]
-                    a [ 
-                        Class "pointer"
-                        Style [ MarginRight "5px" ]
+                    label [ Class Bootstrap.mr2 ] [ str syndicName ]
+                    button [ 
+                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm; Bootstrap.mr2 ]
                         OnClick (fun _ -> ChangeSyndic |> dispatch) 
                     ] [ i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] [] ]
-                    a [
-                        Class "pointer"
+                    button [
+                        classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger; Bootstrap.btnSm ]
                         OnClick (fun _ -> SyndicChanged None |> dispatch)
-                    ] [ i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] [] ]
+                    ] [ i [ classes [ FontAwesome.fa; FontAwesome.faTrash ] ] [] ]
                 ]
             ]
         ]
@@ -184,30 +182,36 @@ let renderEditSyndic syndic dispatch =
             ] [ str "Syndicus toevoegen" ]
         ]
 
+let inColomn x = div [ Class Bootstrap.col ] [ x ]
+
 let view (state: State) (dispatch: Message -> unit) =
     let errorFor (path: string) =
         state.Errors |> List.tryPick (fun (p, error) -> if p = path then Some error else None)
 
     div [] [
-        formGroup [ 
-            Label "Naam"
-            Input [ 
-                Type "text"
-                MaxLength 255.0
-                Helpers.valueOrDefault state.Building.Name
-                OnChange (fun e -> BuildingNameChanged e.Value |> dispatch)
-            ] 
-            FormError (errorFor (nameof state.Building.Name))
-        ]
-        formGroup [ 
-            Label "Code"
-            Input [ 
-                Type "text"
-                MaxLength 16.0
-                Helpers.valueOrDefault state.Building.Code
-                OnChange (fun e -> BuildingCodeChanged e.Value |> dispatch)
-            ] 
-            FormError (errorFor (nameof state.Building.Code))
+        div [ Class Bootstrap.row ] [
+            formGroup [ 
+                Label "Naam"
+                Input [ 
+                    Type "text"
+                    MaxLength 255.0
+                    Helpers.valueOrDefault state.Building.Name
+                    OnChange (fun e -> BuildingNameChanged e.Value |> dispatch)
+                ] 
+                FormError (errorFor (nameof state.Building.Name))
+            ]
+            |> inColomn
+            formGroup [ 
+                Label "Code"
+                Input [ 
+                    Type "text"
+                    MaxLength 16.0
+                    Helpers.valueOrDefault state.Building.Code
+                    OnChange (fun e -> BuildingCodeChanged e.Value |> dispatch)
+                ] 
+                FormError (errorFor (nameof state.Building.Code))
+            ]
+            |> inColomn
         ]
         AddressEditComponent.render 
             ""
@@ -216,62 +220,77 @@ let view (state: State) (dispatch: Message -> unit) =
             (nameof state.Building.Address)
             state.Errors
 
-        formGroup [
-            Label "Ondernemingsnr."
-            Input [ 
-                Type "text"
-                Pattern "[0-9]{4}\.[0-9]{3}\.[0-9]{3}"
-                MaxLength 12.0
-                Placeholder "xxxx.xxx.xxx"
-                Helpers.valueOrDefault state.Building.OrganizationNumber
-                OnChange (fun e -> BuildingOrganizationNumberChanged e.Value |> dispatch)
-            ] 
-            FormError (errorFor (nameof state.Building.OrganizationNumber))
-        ]
-        formGroup [ 
-            Label "Opmerkingen"
-            Input [ 
-                Type "text"
-                Helpers.valueOrDefault state.Building.Remarks
-                OnChange (fun e -> BuildingRemarksChanged e.Value |> dispatch)
-            ] 
-        ]
-        formGroup [
-            Label "Algemene vergadering periode"
-            Date [
-                match state.GeneralMeetingPeriod with
-                | Some (start, until) -> 
-                    yield Flatpickr.Values [ start; until ]
-                | _ -> 
-                    ()
-                yield 
-                    Flatpickr.SelectionMode Flatpickr.Mode.Range
-                yield
-                    Flatpickr.OnManyChanged (fun (dates: list<DateTime>) ->
-                         match dates with
-                         | [ fromDate; toDate ] -> GeneralMeetingPeriodChanged (Some (fromDate, toDate)) |> dispatch
-                         | _ -> GeneralMeetingPeriodChanged None |> dispatch)
+        div [ Class Bootstrap.row ] [
+            div [] [
+                formGroup [
+                    Label "Ondernemingsnr."
+                    Input [ 
+                        Type "text"
+                        Pattern "[0-9]{4}\.[0-9]{3}\.[0-9]{3}"
+                        MaxLength 12.0
+                        Placeholder "xxxx.xxx.xxx"
+                        Helpers.valueOrDefault state.Building.OrganizationNumber
+                        OnChange (fun e -> BuildingOrganizationNumberChanged e.Value |> dispatch)
+                    ] 
+                    FormError (errorFor (nameof state.Building.OrganizationNumber))
+                ]
+                formGroup [
+                    Label "Periode algemene vergadering"
+                    Date [
+                        match state.GeneralMeetingPeriod with
+                        | Some (start, until) -> 
+                            yield Flatpickr.Values [ start; until ]
+                        | _ -> 
+                            ()
+                        yield 
+                            Flatpickr.SelectionMode Flatpickr.Mode.Range
+                        yield
+                            Flatpickr.OnManyChanged (fun (dates: list<DateTime>) ->
+                                 match dates with
+                                 | [ fromDate; toDate ] -> GeneralMeetingPeriodChanged (Some (fromDate, toDate)) |> dispatch
+                                 | _ -> GeneralMeetingPeriodChanged None |> dispatch)
+                    ]
+                ]
             ]
-        ]
-        renderEditConcierge state.Building.Concierge dispatch
-        renderEditSyndic state.Building.Syndic dispatch
-        formGroup [
-            Label "Bouwjaar"
-            Input [
-                Type "number"
-                Helpers.valueOrDefault state.Building.YearOfConstruction
-                OnChange (fun e -> BuildingYearOfConstructionChanged e.Value |> dispatch)
+            |> inColomn
+            formGroup [ 
+                Label "Opmerkingen"
+                TextArea [
+                    Rows 4
+                    Helpers.valueOrDefault state.Building.Remarks
+                    OnChange (fun e -> BuildingRemarksChanged e.Value |> dispatch)
+                ] 
             ]
-            FormError (errorFor (nameof state.Building.YearOfConstruction))
+            |> inColomn
         ]
-        formGroup [
-            Label "Opleveringsjaar"
-            Input [
-                Type "number"
-                Helpers.valueOrDefault state.Building.YearOfDelivery
-                OnChange (fun e -> BuildingYearOfDeliveryChanged e.Value |> dispatch)
+        div [ Class Bootstrap.row ] [
+            renderEditConcierge state.Building.Concierge dispatch
+            |> inColomn
+
+            renderEditSyndic state.Building.Syndic dispatch
+            |> inColomn
+        ]
+        div [ Class Bootstrap.row ] [
+            formGroup [
+                Label "Bouwjaar"
+                Input [
+                    Type "number"
+                    Helpers.valueOrDefault state.Building.YearOfConstruction
+                    OnChange (fun e -> BuildingYearOfConstructionChanged e.Value |> dispatch)
+                ]
+                FormError (errorFor (nameof state.Building.YearOfConstruction))
             ]
-            FormError (errorFor (nameof state.Building.YearOfDelivery))
+            |> inColomn
+            formGroup [
+                Label "Opleveringsjaar"
+                Input [
+                    Type "number"
+                    Helpers.valueOrDefault state.Building.YearOfDelivery
+                    OnChange (fun e -> BuildingYearOfDeliveryChanged e.Value |> dispatch)
+                ]
+                FormError (errorFor (nameof state.Building.YearOfDelivery))
+            ]
+            |> inColomn
         ]
 
         SyndicModal.render 
