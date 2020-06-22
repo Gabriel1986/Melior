@@ -707,6 +707,7 @@ NUGET
       System.Reflection.Emit.Lightweight (>= 4.3)
       System.Threading.Tasks.Extensions (>= 4.4)
       System.ValueTuple (>= 4.4)
+    vies-dotnet-api (1.0.0-beta-0010)
     Zanaptak.TypedCssClasses (0.2)
       FSharp.Core (>= 4.3.4)
 

@@ -12,7 +12,6 @@ open Server.PostgreSQL.Sql
 module private Readers =
     type BuildingDbModel = {
         BuildingId: Guid
-        IsActive: bool
         Code: string
         Name: string
         Address: string
@@ -29,55 +28,39 @@ module private Readers =
         YearOfDelivery: int option
     }
 
-    let private read (f: RowReader -> string -> 'T) (str: string) (reader: RowReader): 'T =
-        (f reader (str.ToLower()))
-
-    let private readString (str: string) (reader: RowReader) =
-        reader.string (str.ToLower())
-
-    let private readBool (str: string) (reader: RowReader) =
-        reader.bool (str.ToLower())
-
-    let readBuilding (reader: RowReader): BuildingDbModel = 
-        let reader = new CaseInsensitiveRowReader(reader)
-        {
-            BuildingId = reader.uuid "BuildingId"
-            IsActive = reader.bool "IsActive"
-            Code = reader.string "Code"
-            Name = reader.string "Name"
-            Address = reader.string "Address"
-            OrganizationNumber = reader.stringOrNone "OrganizationNumber"
-            Remarks = reader.stringOrNone "Remarks"
-            GeneralMeetingFrom = reader.dateTimeOrNone "GeneralMeetingFrom"
-            GeneralMeetingUntil = reader.dateTimeOrNone "GeneralMeetingUntil"
-            ConciergePersonId = reader.uuidOrNone "ConciergePersonId"
-            ConciergeOwnerId = reader.uuidOrNone "ConciergeOwnerId"
-            SyndicOwnerId = reader.uuidOrNone "SyndicOwnerId"
-            SyndicProfessionalSyndicId = reader.uuidOrNone "SyndicProfessionalSyndicId"
-            SyndicPersonId = reader.uuidOrNone "SyndicPersonId"
-            YearOfConstruction = reader.intOrNone "YearOfConstruction"
-            YearOfDelivery = reader.intOrNone "YearOfDelivery"
-        }
+    let readBuilding (reader: CaseInsensitiveRowReader): BuildingDbModel = {
+        BuildingId = reader.uuid "BuildingId"
+        Code = reader.string "Code"
+        Name = reader.string "Name"
+        Address = reader.string "Address"
+        OrganizationNumber = reader.stringOrNone "OrganizationNumber"
+        Remarks = reader.stringOrNone "Remarks"
+        GeneralMeetingFrom = reader.dateTimeOrNone "GeneralMeetingFrom"
+        GeneralMeetingUntil = reader.dateTimeOrNone "GeneralMeetingUntil"
+        ConciergePersonId = reader.uuidOrNone "ConciergePersonId"
+        ConciergeOwnerId = reader.uuidOrNone "ConciergeOwnerId"
+        SyndicOwnerId = reader.uuidOrNone "SyndicOwnerId"
+        SyndicProfessionalSyndicId = reader.uuidOrNone "SyndicProfessionalSyndicId"
+        SyndicPersonId = reader.uuidOrNone "SyndicPersonId"
+        YearOfConstruction = reader.intOrNone "YearOfConstruction"
+        YearOfDelivery = reader.intOrNone "YearOfDelivery"
+    }
 
     type BuildingListItemDbModel = {
         BuildingId: Guid
-        IsActive: bool
         Code: string
         Name: string
         Address: string
         OrganizationNumber: string option
     }
 
-    let readBuildingListItem (reader: RowReader): BuildingListItemDbModel = 
-        let reader = new CaseInsensitiveRowReader(reader)
-        {
-            BuildingId = reader.uuid "BuildingId"
-            IsActive = reader.bool "IsActive"
-            Code = reader.string "Code"
-            Name = reader.string "Name"
-            Address = reader.string "Address"
-            OrganizationNumber = reader.stringOrNone "OrganizationNumber"
-        }
+    let readBuildingListItem (reader: CaseInsensitiveRowReader): BuildingListItemDbModel = {
+        BuildingId = reader.uuid "BuildingId"
+        Code = reader.string "Code"
+        Name = reader.string "Name"
+        Address = reader.string "Address"
+        OrganizationNumber = reader.stringOrNone "OrganizationNumber"
+    }
 
 let private forceAddress str =
     match Address.fromJson str with
@@ -91,7 +74,6 @@ let getBuilding connectionString (buildingId: Guid): Async<Building option> = as
             """
                 SELECT
                     BuildingId,
-                    IsActive,
                     Code,
                     Name,
                     Address,
@@ -141,7 +123,6 @@ let getBuilding connectionString (buildingId: Guid): Async<Building option> = as
 
         return Some {
             BuildingId = dbModel.BuildingId
-            IsActive = dbModel.IsActive
             Code = dbModel.Code
             Name = dbModel.Name
             Address = dbModel.Address |> forceAddress
@@ -169,19 +150,18 @@ let getBuildings connectionString (): Async<BuildingListItem list> = async {
             """
                 SELECT
                     BuildingId,
-                    IsActive,
                     Code,
                     Name,
                     Address,
                     OrganizationNumber
                 FROM Buildings
+                WHERE IsActive = TRUE
             """
         |> Sql.parameters []
         |> Sql.read readBuildingListItem
 
     return results |> List.map (fun dbModel -> {
         BuildingId = dbModel.BuildingId
-        IsActive = dbModel.IsActive
         Code = dbModel.Code
         Name = dbModel.Name
         Address = dbModel.Address |> forceAddress

@@ -218,7 +218,7 @@ let modalContent model dispatch =
     | LoadingOwners ->
         div [] [ str "Eigenaars worden geladen..." ]
     | LoadingOrganizations ->
-        div [] [ str "Organizaties worden geladen..." ]
+        div [] [ str "Organisaties worden geladen..." ]
     | SelectingOwner (list, selectedId) ->
         renderOwnerSelectionList list selectedId dispatch
     | SelectingOrganization (list, selectedId) ->
@@ -254,7 +254,7 @@ let view (model: Model) dispatch =
                 DisableBackgroundClick true
                 OnDismiss (fun _ -> dispatch Dismiss)
                 Header [
-                    HeaderProp.ShowDismissButton true
+                    HeaderProp.HasDismissButton true
                 ]
                 Body [
                     modalContent model dispatch

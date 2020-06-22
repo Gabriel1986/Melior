@@ -262,7 +262,7 @@ let view (model: Model) dispatch =
                 DisableBackgroundClick true
                 OnDismiss (fun _ -> dispatch Dismiss)
                 Header [
-                    HeaderProp.ShowDismissButton true
+                    HeaderProp.HasDismissButton true
                 ]
                 Body [
                     modalContent model dispatch

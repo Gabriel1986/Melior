@@ -1,13 +1,6 @@
 module Shared.Read
 
 open System
-open Library
-open ConstrainedTypes
-
-//Kavels -> toevoegen aandeel (= facturatie begrip) (= quotiteit volgens wetgeving)
-
-//Verdeelsleutels ->
-//	Vaste 10 verdeelsleutels
 
 type GeneralMeetingPeriod = {
     FromDay: int
@@ -22,7 +15,6 @@ type CurrentUser = {
     DisplayName: string
     PersonId: Guid
     Role: Role
-    IsActive: bool
     BuildingIds: Guid list
     PreferredLanguageCode: string
 }
@@ -34,7 +26,6 @@ and Role =
 type Building = 
     {
         BuildingId: Guid
-        IsActive: bool
         Code: string
         Name: string
         Address: Address
@@ -48,7 +39,6 @@ type Building =
     }
     static member Init () = {
         BuildingId = Guid.NewGuid()
-        IsActive = true
         Code = ""
         Name = ""
         Address = Address.Init
@@ -62,7 +52,6 @@ type Building =
     }
     member me.ToListItem (): BuildingListItem = {
         BuildingId = me.BuildingId
-        IsActive = me.IsActive
         Code = me.Code
         Name = me.Name
         Address = me.Address
@@ -126,7 +115,6 @@ and Syndic =
 
 and BuildingListItem = {
     BuildingId: Guid
-    IsActive: bool
     Code: string
     Name: string
     Address: Address
@@ -154,7 +142,6 @@ and Lot =
         Floor: int option
         //Surface in square metres, if necessary, could be calculated in square feet
         Surface: int option
-        IsActive: bool
     }
     static member Init (buildingId: Guid) = {
         LotId = Guid.NewGuid()
@@ -165,7 +152,6 @@ and Lot =
         Description = None
         Floor = None
         Surface = None
-        IsActive = true
     }
 and LotOwner = 
     | Owner of Owner
@@ -187,6 +173,16 @@ and LotType =
         | Garage -> "Garage"
         | Storage -> "Opslagruimte"
         | Other -> "Andere"
+    static member OfString str =
+        match str with
+        | _ when str = string Appartment -> Appartment
+        | _ when str = string Studio -> Studio
+        | _ when str = string ParkingSpace -> ParkingSpace
+        | _ when str = string CommercialProperty -> CommercialProperty
+        | _ when str = string Garage -> Garage
+        | _ when str = string Storage -> Storage
+        | _ -> LotType.Other
+
 and LotListItem = {
     LotId: Guid
     BuildingId: Guid
@@ -195,38 +191,74 @@ and LotListItem = {
     LotType: LotType
     Floor: int option
     Description: string option
-    IsActive: bool
 }
 and LotOwnerListItem =
-    | Owner of {| PersonId: Guid; Name: string |}
+    | Person of {| PersonId: Guid; Name: string |}
     | Organization of {| OrganizationId: Guid; Name: string |}
 
 //A (non-building) organization
-and Organization = {
-    OrganizationId: Guid
-    OrganizationNumber: OrganizationNumber
-    IsActive: bool
-    OrganizationType: OrganizationType
-    Name: string
-    Address: Address
-    MainContactPerson: ContactPerson
-    OtherContactPersons: ContactPerson list
-}
-and ContactPerson = {
-    OrganizationId: Guid
-    Person: Person
-    RoleWithinOrganization: string
-
-}
-and OrganizationType = {
-    OrganizationTypeId: Guid
-    Name: string
-}
+and Organization = 
+    {
+        OrganizationId: Guid
+        BuildingId: Guid option
+        OrganizationNumber: string option
+        VatNumber: string option
+        VatNumberVerifiedOn: DateTime option
+        OrganizationTypes: OrganizationType list
+        Name: string
+        Address: Address
+        MainEmailAddress: string option
+        MainEmailAddressComment: string option
+        MainTelephoneNumber: string option
+        MainTelephoneNumberComment: string option
+        OtherContactMethods: ContactMethod list
+        ContactPersons: ContactPerson list
+    }
+    static member Init (buildingId: Guid option): Organization = 
+        let orgId = Guid.NewGuid()
+        {
+            OrganizationId = orgId
+            BuildingId = buildingId
+            OrganizationNumber = None
+            VatNumber = None
+            VatNumberVerifiedOn = None
+            OrganizationTypes = []
+            Name = ""
+            Address = Address.Init
+            MainEmailAddress = None
+            MainEmailAddressComment = None
+            MainTelephoneNumber = None
+            MainTelephoneNumberComment = None
+            OtherContactMethods = []
+            ContactPersons = []
+        }
+and ContactPerson = 
+    {
+        OrganizationId: Guid
+        Person: Person
+        RoleWithinOrganization: string
+    }
+    static member Init (orgId: Guid) = {
+        OrganizationId = orgId
+        Person = Person.Init ()
+        RoleWithinOrganization = ""
+    }
+and OrganizationType = 
+    {
+        OrganizationTypeId: Guid
+        Name: string
+    }
+    static member Init () = {
+        OrganizationTypeId = Guid.NewGuid()
+        Name = ""
+    }
 and OrganizationListItem = {
     OrganizationId: Guid
-    OrganizationNumber: OrganizationNumber
-    OrganizationType: string
+    BuildingId: Guid option
+    OrganizationNumber: string option
+    OrganizationTypeNames: string list
     Name: string
+    Address: Address
 }
 //A flesh and blood person
 and Person = 
@@ -277,45 +309,56 @@ and Gender =
         | x when x = string Female -> Female
         | _                        -> Other
 
-and Owner = {
-    BuildingId: Guid
-    Person: Person
-    IsActive: bool
-    IsResident: bool
-    //Lots: LotListItem list
-}
+and Owner = 
+    {
+        BuildingId: Guid
+        Person: Person
+        IsResident: bool
+    }
+    static member Init (buildingId: Guid) = {
+        BuildingId = buildingId
+        Person = Person.Init ()
+        IsResident = true
+    }
 and Tenant = {
-    TenantId: Guid
     Person: Person
-    IsActive: bool
     MoveInDate: DateTimeOffset
     MoveOutDate: DateTimeOffset option
-    //Lots: LotListItem list
 }
-and ProfessionalSyndic = {
-    ProfessionalSyndicId: Guid
-    Person: Person
-    IsActive: bool
-}
+and ProfessionalSyndic = 
+    {
+        Organization: Organization
+    }
+    static member Init () = {
+        Organization = Organization.Init None
+    }
 and OwnerListItem = {
     BuildingId: Guid
     PersonId: Guid
     FirstName: string option
     LastName: string option
     IsResident: bool
-    IsActive: bool
 }
 and TenantListItem = {
-    TenantId: Guid
+    PersonId: Guid
     FirstName: string
     LastName: string
-    IsActive: bool
     MoveInDate: DateTimeOffset
     MoveOutDate: DateTimeOffset option
 }
 and ProfessionalSyndicListItem = {
-    ProfessionalSyndicId: Guid
-    FirstName: string option
-    LastName: string option
-    IsActive: bool
+    OrganizationId: Guid
+    Name: string
+    Address: Address
+    MainEmailAddress: string option
+    MainTelephoneNumber: string option
+}
+
+type VatNumberValidationResponse = {
+    CountryCode: string
+    VatNumber: string
+    RequestDate: DateTimeOffset
+    IsValid: bool
+    Name: string option
+    Address: string option
 }

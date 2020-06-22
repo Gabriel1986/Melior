@@ -15,7 +15,7 @@ module BasicModal =
         | Footer of FooterProp list
     and HeaderProp =
         | Title of string
-        | ShowDismissButton of bool
+        | HasDismissButton of bool
     and FooterProp =
         | Buttons of ReactElement list
         | ShowDismissButton of string option
@@ -39,7 +39,7 @@ module BasicModal =
             let title = headerProps |> List.tryPick (function | Title x -> Some x | _ -> None)
             let showDismissButton = 
                 headerProps 
-                |> List.tryPick (function | HeaderProp.ShowDismissButton x -> Some x | _ -> None)
+                |> List.tryPick (function | HeaderProp.HasDismissButton x -> Some x | _ -> None)
                 |> Option.defaultValue false
 
             div [ Class Bootstrap.modalHeader ] [

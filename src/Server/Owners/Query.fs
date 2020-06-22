@@ -1,135 +1,81 @@
 ﻿module Server.Owners.Query
 
 open System
+open Npgsql.FSharp
+open Server.PostgreSQL
+open Server.PostgreSQL.Sql
 open Shared.Read
-open Server.Library
 
-let dummyOwners: Owner list = [
-    {
-        BuildingId = Guid.NewGuid()
-        Person = {
-            PersonId = Guid.NewGuid()
-            FirstName = Some "Jan"
-            LastName = Some "Janssens"
-            Title = Some "Mr."
-            LanguageCode = Some "nl-BE"
-            Gender = Gender.Male
-            MainAddress = {
-                Street = Some "Teststraat 100 bus 101"
-                ZipCode = Some "0001"
-                Town = Some "Testgemeente"
-                Country = Some "Belgium"
-            }
-            ContactAddress = MainAddress
-            OtherAddresses = []
-            MainTelephoneNumber = Some "555-123-123"
-            MainTelephoneNumberComment = None
-            MainEmailAddress = Some "JanJanssens@test.be"
-            MainEmailAddressComment = None
-            OtherContactMethods = []
-        }
-        IsResident = false
-        IsActive = true
+[<AutoOpen>]
+module private Readers =
+    type OwnerDbModel = {
+        PersonId: Guid
+        BuildingId: Guid
+        IsResident: bool
     }
-    {
-        BuildingId = Guid.NewGuid()
-        Person = {
-            PersonId = Guid.NewGuid()
-            FirstName = Some "Jefke"
-            LastName = Some "Janssens"
-            Title = Some "Dr."
-            LanguageCode = Some "en-US"
-            Gender = Gender.Male
-            MainAddress = {
-                Street = Some "Teststraat 100 bus 101"
-                ZipCode = Some "0001"
-                Town = Some "Testgemeente"
-                Country = Some "Belgium"
-            }
-            ContactAddress = MainAddress
-            OtherAddresses = []
-            MainTelephoneNumber = Some "555-123-123"
-            MainTelephoneNumberComment = None
-            MainEmailAddress = Some "DrJefkeJanssens@test.be"
-            MainEmailAddressComment = None
-            OtherContactMethods = []
-        }
-        IsResident = true
-        IsActive = true
+
+    let readOwner (reader: CaseInsensitiveRowReader): OwnerDbModel = {
+        PersonId = reader.uuid "PersonId"
+        BuildingId = reader.uuid "BuildingId"
+        IsResident = reader.bool "IsResident"
     }
-    {
-        BuildingId = Guid.NewGuid()
-        Person = {
-            PersonId = Guid.NewGuid()
-            FirstName = Some "Jeanneke"
-            LastName = Some "Janssens"
-            Title = Some "Mevr."
-            LanguageCode = Some "nl-BE"
-            Gender = Gender.Female
-            MainAddress = {
-                Street = Some "Teststraat 100 bus 102"
-                ZipCode = Some "0001"
-                Town = Some "Testgemeente"
-                Country = Some "Belgium"
-            }
-            ContactAddress = ContactAddress.ContactAddress {  
-                Street = Some "Teststraat 102"
-                ZipCode = Some "0001"
-                Town = Some "Testgemeente"
-                Country = Some "Belgium"
 
-            }
-            OtherAddresses = []
-            MainTelephoneNumber = Some "555-123-123"
-            MainTelephoneNumberComment = None
-            MainEmailAddress = Some "JeannekeJanssens@test.be"
-            MainEmailAddressComment = None
-            OtherContactMethods = []
-        }
-        IsResident = true
-        IsActive = true
+    let readOwners (reader: CaseInsensitiveRowReader): OwnerListItem = {
+        PersonId = reader.uuid "PersonId"
+        BuildingId = reader.uuid "BuildingId"
+        FirstName = reader.stringOrNone "FirstName"
+        LastName = reader.stringOrNone "LastName"
+        IsResident = reader.bool "IsResident"
     }
-    {
-        BuildingId = Guid.NewGuid()
-        Person = {
-            PersonId = Guid.NewGuid()
-            FirstName = Some "Flarry"
-            LastName = Some "Janssens"
-            Title = Some "Heli."
-            LanguageCode = Some "nl-BE"
-            Gender = Gender.Other
-            MainAddress = {
-                Street = Some "Teststraat 100 bus 201"
-                ZipCode = Some "0001"
-                Town = Some "Testgemeente"
-                Country = Some "Belgium"
-            }
-            ContactAddress = MainAddress
-            OtherAddresses = []
-            MainTelephoneNumber = Some "555-123-123"
-            MainTelephoneNumberComment = None
-            MainEmailAddress = Some "FlarryJanssens@test.be"
-            MainEmailAddressComment = None
-            OtherContactMethods = []
-        }
-        IsResident = true
-        IsActive = false
-    }    
-]
-
-let private toListItem (owner: Owner): OwnerListItem = {
-    PersonId = owner.Person.PersonId
-    BuildingId = owner.BuildingId
-    FirstName = owner.Person.FirstName
-    LastName = owner.Person.LastName
-    IsResident = owner.IsResident
-    IsActive = owner.IsActive
-}
-
-let getOwners (connectionString: string) (filter: {| BuildingId: Guid |}) = async {
-    return dummyOwners |> List.map toListItem
-}
 
 let getOwner (connectionString: string) (ownerId: Guid) = async {
-    return dummyOwners |> List.tryFind (fun owner -> owner.Person.PersonId = ownerId)
+    let! result =
+        Sql.connect connectionString
+        |> Sql.query
+            """
+                SELECT
+                    PersonId,
+                    BuildingId,
+                    IsResident
+                FROM
+                    Owners
+                WHERE
+                    PersonId = @PersonId
+            """
+        |> Sql.parameters [ "@PersonId", Sql.uuid ownerId ]
+        |> Sql.readSingle readOwner
+
+    match result with
+    | Some dbModel ->
+        match! Server.Persons.Query.getPerson connectionString ownerId with
+        | Some person ->
+            return Some {
+                Person = person
+                BuildingId = dbModel.BuildingId
+                IsResident = dbModel.IsResident
+            }
+        | None -> 
+            return None
+    | None ->
+        return None
 }
+
+let getOwners (connectionString: string) (filter: {| BuildingId: Guid |}) =
+    Sql.connect connectionString
+    |> Sql.query
+        """
+            SELECT
+                owner.PersonId,
+                owner.BuildingId,
+                owner.IsResident,
+                person.FirstName,
+                person.LastName
+            FROM
+                Owners owner
+            LEFT JOIN Persons person on person.PersonId = owner.PersonId
+            WHERE BuildingId = @BuildingId
+        """
+    |> Sql.parameters [
+        "@BuildingId", Sql.uuid filter.BuildingId
+    ]
+    |> Sql.read readOwners

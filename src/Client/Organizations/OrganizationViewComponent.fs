@@ -1,36 +1,28 @@
 ﻿module Client.Organizations.OrganizationViewComponent
 
+open System
 open Fable.React
 open Shared.Read
 open Client.ClientStyle.Helpers
-open Client.Components
-
-let private renderContactPerson (contactPerson: ContactPerson) =
-    div [] [
-        readonlyFormElement "Rol" contactPerson.RoleWithinOrganization
-        PersonViewComponent.render {| Person = contactPerson.Person; WithAddresses = false |}
-    ]
-
-let private renderOtherContactPersonsFor (organization: Organization) =
-    organization.OtherContactPersons |> List.map renderContactPerson
 
 let view (organization: Organization) =
     div [] [
         yield readonlyFormElement "Naam" organization.Name
         yield readonlyFormElement "Ondernemingsnummer" (string organization.OrganizationNumber)
-        yield readonlyFormElement "Type" (string organization.OrganizationType.Name)
+        yield readonlyFormElement "Types" (organization.OrganizationTypes |> List.map (fun ot -> ot.Name) |> (fun result -> String.Join(", ", result)))
         yield readonlyFormElement "Adres" (string organization.Address)
+        yield readonlyFormElement "Tel." (defaultArg organization.MainTelephoneNumber "")
+        yield readonlyFormElement "Tel. commentaar" (defaultArg organization.MainTelephoneNumber "")
 
-        yield 
-            fieldset [] [
-                yield legend [] [ h2 [] [ str "Hoofdcontactpersoon" ] ]
-                yield renderContactPerson organization.MainContactPerson
-            ]
+        yield readonlyFormElement "E-mail" (defaultArg organization.MainEmailAddress "")
+        yield readonlyFormElement "E-mail commentaar" (defaultArg organization.MainEmailAddressComment "")
 
-        yield
-            fieldset [] [
-                yield legend [] [ h2 [] [ str "Andere contactpersonen" ] ]
-                yield! renderOtherContactPersonsFor organization
+        yield! organization.OtherContactMethods |> List.map (fun cm -> readonlyFormElement cm.Description cm.Value)
+
+        if organization.ContactPersons.Length > 0 then
+            yield fieldset [] [
+                yield legend [] [ h2 [] [ str "Contactpersonen" ] ]
+                yield! organization.ContactPersons |> List.map (fun cp -> ContactPersonViewComponent.render {| ContactPerson = cp |})
             ]
     ]
 

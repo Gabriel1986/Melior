@@ -22,6 +22,8 @@ type Model = {
     State: State
     NotifyCreated: Building -> unit
     NotifyEdited:  Building -> unit
+    ShowingSyndicModal: bool
+    ShowingConciergeModal: bool
 }
 and State =
     | Loading
@@ -39,6 +41,12 @@ type Msg =
     | Save
     | ProcessCreateResult of Result<Building, CreateBuildingError>
     | ProcessUpdateResult of Result<Building, UpdateBuildingError>
+    | ChangeSyndic
+    | SyndicChanged of Syndic option
+    | SyndicChangeCanceled
+    | ChangeConcierge
+    | ConciergeChanged of Concierge option
+    | ConciergeChangeCanceled
 
 type DetailsProps = {|
     CurrentUser: CurrentUser
@@ -70,9 +78,16 @@ let init (props: DetailsProps): Model * Cmd<Msg> =
         State = state
         NotifyCreated = props.NotifyCreated
         NotifyEdited = props.NotifyEdited
+        ShowingConciergeModal = false
+        ShowingSyndicModal = false
     }, cmd
 
 let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
+    let changeViewingState (change: Building -> Building) =
+        match model.State with
+        | Viewing building -> Viewing (change building)
+        | other -> other
+
     match msg with
     | View building ->
         match building with
@@ -151,6 +166,41 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             //TODO!
             model, Cmd.none
 
+    | ChangeSyndic ->
+        { model with ShowingSyndicModal = true }, Cmd.none
+    | SyndicChangeCanceled ->
+        { model with ShowingSyndicModal = false }, Cmd.none
+    | SyndicChanged newSyndic ->
+        match model.State with
+        | Viewing state ->
+            let newState = changeViewingState (fun b -> { b with Syndic = newSyndic })
+            let cmd = 
+                Cmd.OfAsync.attempt
+                    (Remoting.getRemotingApi().UpdateBuildingSyndic)
+                    (state.BuildingId, newSyndic |> Option.map mapSyndicToSyndicId)
+                    (fun e -> RemotingError e)
+            { model with ShowingSyndicModal = false; State = newState }, cmd
+        | _ ->
+            model, Cmd.none
+    | ChangeConcierge ->
+        { model with ShowingConciergeModal = true }, Cmd.none
+    | ConciergeChangeCanceled ->
+        { model with ShowingConciergeModal = false }, Cmd.none
+    | ConciergeChanged newConcierge ->
+        match model.State with
+        | Viewing state ->
+            let newState = changeViewingState (fun b -> { b with Concierge = newConcierge })
+            let cmd =
+                Cmd.OfAsync.attempt
+                    (Remoting.getRemotingApi().UpdateBuildingConcierge)
+                    (state.BuildingId, newConcierge |> Option.map mapConciergeToConciergeId)
+                    (fun e -> RemotingError e)
+            { model with ShowingConciergeModal = false; State = newState }, cmd
+        | _ ->
+            model, Cmd.none
+
+
+
 let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with
     | Loading ->  div [] [ str "Details worden geladen" ]
@@ -178,17 +228,60 @@ let view (model: Model) (dispatch: Msg -> unit) =
             ]
     | Viewing detail ->
         div [] [
-            BuildingViewComponent.render {| Building = detail |}
+            BuildingViewComponent.render 
+                {|
+                    Building = detail
+                    OnEditSyndic = fun _ -> ChangeSyndic |> dispatch
+                    OnDeleteSyndic = fun _ -> SyndicChanged None |> dispatch
+                    OnEditConcierge = fun _ -> ChangeConcierge |> dispatch
+                    OnDeleteConcierge = fun _ -> ConciergeChanged None |> dispatch
+                |}
             div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
                 div [ Class Bootstrap.cardBody ] [
-                    button [ 
-                        classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
-                        OnClick (fun _ -> Edit detail |> dispatch) 
-                    ] [
-                        str "Aanpassen"
-                    ]
+                    yield
+                        button [ 
+                            classes [ Bootstrap.btn; Bootstrap.btnPrimary; Bootstrap.mr1 ]
+                            OnClick (fun _ -> Edit detail |> dispatch) 
+                        ] [
+                            str "Aanpassen"
+                        ]
+
+                    if detail.Syndic.IsNone then
+                        yield
+                            button [
+                                classes [ Bootstrap.btn; Bootstrap.btnSecondary; Bootstrap.mr1 ]
+                                OnClick (fun _ -> ChangeSyndic |> dispatch)
+                            ] [
+                                str "Syndicus toekennen"
+                            ]
+
+                    if detail.Concierge.IsNone then
+                        yield
+                            button [
+                                classes [ Bootstrap.btn; Bootstrap.btnSecondary ]
+                                OnClick (fun _ -> ChangeConcierge |> dispatch)
+                            ] [
+                                str "Concierge toevoegen"
+                            ]
                 ]
             ]
+            SyndicModal.render 
+                {|
+                    IsOpen = model.ShowingSyndicModal
+                    BuildingId = detail.BuildingId
+                    Concierge = detail.Syndic
+                    OnConciergeChanged = (fun s -> SyndicChanged (Some s) |> dispatch)
+                    OnCanceled = (fun _ -> SyndicChangeCanceled |> dispatch) 
+                |}
+
+            ConciergeModal.render
+                {|
+                    IsOpen = model.ShowingConciergeModal
+                    BuildingId = detail.BuildingId
+                    Concierge = detail.Concierge
+                    OnConciergeChanged = (fun c -> ConciergeChanged (Some c) |> dispatch)
+                    OnCanceled = (fun _ -> ConciergeChangeCanceled |> dispatch)
+                |}
         ]
 
 

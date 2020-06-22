@@ -19,11 +19,6 @@ let private renderAddressesFor (person: Person) =
         yield! person.OtherAddresses |> List.map renderOtherAddress
     ]
 
-let private renderOtherContactMethodsFor (person: Person) =
-    person.OtherContactMethods |> List.map (fun cm -> 
-        readonlyFormElement cm.Description cm.Value
-    )
-
 let view (withAddresses: bool) (person: Person) =
     div [] [
         yield readonlyFormElement "Naam" person.FullName
@@ -36,7 +31,7 @@ let view (withAddresses: bool) (person: Person) =
         yield readonlyFormElement "E-mail" (defaultArg person.MainEmailAddress "")
         yield readonlyFormElement "E-mail commentaar" (defaultArg person.MainEmailAddressComment "")
 
-        yield! renderOtherContactMethodsFor person
+        yield! person.OtherContactMethods |> List.map (fun cm -> readonlyFormElement cm.Description cm.Value)
     ]
 
 let render =

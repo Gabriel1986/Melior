@@ -21,6 +21,7 @@ open Client.ClientStyle.Helpers
 open Client.Owners
 open Client.Organizations
 open Client.Lots
+open Client.ProfessionalSyndics
 
 module Client =
     importAll "./public/styles/bootstrap.min.css"
@@ -295,6 +296,23 @@ module Client =
                                 CurrentUser = runningState.CurrentUser
                                 CurrentBuilding = building
                                 OrganizationId = Some props.DetailId
+                            |}
+                    | Page.ProfessionalSyndicList, _, _ ->
+                        ProfessionalSyndicsPage.render 
+                            {|
+                                CurrentUser = runningState.CurrentUser
+                                ProfessionalSyndicId = None
+                            |}
+                    | Page.ProfessionalSyndicDetails proSyndicId, _, _ ->
+                        ProfessionalSyndicsPage.render
+                            {|
+                                CurrentUser = runningState.CurrentUser
+                                ProfessionalSyndicId = Some proSyndicId
+                            |}
+                    | Page.OrganizationTypeList, _, _ ->
+                        OrganizationTypesPage.render 
+                            {|
+                                CurrentUser = runningState.CurrentUser
                             |}
                     | _ -> notFound
                 ]

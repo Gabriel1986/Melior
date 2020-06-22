@@ -29,26 +29,65 @@ module private Readers =
         OtherContactMethods: string option
     }
 
-    let readPerson (reader: RowReader): PersonDbModel = 
-        let reader = new CaseInsensitiveRowReader (reader)
-        {
-            PersonId = reader.uuid "PersonId"
-            FirstName = reader.stringOrNone "FirstName"
-            LastName = reader.stringOrNone "LastName"
-            LanguageCode = reader.stringOrNone "LanguageCode"
-            Gender = reader.stringOrNone "Gender"
-            Title = reader.stringOrNone "Title"
-            MainAddress = reader.string "MainAddress"
-            ContactAddress = reader.stringOrNone "ContactAddress"
-            OtherAddresses = reader.stringOrNone "OtherAddresses"
-            MainTelephoneNumber = reader.stringOrNone "MainTelephoneNumber"
-            MainTelephoneNumberComment = reader.stringOrNone "MainTelephoneNumberComment"
-            MainEmailAddress = reader.stringOrNone "MainEmailAddress"
-            MainEmailAddressComment = reader.stringOrNone "MainEmailAddressComment"
-            OtherContactMethods = reader.stringOrNone "OtherContactMethods"
-        }
+    let readPerson (reader: CaseInsensitiveRowReader): PersonDbModel = {
+        PersonId = reader.uuid "PersonId"
+        FirstName = reader.stringOrNone "FirstName"
+        LastName = reader.stringOrNone "LastName"
+        LanguageCode = reader.stringOrNone "LanguageCode"
+        Gender = reader.stringOrNone "Gender"
+        Title = reader.stringOrNone "Title"
+        MainAddress = reader.string "MainAddress"
+        ContactAddress = reader.stringOrNone "ContactAddress"
+        OtherAddresses = reader.stringOrNone "OtherAddresses"
+        MainTelephoneNumber = reader.stringOrNone "MainTelephoneNumber"
+        MainTelephoneNumberComment = reader.stringOrNone "MainTelephoneNumberComment"
+        MainEmailAddress = reader.stringOrNone "MainEmailAddress"
+        MainEmailAddressComment = reader.stringOrNone "MainEmailAddressComment"
+        OtherContactMethods = reader.stringOrNone "OtherContactMethods"
+    }
 
-let getPerson (connectionString: string) (personId: Guid) = async {
+let private convertDbModelToDetail (dbModel: PersonDbModel): Person =
+    let forceAddress =
+        Address.fromJson
+        >> Option.fromResult
+        >> Option.defaultValue Address.Init
+
+    let mainAddress = forceAddress dbModel.MainAddress
+
+    let contactAddress =
+        match dbModel.ContactAddress with
+        | Some address -> ContactAddress.ContactAddress (forceAddress address)
+        | None         -> ContactAddress.MainAddress
+
+    let otherAddresses =
+        match dbModel.OtherAddresses with
+        | Some addr -> OtherAddress.listFromJson addr |> Option.fromResult |> Option.defaultValue []
+        | None      -> []
+
+    let otherContactMethods =
+        match dbModel.OtherContactMethods with
+        | Some str -> ContactMethod.listFromJson str |> Option.fromResult |> Option.defaultValue []
+        | None     -> []
+
+    {
+        PersonId = dbModel.PersonId
+        FirstName = dbModel.FirstName
+        LastName = dbModel.LastName
+        LanguageCode = dbModel.LanguageCode
+        Gender = Gender.FromString  (defaultArg dbModel.Gender "")
+        //Sir, Madame, etc.
+        Title = dbModel.Title
+        MainAddress = mainAddress
+        ContactAddress = contactAddress
+        OtherAddresses = otherAddresses
+        MainTelephoneNumber = dbModel.MainTelephoneNumber
+        MainTelephoneNumberComment = dbModel.MainTelephoneNumberComment
+        MainEmailAddress = dbModel.MainEmailAddress
+        MainEmailAddressComment = dbModel.MainTelephoneNumberComment
+        OtherContactMethods = otherContactMethods
+    }
+
+let getPersonsByIds (connectionString: string) (personIds: Guid list) = async {
     let! result =
         Sql.connect connectionString
         |> Sql.query
@@ -71,53 +110,15 @@ let getPerson (connectionString: string) (personId: Guid) = async {
                 FROM
                     Persons
                 WHERE
-                    PersonId = @PersonId
+                    PersonId = ANY (@PersonIds)
             """
-        |> Sql.parameters [ "@PersonId", Sql.uuid personId ]
-        |> Sql.readSingle readPerson
+        |> Sql.parameters [ "@PersonIds", Sql.uuidArray (personIds |> List.toArray) ]
+        |> Sql.read readPerson
 
-    match result with
-    | Some dbModel ->
-        let forceAddress =
-            Address.fromJson
-            >> Option.fromResult
-            >> Option.defaultValue Address.Init
-
-        let mainAddress = forceAddress dbModel.MainAddress
-
-        let contactAddress =
-            match dbModel.ContactAddress with
-            | Some address -> ContactAddress.ContactAddress (forceAddress address)
-            | None         -> ContactAddress.MainAddress
-
-        let otherAddresses =
-            match dbModel.OtherAddresses with
-            | Some addr -> OtherAddress.listFromJson addr |> Option.fromResult |> Option.defaultValue []
-            | None      -> []
-
-        let otherContactMethods =
-            match dbModel.OtherContactMethods with
-            | Some str -> ContactMethod.listFromJson str |> Option.fromResult |> Option.defaultValue []
-            | None     -> []
-
-        let result: Person = {
-            PersonId = dbModel.PersonId
-            FirstName = dbModel.FirstName
-            LastName = dbModel.LastName
-            LanguageCode = dbModel.LanguageCode
-            Gender = Gender.FromString  (defaultArg dbModel.Gender "")
-            //Sir, Madame, etc.
-            Title = dbModel.Title
-            MainAddress = mainAddress
-            ContactAddress = contactAddress
-            OtherAddresses = otherAddresses
-            MainTelephoneNumber = dbModel.MainTelephoneNumber
-            MainTelephoneNumberComment = dbModel.MainTelephoneNumberComment
-            MainEmailAddress = dbModel.MainEmailAddress
-            MainEmailAddressComment = dbModel.MainTelephoneNumberComment
-            OtherContactMethods = otherContactMethods
-        }
-        return Some result
-    | None ->
-        return None
+    return
+        result |> List.map convertDbModelToDetail
 }
+
+let getPerson (connectionString: string) (personId: Guid) =
+    getPersonsByIds connectionString [ personId ]
+    |> Async.map List.tryHead

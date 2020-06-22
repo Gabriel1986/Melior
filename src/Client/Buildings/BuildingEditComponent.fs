@@ -20,18 +20,10 @@ type Message =
     | GeneralMeetingPeriodChanged of (DateTime * DateTime) option
     | YearOfConstructionChanged of string
     | YearOfDeliveryChanged of string
-    | ChangeSyndic
-    | SyndicChanged of Syndic option
-    | SyndicChangeCanceled
-    | ChangeConcierge
-    | ConciergeChanged of Concierge option
-    | ConciergeChangeCanceled
 
 type State = {
     Building: Building
     GeneralMeetingPeriod: (DateTime * DateTime) option
-    ShowingSyndicModal: bool
-    ShowingConciergeModal: bool
     Errors: (string * string) list
 }
 
@@ -48,8 +40,6 @@ let init (building: Building) =
     { 
         Building = building
         GeneralMeetingPeriod = period
-        ShowingConciergeModal = false
-        ShowingSyndicModal = false
         Errors = []
     }, Cmd.none
 
@@ -95,92 +85,6 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         changeBuilding (fun b -> { b with YearOfConstruction = parseInt s }), Cmd.none
     | YearOfDeliveryChanged s ->
         changeBuilding (fun b -> { b with YearOfDelivery = parseInt s }), Cmd.none
-    | ChangeSyndic ->
-        { state with ShowingSyndicModal = true }, Cmd.none
-    | SyndicChangeCanceled ->
-        { state with ShowingSyndicModal = false }, Cmd.none
-    | SyndicChanged newSyndic ->
-        let newState = changeBuilding (fun b -> { b with Syndic = newSyndic })
-        { newState with ShowingSyndicModal = false }, Cmd.none
-    | ChangeConcierge ->
-        { state with ShowingConciergeModal = true }, Cmd.none
-    | ConciergeChangeCanceled ->
-        { state with ShowingConciergeModal = false }, Cmd.none
-    | ConciergeChanged newConcierge ->
-        let newState = changeBuilding (fun b -> { b with Concierge = newConcierge })
-        { newState with ShowingConciergeModal = false }, Cmd.none
-
-
-let renderEditConcierge concierge dispatch =
-    let conciergeName =
-        let person = 
-            match concierge with
-            | Some (Concierge.Owner o)    -> Some o.Person
-            | Some (Concierge.NonOwner p) -> Some p
-            | None                        -> None
-        person |> Option.map (fun p -> p.FullName)
-
-    match conciergeName with
-    | Some conciergeName ->
-        div [ Class Bootstrap.formGroup ] [
-            label [] [ str "Concierge" ]
-            div [ Class Bootstrap.formInline ] [
-                div [ Class Bootstrap.formGroup ] [
-                    label [ Class Bootstrap.mr2 ] [ str conciergeName ]
-                    button [ 
-                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm; Bootstrap.mr2 ]
-                        OnClick (fun _ -> ChangeConcierge |> dispatch) 
-                    ] [ i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] [] ]
-                    button [
-                        classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger; Bootstrap.btnSm ]
-                        OnClick (fun _ -> ConciergeChanged None |> dispatch)
-                    ] [ i [ classes [ FontAwesome.fa; FontAwesome.faTrash ] ] [] ]
-                ]
-            ]
-        ]
-    | None ->
-        div [ Class Bootstrap.formGroup ] [
-            button [ 
-                classes [ Bootstrap.btn; Bootstrap.btnSecondary ]
-                OnClick (fun _ -> ChangeConcierge |> dispatch) 
-            ] [ str "Concierge toevoegen" ]
-        ]
-
-let renderEditSyndic syndic dispatch =
-    let syndicName =
-        let person = 
-            match syndic with
-            | Some (Syndic.Owner o)              -> Some o.Person
-            | Some (Syndic.ProfessionalSyndic p) -> Some p.Person
-            | Some (Syndic.Other p)              -> Some p
-            | None                               -> None
-        person |> Option.map (fun p -> p.FullName)
-
-    match syndicName with
-    | Some syndicName ->
-        div [ Class Bootstrap.formGroup ] [
-            label [] [ str "Syndicus" ]
-            div [ Class Bootstrap.formInline ] [
-                div [ Class Bootstrap.formGroup ] [
-                    label [ Class Bootstrap.mr2 ] [ str syndicName ]
-                    button [ 
-                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm; Bootstrap.mr2 ]
-                        OnClick (fun _ -> ChangeSyndic |> dispatch) 
-                    ] [ i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] [] ]
-                    button [
-                        classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger; Bootstrap.btnSm ]
-                        OnClick (fun _ -> SyndicChanged None |> dispatch)
-                    ] [ i [ classes [ FontAwesome.fa; FontAwesome.faTrash ] ] [] ]
-                ]
-            ]
-        ]
-    | None ->
-        div [ Class Bootstrap.formGroup ] [
-            button [
-                classes [ Bootstrap.btn; Bootstrap.btnSecondary ]
-                OnClick (fun _ -> ChangeSyndic |> dispatch) 
-            ] [ str "Syndicus toevoegen" ]
-        ]
 
 let inColomn x = div [ Class Bootstrap.col ] [ x ]
 
@@ -264,13 +168,6 @@ let view (state: State) (dispatch: Message -> unit) =
             |> inColomn
         ]
         div [ Class Bootstrap.row ] [
-            renderEditConcierge state.Building.Concierge dispatch
-            |> inColomn
-
-            renderEditSyndic state.Building.Syndic dispatch
-            |> inColomn
-        ]
-        div [ Class Bootstrap.row ] [
             formGroup [
                 Label "Bouwjaar"
                 Input [
@@ -292,22 +189,4 @@ let view (state: State) (dispatch: Message -> unit) =
             ]
             |> inColomn
         ]
-
-        SyndicModal.render 
-            {|
-                IsOpen = state.ShowingSyndicModal
-                BuildingId = state.Building.BuildingId
-                Concierge = state.Building.Syndic
-                OnConciergeChanged = (fun s -> SyndicChanged (Some s) |> dispatch)
-                OnCanceled = (fun _ -> SyndicChangeCanceled |> dispatch) 
-            |}
-
-        ConciergeModal.render
-            {|
-                IsOpen = state.ShowingConciergeModal
-                BuildingId = state.Building.BuildingId
-                Concierge = state.Building.Concierge
-                OnConciergeChanged = (fun c -> ConciergeChanged (Some c) |> dispatch)
-                OnCanceled = (fun _ -> ConciergeChangeCanceled |> dispatch)
-            |}
     ]

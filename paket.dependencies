@@ -37,6 +37,7 @@ nuget FSharp.Data
 nuget NodaTime
 nuget Elmish.SweetAlert
 nuget Fable.React.Flatpickr
+nuget vies-dotnet-api 1.0.0-beta-0010 beta
 
 group Build
     source https://api.nuget.org/v3/index.json

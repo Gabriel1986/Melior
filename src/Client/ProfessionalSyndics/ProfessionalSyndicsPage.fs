@@ -1,4 +1,4 @@
-﻿module Client.Lots.LotsPage
+﻿module Client.ProfessionalSyndics.ProfessionalSyndicsPage
 
 open System
 open Elmish
@@ -17,73 +17,59 @@ open Client.SortableTable
 
 type State = {
     CurrentUser: CurrentUser
-    CurrentBuilding: BuildingListItem
-    SelectedListItems: LotListItem list
+    SelectedListItems: ProfessionalSyndicListItem list
     SelectedTab: Tab
     LoadingListItems: bool
-    ListItems: LotListItem list
+    ListItems: ProfessionalSyndicListItem list
 }
 and Tab =
     | List
-    | Details of LotListItem
+    | Details of ProfessionalSyndicListItem
     | New
 type Msg =
-    | AddDetailTab of LotListItem
-    | RemoveDetailTab of LotListItem
+    | AddDetailTab of ProfessionalSyndicListItem
+    | RemoveDetailTab of ProfessionalSyndicListItem
     | SelectTab of Tab
     | RemotingError of exn
-    | Loaded of listItems: LotListItem list * selectedListItemId: Guid option
-    | RemoveListItem of LotListItem
-    | ListItemRemoved of Result<LotListItem, AuthorizationError>
-    | Created of Lot
-    | Edited of Lot
+    | Loaded of listItems: ProfessionalSyndicListItem list * selectedListItemId: Guid option
+    | RemoveListItem of ProfessionalSyndicListItem
+    | ListItemRemoved of Result<ProfessionalSyndicListItem, AuthorizationError>
+    | Created of ProfessionalSyndic
+    | Edited of ProfessionalSyndic
 
-type LotsPageProps = {|
+type ProfessionalSyndicsPageProps = {|
     CurrentUser: CurrentUser
-    CurrentBuilding: BuildingListItem
-    LotId: Guid option
+    ProfessionalSyndicId: Guid option
 |}
 
-type SortableLotListItemAttribute =
-    | OwnerName
-    | Code
-    | LotType
-    | Floor
-    | Description
+type SortableProfessionalSyndicListItemAttribute =
+    | Name
+    | Address
+    | EmailAddress
+    | TelephoneNumber
     member me.ToString' () =
         match me with
-        | OwnerName -> "Eigenaar"
-        | Code -> "Code"
-        | LotType -> "Type"
-        | Floor -> "Verdieping"
-        | Description -> "Omschrijving"
-    member me.StringValueOf': LotListItem -> string =
+        | Name -> "Naam"
+        | Address -> "Adres"
+        | EmailAddress -> "E-mail"
+        | TelephoneNumber -> "Tel."
+    member me.StringValueOf': ProfessionalSyndicListItem -> string =
         match me with
-        | OwnerName -> (fun li ->
-            match li.CurrentOwner with 
-            | Some (LotOwnerListItem.Person o) -> o.Name 
-            | Some (LotOwnerListItem.Organization o) -> o.Name
-            | None -> "")
-        | Code -> (fun li -> li.Code)
-        | LotType -> (fun li -> string li.LotType)
-        | Floor -> (fun li -> string li.Floor)
-        | Description -> (fun li -> li.Description |> Option.defaultValue "")
-    member me.Compare': LotListItem -> LotListItem -> int =
-        match me with
-        | Floor -> 
-            fun li otherLi -> (defaultArg li.Floor -1000) - (defaultArg otherLi.Floor -1000)
-        | _     -> 
-            fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
-    static member All = [ Code;  LotType; Floor; Description ]
-    interface ISortableAttribute<LotListItem> with
+        | Name -> (fun li -> li.Name)
+        | Address -> (fun li -> string li.Address)
+        | EmailAddress -> (fun li -> defaultArg li.MainEmailAddress "")
+        | TelephoneNumber -> (fun li -> defaultArg li.MainTelephoneNumber "")
+    member me.Compare': ProfessionalSyndicListItem -> ProfessionalSyndicListItem -> int =
+        fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
+    static member All = [ Name; Address; EmailAddress; TelephoneNumber ]
+    interface ISortableAttribute<ProfessionalSyndicListItem> with
         member me.ToString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
 
-let init (props: LotsPageProps) =
+let init (props: ProfessionalSyndicsPageProps) =
     let state = { 
         CurrentUser = props.CurrentUser
-        CurrentBuilding = props.CurrentBuilding
         SelectedListItems = []
         SelectedTab = List
         ListItems = []
@@ -92,70 +78,60 @@ let init (props: LotsPageProps) =
     
     let cmd =
         Cmd.OfAsync.either
-            (Remoting.getRemotingApi().GetLots)
-            {| BuildingId = props.CurrentBuilding.BuildingId |}
-            (fun lots -> Loaded (lots, props.LotId))
+            (Remoting.getRemotingApi().GetProfessionalSyndics)
+            ()
+            (fun professionalSyndics -> Loaded (professionalSyndics, props.ProfessionalSyndicId))
             RemotingError
     state, cmd
 
-let private mapCurrentOwner =
-    function
-    | LotOwner.Owner owner -> 
-        LotOwnerListItem.Person {| PersonId = owner.Person.PersonId; Name = owner.Person.FullName |}
-    | LotOwner.Organization organization -> 
-        LotOwnerListItem.Organization {| OrganizationId = organization.OrganizationId; Name = organization.Name |}
-
 let update (msg: Msg) (state: State): State * Cmd<Msg> =
-    let toListItem (lot: Lot): LotListItem = {
-        LotId = lot.LotId
-        BuildingId = lot.BuildingId
-        Code = lot.Code
-        CurrentOwner = lot.CurrentOwner |> Option.map mapCurrentOwner
-        LotType = lot.LotType
-        Floor = lot.Floor
-        Description = lot.Description
+    let toListItem (professionalSyndic: ProfessionalSyndic): ProfessionalSyndicListItem = {
+        OrganizationId = professionalSyndic.Organization.OrganizationId
+        Name = professionalSyndic.Organization.Name
+        Address = professionalSyndic.Organization.Address
+        MainEmailAddress = professionalSyndic.Organization.MainEmailAddress
+        MainTelephoneNumber = professionalSyndic.Organization.MainTelephoneNumber
     }
 
     match msg with
     | AddDetailTab listItem ->
         let newlySelectedItems = 
-            if state.SelectedListItems |> List.exists (fun li -> li.LotId = listItem.LotId)
+            if state.SelectedListItems |> List.exists (fun li -> li.OrganizationId = listItem.OrganizationId)
             then state.SelectedListItems
             else listItem::state.SelectedListItems
-            |> List.sortBy (fun li -> li.Description)
-            |> List.sortBy (fun li -> li.Floor)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }, Routing.navigateToPage (Routing.Page.LotDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.LotId })
+            |> List.sortBy (fun li -> li.Name)
+        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }, Routing.navigateToPage (Routing.Page.ProfessionalSyndicDetails listItem.OrganizationId)
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
-            |> List.filter (fun li -> li.LotId <> listItem.LotId)
+            |> List.filter (fun li -> li.OrganizationId <> listItem.OrganizationId)
         { state with SelectedListItems = updatedTabs; SelectedTab = List }, Cmd.none
     | SelectTab tab ->
         { state with SelectedTab = tab }, Cmd.none
-    | Loaded (lots, selectedLotId) ->
-        let newState = { state with ListItems = lots; LoadingListItems = false }
+    | Loaded (professionalSyndics, selectedProfessionalSyndicId) ->
+        let newState = { state with ListItems = professionalSyndics; LoadingListItems = false }
         let cmd =
-            match selectedLotId with
-            | Some selectedLotId ->
-                let selectedListItem = lots |> List.tryFind (fun listItem -> listItem.LotId = selectedLotId)
+            match selectedProfessionalSyndicId with
+            | Some selectedProfessionalSyndicId ->
+                let selectedListItem = professionalSyndics |> List.tryFind (fun listItem -> listItem.OrganizationId = selectedProfessionalSyndicId)
                 match selectedListItem with
                 | Some selected -> AddDetailTab selected |> Cmd.ofMsg
                 | None -> Cmd.none
             | None -> Cmd.none
         newState, cmd
-    | RemoveListItem lot ->
+    | RemoveListItem professionalSyndic ->
         let cmd =
             Cmd.OfAsync.either
-                (Remoting.getRemotingApi().DeleteLot)
-                lot.LotId
-                (fun r -> r |> Result.map (fun _ -> lot) |> ListItemRemoved)
+                (Remoting.getRemotingApi().DeleteProfessionalSyndic)
+                professionalSyndic.OrganizationId
+                (fun r -> r |> Result.map (fun _ -> professionalSyndic) |> ListItemRemoved)
                 RemotingError
 
         let newSelection =
-            state.SelectedListItems |> List.filter (fun selected -> selected.LotId <> lot.LotId)
+            state.SelectedListItems |> List.filter (fun selected -> selected.OrganizationId <> professionalSyndic.OrganizationId)
 
         let newItems =
-            state.ListItems |> List.filter (fun item -> item.LotId <> lot.LotId)
+            state.ListItems |> List.filter (fun item -> item.OrganizationId <> professionalSyndic.OrganizationId)
 
         { state with SelectedListItems = newSelection; ListItems = newItems }, cmd
     | ListItemRemoved result ->
@@ -166,15 +142,15 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | RemotingError e ->
         //TODO.
         state, Cmd.none
-    | Created lot ->
-        let listItem = toListItem lot
+    | Created professionalSyndic ->
+        let listItem = toListItem professionalSyndic
         let newListItems = listItem :: state.ListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
         { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
-    | Edited lot ->
-        let listItem = toListItem lot
-        let newListItems = state.ListItems |> List.map (fun li -> if li.LotId = lot.LotId then listItem else li)
-        let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.LotId = lot.LotId then listItem else li)
+    | Edited professionalSyndic ->
+        let listItem = toListItem professionalSyndic
+        let newListItems = state.ListItems |> List.map (fun li -> if li.OrganizationId = listItem.OrganizationId then listItem else li)
+        let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.OrganizationId = listItem.OrganizationId then listItem else li)
         { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
@@ -199,12 +175,12 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     yield li [ Class Bootstrap.navItem ] [
                         a 
                             [ Class (determineNavItemStyle (Details selected)); OnClick (fun _ -> SelectTab (Details selected) |> dispatch) ] 
-                            [ str selected.Code ]
+                            [ str selected.Name ]
                     ]
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle New); OnClick (fun _ -> SelectTab New |> dispatch) ] 
-                        [ str "Nieuwe kavel" ]
+                        [ str "Nieuwe professionele syndicus" ]
                 ]
             ]
         ]
@@ -213,32 +189,30 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             SortableTable.render 
                 {|
                     ListItems = state.ListItems
-                    DisplayAttributes = SortableLotListItemAttribute.All
+                    DisplayAttributes = SortableProfessionalSyndicListItemAttribute.All
                     IsSelected = None
                     OnSelect = None
                     OnEdit = Some (AddDetailTab >> dispatch)
                     OnDelete = Some (RemoveListItem >> dispatch)
-                    Key = "LotsPageTable"
+                    Key = "ProfessionalSyndicsPageTable"
                 |}
 
         div [ Class Bootstrap.colMd9 ] [
             match state.SelectedTab with
             | List -> list state
             | Details listItem -> 
-                LotDetails.render 
+                ProfessionalSyndicDetails.render 
                     {| 
                         CurrentUser = state.CurrentUser 
-                        CurrentBuilding = state.CurrentBuilding
-                        Identifier = listItem.LotId
+                        Identifier = listItem.OrganizationId
                         IsNew = false
                         NotifyCreated = fun b -> dispatch (Created b)
                         NotifyEdited = fun b -> dispatch (Edited b)
                     |}
             | New ->
-                LotDetails.render 
+                ProfessionalSyndicDetails.render 
                     {| 
                         CurrentUser = state.CurrentUser 
-                        CurrentBuilding = state.CurrentBuilding
                         Identifier = Guid.NewGuid()
                         IsNew = true
                         NotifyCreated = fun b -> dispatch (Created b)
@@ -247,5 +221,5 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
         ]
     ]
 
-let render (props: LotsPageProps) =
-    React.elmishComponent ("LotsPage", init props, update, view)
+let render (props: ProfessionalSyndicsPageProps) =
+    React.elmishComponent ("ProfessionalSyndicsPage", init props, update, view)

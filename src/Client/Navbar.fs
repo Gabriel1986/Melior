@@ -67,24 +67,27 @@ let renderBuildingSpecificNavigation (currentPage: Page option) (building: Build
             a [
                 Class (determineStyle currentPage (Page.OrganizationList buildingSpecificProps))
                 OnClick (fun _ -> NavigateToPage (Page.OrganizationList buildingSpecificProps) |> dispatch)
-            ] [ str "Organizaties" ]
+            ] [ str "Organisaties" ]
         ]
     ]
 
 let view (state: NavbarState) (dispatch: NavbarMsg -> unit) =
     let currentPage =
         match state.CurrentPage with
-        | Some (Page.Portal)                -> Some Page.Portal
-        | Some (Page.BuildingList)   
-        | Some (Page.BuildingDetails _)     -> Some Page.BuildingList
-        | Some (Page.OwnerList p)           -> Some (Page.OwnerList p)        
-        | Some (Page.OwnerDetails p)        -> Some (Page.OwnerList { BuildingId = p.BuildingId })
-        | Some (Page.LotList p)             -> Some (Page.LotList p)        
-        | Some (Page.LotDetails p)          -> Some (Page.LotList { BuildingId = p.BuildingId })
-        | Some (Page.OrganizationList p)    -> Some (Page.OrganizationList p)
-        | Some (Page.OrganizationDetails p) -> Some (Page.OrganizationList { BuildingId = p.BuildingId })
+        | Some (Page.Portal)                      -> Some (Page.Portal)
+        | Some (Page.BuildingList)                
+        | Some (Page.BuildingDetails _)           -> Some (Page.BuildingList)
+        | Some (Page.OwnerList p)                 -> Some (Page.OwnerList p)        
+        | Some (Page.OwnerDetails p)              -> Some (Page.OwnerList { BuildingId = p.BuildingId })
+        | Some (Page.LotList p)                   -> Some (Page.LotList p)
+        | Some (Page.LotDetails p)                -> Some (Page.LotList { BuildingId = p.BuildingId })
+        | Some (Page.OrganizationList p)          -> Some (Page.OrganizationList p)
+        | Some (Page.OrganizationDetails p)       -> Some (Page.OrganizationList { BuildingId = p.BuildingId })
+        | Some (Page.ProfessionalSyndicList)
+        | Some (Page.ProfessionalSyndicDetails _) -> Some (Page.ProfessionalSyndicList)
+        | Some (Page.OrganizationTypeList)        -> Some (Page.OrganizationTypeList)
         | Some (Page.NotFound)
-        | None                              -> None
+        | None                                    -> None
 
     nav [ classes [ Bootstrap.navbar; Bootstrap.navbarExpandSm; Bootstrap.navbarDark; Bootstrap.bgDark ] ] [ 
         a [ Class Bootstrap.navbarBrand; Href "#" ] [ str "Top secret project" ]
@@ -102,6 +105,20 @@ let view (state: NavbarState) (dispatch: NavbarMsg -> unit) =
                         Class (determineStyle currentPage Page.BuildingList)
                         OnClick (fun _ -> NavigateToPage Page.BuildingList |> dispatch) 
                     ] [ str "Gebouwen" ]
+                ]
+            yield
+                li [ Class Bootstrap.navItem ] [
+                    a [
+                        Class (determineStyle currentPage Page.ProfessionalSyndicList)
+                        OnClick (fun _ -> NavigateToPage Page.ProfessionalSyndicList |> dispatch)
+                    ] [ str "Pro syndici (tijdelijke admin link)" ]
+                ]
+            yield
+                li [ Class Bootstrap.navItem ] [
+                    a [
+                        Class (determineStyle currentPage Page.OrganizationTypeList)
+                        OnClick (fun _ -> NavigateToPage Page.OrganizationTypeList |> dispatch)
+                    ] [ str "Organizatietypes (tijdelijke admin link)" ]                
                 ]
             yield!
                 match state.CurrentBuilding with

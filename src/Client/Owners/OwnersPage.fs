@@ -2,6 +2,7 @@
 
 open System
 open Elmish
+open Elmish.SweetAlert
 open Fable
 open Fable.React
 open Fable.React.Props
@@ -47,27 +48,19 @@ type OwnersPageProps = {|
 type SortableOwnerListItemAttribute =
     | FirstName
     | LastName
-    | IsActive
     | IsResident
     member me.ToString' () =
         match me with
         | FirstName -> "Voornaam"
         | LastName -> "Achternaam"
-        | IsActive -> "Actief"
         | IsResident -> "Bewoner"
     member me.StringValueOf': OwnerListItem -> string =
         match me with
         | FirstName -> (fun li -> string li.FirstName)
         | LastName -> (fun li -> string li.LastName)
-        | IsActive -> (fun li -> if li.IsActive then "Ja" else "Nee")
         | IsResident -> (fun li -> if li.IsResident then "Ja" else "Nee")
     member me.Compare': OwnerListItem -> OwnerListItem -> int =
         match me with
-        | IsActive -> 
-            fun li otherLi -> 
-                if li.IsActive = otherLi.IsActive then 0 
-                elif li.IsActive && not otherLi.IsActive then 1 else -1
-
         | IsResident ->
             fun li otherLi -> 
                 if li.IsResident = otherLi.IsResident then 0 
@@ -75,7 +68,7 @@ type SortableOwnerListItemAttribute =
 
         | _     -> 
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
-    static member All = [ FirstName; LastName; IsResident; IsActive ]
+    static member All = [ FirstName; LastName; IsResident ]
     interface ISortableAttribute<OwnerListItem> with
         member me.ToString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
@@ -105,7 +98,6 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         PersonId = owner.Person.PersonId
         FirstName = owner.Person.FirstName
         LastName = owner.Person.LastName
-        IsActive = owner.IsActive
         IsResident = owner.IsResident
     }
 
@@ -157,18 +149,21 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         | Error e -> //TODO...
             state, Cmd.none
     | RemotingError e ->
-        //TODO.
-        state, Cmd.none
+        printf "Error: %A" e
+        let alert = SimpleAlert("Er is iets misgegaan bij de communicatie met de server.").Type(AlertType.Error)
+        state, SweetAlert.Run(alert)
     | Created owner ->
         let listItem = toListItem owner
         let newListItems = listItem :: state.ListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
+        let toast = ToastAlert("De eigenaar werd bewaard").Timeout(3000)
+        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, SweetAlert.Run(toast)
     | Edited owner ->
         let listItem = toListItem owner
         let newListItems = state.ListItems |> List.map (fun li -> if li.PersonId = listItem.PersonId then listItem else li)
         let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.PersonId = listItem.PersonId then listItem else li)
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
+        let toast = ToastAlert("De eigenaar werd bewaard").Timeout(3000)
+        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, SweetAlert.Run(toast)
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =
@@ -221,6 +216,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 OwnerDetails.render 
                     {| 
                         CurrentUser = state.CurrentUser 
+                        CurrentBuilding = state.CurrentBuilding
                         Identifier = listItem.PersonId
                         IsNew = false
                         NotifyCreated = fun b -> dispatch (Created b)
@@ -230,6 +226,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 OwnerDetails.render 
                     {| 
                         CurrentUser = state.CurrentUser 
+                        CurrentBuilding = state.CurrentBuilding
                         Identifier = Guid.NewGuid()
                         IsNew = true
                         NotifyCreated = fun b -> dispatch (Created b)

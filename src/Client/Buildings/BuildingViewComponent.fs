@@ -2,11 +2,23 @@
 
 open System
 open Fable.React
+open Fable.React.Props
 open Shared.Read
 open Client.Components
+open Client.ClientStyle
 open Client.ClientStyle.Helpers
+open Client.Organizations
 
-let view (detail: Building) =
+type Props = {|
+    Building: Building
+    OnEditSyndic: unit -> unit
+    OnDeleteSyndic: unit -> unit
+    OnEditConcierge: unit -> unit
+    OnDeleteConcierge: unit -> unit 
+|}
+
+let view (props: Props) =
+    let detail = props.Building
     div [] [
         fieldset [] [
             yield legend [] [ h2 [] [ str "Algemeen" ] ]
@@ -45,8 +57,6 @@ let view (detail: Building) =
                 yield readonlyFormElement "Periode algemene vergadering: " (sprintf "Tussen %s en %s" (from.ToString("dd/MM")) (until.ToString("dd/MM")))
             | _ ->
                 ()
-
-            yield readonlyFormElement "Actief" (if detail.IsActive then "Ja" else "Nee")
         ]
         match detail.Concierge with
         | Some concierge ->
@@ -56,7 +66,21 @@ let view (detail: Building) =
                 | Concierge.NonOwner person -> person, false
 
             fieldset [] [
-                legend [] [ h2 [] [ str "Concierge" ] ]
+                legend [] [ 
+                    div [ Class Bootstrap.formInline ] [
+                        div [ Class Bootstrap.formGroup ] [
+                            h2 [] [ str "Concierge" ]
+                            button [ 
+                                classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm; Bootstrap.mr2 ]
+                                OnClick (fun _ -> props.OnEditConcierge ()) 
+                            ] [ i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] [] ]
+                            button [
+                                classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger; Bootstrap.btnSm ]
+                                OnClick (fun _ -> props.OnDeleteConcierge ())
+                            ] [ i [ classes [ FontAwesome.fa; FontAwesome.faTrash ] ] [] ]
+                        ]
+                    ]
+                ]
                 readonlyFormElement "Eigenaar?" (if isOwner then "Ja" else "Nee")
                 PersonViewComponent.render {| Person = person; WithAddresses = false |}
             ]
@@ -64,20 +88,34 @@ let view (detail: Building) =
             null
         match detail.Syndic with
         | Some syndic ->
-            let person, syndicType = 
+            let viewComponent, syndicType = 
                 match syndic with
-                | Syndic.Owner owner -> owner.Person, "Eigenaar"
-                | Syndic.ProfessionalSyndic pro -> pro.Person, "Professionele syndicus"
-                | Syndic.Other person -> person, "Andere"
+                | Syndic.Owner owner -> PersonViewComponent.render {| Person = owner.Person; WithAddresses = true |}, "Eigenaar"
+                | Syndic.ProfessionalSyndic pro -> OrganizationViewComponent.render {| Organization = pro.Organization |}, "Professionele syndicus"
+                | Syndic.Other person -> PersonViewComponent.render {| Person = person; WithAddresses = true |}, "Andere"
 
             fieldset [] [
-                legend [] [ h2 [] [ str "Syndicus" ] ]
+                legend [] [ 
+                    div [ Class Bootstrap.formInline ] [
+                        div [ Class Bootstrap.formGroup ] [
+                            h2 [ Class Bootstrap.mr2 ] [ str "Syndicus" ] 
+                            button [ 
+                                classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm; Bootstrap.mr2 ]
+                                OnClick (fun _ -> props.OnEditSyndic ()) 
+                            ] [ i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] [] ]
+                            button [
+                                classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger; Bootstrap.btnSm ]
+                                OnClick (fun _ -> props.OnDeleteSyndic ())
+                            ] [ i [ classes [ FontAwesome.fa; FontAwesome.faTrash ] ] [] ]
+                        ]
+                    ]
+                ]
                 readonlyFormElement "Type" syndicType
-                PersonViewComponent.render {| Person = person; WithAddresses = true |}
+                viewComponent
             ]
         | None ->
             null
     ]
 
 let render =
-    FunctionComponent.Of ((fun (props: {| Building: Building |}) -> view props.Building), memoizeWith = memoEqualsButFunctions)
+    FunctionComponent.Of ((fun (props: Props) -> view props), memoizeWith = memoEqualsButFunctions)

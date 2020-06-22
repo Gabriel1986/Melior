@@ -125,13 +125,13 @@ let update onSyndicChanged onCanceled message model =
                 RemotingError
         { model with State = LoadingProfessionalSyndics }, cmd
     | ProfessionalSyndicsLoaded list ->
-        let currentlySelectedSyndicId =
+        let selectedPersonId =
             match model.PreselectedSyndic with
             | Some (Syndic.ProfessionalSyndic p) -> 
-                Some (p.ProfessionalSyndicId)
+                Some (p.Organization.OrganizationId)
             | _ -> 
                 None
-        { model with State = SelectingProfessionalSyndic (list, currentlySelectedSyndicId) }, Cmd.none
+        { model with State = SelectingProfessionalSyndic (list, selectedPersonId) }, Cmd.none
     | ProfessionalSyndicSelectionChanged newSelection ->
         match model.State with
         | SelectingProfessionalSyndic (li, _) ->
@@ -331,7 +331,7 @@ let view (model: Model) dispatch =
                 DisableBackgroundClick true
                 OnDismiss (fun _ -> dispatch Dismiss)
                 Header [
-                    HeaderProp.ShowDismissButton true
+                    HeaderProp.HasDismissButton true
                 ]
                 Body [
                     modalContent model dispatch

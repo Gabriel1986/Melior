@@ -57,7 +57,7 @@ type SortableOrganizationListItemAttribute =
         match me with
         | OrganizationNumber -> (fun li -> string li.OrganizationNumber)
         | Name -> (fun li -> string li.Name)
-        | Type -> (fun li -> li.OrganizationType)
+        | Type -> (fun li -> String.Join(", ", li.OrganizationTypeNames))
     member me.Compare': OrganizationListItem -> OrganizationListItem -> int =
         match me with
         | _     -> 
@@ -89,9 +89,11 @@ let init (props: OrganizationPageProps) =
 let update (msg: Msg) (state: State): State * Cmd<Msg> =
     let toListItem (organization: Organization): OrganizationListItem = {
         OrganizationId = organization.OrganizationId
+        BuildingId = organization.BuildingId
         OrganizationNumber = organization.OrganizationNumber
-        OrganizationType = organization.OrganizationType.Name
+        OrganizationTypeNames = organization.OrganizationTypes |> List.map (fun t -> t.Name)
         Name = organization.Name
+        Address = organization.Address
     }
 
     match msg with
@@ -189,7 +191,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle New); OnClick (fun _ -> SelectTab New |> dispatch) ] 
-                        [ str "Nieuwe organizatie" ]
+                        [ str "Nieuwe organisatie" ]
                 ]
             ]
         ]
@@ -214,7 +216,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     {| 
                         CurrentUser = state.CurrentUser 
                         CurrentBuilding = state.CurrentBuilding
-                        Identifier = listItem.OrganizationNumber
+                        Identifier = listItem.OrganizationId
                         IsNew = false
                         NotifyCreated = fun b -> dispatch (Created b)
                         NotifyEdited = fun b -> dispatch (Edited b)

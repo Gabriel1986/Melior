@@ -1,7 +1,6 @@
 ﻿module Server.Buildings.Workflow
 
 open System
-open Shared
 open Shared.Remoting
 open Shared.Write
 open Server.Library
@@ -19,5 +18,17 @@ let updateBuilding (connectionString) (msg: Message<ValidatedBuilding>): Async<R
     return Ok ()
 }
 
-let deleteBuilding (connectionString: string) (msg: Message<Guid>): Async<Result<unit, AuthorizationError>> =
-    async { return Ok () }
+let deleteBuilding (connectionString: string) (msg: Message<Guid>): Async<Result<unit, AuthorizationError>> = async { 
+    do! Server.Buildings.Storage.deleteBuilding connectionString msg.Payload
+    return Ok () 
+}
+
+let updateBuildingSyndic (connectionString: string) (msg: Message<Guid * SyndicId option>) = async {
+    do! Server.Buildings.Storage.updateBuildingSyndic connectionString msg.Payload
+    return ()
+}
+
+let updateBuildingConcierge (connectionString: string) (msg: Message<Guid * ConciergeId option>) = async {
+    do! Server.Buildings.Storage.updateBuildingConcierge connectionString msg.Payload
+    return ()
+}

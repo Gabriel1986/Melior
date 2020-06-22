@@ -7,7 +7,6 @@ open Elmish
 open Elmish.React
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
-open Client.Components
 open Shared.Read
 open Shared.Library
 
@@ -115,15 +114,7 @@ let view (state: State) (dispatch: Message -> unit) =
     let lotTypeSelection: FormSelect = {
         Identifier = string state.Lot.LotId
         OnChanged = (fun e ->
-            let lotType =
-                match e with
-                | _ when e = string Appartment -> Appartment
-                | _ when e = string Studio -> Studio
-                | _ when e = string ParkingSpace -> ParkingSpace
-                | _ when e = string CommercialProperty -> CommercialProperty
-                | _ when e = string Garage -> Garage
-                | _ when e = string Storage -> Storage
-                | _ -> LotType.Other
+            let lotType = LotType.OfString e     
             LotTypeChanged lotType |> dispatch
         )
         Options = 

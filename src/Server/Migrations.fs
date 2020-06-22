@@ -48,9 +48,25 @@ type CreateInitialTables() =
                     MainEmailAddressComment VARCHAR(255),
                     OtherContactMethods JSONB
                 );
+
+                CREATE TABLE Organizations (
+                    OrganizationId UUID PRIMARY KEY,
+                    BuildingId UUID,
+                    OrganizationNumber VARCHAR(12),
+                    VatNumber VARCHAR(64),
+                    VatNumberVerifiedOn DATE,
+                    IsActive Boolean Default TRUE,
+                    Name VARCHAR(255) NOT NULL,
+                    Address JSONB NOT NULL,
+                    MainTelephoneNumber VARCHAR(32),
+                    MainTelephoneNumberComment VARCHAR(255),
+                    MainEmailAddress VARCHAR(255),
+                    MainEmailAddressComment VARCHAR(255),
+                    OtherContactMethods JSONB
+                );
+
                 CREATE TABLE ProfessionalSyndics (
-                    SyndicId UUID PRIMARY KEY,
-                    PersonId UUID References Persons(PersonId),
+                    OrganizationId UUID PRIMARY KEY References Organizations(OrganizationId),
                     IsActive BOOLEAN DEFAULT TRUE
                 );
 
@@ -64,11 +80,11 @@ type CreateInitialTables() =
                     Remarks VARCHAR,
                     GeneralMeetingFrom DATE,
                     GeneralMeetingUntil DATE,
-                    ConciergePersonId UUID REFERENCES Persons (PersonId),
-                    ConciergeOwnerId UUID REFERENCES Persons (PersonId),
-                    SyndicOwnerId UUID REFERENCES Persons (PersonId),
-                    SyndicProfessionalSyndicId UUID REFERENCES ProfessionalSyndics (SyndicId),
-                    SyndicPersonId UUID REFERENCES Persons (PersonId),
+                    ConciergeOwnerId UUID,
+                    ConciergePersonId UUID REFERENCES Persons(PersonId),
+                    SyndicOwnerId UUID,
+                    SyndicProfessionalSyndicId UUID REFERENCES ProfessionalSyndics(OrganizationId),
+                    SyndicPersonId UUID REFERENCES Persons(PersonId),
                     YearOfConstruction INT,
                     YearOfDelivery INT
                 );
@@ -82,28 +98,6 @@ type CreateInitialTables() =
                 );
                 CREATE INDEX idx_Owners_PersonId ON Owners(PersonId);
                 CREATE INDEX idx_Owners_BuildingId ON Owners(BuildingId);
-
-                CREATE TABLE OrganizationTypes (
-                    OrganizationTypeId UUID PRIMARY KEY,
-                    Name VARCHAR(255)
-                );
-
-                CREATE TABLE Organizations (
-                    OrganizationId UUID PRIMARY KEY,
-                    OrganizationNumber VARCHAR(12),
-                    IsActive Boolean Default TRUE,
-                    OrganizationTypeId UUID References OrganizationTypes(OrganizationTypeId),
-                    Name VARCHAR(255),
-                    Address JSONB NOT NULL,
-                    MainContactPersonId UUID References Persons(PersonId)
-                );
-                CREATE TABLE OrganizationContactPersons (
-                    OrganizationId UUID References Organizations(OrganizationId),
-                    PersonId UUID References Persons(PersonId),
-                    RoleWithinOrganization VARCHAR(32),
-                    PRIMARY KEY (OrganizationId, PersonId)
-                );
-                CREATE INDEX idx_OrganizationContactPersons_OrganizationId ON OrganizationContactPersons(OrganizationId);
 
                 CREATE TABLE Lots (
                     LotId UUID PRIMARY KEY,
@@ -120,6 +114,40 @@ type CreateInitialTables() =
                 CREATE INDEX idx_Lots_CurrentOwnerPersonId ON Lots(CurrentOwnerPersonId);
                 CREATE INDEX idx_Lots_CurrentOwnerOrganizationId ON Lots(CurrentOwnerOrganizationId);
                 CREATE INDEX idx_Lots_BuildingId ON Owners(BuildingId);
+
+                CREATE TABLE OrganizationTypes (
+                    OrganizationTypeId UUID PRIMARY KEY,
+                    Name VARCHAR(255) NOT NULL
+                );
+
+                CREATE TABLE OrganizationOrganizationTypeLinks (
+                    OrganizationId UUID References Organizations(OrganizationId),
+                    OrganizationTypeId UUID References OrganizationTypes(OrganizationTypeId),
+                    PRIMARY KEY (OrganizationId, OrganizationTypeId)
+                );
+                CREATE INDEX idx_OrganizationOrganizationTypeLinks_OrganizationId ON OrganizationOrganizationTypeLinks(OrganizationId);
+
+                CREATE TABLE OrganizationContactPersons (
+                    OrganizationId UUID References Organizations(OrganizationId),
+                    PersonId UUID References Persons(PersonId),
+                    RoleWithinOrganization VARCHAR(32),
+                    IsActive BOOLEAN DEFAULT TRUE,
+                    PRIMARY KEY (OrganizationId, PersonId)
+                );
+
+                ALTER TABLE Organizations ADD CONSTRAINT FK_Organizations_Buildings
+                    FOREIGN KEY (BuildingId)
+                    REFERENCES Buildings(BuildingId);
+
+                ALTER TABLE Buildings ADD CONSTRAINT fk_ConciergeOwnerId 
+                    FOREIGN KEY (BuildingId, ConciergeOwnerId) 
+                    REFERENCES Owners(BuildingId, PersonId);
+
+                ALTER TABLE Buildings ADD CONSTRAINT fk_SyndicOwnerId
+                    FOREIGN KEY (BuildingId, SyndicOwnerId)
+                    REFERENCES Owners(BuildingId, PersonId);
+
+                CREATE INDEX idx_OrganizationContactPersons_OrganizationId ON OrganizationContactPersons(OrganizationId);
             """
         )
     override u.Down () = u.Execute("DROP TABLE logs")

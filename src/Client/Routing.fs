@@ -1,7 +1,6 @@
 ﻿module Client.Routing
     open System
     open Elmish
-    open Shared.ConstrainedTypes
 
     type BuildingSpecificListProps = {
         BuildingId: Guid
@@ -22,6 +21,9 @@
         | LotDetails of BuildingSpecificDetailProps
         | OrganizationList of BuildingSpecificListProps
         | OrganizationDetails of BuildingSpecificDetailProps
+        | ProfessionalSyndicList
+        | ProfessionalSyndicDetails of Guid
+        | OrganizationTypeList
         | NotFound
 
     type NavigablePage =
@@ -30,12 +32,16 @@
         | OwnerList of BuildingSpecificListProps
         | LotList of BuildingSpecificListProps
         | OrganizationList of BuildingSpecificListProps
+        | ProfessionalSyndicsList
+        | OrganizationTypesList
     
     let [<Literal>] private BuildingsPage: string = "buildings"
     let [<Literal>] private PortalPage: string = ""
     let [<Literal>] private OwnersPage: string = "owners"
     let [<Literal>] private LotsPage: string = "lots"
     let [<Literal>] private OrganizationsPage: string = "organizations"
+    let [<Literal>] private ProfessionalSyndicsPage: string = "professionalSyndics"
+    let [<Literal>] private OrganizationTypesPage: string = "organizationTypes"
 
     let private navigateToDetailsPage (identifier: Guid) (page: string) =
         Feliz.Router.Router.navigate(page, string identifier)
@@ -66,6 +72,12 @@
             OrganizationsPage |> navigateToBuildingSpecificListPage props
         | Page.OrganizationDetails props ->
             OrganizationsPage |> navigateToBuildingSpecificDetailsPage props
+        | Page.ProfessionalSyndicList ->
+            Feliz.Router.Router.navigate(ProfessionalSyndicsPage)
+        | Page.ProfessionalSyndicDetails props ->
+            ProfessionalSyndicsPage |> navigateToDetailsPage props
+        | Page.OrganizationTypeList ->
+            Feliz.Router.Router.navigate(OrganizationTypesPage)
         | Page.NotFound ->
             //Do nothing... you're not supposed to go to the loading or notfound page from code...
             Cmd.none
@@ -77,6 +89,8 @@
         | NavigablePage.OwnerList props -> navigateToPage (Page.OwnerList props)
         | NavigablePage.LotList props  -> navigateToPage (Page.LotList props)
         | NavigablePage.OrganizationList props -> navigateToPage (Page.OrganizationList props)
+        | NavigablePage.ProfessionalSyndicsList -> navigateToPage Page.ProfessionalSyndicList
+        | NavigablePage.OrganizationTypesList -> navigateToPage Page.OrganizationTypeList
 
     let parseUrl = function
         | [ ] -> 
@@ -97,5 +111,11 @@
             Page.OrganizationList { BuildingId = buildingId }
         | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; OrganizationsPage ; Feliz.Router.Route.Guid orgId ] -> 
             Page.OrganizationDetails { BuildingId = buildingId; DetailId = orgId }
+        | [ ProfessionalSyndicsPage ] ->
+            Page.ProfessionalSyndicList
+        | [ ProfessionalSyndicsPage; Feliz.Router.Route.Guid proSyndicId ] ->
+            Page.ProfessionalSyndicDetails proSyndicId
+        | [ OrganizationTypesPage ] ->
+            Page.OrganizationTypeList
         | _ -> 
             Page.NotFound
