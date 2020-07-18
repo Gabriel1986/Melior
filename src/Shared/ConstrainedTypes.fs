@@ -92,7 +92,9 @@ module VatNumber =
 
     let Of path (countryCode: string) (vatNumber: string) =
         let isValid =
-            if countryCode = "BE" then
+            if String.IsNullOrWhiteSpace (countryCode) || String.IsNullOrWhiteSpace (vatNumber) then
+                false
+            elif countryCode = "BE" then
                 let digits = vatNumber |> String.filter Char.IsDigit
                 let validateBelgianCheckNumber (str: string) =
                     let digits = str.PadLeft(10, '0')

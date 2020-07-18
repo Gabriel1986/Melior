@@ -15,6 +15,7 @@ open Shared.Write
 open Client
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
+open Client.Library
 
 type Model = {
     ProfessionalSyndicId: Guid
@@ -29,7 +30,6 @@ and State =
     | Editing  of isSaving: bool * professionalSyndicEditState: ProfessionalSyndicEditComponent.State
     | Creating of isSaving: bool * professionalSyndicEditState: ProfessionalSyndicEditComponent.State
     | ProfessionalSyndicNotFound
-    | RemotingError of exn
 
 type Msg =
     | ProfessionalSyndicEditComponentMsg of ProfessionalSyndicEditComponent.Message
@@ -123,14 +123,13 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                         RemotingError
                 { model with State = Creating(true, componentState) }, cmd
             | Error e ->
-                printf "Errors: %A" e
                 let newComponentState, newComponentCommand = ProfessionalSyndicEditComponent.update (ProfessionalSyndicEditComponent.Message.ErrorsChanged e) (componentState)
                 { model with State = Editing (false, newComponentState) }, newComponentCommand |> Cmd.map ProfessionalSyndicEditComponentMsg
         | _ ->
             //Do nothing, unexpected message O_o
             model, Cmd.none
     | RemotingError e ->
-        { model with State = State.RemotingError e }, Cmd.none
+        model, showGenericErrorModalCmd e
     | ProcessCreateResult result ->
         match result with
         | Ok result ->
@@ -139,8 +138,9 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            //TODO!
-            model, Cmd.none
+            match e with
+            | CreateProfessionalSyndicError.AuthorizationError ->
+                model, showErrorToastCmd "U heeft geen toestemming om deze professionele syndicus te updaten"
 
     | ProcessUpdateResult result ->
         match result with
@@ -150,14 +150,16 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            //TODO!
-            model, Cmd.none
+            match e with
+            | UpdateProfessionalSyndicError.AuthorizationError ->
+                model, showErrorToastCmd "U heeft geen toestemming om deze professionele syndicus te updaten"
+            | UpdateProfessionalSyndicError.NotFound ->
+                model, showErrorToastCmd "De professionele syndicus werd niet gevonden in de databank"
 
 let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with
     | Loading ->  div [] [ str "Details worden geladen" ]
-    | ProfessionalSyndicNotFound -> div [] [ str "Het door u gekozen kavel werd niet gevonden in de databank..." ]
-    | State.RemotingError _ -> div [] [ str "Er is iets misgelopen bij het ophalen van de gegevens, gelieve de pagina te verversen" ]
+    | ProfessionalSyndicNotFound -> div [] [ str "De door u gekozen professionele syndicus werd niet gevonden in de databank..." ]
     | Editing (isSaving, editState)
     | Creating (isSaving, editState) ->
         if isSaving 

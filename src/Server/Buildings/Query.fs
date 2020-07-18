@@ -9,7 +9,7 @@ open Server.PostgreSQL
 open Server.PostgreSQL.Sql
 
 [<AutoOpen>]
-module private Readers =
+module private Internals =
     type BuildingDbModel = {
         BuildingId: Guid
         Code: string

@@ -19,3 +19,7 @@ Npgsql.FSharp
 FSharp.Data
 NodaTime
 vies-dotnet-api
+AWSSDK.S3
+AWSSDK.Extensions.NETCore.Setup
+SixLabors.ImageSharp
+Giraffe.Antiforgery

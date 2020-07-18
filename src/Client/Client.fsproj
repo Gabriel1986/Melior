@@ -7,13 +7,13 @@
   <ItemGroup>
     <Compile Include="Library.fs" />
     <Compile Include="ClientStyle.fs" />
-    <Compile Include="Components\BasicModal.fs" />
-    <Compile Include="Components\AddressEditComponent.fs" />
-    <Compile Include="Components\PersonViewComponent.fs" />
-    <Compile Include="Components\PersonEditComponent.fs" />
     <Compile Include="SortableTable.fs" />
     <Compile Include="Version.fs" />
     <None Include="style.scss" />
+    <Content Include="public\FilePond\filepond-plugin-image-preview.min.css" />
+    <Content Include="public\FilePond\filepond.min.css" />
+    <None Include="public\FilePond\filepond-plugin-image-exif-orientation.js" />
+    <None Include="public\FilePond\FilePond.js" />
     <None Include="public\webfonts\fa-brands-400.svg" />
     <None Include="public\webfonts\fa-brands-400.woff2" />
     <None Include="public\webfonts\fa-regular-400.svg" />
@@ -40,8 +40,18 @@
     <None Include="public\assets\logo.svg" />
     <None Include="public\assets\logo_transparent.svg" />
     <None Include="public\assets\mini_logo.svg" />
+    <Compile Include="Upload.fs" />
     <Compile Include="Remoting.fs" />
     <Compile Include="Routing.fs" />
+    <Compile Include="Components\BasicModal.fs" />
+    <Compile Include="Components\SelectionModal.fs" />
+    <Compile Include="Components\AddressEditComponent.fs" />
+    <Compile Include="Components\PersonViewComponent.fs" />
+    <Compile Include="Components\PersonEditComponent.fs" />
+    <Compile Include="Authentication\Login.fs" />
+    <Compile Include="Authentication\Logout.fs" />
+    <Compile Include="Authentication\Setup2FactorAuthentication.fs" />
+    <Compile Include="Users\MyAccount.fs" />
     <Compile Include="Organizations\OrganizationTypesPage.fs" />
     <Compile Include="Organizations\ContactPersonViewComponent.fs" />
     <Compile Include="Organizations\ContactPersonEditComponent.fs" />
@@ -62,6 +72,8 @@
     <Compile Include="Lots\LotEditComponent.fs" />
     <Compile Include="Lots\LotDetails.fs" />
     <Compile Include="Lots\LotsPage.fs" />
+    <Compile Include="Contracts\ContractsPage.fs" />
+    <Compile Include="Contracts\ContractTypesPage.fs" />
     <Compile Include="Buildings\ConciergeModal.fs" />
     <Compile Include="Buildings\SyndicModal.fs" />
     <Compile Include="Buildings\BuildingViewComponent.fs" />

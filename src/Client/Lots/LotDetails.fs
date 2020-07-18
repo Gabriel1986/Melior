@@ -15,6 +15,7 @@ open Shared.Write
 open Client
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
+open Client.Library
 
 type Model = {
     LotId: Guid
@@ -30,7 +31,6 @@ and State =
     | Editing  of isSaving: bool * lotEditState: LotEditComponent.State
     | Creating of isSaving: bool * lotEditState: LotEditComponent.State
     | LotNotFound
-    | RemotingError of exn
 
 type Msg =
     | LotEditMsg of LotEditComponent.Message
@@ -113,7 +113,6 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                         RemotingError
                 { model with State = Editing (true, componentState) }, cmd
             | Error e ->
-                printf "Errors: %A" e
                 { model with State = Editing (false, { componentState with Errors = e }) }, Cmd.none
         | Creating (_, componentState) ->
             match ValidatedLot.Validate componentState.Lot with
@@ -126,13 +125,12 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                         RemotingError
                 { model with State = Creating(true, componentState) }, cmd
             | Error e ->
-                printf "Errors: %A" e
                 { model with State = Creating(false, { componentState with Errors = e }) }, Cmd.none
         | _ ->
             //Do nothing, unexpected message O_o
             model, Cmd.none
     | RemotingError e ->
-        { model with State = State.RemotingError e }, Cmd.none
+        model, showGenericErrorModalCmd e
     | ProcessCreateResult result ->
         match result with
         | Ok result ->
@@ -141,9 +139,9 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            //TODO!
-            model, Cmd.none
-
+            match e with
+            | CreateLotError.AuthorizationError ->
+                model, showErrorToastCmd "U heeft geen toestemming om deze kavel te updaten"
     | ProcessUpdateResult result ->
         match result with
         | Ok result ->
@@ -152,14 +150,16 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            //TODO!
-            model, Cmd.none
+            match e with
+            | UpdateLotError.AuthorizationError ->
+                model, showErrorToastCmd "U heeft geen toestemming om deze kavel te updaten"
+            | UpdateLotError.NotFound ->
+                model, showErrorToastCmd "Het kavel werd niet gevonden in de databank"
 
 let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with
     | Loading ->  div [] [ str "Details worden geladen" ]
     | LotNotFound -> div [] [ str "Het door u gekozen kavel werd niet gevonden in de databank..." ]
-    | State.RemotingError _ -> div [] [ str "Er is iets misgelopen bij het ophalen van de gegevens, gelieve de pagina te verversen" ]
     | Editing (isSaving, editState)
     | Creating (isSaving, editState) ->
         if isSaving 

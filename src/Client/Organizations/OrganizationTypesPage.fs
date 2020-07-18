@@ -7,11 +7,14 @@ open Fable.React
 open Fable.React.Props
 open Feliz
 open Feliz.ElmishComponents
+
 open Shared.Read
 open Shared.Write
+open Shared.Remoting
+
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
-open Shared.Remoting
+open Client.Library
 
 type OrganizationTypesPageProps = {| CurrentUser: CurrentUser |}
 
@@ -77,8 +80,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | Loaded organizationTypes ->
         { state with OrganizationTypes = organizationTypes |> List.map (fun li -> li, None) }, Cmd.none
     | RemotingError e ->
-        printf "Error: %A" e
-        state, Cmd.none
+        state, showGenericErrorModalCmd e
     | Edit typeId ->
         let newOrgTypes = 
             state.OrganizationTypes 
@@ -127,14 +129,16 @@ let update (message: Message) (state: State): State * Cmd<Message> =
                 RemotingError
         let newState = { state with OrganizationTypes = state.OrganizationTypes |> List.filter (fun (orgType, _) -> orgType.OrganizationTypeId <> orgTypeId) }
         newState, cmd
-    | CreationFailed ex ->
-        //TODO...
-        printf "Error: %A" ex
-        state, Cmd.none
-    | EditingFailed ex ->
-        //TODO....
-        printf "Error: %A" ex
-        state, Cmd.none
+    | CreationFailed e ->
+        match e with
+        | CreateOrganizationTypeError.AuthorizationError ->
+            state, showErrorToastCmd "U heeft geen toestemming om een organisatie type aan te maken"
+    | EditingFailed e ->
+        match e with
+        | UpdateOrganizationTypeError.AuthorizationError ->
+            state, showErrorToastCmd "U heeft geen toestemming om dit organisatie type te updaten"
+        | UpdateOrganizationTypeError.NotFound ->
+            state, showErrorToastCmd "Het organisatie type werd niet gevonden in de databank"
     | CancelEdit orgTypeId ->
         let newState = changeOrganizationType (orgTypeId) id (fun _ -> None)
         newState, Cmd.none       

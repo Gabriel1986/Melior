@@ -39,9 +39,11 @@
   },
   "dependencies": {
     "flatpickr": "^4.6.3",
-    "jsvat": "^2.4.0",
     "react-flatpickr": "^3.10.0",
     "sweetalert2": "^8.14.0",
-    "validate-vat-ts": "^1.1.0"
+    "filepond": "^4.9.2",
+    "filepond-plugin-file-validate-type": "^1.2.5",
+    "filepond-plugin-image-preview": "^4.6.0",
+    "react-filepond": "^7.0.1"
   }
 }

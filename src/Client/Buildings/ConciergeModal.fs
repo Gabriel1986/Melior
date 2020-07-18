@@ -7,14 +7,19 @@ open Fable.React
 open Fable.React.Props
 open Feliz
 open Feliz.ElmishComponents
+
 open Shared.Read
+open Shared.Remoting
+open Shared.Library
+open Shared.Write
+
 open Client.Components
 open Client.Components.BasicModal
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
-open Shared.Remoting
-open Shared.Library
-open Shared.Write
+
+open Client.Library
+open Client.Components.SelectionList
 
 type Model = {
     IsOpen: bool
@@ -31,7 +36,6 @@ and State =
     | Saving
     | EditingPerson of PersonEditComponent.State
     | SavingPerson of PersonEditComponent.State
-    | RemotingError of exn
 and ConciergeType =
     | Owner
     | NonOwner
@@ -42,11 +46,9 @@ and ConciergeType =
 
 type Message =
     | ConciergeTypeSelected of ConciergeType
-    | ConciergeUpdated of Concierge
     | LoadOwners
     | OwnersLoaded of OwnerListItem list
-    | OwnerSelectionChanged of Guid
-    | SelectOwner
+    | SelectOwner of OwnerListItem
     | OwnerLoaded of Owner option
     | PersonEditComponentMsg of PersonEditComponent.Message
     | SavePerson
@@ -86,7 +88,7 @@ let init (props: ConciergeModalProps) =
         State = state 
     }, cmd
 
-let update onConciergeChanged onCanceled message model =
+let update (onConciergeChanged: Concierge -> unit) (onCanceled: unit -> unit) message model =
     match message with
     | OpenConciergeTypeSelection ->
         { model with ConciergeType = None; State = SelectingConciergeType }, Cmd.none
@@ -100,9 +102,6 @@ let update onConciergeChanged onCanceled message model =
                 model.State, Cmd.ofMsg LoadOwners
 
         { model with ConciergeType = Some conciergeType; State = newState }, newCmd
-    | ConciergeUpdated s ->
-        onConciergeChanged s
-        model, Cmd.none
     | LoadOwners ->
         let cmd =
             Cmd.OfAsync.either
@@ -118,29 +117,19 @@ let update onConciergeChanged onCanceled message model =
             | _ -> 
                 None
         { model with State = SelectingOwner (list, currentlySelectedOwnerId) }, Cmd.none
-    | OwnerSelectionChanged newSelection ->
-        match model.State with
-        | SelectingOwner (li, _) ->
-            { model with State = SelectingOwner (li, Some newSelection) }, Cmd.none
-        | _ ->
-            model, Cmd.none
-    | SelectOwner ->
-        match model.State with
-        | SelectingOwner (_, Some selected) ->
-            let cmd =
-                Cmd.OfAsync.either
-                    (Client.Remoting.getRemotingApi()).GetOwner selected
-                    OwnerLoaded
-                    RemotingError
-            { model with State = Saving }, cmd
-        | _ ->
-            model, Cmd.none
-    | OwnerLoaded owner ->
-        match owner with
+    | SelectOwner owner ->
+        let loadOwner = 
+            Cmd.OfAsync.either
+                (Client.Remoting.getRemotingApi()).GetOwner owner.PersonId
+                OwnerLoaded
+                RemotingError
+        { model with State = Saving }, loadOwner
+    | OwnerLoaded ownerOpt ->
+        match ownerOpt with
         | Some owner ->
             onConciergeChanged (Concierge.Owner owner)
             model, Cmd.none
-        | None ->
+        | None -> 
             { model with State = OwnerNotFound }, Cmd.none
     | PersonEditComponentMsg x ->
         match model.State with
@@ -175,11 +164,15 @@ let update onConciergeChanged onCanceled message model =
         | _ ->
             model, Cmd.none
     | CreatePersonError e ->
-        //TODO
-        model, Cmd.none
+        match e with
+        | CreatePersonError.AuthorizationError ->
+            model, showErrorToastCmd "U heeft geen toestemming om een concierge aan te maken"
     | UpdatePersonError e ->
-        //TODO
-        model, Cmd.none
+        match e with
+        | UpdatePersonError.AuthorizationError ->
+            model, showErrorToastCmd "U heeft geen toestemming om deze concierge te updaten"
+        | UpdatePersonError.NotFound ->
+            model, showErrorToastCmd "De concierge werd niet gevonden in de databank"
     | PersonSaved ->
         match model.State with
         | SavingPerson componentState ->
@@ -192,7 +185,7 @@ let update onConciergeChanged onCanceled message model =
         onCanceled()
         model, Cmd.none
     | RemotingError e ->
-        { model with State = State.RemotingError e }, Cmd.none
+        model, showGenericErrorModalCmd e
 
 let renderConciergeTypeSelection dispatch =
     div [] [
@@ -211,10 +204,23 @@ let renderConciergeTypeSelection dispatch =
         ]
     ]
 
-let renderOwnerSelectionList list selected dispatch =
-    div [] [
-        str "TODO..."
-    ]
+let renderOwnerSelectionList (list: OwnerListItem list) selectedId dispatch =
+    SelectionList.render ({
+        SelectionMode = SelectionMode.SingleSelect
+        LoadItems = fun () -> async {
+            return list |> List.sortBy (fun o -> o.FirstName)        
+        }
+        SelectedItems = 
+            match selectedId with
+            | Some selectedId -> list |> List.filter (fun i -> i.PersonId = selectedId)
+            | None -> []
+        OnSelectionChanged = fun selected -> SelectOwner (selected |> List.head) |> dispatch
+        DisplayListItem = (fun ownerListItem -> 
+            [ownerListItem.FirstName; ownerListItem.LastName] 
+            |> List.choose id 
+            |> String.JoinWith ", "
+            |> str)
+    }, "OwnerSelectionList")
 
 let modalContent model dispatch =
     match model.State with
@@ -231,8 +237,6 @@ let modalContent model dispatch =
     | SavingPerson _
     | Saving ->
         div [] [ str "Uw wijzigingen worden bewaard" ]
-    | State.RemotingError _ ->
-        div [] [ str "Er is iets misgelopen bij het ophalen van de gegevens. Gelieve de pagine te verversen en opnieuw te proberen." ]
 
 let renderModalButtons model dispatch =
     let toTypeSelectionButton =

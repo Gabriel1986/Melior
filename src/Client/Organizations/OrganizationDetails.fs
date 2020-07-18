@@ -15,6 +15,7 @@ open Shared.Write
 open Client
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
+open Client.Library
 
 type Model = {
     OrganizationId: Guid
@@ -30,7 +31,6 @@ and State =
     | Editing  of isSaving: bool * organizationEditState: OrganizationEditComponent.State
     | Creating of isSaving: bool * organizationEditState: OrganizationEditComponent.State
     | OrganizationNotFound
-    | RemotingError of exn
 
 type Msg =
     | OrganizationEditMsg of OrganizationEditComponent.Message
@@ -132,7 +132,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             //Do nothing, unexpected message O_o
             model, Cmd.none
     | RemotingError e ->
-        { model with State = State.RemotingError e }, Cmd.none
+        model, showGenericErrorModalCmd e
     | ProcessCreateResult result ->
         match result with
         | Ok result ->
@@ -141,8 +141,9 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            //TODO!
-            model, Cmd.none
+            match e with
+            | CreateOrganizationError.AuthorizationError ->
+                model, showErrorToastCmd "U heeft geen toestemming om een organisatie aan te maken"
 
     | ProcessUpdateResult result ->
         match result with
@@ -152,14 +153,16 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            //TODO!
-            model, Cmd.none
+            match e with
+            | UpdateOrganizationError.AuthorizationError ->
+                model, showErrorToastCmd "U heeft geen toestemming om deze organisatie te updaten"
+            | UpdateOrganizationError.NotFound ->
+                model, showErrorToastCmd "De organisatie werd niet gevonden in de databank"
 
 let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with
     | Loading ->  div [] [ str "Details worden geladen" ]
     | OrganizationNotFound -> div [] [ str "De door u gekozen organisatie werd niet gevonden in de databank..." ]
-    | State.RemotingError _ -> div [] [ str "Er is iets misgelopen bij het ophalen van de gegevens, gelieve de pagina te verversen" ]
     | Editing (isSaving, editState)
     | Creating (isSaving, editState) ->
         if isSaving 

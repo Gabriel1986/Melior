@@ -7,14 +7,18 @@ open Fable.React
 open Fable.React.Props
 open Feliz
 open Feliz.ElmishComponents
+
 open Shared.Read
-open Client.Components
-open Client.Components.BasicModal
-open Client.ClientStyle
-open Client.ClientStyle.Helpers
 open Shared.Remoting
 open Shared.Library
 open Shared.Write
+
+open Client.Components
+open Client.Components.BasicModal
+open Client.Components.SelectionList
+open Client.ClientStyle
+open Client.ClientStyle.Helpers
+open Client.Library
 
 type Model = {
     IsOpen: bool
@@ -51,12 +55,11 @@ type Message =
     | LoadProfessionalSyndics
     | ProfessionalSyndicsLoaded of ProfessionalSyndicListItem list
     | ProfessionalSyndicSelectionChanged of Guid
-    | SelectProfessionalSyndic
+    | SelectProfessionalSyndic of ProfessionalSyndicListItem
     | ProfessionalSyndicLoaded of ProfessionalSyndic option
     | LoadOwners
     | OwnersLoaded of OwnerListItem list
-    | OwnerSelectionChanged of Guid
-    | SelectOwner
+    | SelectOwner of OwnerListItem
     | OwnerLoaded of Owner option
     | PersonEditComponentMsg of PersonEditComponent.Message
     | SavePerson
@@ -132,23 +135,13 @@ let update onSyndicChanged onCanceled message model =
             | _ -> 
                 None
         { model with State = SelectingProfessionalSyndic (list, selectedPersonId) }, Cmd.none
-    | ProfessionalSyndicSelectionChanged newSelection ->
-        match model.State with
-        | SelectingProfessionalSyndic (li, _) ->
-            { model with State = SelectingProfessionalSyndic (li, Some newSelection) }, Cmd.none
-        | _ ->
-            model, Cmd.none
-    | SelectProfessionalSyndic ->
-        match model.State with
-        | SelectingProfessionalSyndic (_, Some selected) ->
-            let cmd =
-                Cmd.OfAsync.either
-                    (Client.Remoting.getRemotingApi()).GetProfessionalSyndic selected
-                    ProfessionalSyndicLoaded
-                    RemotingError
-            { model with State = Saving }, cmd
-        | _ ->
-            model, Cmd.none
+    | SelectProfessionalSyndic proSyndic ->
+        let cmd =
+            Cmd.OfAsync.either
+                (Client.Remoting.getRemotingApi()).GetProfessionalSyndic proSyndic.OrganizationId
+                ProfessionalSyndicLoaded
+                RemotingError
+        { model with State = Saving }, cmd
     | ProfessionalSyndicLoaded proSyndic ->
         match proSyndic with
         | Some professionalSyndic ->
@@ -171,25 +164,15 @@ let update onSyndicChanged onCanceled message model =
             | _ -> 
                 None
         { model with State = SelectingOwner (list, currentlySelectedOwnerId) }, Cmd.none
-    | OwnerSelectionChanged newSelection ->
-        match model.State with
-        | SelectingOwner (li, _) ->
-            { model with State = SelectingOwner (li, Some newSelection) }, Cmd.none
-        | _ ->
-            model, Cmd.none
-    | SelectOwner ->
-        match model.State with
-        | SelectingOwner (_, Some selected) ->
-            let cmd =
-                Cmd.OfAsync.either
-                    (Client.Remoting.getRemotingApi()).GetOwner selected
-                    OwnerLoaded
-                    RemotingError
-            { model with State = Saving }, cmd
-        | _ ->
-            model, Cmd.none
-    | OwnerLoaded owner ->
-        match owner with
+    | SelectOwner owner ->
+        let cmd =
+            Cmd.OfAsync.either
+                (Client.Remoting.getRemotingApi()).GetOwner owner.PersonId
+                OwnerLoaded
+                RemotingError
+        { model with State = Saving }, cmd
+    | OwnerLoaded ownerOpt ->
+        match ownerOpt with
         | Some owner ->
             onSyndicChanged (Syndic.Owner owner)
             model, Cmd.none
@@ -228,11 +211,15 @@ let update onSyndicChanged onCanceled message model =
         | _ ->
             model, Cmd.none
     | CreatePersonError e ->
-        //TODO
-        model, Cmd.none
+        match e with
+        | CreatePersonError.AuthorizationError ->
+            model, showErrorToastCmd "U heeft geen toestemming om een gebouw aan te maken"
     | UpdatePersonError e ->
-        //TODO
-        model, Cmd.none
+        match e with
+        | UpdatePersonError.AuthorizationError ->
+            model, showErrorToastCmd "U heeft geen toestemming om dit gebouw te updaten"
+        | UpdatePersonError.NotFound ->
+            model, showErrorToastCmd "Het gebouw werd niet gevonden in de databank"
     | PersonSaved ->
         match model.State with
         | SavingPerson componentState ->
@@ -268,15 +255,37 @@ let renderSyndicTypeSelection dispatch =
         ]
     ]
 
-let renderOwnerSelectionList list selected dispatch =
-    div [] [
-        str "TODO..."
-    ]
+let renderOwnerSelectionList (list: OwnerListItem list) (selectedId: Guid option) dispatch =
+    SelectionList.render ({
+        SelectionMode = SelectionMode.SingleSelect
+        LoadItems = fun () -> async {
+            return list |> List.sortBy (fun o -> o.FirstName)
+        }
+        SelectedItems = 
+            match selectedId with
+            | Some selectedId -> list |> List.filter (fun o -> o.PersonId = selectedId)
+            | None -> []
+        OnSelectionChanged = fun selection -> selection |> List.head |> SelectOwner |> dispatch
+        DisplayListItem = (fun ownerListItem -> 
+            [ownerListItem.FirstName; ownerListItem.LastName] 
+            |> List.choose id 
+            |> String.JoinWith ", "
+            |> str)
+    }, "OwnerSelectionList")
 
-let renderProfessionalSyndicList list selected dispatch =
-    div [] [
-        str "TODO..."
-    ]
+let renderProfessionalSyndicList (list: ProfessionalSyndicListItem list) (selectedId: Guid option) dispatch =
+    SelectionList.render ({
+        SelectionMode = SelectionMode.SingleSelect
+        LoadItems = fun () -> async {
+            return list |> List.sortBy (fun o -> o.Name)
+        }
+        SelectedItems = 
+            match selectedId with
+            | Some selectedId -> list |> List.filter (fun o -> o.OrganizationId = selectedId)
+            | None -> []
+        OnSelectionChanged = fun selection -> selection |> List.head |> SelectProfessionalSyndic |> dispatch
+        DisplayListItem = (fun syndic -> str syndic.Name)
+    }, "SyndicSelectionList")
 
 let modalContent model dispatch =
     match model.State with

@@ -10,10 +10,12 @@ open Feliz.ElmishComponents
 
 open Shared.Read
 open Shared.Remoting
+
 open Client
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.SortableTable
+open Client.Library
 
 type State = {
     CurrentUser: CurrentUser
@@ -161,11 +163,10 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | ListItemRemoved result ->
         match result with
         | Ok _ -> state, Cmd.none
-        | Error e -> //TODO...
-            state, Cmd.none
+        | Error AuthorizationError.AuthorizationError ->
+            state, showErrorToastCmd "U heeft niet genoeg rechten om een kavel te verwijderen"
     | RemotingError e ->
-        //TODO.
-        state, Cmd.none
+        state, showGenericErrorModalCmd e
     | Created lot ->
         let listItem = toListItem lot
         let newListItems = listItem :: state.ListItems

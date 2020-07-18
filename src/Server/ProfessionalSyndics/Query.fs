@@ -15,7 +15,7 @@ module private Readers =
     }
 
     let readProfessionalSyndic (reader: CaseInsensitiveRowReader): ProfessionalSyndicDbModel = {
-        OrganizationId = reader.uuid "PersonId"
+        OrganizationId = reader.uuid "OrganizationId"
     }
 
     let readProfessionalSyndics (reader: CaseInsensitiveRowReader): ProfessionalSyndicListItem = {

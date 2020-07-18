@@ -495,8 +495,6 @@ let view state dispatch =
                 Helpers.valueOrDefault state.Organization.OrganizationNumber
                 OnChange (fun e -> OrganizationNumberChanged e.Value |> dispatch)
             ]
-            //TODO
-            //FormError (errorFor (nameof state.Building.OrganizationNumber))
         ]
         renderVatNumber state dispatch
         AddressEditComponent.render "Address" state.Organization.Address (fun a -> AddressChanged a |> dispatch) (nameof state.Organization.Address) state.Errors

@@ -5,7 +5,7 @@ open Shared.Read
 open Shared.Write
 open Shared.ConstrainedTypes
 
-type AuthorizationError = string
+type AuthorizationError = AuthorizationError
 
 type BuildingValidationError = {
     GeneralError: string list
@@ -39,11 +39,11 @@ type UpdateBuildingError =
     | NotFound
 
 type CreatePersonError = 
-    | ValidationError of PersonValidationError
+    | AuthorizationError of AuthorizationError
 
 type UpdatePersonError =
+    | AuthorizationError of AuthorizationError
     | NotFound
-    | ValidationError of PersonValidationError
 
 type CreateLotError =
     | AuthorizationError of AuthorizationError

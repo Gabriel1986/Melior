@@ -7,12 +7,16 @@ open Fable.React
 open Fable.React.Props
 open Feliz
 open Feliz.ElmishComponents
+
 open Shared.Read
+open Shared.Remoting
+open Shared.Library
+
 open Client.Components
 open Client.Components.BasicModal
+open Client.Components.SelectionList
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
-open Shared.Remoting
 
 type Model = {
     IsOpen: bool
@@ -44,13 +48,11 @@ type Message =
     | LotOwnerUpdated of LotOwner
     | LoadOwners
     | OwnersLoaded of OwnerListItem list
-    | OwnerSelectionChanged of Guid
-    | SelectOwner
+    | SelectOwner of OwnerListItem
     | OwnerLoaded of Owner option
     | LoadOrganizations
     | OrganizationsLoaded of OrganizationListItem list
-    | OrganizationSelectionChanged of Guid
-    | SelectOrganization
+    | SelectOrganization of OrganizationListItem
     | OrganizationLoaded of Organization option
     | Dismiss
     | RemotingError of exn
@@ -115,23 +117,13 @@ let update onLotOwnerChanged onCanceled message model =
             | _ -> 
                 None
         { model with State = SelectingOwner (list, currentlySelectedOwnerId) }, Cmd.none
-    | OwnerSelectionChanged newSelection ->
-        match model.State with
-        | SelectingOwner (li, _) ->
-            { model with State = SelectingOwner (li, Some newSelection) }, Cmd.none
-        | _ ->
-            model, Cmd.none
-    | SelectOwner ->
-        match model.State with
-        | SelectingOwner (_, Some selected) ->
-            let cmd =
-                Cmd.OfAsync.either
-                    (Client.Remoting.getRemotingApi()).GetOwner selected
-                    OwnerLoaded
-                    RemotingError
-            { model with State = Saving }, cmd
-        | _ ->
-            model, Cmd.none
+    | SelectOwner owner ->
+        let cmd =
+            Cmd.OfAsync.either
+                (Client.Remoting.getRemotingApi()).GetOwner owner.PersonId
+                OwnerLoaded
+                RemotingError
+        { model with State = Saving }, cmd
     | OwnerLoaded owner ->
         match owner with
         | Some owner ->
@@ -154,23 +146,13 @@ let update onLotOwnerChanged onCanceled message model =
             | _ -> 
                 None
         { model with State = SelectingOrganization (list, currentlySelectedOrganizationId) }, Cmd.none
-    | OrganizationSelectionChanged newSelection ->
-        match model.State with
-        | SelectingOrganization (li, _) ->
-            { model with State = SelectingOrganization (li, Some newSelection) }, Cmd.none
-        | _ ->
-            model, Cmd.none
-    | SelectOrganization ->
-        match model.State with
-        | SelectingOrganization (_, Some selected) ->
-            let cmd =
-                Cmd.OfAsync.either
-                    (Client.Remoting.getRemotingApi()).GetOrganization selected
-                    OrganizationLoaded
-                    RemotingError
-            { model with State = Saving }, cmd
-        | _ ->
-            model, Cmd.none
+    | SelectOrganization organization ->
+        let cmd =
+            Cmd.OfAsync.either
+                (Client.Remoting.getRemotingApi()).GetOrganization organization.OrganizationId
+                OrganizationLoaded
+                RemotingError
+        { model with State = Saving }, cmd
     | OrganizationLoaded organization ->
         match organization with
         | Some organization ->
@@ -201,15 +183,37 @@ let renderLotOwnerTypeSelection dispatch =
         ]
     ]
 
-let renderOwnerSelectionList list selected dispatch =
-    div [] [
-        str "TODO..."
-    ]
+let renderOwnerSelectionList (list: OwnerListItem list) (selectedId: Guid option) dispatch =
+    SelectionList.render ({
+        SelectionMode = SelectionMode.SingleSelect
+        LoadItems = fun () -> async {
+            return list |> List.sortBy (fun o -> o.FirstName)
+        }
+        SelectedItems = 
+            match selectedId with
+            | Some selectedId -> list |> List.filter (fun o -> o.PersonId = selectedId)
+            | None -> []
+        OnSelectionChanged = fun selection -> selection |> List.head |> SelectOwner |> dispatch
+        DisplayListItem = (fun ownerListItem -> 
+            [ownerListItem.FirstName; ownerListItem.LastName] 
+            |> List.choose id 
+            |> String.JoinWith ", "
+            |> str)
+    }, "OwnerSelectionList")
 
-let renderOrganizationSelectionList list selected dispatch =
-    div [] [
-        str "TODO..."
-    ]
+let renderOrganizationSelectionList (list: OrganizationListItem list) (selectedId: Guid option) dispatch =
+    SelectionList.render ({
+        SelectionMode = SelectionMode.SingleSelect
+        LoadItems = fun () -> async {
+            return list |> List.sortBy (fun o -> o.Name)
+        }
+        SelectedItems = 
+            match selectedId with
+            | Some selectedId -> list |> List.filter (fun o -> o.OrganizationId = selectedId)
+            | None -> []
+        OnSelectionChanged = fun selection -> selection |> List.head |> SelectOrganization |> dispatch
+        DisplayListItem = (fun org -> str org.Name)
+    }, "OrganizationSelectionList")
 
 let modalContent model dispatch =
     match model.State with

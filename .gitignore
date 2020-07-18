@@ -7,9 +7,8 @@ bin/
 output/
 .fake/
 temp/
+tmp/
 deploy/
 settings.json
 .vs/
 *.log
-.vs/Melior/DesignTimeBuild/.dtbcache.v2
-.vs/Melior/v16/.suo

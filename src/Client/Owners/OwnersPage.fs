@@ -11,10 +11,12 @@ open Feliz.ElmishComponents
 
 open Shared.Read
 open Shared.Remoting
+
 open Client
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.SortableTable
+open Client.Library
 
 type State = {
     CurrentUser: CurrentUser
@@ -146,8 +148,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | ListItemRemoved result ->
         match result with
         | Ok _ -> state, Cmd.none
-        | Error e -> //TODO...
-            state, Cmd.none
+        | Error AuthorizationError.AuthorizationError ->
+            state, showErrorToastCmd "U heeft geen toestemming om een eigenaar te verwijderen"
     | RemotingError e ->
         printf "Error: %A" e
         let alert = SimpleAlert("Er is iets misgegaan bij de communicatie met de server.").Type(AlertType.Error)

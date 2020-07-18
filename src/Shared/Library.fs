@@ -9,5 +9,6 @@ let validateOptional (validate: 'T -> Trial<'U, _>) (x: 'T option) =
 
 module String =
     let toOption s = if String.IsNullOrEmpty(s) then None else Some s
+    let JoinWith s (collection: string seq) = String.Join(s, collection)
 
 type CreateOrUpdate = Create | Update

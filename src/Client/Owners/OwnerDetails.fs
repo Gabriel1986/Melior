@@ -13,6 +13,7 @@ open Shared.Remoting
 open Shared.Write
 
 open Client
+open Client.Library
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 
@@ -30,7 +31,6 @@ and State =
     | Editing  of isSaving: bool * ownerEditState: OwnerEditComponent.State
     | Creating of isSaving: bool * ownerEditState: OwnerEditComponent.State
     | OwnerNotFound
-    | RemotingError of exn
 
 type Msg =
     | OwnerEditComponentMsg of OwnerEditComponent.Message
@@ -126,14 +126,13 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                         RemotingError
                 { model with State = Creating(true, componentState) }, cmd
             | Error e ->
-                printf "Errors: %A" e
                 let newComponentState, newComponentCommand = OwnerEditComponent.update (OwnerEditComponent.Message.ErrorsChanged e) (componentState)
                 { model with State = Editing (false, newComponentState) }, newComponentCommand |> Cmd.map OwnerEditComponentMsg
         | _ ->
             //Do nothing, unexpected message O_o
             model, Cmd.none
     | RemotingError e ->
-        { model with State = State.RemotingError e }, Cmd.none
+        model, showGenericErrorModalCmd e
     | ProcessCreateResult result ->
         match result with
         | Ok result ->
@@ -142,8 +141,9 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            //TODO!
-            model, Cmd.none
+            match e with
+            | CreateOwnerError.AuthorizationError ->
+                model, showErrorToastCmd "U heeft geen toestemming om een eigenaar aan te maken"
 
     | ProcessUpdateResult result ->
         match result with
@@ -153,14 +153,16 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            //TODO!
-            model, Cmd.none
+            match e with
+            | UpdateOwnerError.AuthorizationError ->
+                model, showErrorToastCmd "U heeft geen toestemming om deze eigenaar te updaten"
+            | UpdateOwnerError.NotFound ->
+                model, showErrorToastCmd "De eigenaar werd niet gevonden in de databank"
 
 let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with
     | Loading ->  div [] [ str "Details worden geladen" ]
     | OwnerNotFound -> div [] [ str "De door u gekozen eigenaar werd niet gevonden in de databank..." ]
-    | State.RemotingError _ -> div [] [ str "Er is iets misgelopen bij het ophalen van de gegevens, gelieve de pagina te verversen" ]
     | Editing (isSaving, editState)
     | Creating (isSaving, editState) ->
         if isSaving 

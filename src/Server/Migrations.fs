@@ -150,4 +150,23 @@ type CreateInitialTables() =
                 CREATE INDEX idx_OrganizationContactPersons_OrganizationId ON OrganizationContactPersons(OrganizationId);
             """
         )
-    override u.Down () = u.Execute("DROP TABLE logs")
+    override u.Down () = failwith "Not supported"
+
+[<Migration(2L, "Create mediafile tables")>]
+type CreateMediaFileTables() =
+    inherit Migration()
+    override u.Up () =
+        u.Execute(
+            """
+                CREATE TABLE MediaFiles (
+                    Partition VARCHAR(64),
+                    EntityId UUID,
+                    FileId UUID PRIMARY KEY,
+                    FileName VARCHAR(256),
+                    FileSize int,
+                    MimeType VARCHAR(64),
+                    UploadedOn timestamp
+                );
+            """
+        )
+    override u.Down () = failwith "Not supported"

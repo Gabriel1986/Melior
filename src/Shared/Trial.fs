@@ -33,7 +33,6 @@ module Trial =
         trial |> mapFail (List.map mapper)
 
     let inline map2 merge trial1 trial2 =
-        //TODO profile this operation under load (especially for many errors)
         match (trial1, trial2) with
         | (Pass value1, Pass value2) -> Pass (merge value1 value2)
         | (Pass _     , Fail fails )

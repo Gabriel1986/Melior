@@ -15,6 +15,7 @@ open Shared.Write
 open Client
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
+open Library
 
 type Model = {
     BuildingId: Guid
@@ -31,7 +32,6 @@ and State =
     | Editing  of isSaving: bool * buildingEditState: BuildingEditComponent.State
     | Creating of isSaving: bool * buildingEditState: BuildingEditComponent.State
     | BuildingNotFound
-    | RemotingError of exn
 
 type Msg =
     | BuildingEditMsg of BuildingEditComponent.Message
@@ -103,8 +103,6 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             let newComponentState, newComponentCmd = BuildingEditComponent.update componentMsg componentState
             { model with State = s (isSaving, newComponentState) }, 
             newComponentCmd |> Cmd.map BuildingEditMsg
-
-
         match model.State with
         | Editing (isSaving, componentState) ->
             updateComponentState Editing (isSaving, componentState)
@@ -143,7 +141,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             //Do nothing, unexpected message O_o
             model, Cmd.none
     | RemotingError e ->
-        { model with State = State.RemotingError e }, Cmd.none
+        model, showGenericErrorModalCmd e
     | ProcessCreateResult result ->
         match result with
         | Ok result ->
@@ -152,8 +150,9 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            //TODO!
-            model, Cmd.none
+            match e with
+            | CreateBuildingError.AuthorizationError ->
+                model, showErrorToastCmd "U hebt geen toestemming om een gebouw aan te maken"
 
     | ProcessUpdateResult result ->
         match result with
@@ -163,8 +162,11 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            //TODO!
-            model, Cmd.none
+            match e with
+            | UpdateBuildingError.AuthorizationError ->
+                model, showErrorToastCmd "U heeft geen toestemming om dit gebouw te updaten"
+            | UpdateBuildingError.NotFound ->
+                model, showErrorToastCmd "Het gebouw werd niet gevonden in de databank"
 
     | ChangeSyndic ->
         { model with ShowingSyndicModal = true }, Cmd.none
@@ -205,7 +207,6 @@ let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with
     | Loading ->  div [] [ str "Details worden geladen" ]
     | BuildingNotFound -> div [] [ str "Het door u gekozen gebouw werd niet gevonden in de databank..." ]
-    | State.RemotingError _ -> div [] [ str "Er is iets misgelopen bij het ophalen van de gegevens, gelieve de pagina te verversen" ]
     | Editing (isSaving, editState)
     | Creating (isSaving, editState) ->
         if isSaving 

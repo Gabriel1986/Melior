@@ -69,6 +69,12 @@ let renderBuildingSpecificNavigation (currentPage: Page option) (building: Build
                 OnClick (fun _ -> NavigateToPage (Page.OrganizationList buildingSpecificProps) |> dispatch)
             ] [ str "Organisaties" ]
         ]
+        li [ Class Bootstrap.navItem ] [
+            a [
+                Class (determineStyle currentPage (Page.Contracts buildingSpecificProps))
+                OnClick (fun _ -> NavigateToPage (Page.Contracts buildingSpecificProps) |> dispatch)                
+            ] [ str "Contracten" ]
+        ]
     ]
 
 let view (state: NavbarState) (dispatch: NavbarMsg -> unit) =
@@ -86,6 +92,7 @@ let view (state: NavbarState) (dispatch: NavbarMsg -> unit) =
         | Some (Page.ProfessionalSyndicList)
         | Some (Page.ProfessionalSyndicDetails _) -> Some (Page.ProfessionalSyndicList)
         | Some (Page.OrganizationTypeList)        -> Some (Page.OrganizationTypeList)
+        | Some (Page.Contracts p)                 -> Some (Page.Contracts p)
         | Some (Page.NotFound)
         | None                                    -> None
 
@@ -111,14 +118,14 @@ let view (state: NavbarState) (dispatch: NavbarMsg -> unit) =
                     a [
                         Class (determineStyle currentPage Page.ProfessionalSyndicList)
                         OnClick (fun _ -> NavigateToPage Page.ProfessionalSyndicList |> dispatch)
-                    ] [ str "Pro syndici (tijdelijke admin link)" ]
+                    ] [ str "Pro syndici (tijdelijke link)" ]
                 ]
             yield
                 li [ Class Bootstrap.navItem ] [
                     a [
                         Class (determineStyle currentPage Page.OrganizationTypeList)
                         OnClick (fun _ -> NavigateToPage Page.OrganizationTypeList |> dispatch)
-                    ] [ str "Organizatietypes (tijdelijke admin link)" ]                
+                    ] [ str "Organizatietypes (tijdelijke link)" ]                
                 ]
             yield!
                 match state.CurrentBuilding with

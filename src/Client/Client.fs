@@ -22,6 +22,7 @@ open Client.Owners
 open Client.Organizations
 open Client.Lots
 open Client.ProfessionalSyndics
+open Client.Contracts
 
 module Client =
     importAll "./public/styles/bootstrap.min.css"
@@ -230,6 +231,12 @@ module Client =
             | Page.LotDetails _
             | Page.LotList _ -> false
             | _ -> true
+        | Page.ProfessionalSyndicDetails _
+        | Page.ProfessionalSyndicList _ ->
+            match newPage with
+            | Page.ProfessionalSyndicDetails _
+            | Page.ProfessionalSyndicList -> false
+            | _ -> true
         | _ -> true
 
     let notFound = div [] [ p [] [ str "Pagina werd niet gevonden." ] ]
@@ -314,11 +321,22 @@ module Client =
                             {|
                                 CurrentUser = runningState.CurrentUser
                             |}
+                    | Page.Contracts _, _, Some building ->
+                        ContractsPage.render 
+                            {|
+                                CurrentUser = runningState.CurrentUser
+                                CurrentBuildingId = building.BuildingId
+                            |}
                     | _ -> notFound
                 ]
 
             div [] [
-                Navbar.render {| CurrentPage = Some runningState.CurrentPage; CurrentUser = Some runningState.CurrentUser; CurrentBuilding = runningState.CurrentBuilding |}
+                Navbar.render 
+                    {| 
+                        CurrentPage = Some runningState.CurrentPage
+                        CurrentUser = Some runningState.CurrentUser
+                        CurrentBuilding = runningState.CurrentBuilding 
+                    |}
                 Router.router [
                     Router.onUrlChanged (fun urlParts ->
                         let newPage = Routing.parseUrl urlParts
@@ -331,7 +349,12 @@ module Client =
             ]
         | Stopped _ ->
             div [] [
-                Navbar.render {| CurrentPage = None; CurrentUser = None; CurrentBuilding = None |}
+                Navbar.render 
+                    {| 
+                        CurrentPage = None
+                        CurrentUser = None
+                        CurrentBuilding = None 
+                    |}
                 str "Er is iets misgelopen bij het laden van de applicatie."
             ]
 

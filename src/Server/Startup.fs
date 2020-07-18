@@ -17,8 +17,6 @@ type Startup private () =
         Startup() then
         this.Configuration <- configuration
 
-    member this.AppConfiguration = this.Configuration.Get<AppSettings>()
-
     // This method gets called by the runtime. Use this method to add services to the container.
     member this.ConfigureServices(services: IServiceCollection) =
         services
@@ -29,10 +27,12 @@ type Startup private () =
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     member this.Configure(app: IApplicationBuilder, env: IWebHostEnvironment) =
-        Migrations.run Log.Logger this.AppConfiguration.Database.ConnectionString
+        let appSettings = this.Configuration.Get<AppSettings>()
+        Migrations.run Log.Logger appSettings.Database.ConnectionString 
 
         let handleErrors: ErrorHandler =
             fun ex logger ->
+                printf "%O" ex
                 logger.LogError (EventId(), ex, "An unhandled exception has occurred while executing the request.")
                 clearResponse >=> ServerErrors.INTERNAL_ERROR ex
 
@@ -45,6 +45,6 @@ type Startup private () =
             .UseStaticFiles()
             //.UseAuthentication()
             .UseGiraffeErrorHandler(handleErrors)
-            .UseGiraffe(Application.build this.AppConfiguration)
+            .UseGiraffe(Application.build this.Configuration)
 
     member val Configuration : IConfiguration = null with get, set

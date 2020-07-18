@@ -10,10 +10,12 @@ open Feliz.ElmishComponents
 
 open Shared.Read
 open Shared.Remoting
+
 open Client
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.SortableTable
+open Client.Library
 
 type State = {
     CurrentUser: CurrentUser
@@ -144,11 +146,10 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | ListItemRemoved result ->
         match result with
         | Ok _ -> state, Cmd.none
-        | Error e -> //TODO...
-            state, Cmd.none
+        | Error AuthorizationError.AuthorizationError ->
+            state, showErrorToastCmd "U heeft geen toestemming om een organisatie te verwijderen"
     | RemotingError e ->
-        //TODO.
-        state, Cmd.none
+        state, showGenericErrorModalCmd e
     | Created organization ->
         let listItem = toListItem organization
         let newListItems = listItem :: state.ListItems

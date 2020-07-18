@@ -38,6 +38,10 @@ nuget NodaTime
 nuget Elmish.SweetAlert
 nuget Fable.React.Flatpickr
 nuget vies-dotnet-api 1.0.0-beta-0010 beta
+nuget SixLabors.ImageSharp 1.0.0-rc0003 rc
+nuget AWSSDK.S3
+nuget AWSSDK.Extensions.NETCore.Setup 3.3.101
+nuget Giraffe.Antiforgery
 
 group Build
     source https://api.nuget.org/v3/index.json
