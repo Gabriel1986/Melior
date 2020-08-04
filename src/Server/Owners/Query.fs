@@ -2,6 +2,7 @@
 
 open System
 open Npgsql.FSharp
+open Server.Library
 open Server.PostgreSQL
 open Server.PostgreSQL.Sql
 open Shared.Read
@@ -19,6 +20,19 @@ module private Readers =
         BuildingId = reader.uuid "BuildingId"
         IsResident = reader.bool "IsResident"
     }
+
+    let ownerListItemQuery =
+        """
+            SELECT
+                owner.PersonId,
+                owner.BuildingId,
+                owner.IsResident,
+                person.FirstName,
+                person.LastName
+            FROM
+                Owners owner
+            LEFT JOIN Persons person on person.PersonId = owner.PersonId
+        """
 
     let readOwners (reader: CaseInsensitiveRowReader): OwnerListItem = {
         PersonId = reader.uuid "PersonId"
@@ -62,20 +76,20 @@ let getOwner (connectionString: string) (ownerId: Guid) = async {
 
 let getOwners (connectionString: string) (filter: {| BuildingId: Guid |}) =
     Sql.connect connectionString
-    |> Sql.query
-        """
-            SELECT
-                owner.PersonId,
-                owner.BuildingId,
-                owner.IsResident,
-                person.FirstName,
-                person.LastName
-            FROM
-                Owners owner
-            LEFT JOIN Persons person on person.PersonId = owner.PersonId
-            WHERE BuildingId = @BuildingId
-        """
+    |> Sql.query (ownerListItemQuery + " WHERE BuildingId = @BuildingId")
     |> Sql.parameters [
         "@BuildingId", Sql.uuid filter.BuildingId
     ]
     |> Sql.read readOwners
+
+let getOwnersByIds conn (personIds: Guid list) =
+    match personIds with
+    | [] -> 
+        Async.lift []
+    | personIds ->
+        Sql.connect conn
+        |> Sql.query (ownerListItemQuery + " WHERE PersonId in @PersonIds")
+        |> Sql.parameters [
+            "@PersonIds", Sql.uuidArray (personIds |> List.toArray)
+        ]
+        |> Sql.read readOwners

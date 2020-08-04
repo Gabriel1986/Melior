@@ -19,7 +19,7 @@ open Library
 
 type Model = {
     BuildingId: Guid
-    CurrentUser: CurrentUser
+    CurrentUser: User
     State: State
     NotifyCreated: Building -> unit
     NotifyEdited:  Building -> unit
@@ -49,7 +49,7 @@ type Msg =
     | ConciergeChangeCanceled
 
 type DetailsProps = {|
-    CurrentUser: CurrentUser
+    CurrentUser: User
     Identifier: Guid
     IsNew: bool
     NotifyCreated: Building -> unit

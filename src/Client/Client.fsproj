@@ -48,9 +48,6 @@
     <Compile Include="Components\AddressEditComponent.fs" />
     <Compile Include="Components\PersonViewComponent.fs" />
     <Compile Include="Components\PersonEditComponent.fs" />
-    <Compile Include="Authentication\Login.fs" />
-    <Compile Include="Authentication\Logout.fs" />
-    <Compile Include="Authentication\Setup2FactorAuthentication.fs" />
     <Compile Include="Users\MyAccount.fs" />
     <Compile Include="Organizations\OrganizationTypesPage.fs" />
     <Compile Include="Organizations\ContactPersonViewComponent.fs" />

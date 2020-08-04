@@ -48,9 +48,10 @@ type SortableAttribute =
         member me.ToString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
+        member _.IsFilterable = true
 
 type State = {
-    CurrentUser: CurrentUser
+    CurrentUser: User
     SelectedListItems: BuildingListItem list
     SelectedTab: Tab
     CurrentBuildingId: Guid option
@@ -74,7 +75,7 @@ type Msg =
     | CurrentBuildingChanged of BuildingListItem
 
 type BuildingsPageProps = {|
-    CurrentUser: CurrentUser
+    CurrentUser: User
     BuildingId: Guid option
     CurrentBuildingId: Guid option
 |}

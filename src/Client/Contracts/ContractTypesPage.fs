@@ -15,7 +15,7 @@ type Message =
     | TODO
 
 type ContractsTypesPageProps = {
-    CurrentUser: CurrentUser
+    CurrentUser: User
 }
 
 let init props =

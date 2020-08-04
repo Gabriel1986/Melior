@@ -4,16 +4,16 @@ open Shared.Read
 open Elmish.SweetAlert
 open Browser.Dom
 
-let getCurrentBuilding (currentUser: CurrentUser) =
+let getCachedCurrentBuilding (currentUser: User) =
     let currentBuildingStr = Browser.WebStorage.localStorage.getItem("currentBuilding")
     if currentBuildingStr = null || currentBuildingStr.Length < 0 
     then None
     else 
-        let r = Thoth.Json.Decode.Auto.fromString<BuildingListItem>(currentBuildingStr)
-        match r with
-        | Ok r -> 
-            if currentUser.BuildingIds |> List.contains r.BuildingId then
-                Some r
+        let currentBuildingOpt = Thoth.Json.Decode.Auto.fromString<BuildingListItem>(currentBuildingStr)
+        match currentBuildingOpt with
+        | Ok currentBuilding -> 
+            if currentUser.HasAccessToBuilding (currentBuilding.BuildingId) then
+                Some currentBuilding
             else
                 None
         | Error e -> 

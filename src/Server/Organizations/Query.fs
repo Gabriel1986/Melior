@@ -244,3 +244,43 @@ let getOrganizations connectionString (filter: {| BuildingId: Guid |}) = async {
             Address = Address.fromJson o.Address |> Option.fromResult |> Option.defaultValue Address.Init
         })
 }
+
+let getOrganizationsByIds connectionString (orgIds: Guid list) = async {
+    match orgIds with
+    | [] -> return []
+    | orgIds ->
+        let! organizations =
+            Sql.connect connectionString
+            |> Sql.query
+                """
+                    SELECT
+                        OrganizationId,
+                        BuildingId,
+                        OrganizationNumber,
+                        Name,
+                        Address,
+                        MainEmailAddress,
+                        MainTelephoneNumber
+                    FROM Organizations
+                    WHERE OrganizationId = @OrganizationIds
+                """
+            |> Sql.parameters [ "@BuildingId", Sql.uuidArray (orgIds |> List.toArray) ]
+            |> Sql.read readOrganizations
+
+        let! organizationTypes = 
+            getOrganizationTypesForOrganizations connectionString (organizations |> List.map (fun o -> o.OrganizationId))
+            |> Async.map dict
+        return
+            organizations |> List.map (fun o -> {
+                OrganizationId = o.OrganizationId
+                BuildingId = o.BuildingId
+                OrganizationNumber = o.OrganizationNumber
+                OrganizationTypeNames = 
+                    match organizationTypes.TryGetValue(o.OrganizationId) with
+                    | true, types -> types |> List.map (fun t -> t.Name)
+                    | false, _ -> []
+                Name = o.Name
+                Address = Address.fromJson o.Address |> Option.fromResult |> Option.defaultValue Address.Init
+            })
+}
+    

@@ -5,14 +5,9 @@ open Server.PostgreSQL
 open Shared.Write
 
 let private paramsFor (validated: ValidatedLot) =
-    let lotOwnerPersonId = validated.CurrentOwnerId |> Option.bind (function | LotOwnerId.OwnerId ownerId -> Some ownerId | _ -> None)
-    let lotOwnerOrganizationId = validated.CurrentOwnerId |> Option.bind (function | LotOwnerId.OrganizationId orgId -> Some orgId | _ -> None)
-    
     [
         "@LotId"                     , Sql.uuid validated.LotId
         "@BuildingId"                , Sql.uuid validated.BuildingId
-        "@CurrentOwnerPersonId"      , Sql.uuidOrNone lotOwnerPersonId
-        "@CurrentOwnerOrganizationId", Sql.uuidOrNone lotOwnerOrganizationId
         "@Code"                      , Sql.string (string validated.Code)
         "@LotType"                   , Sql.string (string validated.LotType)
         "@Description"               , Sql.stringOrNone validated.Description
@@ -21,6 +16,7 @@ let private paramsFor (validated: ValidatedLot) =
     ]
 
 let createLot (connectionString: string) (validated: ValidatedLot) =
+    //TODO: store owners
     Sql.connect connectionString
     |> Sql.query
         """

@@ -20,7 +20,7 @@ open Client.ClientStyle.Helpers
 type Model = {
     OwnerId: Guid
     CurrentBuilding: BuildingListItem
-    CurrentUser: CurrentUser
+    CurrentUser: User
     State: State
     NotifyCreated: Owner -> unit
     NotifyEdited:  Owner -> unit
@@ -42,7 +42,7 @@ type Msg =
     | ProcessUpdateResult of Result<Owner, UpdateOwnerError>
 
 type DetailsProps = {|
-    CurrentUser: CurrentUser
+    CurrentUser: User
     CurrentBuilding: BuildingListItem
     Identifier: Guid
     IsNew: bool

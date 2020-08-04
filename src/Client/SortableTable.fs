@@ -16,6 +16,7 @@ type ISortableAttribute<'T> =
     abstract member ToString: (unit -> string)
     abstract member StringValueOf: ('T -> string)
     abstract member Compare: 'T -> 'T -> int
+    abstract member IsFilterable: bool
 
 [<NoComparison; NoEquality>]
 type SortableTableProps<'T, 'U when 'U :> ISortableAttribute<'T>> =
@@ -30,9 +31,11 @@ type SortableTableProps<'T, 'U when 'U :> ISortableAttribute<'T>> =
     |}
 
 type State<'T, 'U when 'U :> ISortableAttribute<'T>> = {
-    ListItems: 'T list
+    AllListItems: 'T list
+    FilteredListItems: 'T list
     DisplayAttributes: 'U list
     SortOn: (ISortableAttribute<'T> * bool) list
+    FilterOn: (ISortableAttribute<'T> * string) list
     IsSelected: ('T -> bool) option
     OnSelect: ('T -> unit) option
     OnEdit: ('T -> unit) option
@@ -42,14 +45,15 @@ type State<'T, 'U when 'U :> ISortableAttribute<'T>> = {
 type Msg<'T> =
     | AddSortOn of ISortableAttribute<'T>
     | SortOn of ISortableAttribute<'T>
-
-
+    | SetFilterOn of ISortableAttribute<'T> * string
 
 let init (props: SortableTableProps<'T, 'U>): State<'T, 'U> * Cmd<Msg<'T>> =
     {
-        ListItems = props.ListItems
+        AllListItems = props.ListItems
+        FilteredListItems = props.ListItems
         DisplayAttributes = props.DisplayAttributes
         SortOn = []
+        FilterOn = []
         IsSelected = props.IsSelected
         OnSelect = props.OnSelect
         OnDelete = props.OnDelete
@@ -63,13 +67,22 @@ let private performSort (sortOn: (ISortableAttribute<'T> * bool) list) (listItem
         sortOn 
         |> List.rev 
         |> List.map (fun (attr, reverse) -> 
-            let compare = attr.Compare
             if reverse 
             then List.sortWith (fun li otherLi -> attr.Compare otherLi li)
             else List.sortWith (fun li otherLi -> attr.Compare li otherLi)
         )
     sortOnFunctions
     |> List.fold (fun acc nextSort -> nextSort acc) listItems
+
+let private performFilter (filterOn: (ISortableAttribute<'T> * string) list) (listItems: 'T list) =
+    let predicates =
+        filterOn
+        |> List.map (fun (attr, filter) ->
+            let filter = filter.ToLowerInvariant()
+            fun li -> (attr.StringValueOf li).ToLowerInvariant().Contains(filter))
+
+    listItems
+    |> List.filter (fun li -> predicates |> List.exists (fun predicate -> predicate li))
 
 let update (msg: Msg<'T>) (state: State<'T, 'U>): State<'T, 'U> * Cmd<Msg<'T>> =
     match msg with
@@ -83,8 +96,8 @@ let update (msg: Msg<'T>) (state: State<'T, 'U>): State<'T, 'U> * Cmd<Msg<'T>> =
             else
                 [ (attribute, false) ]
 
-        let newListItems = state.ListItems |> performSort newSortOn
-        { state with SortOn = newSortOn; ListItems = newListItems }, Cmd.none
+        let newListItems = state.FilteredListItems |> performSort newSortOn
+        { state with SortOn = newSortOn; FilteredListItems = newListItems }, Cmd.none
     | AddSortOn attribute ->
         let newSortOn =
             match state.SortOn |> List.tryFind (fun (attr, _) -> attr = attribute) with
@@ -92,8 +105,21 @@ let update (msg: Msg<'T>) (state: State<'T, 'U>): State<'T, 'U> * Cmd<Msg<'T>> =
             | Some (_, true)  -> state.SortOn |> List.filter (fun (attr, _) -> attr <> attribute)
             | None            -> [ (attribute, false) ] |> List.append state.SortOn
 
-        let newListItems = state.ListItems |> performSort newSortOn
-        { state with SortOn = newSortOn; ListItems = newListItems }, Cmd.none
+        let newListItems = state.FilteredListItems |> performSort newSortOn
+        { state with SortOn = newSortOn; FilteredListItems = newListItems }, Cmd.none
+    | SetFilterOn (attribute, searchFilter) ->
+        let newFilterOn =
+            let filterOn' = state.FilterOn |> List.filter (fun (attr, _) -> attr <> attribute)
+            if String.IsNullOrWhiteSpace searchFilter then
+                filterOn'
+            else
+                (attribute, searchFilter)::filterOn'
+
+
+        let newListItems = state.AllListItems |> performFilter newFilterOn |> performSort state.SortOn
+        { state with 
+            FilterOn = newFilterOn
+            FilteredListItems = newListItems }, Cmd.none
 
 let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
     let dispatchSortOn (attribute: ISortableAttribute<'T>) (e: Browser.Types.MouseEvent) =
@@ -108,9 +134,13 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
         |> Option.map (fun index -> sprintf " (%s)" (string (index + 1)))
         |> Option.defaultValue ""
 
+    let sortingDirection (attribute: ISortableAttribute<'T>) =
+        state.SortOn 
+        |> List.tryPick (fun (attr, reversed) -> if attr = attribute then Some reversed else None)
+
     let extraColumnHeaders =
         [ 
-            if state.OnSelect.IsSome && state.IsSelected.IsSome then yield th [] [ str "Actief" ] 
+            if state.OnSelect.IsSome && state.IsSelected.IsSome then yield th [] [ str "Geselecteerd" ] 
             if state.OnEdit.IsSome then yield th [] []
             if state.OnDelete.IsSome then yield th [] []
         ]
@@ -153,7 +183,23 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
     let header (attr: ISortableAttribute<'T>) =
         th 
             [ OnClick (dispatchSortOn attr) ]
-            [ str (sprintf "%s%s" (attr.ToString ()) (sortingIndexNumber attr)) ]
+            [
+                div [] [
+                    yield str (sprintf "%s%s " (attr.ToString ()) (sortingIndexNumber attr)) 
+                    yield 
+                        match sortingDirection attr with
+                        | Some true -> i [ classes [ FontAwesome.fa; FontAwesome.faSortDown ] ] []
+                        | Some false -> i [ classes [ FontAwesome.fa; FontAwesome.faSortDown ] ] []
+                        | None -> null
+                ]
+                div [ Class "form-group has-feedback" ] [ 
+                    input [ Type "text"
+                            Class "form-control"
+                            Placeholder "Search"
+                            OnChange (fun e -> SetFilterOn (attr, e.Value) |> dispatch) ]
+                    i [ classes [ FontAwesome.fa; FontAwesome.faSearch; "form-control-feedback" ] ] [ ] 
+                ]
+            ]
 
     table [ classes [ Bootstrap.table; Bootstrap.tableStriped; Bootstrap.tableHover ] ] [
         thead [] [
@@ -163,7 +209,7 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
             ]
         ]
         tbody []
-            (state.ListItems
+            (state.FilteredListItems
             |> List.map (fun li -> 
                 tr [ 
                     if state.OnSelect.IsSome then yield OnClick (fun _ -> state.OnSelect.Value li) 

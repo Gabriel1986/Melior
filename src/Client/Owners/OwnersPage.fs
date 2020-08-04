@@ -19,7 +19,7 @@ open Client.SortableTable
 open Client.Library
 
 type State = {
-    CurrentUser: CurrentUser
+    CurrentUser: User
     CurrentBuilding: BuildingListItem
     SelectedListItems: OwnerListItem list
     SelectedTab: Tab
@@ -42,7 +42,7 @@ type Msg =
     | Edited of Owner
 
 type OwnersPageProps = {|
-    CurrentUser: CurrentUser
+    CurrentUser: User
     CurrentBuilding: BuildingListItem
     PersonId: Guid option
 |}
@@ -75,6 +75,7 @@ type SortableOwnerListItemAttribute =
         member me.ToString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
+        member _.IsFilterable = true
 
 let init (props: OwnersPageProps) =
     let state = { 

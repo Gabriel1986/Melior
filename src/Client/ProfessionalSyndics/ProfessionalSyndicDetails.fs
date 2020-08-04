@@ -19,7 +19,7 @@ open Client.Library
 
 type Model = {
     ProfessionalSyndicId: Guid
-    CurrentUser: CurrentUser
+    CurrentUser: User
     State: State
     NotifyCreated: ProfessionalSyndic -> unit
     NotifyEdited:  ProfessionalSyndic -> unit
@@ -41,7 +41,7 @@ type Msg =
     | ProcessUpdateResult of Result<ProfessionalSyndic, UpdateProfessionalSyndicError>
 
 type DetailsProps = {|
-    CurrentUser: CurrentUser
+    CurrentUser: User
     Identifier: Guid
     IsNew: bool
     NotifyCreated: ProfessionalSyndic -> unit

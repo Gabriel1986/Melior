@@ -5,10 +5,11 @@
     open Server.AppSettings
     open Shared.Remoting
     open Server.Library
-    open Shared.Read
     open Microsoft.Extensions.Configuration
+    open Server.Blueprint.Behavior
+    open System.IdentityModel.Tokens.Jwt
 
-    let meliorBff (config: IConfiguration) (ctx: HttpContext): RemotingApi = 
+    let meliorBff (config: IConfiguration) (environment: IEnv) (ctx: HttpContext): RemotingApi = 
         let settings = config.Get<AppSettings>()
 
         let createMsg payload: Message<'T> = {
@@ -19,19 +20,9 @@
         let connectionString = settings.Database.ConnectionString
 
         {
-            GetCurrentUser = fun _ -> async {
-                let! buildings = Server.Buildings.Query.getBuildings connectionString ()
-
-                return {
-                    UserId = Guid.NewGuid()
-                    EmailAddress = "test@melior.be"
-                    DisplayName = "Testy de tester"
-                    PersonId = Guid.NewGuid()
-                    Role = Role.SysAdmin
-                    BuildingIds = buildings |> List.map (fun b -> b.BuildingId)
-                    PreferredLanguageCode = "nl-BE"
-                }
-            }
+            GetCurrentUser = fun _ ->
+                environment.AuthenticationSystem.GetUser (Guid.Parse (ctx.User.FindFirstValue(JwtRegisteredClaimNames.Sub)))
+                |> Async.map (function | Some user -> user | None -> failwithf "This should not occur... Failed to fetch current user...")
             CreateBuilding = fun building -> 
                 createMsg building
                 |> Server.Buildings.Workflow.createBuilding connectionString
@@ -98,8 +89,8 @@
             GetOrganization = fun orgNr ->
                 orgNr
                 |> Server.Organizations.Query.getOrganization connectionString
-            VerifyVatNumber = fun vatNumber ->                
-                Server.Organizations.ViesService.verifyVatNumber vatNumber
+            VerifyVatNumber = fun vatNumber ->
+                Server.Organizations.ViesService.verifyVatNumber settings vatNumber
             CreatePerson = fun pers ->
                 createMsg pers
                 |> Server.Persons.Workflow.createPerson connectionString

@@ -1,2 +1,0 @@
-﻿module Setup2FactorAuthentication
-

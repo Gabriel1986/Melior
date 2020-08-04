@@ -207,13 +207,17 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         match r with
         | Ok verification ->
             if verification.IsValid then
-                //Show popup with retrieved data
                 let message = 
                     sprintf "De volgende gegevens zijn geassocieerd met het opgegeven BTW nummer: %s, %s" 
                         (defaultArg verification.Name "") 
-                        (defaultArg verification.Address "")
+                        (verification.Address |> Option.either string "")
                 let alert = SimpleAlert(message).Type(AlertType.Success)
-                let newState = changeOrganization (fun org -> { org with VatNumber = Some verification.VatNumber; VatNumberVerifiedOn = Some (verification.RequestDate.Date) })
+                let newState = changeOrganization (fun org -> { 
+                    org with 
+                        Name = defaultArg verification.Name org.Name
+                        VatNumberVerifiedOn = Some (verification.RequestDate.Date)
+                        Address = defaultArg verification.Address org.Address
+                })
                 { newState with VatNumberCheckingState = None }, SweetAlert.Run(alert)
             else
                 let alert = SimpleAlert("Het opgegeven BTW nummer is niet geldig").Type(AlertType.Error)

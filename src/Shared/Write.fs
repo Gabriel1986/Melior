@@ -138,6 +138,21 @@ type ValidatedOwner =
         }
         |> Trial.toResult
 
+type ValidatedRole = 
+    {
+        EmailAddress: String255
+        Role: Role
+    }
+    static member Validate (emailAddress: string, role: Role) =
+        trial {
+            from emailAddress in String255.Of (nameof EmailAddress) emailAddress
+            yield {
+                EmailAddress = emailAddress
+                Role = role
+            }
+        }
+        |> Trial.toResult
+
 type SyndicId =
     | OwnerId of Guid
     | ProfessionalSyndicId of Guid
@@ -204,14 +219,14 @@ type LotOwnerId =
 
 let private mapLotOwner =
     function
-    | LotOwner.Owner owner -> OwnerId owner.Person.PersonId
+    | LotOwner.Owner owner -> OwnerId owner.PersonId
     | LotOwner.Organization organization -> OrganizationId organization.OrganizationId
 
 type ValidatedLot = 
     {
         LotId: Guid
         BuildingId: Guid
-        CurrentOwnerId: LotOwnerId option
+        Owners: (LotOwnerId * LotOwnerRole) list
         Code: String16
         LotType: LotType
         Description: string option
@@ -225,7 +240,7 @@ type ValidatedLot =
             yield {
                 LotId = lot.LotId
                 BuildingId = lot.BuildingId
-                CurrentOwnerId = lot.CurrentOwner |> Option.map mapLotOwner
+                Owners = (lot.Owners |> List.map (fun (owner, role) -> mapLotOwner owner, role))
                 Code = code
                 LotType = lot.LotType
                 Description = lot.Description

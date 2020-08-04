@@ -10,6 +10,7 @@ open Microsoft.Extensions.Hosting
 open Thoth.Json.Net
 open Thoth.Json.Giraffe
 open Serilog
+
 open Server.AppSettings
 
 type Startup private () =
@@ -23,7 +24,11 @@ type Startup private () =
             .AddGiraffe()
             .AddSingleton<Serialization.Json.IJsonSerializer>(
                 ThothSerializer (caseStrategy=Thoth.Json.Net.CaseStrategy.PascalCase, extra=Extra.empty, skipNullField=true)
-            ) |> ignore
+            )
+            |> ignore
+
+        Authentication.Configuration.addAuthenticationServices (services)
+        ()
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     member this.Configure(app: IApplicationBuilder, env: IWebHostEnvironment) =
@@ -32,7 +37,7 @@ type Startup private () =
 
         let handleErrors: ErrorHandler =
             fun ex logger ->
-                printf "%O" ex
+                printf "Error: %O" ex
                 logger.LogError (EventId(), ex, "An unhandled exception has occurred while executing the request.")
                 clearResponse >=> ServerErrors.INTERNAL_ERROR ex
 
@@ -43,7 +48,7 @@ type Startup private () =
             .UseHttpsRedirection()
             .UseDefaultFiles()
             .UseStaticFiles()
-            //.UseAuthentication()
+            .UseAuthentication()
             .UseGiraffeErrorHandler(handleErrors)
             .UseGiraffe(Application.build this.Configuration)
 

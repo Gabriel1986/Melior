@@ -38,12 +38,12 @@
     "whatwg-fetch": "^3.0.0"
   },
   "dependencies": {
-    "flatpickr": "^4.6.3",
-    "react-flatpickr": "^3.10.0",
-    "sweetalert2": "^8.14.0",
     "filepond": "^4.9.2",
     "filepond-plugin-file-validate-type": "^1.2.5",
     "filepond-plugin-image-preview": "^4.6.0",
-    "react-filepond": "^7.0.1"
+    "flatpickr": "^4.6.3",
+    "react-filepond": "^7.0.1",
+    "react-flatpickr": "^3.10.0",
+    "sweetalert2": "^8.14.0"
   }
 }

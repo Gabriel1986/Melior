@@ -18,7 +18,7 @@ open Client.SortableTable
 open Client.Library
 
 type State = {
-    CurrentUser: CurrentUser
+    CurrentUser: User
     CurrentBuilding: BuildingListItem
     SelectedListItems: OrganizationListItem list
     SelectedTab: Tab
@@ -41,25 +41,25 @@ type Msg =
     | Edited of Organization
 
 type OrganizationPageProps = {|
-    CurrentUser: CurrentUser
+    CurrentUser: User
     CurrentBuilding: BuildingListItem
     OrganizationId: Guid option
 |}
 
 type SortableOrganizationListItemAttribute =
-    | OrganizationNumber
-    | Name
     | Type
+    | Name
+    | OrganizationNumber
     member me.ToString' () =
         match me with
-        | OrganizationNumber -> "Ondernemingsnr."
-        | Name -> "Naam"
         | Type -> "Type"
+        | Name -> "Naam"
+        | OrganizationNumber -> "Ondernemingsnr."
     member me.StringValueOf': OrganizationListItem -> string =
         match me with
-        | OrganizationNumber -> (fun li -> string li.OrganizationNumber)
-        | Name -> (fun li -> string li.Name)
         | Type -> (fun li -> String.Join(", ", li.OrganizationTypeNames))
+        | Name -> (fun li -> string li.Name)
+        | OrganizationNumber -> (fun li -> string li.OrganizationNumber)
     member me.Compare': OrganizationListItem -> OrganizationListItem -> int =
         match me with
         | _     -> 
@@ -69,6 +69,7 @@ type SortableOrganizationListItemAttribute =
         member me.ToString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
+        member _.IsFilterable = true
 
 let init (props: OrganizationPageProps) =
     let state = { 

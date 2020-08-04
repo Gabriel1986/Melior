@@ -102,8 +102,6 @@ type CreateInitialTables() =
                 CREATE TABLE Lots (
                     LotId UUID PRIMARY KEY,
                     BuildingId UUID References Buildings(BuildingId),
-                    CurrentOwnerPersonId UUID References Persons(PersonId),
-                    CurrentOwnerOrganizationId UUID References Organizations(OrganizationId),
                     Code VARCHAR(16) NOT NULL,
                     LotType VARCHAR(32) NOT NULL,
                     Description VARCHAR,
@@ -111,9 +109,18 @@ type CreateInitialTables() =
                     Surface INT,
                     IsActive Boolean DEFAULT TRUE
                 );
+                CREATE INDEX idx_Lots_BuildingId ON Owners(BuildingId);
+
+                CREATE TABLE LotOwners (
+                    LotId UUID PRIMARY KEY,
+                    OrganizationId UUID References Organizations(OrganizationId), 
+                    PersonId UUID References Persons(PersonId),
+                    Role VARCHAR(32)
+                );
+
                 CREATE INDEX idx_Lots_CurrentOwnerPersonId ON Lots(CurrentOwnerPersonId);
                 CREATE INDEX idx_Lots_CurrentOwnerOrganizationId ON Lots(CurrentOwnerOrganizationId);
-                CREATE INDEX idx_Lots_BuildingId ON Owners(BuildingId);
+
 
                 CREATE TABLE OrganizationTypes (
                     OrganizationTypeId UUID PRIMARY KEY,
@@ -159,14 +166,49 @@ type CreateMediaFileTables() =
         u.Execute(
             """
                 CREATE TABLE MediaFiles (
-                    Partition VARCHAR(64),
-                    EntityId UUID,
+                    Partition VARCHAR(64) NOT NULL,
+                    EntityId UUID NOT NULL,
                     FileId UUID PRIMARY KEY,
-                    FileName VARCHAR(256),
-                    FileSize int,
+                    FileName VARCHAR(255),
+                    FileSize INT,
                     MimeType VARCHAR(64),
-                    UploadedOn timestamp
+                    UploadedOn TIMESTAMP
                 );
+                CREATE INDEX idx_MediaFiles_Partition_EntityId ON MediaFiles(Partition, EntityId);
+            """
+        )
+    override u.Down () = failwith "Not supported"
+
+[<Migration(3L, "Create user tables")>]
+type CreateUserTables() =
+    inherit Migration()
+    override u.Up () =
+        u.Execute(
+            """
+                CREATE TABLE Users (
+                    UserId UUID PRIMARY KEY,
+                    DisplayName VARCHAR(255),
+                    EmailAddress VARCHAR(255) UNIQUE,
+                    PreferredLanguageCode VARCHAR(12),
+                    PasswordHash BYTEA,
+                    UseTwoFac Boolean,
+                    TwoFacSecret BYTEA,
+                    IsActive Boolean DEFAULT TRUE
+                );
+                CREATE INDEX idx_Users_EmailAddress ON Users(EmailAddress);
+
+                CREATE TABLE RecoveryCodes (
+                    EmailAddress VARCHAR(255),
+                    RecoveryCodeHash BYTEA,
+                    PRIMARY KEY (EmailAddress, RecoveryCodeHash)
+                );
+                CREATE INDEX idx_RecoveryCodes_EmailAddress ON RecoveryCodes(EmailAddress);
+
+                CREATE TABLE FailedTwoFacEvents (
+                    UserId UUID,
+                    TimeStamp TIMESTAMP
+                );
+                CREATE INDEX idx_FailedTwoFacEvents_UserId ON FailedTwoFacEvents(UserId);
             """
         )
     override u.Down () = failwith "Not supported"

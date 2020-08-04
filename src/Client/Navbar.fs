@@ -15,7 +15,7 @@ open Client.ClientStyle
 open Client.ClientStyle.Helpers
 
 type NavbarState = {
-    CurrentUser: CurrentUser option
+    CurrentUser: User option
     CurrentPage: Page option
     CurrentBuilding: BuildingListItem option
 }
@@ -23,7 +23,7 @@ type NavbarState = {
 type NavbarMsg =
     | NavigateToPage of page: Page
 
-let init (props: {| CurrentUser: CurrentUser option; CurrentPage: Page option; CurrentBuilding: BuildingListItem option |}) =
+let init (props: {| CurrentUser: User option; CurrentPage: Page option; CurrentBuilding: BuildingListItem option |}) =
     {
         CurrentUser = props.CurrentUser
         CurrentPage = props.CurrentPage
@@ -125,7 +125,7 @@ let view (state: NavbarState) (dispatch: NavbarMsg -> unit) =
                     a [
                         Class (determineStyle currentPage Page.OrganizationTypeList)
                         OnClick (fun _ -> NavigateToPage Page.OrganizationTypeList |> dispatch)
-                    ] [ str "Organizatietypes (tijdelijke link)" ]                
+                    ] [ str "Organisatietypes (tijdelijke link)" ]                
                 ]
             yield!
                 match state.CurrentBuilding with
@@ -134,5 +134,5 @@ let view (state: NavbarState) (dispatch: NavbarMsg -> unit) =
         ]
     ]
 
-let render (props: {| CurrentUser: CurrentUser option; CurrentPage: Page option; CurrentBuilding: BuildingListItem option |}) =
+let render (props: {| CurrentUser: User option; CurrentPage: Page option; CurrentBuilding: BuildingListItem option |}) =
     React.elmishComponent ("BuildingsPage", init props, update, view)

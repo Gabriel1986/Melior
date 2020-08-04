@@ -7,24 +7,33 @@ open Shared.Library
 open Shared.Read
 open Shared.ConstrainedTypes
 open Serilog
+open Server.AppSettings
 
 let private httpClient = new HttpClient()
 
-let private mapViesResponse (viesResponse: ViesCheckVatResponse): VatNumberValidationResponse = {
-    CountryCode = viesResponse.CountryCode
-    VatNumber = viesResponse.VatNumber
-    RequestDate = viesResponse.RequestDate
-    IsValid = viesResponse.IsValid
-    Name = viesResponse.Name |> String.toOption
-    Address = viesResponse.Address |> String.toOption
+let private mapViesResponse (appSettings: AppSettings) (viesResponse: ViesCheckVatResponse): Async<VatNumberValidationResponse> = async {    
+    let! address =
+        match viesResponse.Address |> String.toOption with
+        | Some address -> GoogleGeocodingApi.parseAddress httpClient appSettings address
+        | None -> Async.lift None
+
+    return {
+        CountryCode = viesResponse.CountryCode
+        VatNumber = viesResponse.VatNumber
+        RequestDate = viesResponse.RequestDate
+        IsValid = viesResponse.IsValid
+        Name = viesResponse.Name |> String.toOption
+        Address = address
+    }
 }
 
-let verifyVatNumber (vatNumber: VatNumber) =
+let verifyVatNumber (settings: AppSettings) (vatNumber: VatNumber) =
     use manager = new ViesManager(httpClient)
     try
         manager.IsActive(vatNumber.CountryCode, vatNumber.Value)
         |> Async.AwaitTask
-        |> Async.map (mapViesResponse >> Ok)
+        |> Async.bind (mapViesResponse settings)
+        |> Async.map Ok
     with ex ->
         match ex with
         | :? ViesServiceException -> 

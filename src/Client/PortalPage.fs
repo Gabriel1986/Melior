@@ -13,14 +13,14 @@ open Client.ClientStyle
 open Client.ClientStyle.Helpers
 
 type State = {
-    CurrentUser: CurrentUser
+    CurrentUser: User
     CurrentBuilding: BuildingListItem option
 }
 
 type Msg =
     | OpenPage of NavigablePage
 
-type PortalPageProps = {| CurrentUser: CurrentUser; CurrentBuilding: BuildingListItem option |}
+type PortalPageProps = {| CurrentUser: User; CurrentBuilding: BuildingListItem option |}
 
 let init (props: PortalPageProps) =
     { CurrentUser = props.CurrentUser; CurrentBuilding = props.CurrentBuilding }, Cmd.none

@@ -69,7 +69,7 @@ let view (state: State) (dispatch: Message -> unit) =
     div [] [
         div [ Class Bootstrap.row ] [
             formGroup [ 
-                Label "Is resident"
+                Label "Bewoner"
                 Radio {
                     Inline = true
                     RadioButtons = yesNo

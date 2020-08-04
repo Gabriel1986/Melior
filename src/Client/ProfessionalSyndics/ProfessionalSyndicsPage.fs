@@ -18,7 +18,7 @@ open Client.SortableTable
 open Client.Library
 
 type State = {
-    CurrentUser: CurrentUser
+    CurrentUser: User
     SelectedListItems: ProfessionalSyndicListItem list
     SelectedTab: Tab
     LoadingListItems: bool
@@ -40,7 +40,7 @@ type Msg =
     | Edited of ProfessionalSyndic
 
 type ProfessionalSyndicsPageProps = {|
-    CurrentUser: CurrentUser
+    CurrentUser: User
     ProfessionalSyndicId: Guid option
 |}
 
@@ -68,6 +68,7 @@ type SortableProfessionalSyndicListItemAttribute =
         member me.ToString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
+        member me.IsFilterable = true
 
 let init (props: ProfessionalSyndicsPageProps) =
     let state = { 

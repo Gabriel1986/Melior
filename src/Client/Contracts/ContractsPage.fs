@@ -21,7 +21,7 @@ type Message =
 type ContractsPageProps = 
     {|
         CurrentBuildingId: Guid
-        CurrentUser: CurrentUser
+        CurrentUser: User
     |}
 
 let init props =

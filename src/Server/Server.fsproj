@@ -9,10 +9,8 @@
     <Compile Include="AppSettings.fs" />
     <Compile Include="Migrations.fs" />
     <Compile Include="PostgreSQL.fs" />
-    <Compile Include="Authentication\LoginPage.fs" />
-    <Compile Include="Authentication\LogoutPage.fs" />
-    <Compile Include="Authentication\Setup2FactorAuthenticationPage.fs" />
-    <Compile Include="Authentication\HttpHandler.fs" />
+    <Compile Include="Blueprint.Data.fs" />
+    <Compile Include="Blueprint.Behavior.fs" />
     <Compile Include="Addresses\Library.fs" />
     <Compile Include="Addresses\Workflow.fs" />
     <Compile Include="ContactMethods\Library.fs" />
@@ -24,6 +22,7 @@
     <Compile Include="Owners\Query.fs" />
     <Compile Include="Owners\Storage.fs" />
     <Compile Include="Owners\Workflow.fs" />
+    <Compile Include="Organizations\GoogleGeocodingApi.fs" />
     <Compile Include="Organizations\ViesService.fs" />
     <Compile Include="Organizations\Query.fs" />
     <Compile Include="Organizations\Storage.fs" />
@@ -42,6 +41,15 @@
     <Compile Include="Media\Storage.fs" />
     <Compile Include="Media\Workflow.fs" />
     <Compile Include="Media\HttpHandler.fs" />
+    <Compile Include="Authentication\Configuration.fs" />
+    <Compile Include="Authentication\Encryption.fs" />
+    <Compile Include="Authentication\CommonPasswords.fs" />
+    <Compile Include="Authentication\Storage.fs" />
+    <Compile Include="Authentication\Query.fs" />
+    <Compile Include="Authentication\Workflows.fs" />
+    <Compile Include="Authentication\Pages.fs" />
+    <Compile Include="Authentication\HttpHandler.fs" />
+    <Compile Include="Authentication\AuthenticationSystem.fs" />
     <Compile Include="Remoting.fs" />
     <Compile Include="Application.fs" />
     <Compile Include="Startup.fs" />

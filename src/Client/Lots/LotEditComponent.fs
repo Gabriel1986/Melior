@@ -16,9 +16,11 @@ type Message =
     | DescriptionChanged of string
     | FloorChanged of string
     | SurfaceChanged of string
-    | ChangeLotOwner
-    | LotOwnerChanged of LotOwner option
-    | LotOwnerChangeCanceled
+    | ChangeLotOwners
+    | LotOwnersChanged of LotOwner list
+    | ChangeLotOwnersCanceled
+    | RemoveLotOwner of LotOwner
+    | SelectLegalRepresentative of LotOwner
 
 type State = {
     Lot: Lot
@@ -45,6 +47,14 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         | None ->
             None
 
+    let ensureLegalRepresentative lotOwners =
+        match lotOwners with
+        | [] -> []
+        | xs ->
+            if not (xs |> List.exists (fun (_, role) -> role = LegalRepresentative)) then
+                (fst xs.[0], LegalRepresentative)::xs.[1..]
+            else
+                xs
 
     match message with
     | CodeChanged x ->
@@ -57,47 +67,118 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         changeLot (fun l -> { l with Floor = parseInt x }), Cmd.none
     | SurfaceChanged x ->
         changeLot (fun l -> { l with Surface = parseInt x }), Cmd.none
-    | ChangeLotOwner ->
+    | ChangeLotOwners ->
         { state with ShowingLotOwnerModal = true }, Cmd.none
-    | LotOwnerChangeCanceled ->
+    | ChangeLotOwnersCanceled ->
         { state with ShowingLotOwnerModal = false }, Cmd.none
-    | LotOwnerChanged newOwner ->
-        let newState = changeLot (fun l -> { l with CurrentOwner = newOwner })
+    | LotOwnersChanged lotOwners ->
+        let newLotOwners =
+            match lotOwners with
+            | [] -> []
+            | lotOwners ->
+                let mapLotOwnerToLotOwnerAndRole lotOwner = 
+                    state.Lot.Owners 
+                    |> List.tryPick (fun ownerWithRole -> 
+                        if fst ownerWithRole = lotOwner 
+                        then Some ownerWithRole 
+                        else None)
+                    |> Option.defaultWith (fun () -> lotOwner, LotOwnerRole.Other)
+
+                lotOwners 
+                |> List.map mapLotOwnerToLotOwnerAndRole
+                |> ensureLegalRepresentative 
+                
+        let newState = changeLot (fun l -> { l with Owners = newLotOwners })
         { newState with ShowingLotOwnerModal = false }, Cmd.none
+    | RemoveLotOwner lotOwner ->
+        let newLotOwners = 
+            state.Lot.Owners 
+            |> List.filter (fun (o, _) -> o <> lotOwner)
+            |> ensureLegalRepresentative
 
+        changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
+    | SelectLegalRepresentative lotOwner ->
+        let newLotOwners = 
+            state.Lot.Owners 
+            |> List.map (fun (o, _) -> 
+                if o = lotOwner 
+                then (o, LotOwnerRole.LegalRepresentative) 
+                else (o, LotOwnerRole.Other))
 
-let renderEditLotOwner lotOwner dispatch =
-    let ownerName =
+        changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
+
+let renderEditLotOwners lotOwners dispatch =
+    let ownerTypes lotOwner =
         match lotOwner with
-        | Some (LotOwner.Owner o)        -> Some o.Person.FullName
-        | Some (LotOwner.Organization o) -> Some o.Name
-        | None                           -> None
+        | LotOwner.Owner _ -> str "Persoon"
+        | LotOwner.Organization o -> str ("Organisatie: " + (o.OrganizationTypeNames |> String.JoinWith ", "))
 
-    match ownerName with
-    | Some ownerName ->
-        div [ Class Bootstrap.formGroup ] [
-            label [] [ str "Eigenaar" ]
-            div [ Class Bootstrap.formInline ] [
+    let ownerName lotOwner =
+        match lotOwner with
+        | LotOwner.Owner o        -> str o.FullName
+        | LotOwner.Organization o -> str o.Name
+
+    let isResident lotOwner =
+        match lotOwner with
+        | LotOwner.Owner o        -> str (if o.IsResident then "Ja" else "Nee")
+        | LotOwner.Organization _ -> str ""
+
+    let isLegalRepresentative (lotOwner: LotOwner, lotOwnerRole: LotOwnerRole) =
+        if lotOwnerRole = LegalRepresentative then
+            button [ classes [ Bootstrap.btn; Bootstrap.btnSuccess ] ] [ str "Ja" ]
+        else
+            button [ Class Bootstrap.btn; OnClick (fun _ -> SelectLegalRepresentative lotOwner |> dispatch) ] [ str "Nee" ]
+
+    div [] [
+        yield
+            match lotOwners with
+            | [] ->
+                null
+            | owners ->
                 div [ Class Bootstrap.formGroup ] [
-                    label [ Class Bootstrap.mr2 ] [ str ownerName ]
-                    button [ 
-                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm; Bootstrap.mr2 ]
-                        OnClick (fun _ -> ChangeLotOwner |> dispatch) 
-                    ] [ i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] [] ]
-                    button [
-                        classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger; Bootstrap.btnSm ]
-                        OnClick (fun _ -> LotOwnerChanged None |> dispatch)
-                    ] [ i [ classes [ FontAwesome.fa; FontAwesome.faTrash ] ] [] ]
+                    label [] [ str "Eigenaar(s)" ]
+                    div [ Class Bootstrap.formInline ] [
+                        div [ Class Bootstrap.formGroup ] [
+                            table [ classes [ Bootstrap.table; Bootstrap.tableStriped; Bootstrap.tableHover ] ] [
+                                thead [] [
+                                    tr [] [
+                                        th [] [ str "Type(s)" ]
+                                        th [] [ str "Naam" ]
+                                        th [] [ str "Inwoner" ]
+                                        th [] [ str "Stemhouder" ]
+                                        th [] []
+                                    ]
+                                ]
+                                tbody [] [
+                                    yield! owners |> List.map (fun owner ->
+                                        tr [] [
+                                            td [] [ ownerTypes (fst owner) ]
+                                            td [] [ ownerName (fst owner) ]
+                                            td [] [ isResident (fst owner) ]
+                                            td [] [ isLegalRepresentative owner ]
+                                            td [] [ 
+                                                a [
+                                                    Class "pointer"
+                                                    OnClick (fun _ -> RemoveLotOwner (fst owner) |> dispatch)
+                                                ] [
+                                                    i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
+                                                ]
+                                            ]
+                                        ]
+                                    )
+                                ]
+                            ]
+                        ]
+                    ]
                 ]
-            ]
-        ]
-    | None ->
-        div [ Class Bootstrap.formGroup ] [
+        yield div [ Class Bootstrap.formGroup ] [
             button [ 
                 classes [ Bootstrap.btn; Bootstrap.btnSecondary ]
-                OnClick (fun _ -> ChangeLotOwner |> dispatch) 
-            ] [ str "Eigenaar aanduiden" ]
+                OnClick (fun _ -> ChangeLotOwners |> dispatch) 
+            ] [ str "Eigenaar(s) aanduiden" ]
         ]
+    ]
+
 
 let inColomn x = div [ Class Bootstrap.col ] [ x ]
 
@@ -142,7 +223,7 @@ let view (state: State) (dispatch: Message -> unit) =
             ]
             |> inColomn
 
-            renderEditLotOwner state.Lot.CurrentOwner dispatch
+            renderEditLotOwners state.Lot.Owners dispatch
             |> inColomn
         ]
         div [ Class Bootstrap.row ] [
@@ -187,8 +268,8 @@ let view (state: State) (dispatch: Message -> unit) =
             {|
                 IsOpen = state.ShowingLotOwnerModal
                 BuildingId = state.Lot.BuildingId
-                LotOwner = state.Lot.CurrentOwner
-                OnLotOwnerChanged = (fun owner -> LotOwnerChanged (Some owner) |> dispatch)
-                OnCanceled = (fun _ -> LotOwnerChangeCanceled |> dispatch) 
+                LotOwners = state.Lot.Owners |> List.map fst
+                OnOk = (fun owners -> LotOwnersChanged owners |> dispatch)
+                OnCanceled = (fun _ -> ChangeLotOwnersCanceled |> dispatch) 
             |}
     ]

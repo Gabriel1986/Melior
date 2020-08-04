@@ -87,7 +87,7 @@ type OwnerId = {
 
 [<NoComparison; NoEquality>]
 type RemotingApi = {
-    GetCurrentUser: unit                  -> Async<CurrentUser>
+    GetCurrentUser: unit                  -> Async<User>
 
     CreateBuilding: ValidatedBuilding  -> Async<Result<unit, CreateBuildingError>>
     UpdateBuilding: ValidatedBuilding  -> Async<Result<unit, UpdateBuildingError>>

@@ -50,3 +50,12 @@ module Library =
         let lift x = async {
             return x
         }
+
+        let bind fx x = async {
+            let! y = x
+            return! fx y
+        }
+
+    type System.Security.Claims.ClaimsPrincipal with
+        member me.FindFirstValue (ofType: string) =
+            me.FindFirst(ofType).Value

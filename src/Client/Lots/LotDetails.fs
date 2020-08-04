@@ -20,7 +20,7 @@ open Client.Library
 type Model = {
     LotId: Guid
     CurrentBuilding: BuildingListItem
-    CurrentUser: CurrentUser
+    CurrentUser: User
     State: State
     NotifyCreated: Lot -> unit
     NotifyEdited:  Lot -> unit
@@ -42,7 +42,7 @@ type Msg =
     | ProcessUpdateResult of Result<Lot, UpdateLotError>
 
 type DetailsProps = {|
-    CurrentUser: CurrentUser
+    CurrentUser: User
     CurrentBuilding: BuildingListItem
     Identifier: Guid
     IsNew: bool

@@ -1,18 +1,31 @@
 ﻿module Client.Lots.LotViewComponent
 
 open Fable.React
+open Fable.React.Props
 open Shared.Read
+open Shared.Library
+open Client.ClientStyle
 open Client.ClientStyle.Helpers
-open Client.Organizations
-open Client.Components
-
-let renderOwner (owner: Owner) =
-    PersonViewComponent.render {| Person = owner.Person; WithAddresses = true |}
-
-let renderOrganization (organization: Organization) =
-    OrganizationViewComponent.render {| Organization = organization |}
 
 let view (detail: Lot) =
+    let ownerTypes lotOwner =
+        match lotOwner with
+        | LotOwner.Owner _ -> str "Persoon"
+        | LotOwner.Organization o -> str ("Organisatie: " + (o.OrganizationTypeNames |> String.JoinWith ", "))
+
+    let ownerName lotOwner =
+        match lotOwner with
+        | LotOwner.Owner o        -> str o.FullName
+        | LotOwner.Organization o -> str o.Name
+
+    let isResident lotOwner =
+        match lotOwner with
+        | LotOwner.Owner o        -> str (if o.IsResident then "Ja" else "Nee")
+        | LotOwner.Organization _ -> str ""
+
+    let isLegalRepresentative (_, lotOwnerRole: LotOwnerRole) =
+        if lotOwnerRole = LegalRepresentative then str "Ja" else str "Nee"
+
     div [] [
         yield
             fieldset [] [
@@ -29,26 +42,41 @@ let view (detail: Lot) =
                     ()
             ]
 
-        match detail.CurrentOwner with
-        | Some owner ->
+        match detail.Owners with
+        | [] ->
+            ()
+        | owners ->
             yield
                 fieldset [] [
                     yield
-                        legend [] [ h2 [] [ str "Eigenaar" ] ]
+                        legend [] [ h2 [] [ str "Eigenaar(s)" ] ]
 
                     yield
-                        match owner with 
-                        | LotOwner.Owner _ -> readonlyFormElement "Type" "Eigenaar"
-                        | LotOwner.Organization _ -> readonlyFormElement "Type" "Organisatie"
-                    yield
-                        match owner with
-                        | LotOwner.Owner owner -> renderOwner owner
-                        | LotOwner.Organization organization -> renderOrganization organization
+                        div [ Class Bootstrap.formInline ] [
+                            div [ Class Bootstrap.formGroup ] [
+                                table [ classes [ Bootstrap.table; Bootstrap.tableStriped; Bootstrap.tableHover ] ] [
+                                    thead [] [
+                                        tr [] [
+                                            th [] [ str "Type(s)" ]
+                                            th [] [ str "Naam" ]
+                                            th [] [ str "Inwoner" ]
+                                            th [] [ str "Stemhouder" ]
+                                        ]
+                                    ]
+                                    tbody [] [
+                                        yield! owners |> List.map (fun owner ->
+                                            tr [] [
+                                                td [] [ ownerTypes (fst owner) ]
+                                                td [] [ ownerName (fst owner) ]
+                                                td [] [ isResident (fst owner) ]
+                                                td [] [ isLegalRepresentative owner ]
+                                            ]
+                                        )
+                                    ]
+                                ]
+                            ]
+                        ]
                 ]
-        | None ->
-            ()
-
-
     ]
 
 let render =

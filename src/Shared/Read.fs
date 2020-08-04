@@ -1,6 +1,7 @@
 module Shared.Read
 
 open System
+open Library
 
 type GeneralMeetingPeriod = {
     FromDay: int
@@ -9,19 +10,41 @@ type GeneralMeetingPeriod = {
     UntilMonth: int
 }
 
-type CurrentUser = {
-    UserId: Guid
-    EmailAddress: string
-    DisplayName: string
-    PersonId: Guid
-    Role: Role
-    BuildingIds: Guid list
-    PreferredLanguageCode: string
-}
+type User = 
+    {
+        UserId: Guid
+        EmailAddress: string
+        DisplayName: string
+        Roles: Role list
+        PreferredLanguageCode: string
+        UseTwoFac: bool
+    }
+    member me.HasAccessToBuilding (buildingId: Guid) =
+        me.Roles |> List.exists (
+            function
+            | User bId
+            | Syndic bId -> bId = buildingId
+            | ProfessionalSyndic _ -> true
+            | SysAdmin -> true)
+    member me.HasAdminAccessToBuilding (buildingId: Guid) =
+        me.Roles |> List.exists (
+            function
+            | User _ -> false
+            | Syndic bId -> bId = buildingId
+            | ProfessionalSyndic _ -> true
+            | SysAdmin -> true)
+        
 and Role =
-    | Owner
-    | Syndic
+    | User of buildingId: Guid
+    | Syndic of buildingId: Guid
+    //Has access to all buildings the professional syndic org has access to (this could be >100, hence this construct)
+    | ProfessionalSyndic of professionalSyndicId: Guid
+    //Has access to all buildings
     | SysAdmin
+    member me.BuildingId =
+        match me with
+        | User bId | Syndic bId           -> Some bId
+        | SysAdmin | ProfessionalSyndic _ -> None
 
 type Building = 
     {
@@ -71,12 +94,12 @@ and Address =
         Country = Some "België" 
     }
     override me.ToString () =
-        let street = defaultArg me.Street ""
-        let zipCode = defaultArg me.ZipCode ""
-        let town = defaultArg me.Town ""
-        let country = defaultArg me.Country ""
-
-        sprintf "%s, %s %s, %s" street zipCode town country
+        [
+            if me.Street.IsSome then yield me.Street.Value
+            if me.ZipCode.IsSome || me.Town.IsSome then yield ([me.ZipCode; me.Town] |> String.JoinOptionsWith " ")
+            if me.Country.IsSome then yield me.Country.Value
+        ]
+        |> String.JoinWith ", "
 and OtherAddress = 
     {
         Name: string
@@ -134,7 +157,7 @@ and Lot =
     {
         LotId: Guid
         BuildingId: Guid
-        CurrentOwner: LotOwner option
+        Owners: (LotOwner * LotOwnerRole) list
         Code: string
         LotType: LotType
         Description: string option
@@ -143,10 +166,13 @@ and Lot =
         //Surface in square metres, if necessary, could be calculated in square feet
         Surface: int option
     }
+    member me.LegalRepresentative =
+        me.Owners
+        |> List.tryPick (fun (owner, role) -> if role = LegalRepresentative then Some owner else None)
     static member Init (buildingId: Guid) = {
         LotId = Guid.NewGuid()
         BuildingId = buildingId
-        CurrentOwner = None
+        Owners = []
         Code = ""
         LotType = LotType.Appartment
         Description = None
@@ -154,8 +180,11 @@ and Lot =
         Surface = None
     }
 and LotOwner = 
-    | Owner of Owner
-    | Organization of Organization
+    | Owner of OwnerListItem
+    | Organization of OrganizationListItem
+and LotOwnerRole =
+    | LegalRepresentative
+    | Other
 and LotType =
     | Appartment
     | Studio
@@ -186,14 +215,14 @@ and LotType =
 and LotListItem = {
     LotId: Guid
     BuildingId: Guid
-    CurrentOwner: LotOwnerListItem option
+    LegalRepresentative: LotOwnerListItem option
     Code: string
     LotType: LotType
     Floor: int option
     Description: string option
 }
 and LotOwnerListItem =
-    | Person of {| PersonId: Guid; Name: string |}
+    | Owner of {| PersonId: Guid; Name: string |}
     | Organization of {| OrganizationId: Guid; Name: string |}
 
 //A (non-building) organization
@@ -279,7 +308,7 @@ and Person =
         MainEmailAddressComment: string option
         OtherContactMethods: ContactMethod list
     }
-    member me.FullName = sprintf "%s %s" (defaultArg me.FirstName "") (defaultArg me.LastName "")
+    member me.FullName = [ me.FirstName; me.LastName ] |> String.JoinOptionsWith " "
     static member Init () = {
         PersonId = Guid.NewGuid()
         FirstName = None
@@ -332,13 +361,15 @@ and ProfessionalSyndic =
     static member Init () = {
         Organization = Organization.Init None
     }
-and OwnerListItem = {
-    BuildingId: Guid
-    PersonId: Guid
-    FirstName: string option
-    LastName: string option
-    IsResident: bool
-}
+and OwnerListItem = 
+    {
+        BuildingId: Guid
+        PersonId: Guid
+        FirstName: string option
+        LastName: string option
+        IsResident: bool
+    }
+    member me.FullName = [ me.FirstName; me.LastName ] |> String.JoinOptionsWith " "
 and TenantListItem = {
     PersonId: Guid
     FirstName: string
@@ -360,5 +391,5 @@ type VatNumberValidationResponse = {
     RequestDate: DateTimeOffset
     IsValid: bool
     Name: string option
-    Address: string option
+    Address: Address option
 }

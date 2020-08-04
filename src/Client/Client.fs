@@ -35,7 +35,7 @@ module Client =
         | Running of RunningState
         | Stopped of fatalError: exn
     and RunningState = {
-        CurrentUser: CurrentUser
+        CurrentUser: User
         CurrentBuilding: BuildingListItem option
         CurrentPage: Page
         CurrentState: PageState option
@@ -43,7 +43,8 @@ module Client =
     and PageState =
         | BuildingPageState of BuildingsPage.State
     type ClientMessage =
-        | StartApplication of CurrentUser
+        | CurrentUserFetched of User
+        | StartApplication of User * BuildingListItem option
         | StopApplication of exn
         | PageNotFound
         | ChangePage of Routing.Page
@@ -54,9 +55,8 @@ module Client =
     let init () =
         let cmd =
             Cmd.OfAsync.either
-                (Remoting.getRemotingApi().GetCurrentUser)
-                ()
-                StartApplication
+                (Remoting.getRemotingApi().GetCurrentUser) ()
+                CurrentUserFetched
                 StopApplication
         Initializing, cmd
 
@@ -81,24 +81,33 @@ module Client =
 
     let update (message: ClientMessage) (state: ClientState) =
         match message with
-        | StartApplication currentUser ->
+        | CurrentUserFetched currentUser ->
+            let newCmd = 
+                match Library.getCachedCurrentBuilding currentUser with
+                | Some currentBuilding -> 
+                    Cmd.ofMsg (StartApplication (currentUser, Some currentBuilding))
+                | None ->                   
+                    match currentUser.Roles |> List.tryPick (fun role -> role.BuildingId) with
+                    | Some buildingId -> 
+                        Cmd.OfAsync.either 
+                            (Client.Remoting.getRemotingApi().GetBuilding) buildingId 
+                            (fun building ->
+                                building
+                                |> Option.map (fun b -> b.ToListItem())
+                                |> (fun currentBuilding -> currentUser, currentBuilding)
+                                |> StartApplication)
+                            StopApplication
+                    | None ->
+                        //Assume the user is not a user or simple syndic then...
+                        Cmd.OfAsync.either
+                            (Client.Remoting.getRemotingApi().GetBuildings) ()
+                            (List.tryHead
+                                    >> (fun currentBuilding -> currentUser, currentBuilding)
+                                    >> StartApplication)
+                            StopApplication
+            state, newCmd
+        | StartApplication (currentUser, currentBuilding) ->
             let currentPage = Routing.parseUrl (Router.currentUrl ())
-            let currentBuilding = 
-                let currentBuildingStr = Browser.WebStorage.localStorage.getItem("currentBuilding")
-                if currentBuildingStr = null || currentBuildingStr.Length < 0 
-                then None
-                else 
-                    let r = Thoth.Json.Decode.Auto.fromString<BuildingListItem>(currentBuildingStr)
-                    match r with
-                    | Ok r -> 
-                        if currentUser.BuildingIds |> List.contains r.BuildingId then
-                            Some r
-                        else
-                            None
-                    | Error e -> 
-                        printf "%A" e
-                        None
-
             let currentPageState, currentPageCmd =
                 match currentPage with
                 | Page.BuildingList ->

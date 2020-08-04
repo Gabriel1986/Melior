@@ -16,10 +16,10 @@ open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Library
 
-type OrganizationTypesPageProps = {| CurrentUser: CurrentUser |}
+type OrganizationTypesPageProps = {| CurrentUser: User |}
 
 type State = {
-    CurrentUser: CurrentUser
+    CurrentUser: User
     OrganizationTypes: (OrganizationType * EditingState option) list
 }
 and EditingState = 

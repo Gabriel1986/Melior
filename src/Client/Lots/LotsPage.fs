@@ -18,7 +18,7 @@ open Client.SortableTable
 open Client.Library
 
 type State = {
-    CurrentUser: CurrentUser
+    CurrentUser: User
     CurrentBuilding: BuildingListItem
     SelectedListItems: LotListItem list
     SelectedTab: Tab
@@ -41,7 +41,7 @@ type Msg =
     | Edited of Lot
 
 type LotsPageProps = {|
-    CurrentUser: CurrentUser
+    CurrentUser: User
     CurrentBuilding: BuildingListItem
     LotId: Guid option
 |}
@@ -62,8 +62,8 @@ type SortableLotListItemAttribute =
     member me.StringValueOf': LotListItem -> string =
         match me with
         | OwnerName -> (fun li ->
-            match li.CurrentOwner with 
-            | Some (LotOwnerListItem.Person o) -> o.Name 
+            match li.LegalRepresentative with 
+            | Some (LotOwnerListItem.Owner o) -> o.Name 
             | Some (LotOwnerListItem.Organization o) -> o.Name
             | None -> "")
         | Code -> (fun li -> li.Code)
@@ -81,6 +81,7 @@ type SortableLotListItemAttribute =
         member me.ToString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
+        member _.IsFilterable = true
 
 let init (props: LotsPageProps) =
     let state = { 
@@ -103,7 +104,7 @@ let init (props: LotsPageProps) =
 let private mapCurrentOwner =
     function
     | LotOwner.Owner owner -> 
-        LotOwnerListItem.Person {| PersonId = owner.Person.PersonId; Name = owner.Person.FullName |}
+        LotOwnerListItem.Owner {| PersonId = owner.PersonId; Name = owner.FullName |}
     | LotOwner.Organization organization -> 
         LotOwnerListItem.Organization {| OrganizationId = organization.OrganizationId; Name = organization.Name |}
 
@@ -112,7 +113,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         LotId = lot.LotId
         BuildingId = lot.BuildingId
         Code = lot.Code
-        CurrentOwner = lot.CurrentOwner |> Option.map mapCurrentOwner
+        LegalRepresentative = lot.LegalRepresentative |> Option.map mapCurrentOwner
         LotType = lot.LotType
         Floor = lot.Floor
         Description = lot.Description

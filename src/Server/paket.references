@@ -23,3 +23,5 @@ AWSSDK.S3
 AWSSDK.Extensions.NETCore.Setup
 SixLabors.ImageSharp
 Giraffe.Antiforgery
+BCrypt.Net-Next
+GoogleAuthenticator

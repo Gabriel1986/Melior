@@ -20,7 +20,7 @@ open Client.Library
 type Model = {
     OrganizationId: Guid
     CurrentBuilding: BuildingListItem
-    CurrentUser: CurrentUser
+    CurrentUser: User
     State: State
     NotifyCreated: Organization -> unit
     NotifyEdited:  Organization -> unit
@@ -42,7 +42,7 @@ type Msg =
     | ProcessUpdateResult of Result<Organization, UpdateOrganizationError>
 
 type DetailsProps = {|
-    CurrentUser: CurrentUser
+    CurrentUser: User
     CurrentBuilding: BuildingListItem
     Identifier: Guid
     IsNew: bool
