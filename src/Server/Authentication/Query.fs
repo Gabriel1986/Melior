@@ -5,6 +5,8 @@
     open Server.PostgreSQL
     open Serilog
     open Server.Blueprint.Data.Authentication
+    open Google.Authenticator
+    open Server.Blueprint.Behavior.ProfessionalSyndics
 
     type UserDbRow = 
         {
@@ -22,27 +24,40 @@
                     DisplayName, 
                     PreferredLanguageCode,
                     UseTwoFac
-                FROM Users
+                FROM [Users]
             """
 
     type RoleDbRow = 
         {
             BuildingId: Guid option
+            OrganizationId: Guid option
             Role: string
         }
-        member me.ToRole () =
-            match me.Role with
-            | x when x = nameof (Role.User) -> me.BuildingId |> Option.map Role.User
-            | x when x = nameof (Role.ProfessionalSyndic) -> me.BuildingId |> Option.map Role.ProfessionalSyndic
-            | x when x = nameof (Role.Syndic) -> me.BuildingId |> Option.map Role.Syndic
-            | x when x = nameof (Role.SysAdmin) -> Some Role.SysAdmin
-            | _ -> 
-                Log.Logger.Error(sprintf "Role not found: '%s'" me.Role)
-                None
 
-    let private toRole (role: RoleDbRow) = role.ToRole()
+    let private toRole (cache: IProfessionalSyndicCache) (role: string, dbRow: RoleDbRow list) =
+        match role with
+        | x when x = nameof Role.UserRole -> 
+            match dbRow |> List.choose (fun r -> r.BuildingId) with
+            | [] -> []
+            | buildingIds -> [ UserRole buildingIds ]
+        | x when x = nameof Role.ProfessionalSyndicRole -> 
+            match dbRow |> List.choose (fun r -> r.OrganizationId) with
+            | [] -> []
+            | orgIds ->
+                orgIds
+                |> List.map (fun orgId -> ProfessionalSyndicRole (orgId, cache.GetBuildingIdsForProfessionalSyndic orgId))
+        | x when x = nameof Role.SyndicRole ->
+            match dbRow |> List.choose (fun r -> r.BuildingId) with
+            | [] -> []
+            | buildingIds -> [ SyndicRole buildingIds ]            
+        | x when x = nameof Role.SysAdminRole -> 
+            [ SysAdminRole ]
+        | _ ->
+            Log.Logger.Error(sprintf "Role not found: '%s'" role)
+            []
 
-    let private findUser (conn: string) sqlSearchString parameters = async {
+
+    let private findUser (conn: string) (cache: IProfessionalSyndicCache) sqlSearchString parameters = async {
         let! user =
             Sql.connect conn
             |> Sql.query (sprintf "%s %s" UserDbRow.SelectQuery sqlSearchString)
@@ -61,34 +76,35 @@
         | Some userRow ->
             let! roleRows =
                 Sql.connect conn
-                |> Sql.query "SELECT Role, BuildingId FROM UserRoles WHERE UserId = @UserId"
+                |> Sql.query "SELECT Role, BuildingId, OrganizationId FROM UserRoles WHERE UserId = @UserId"
                 |> Sql.parameters [ "@UserId", Sql.uuid userRow.UserId ]
                 |> Sql.read (fun reader -> {
                     Role = reader.string "Role"
                     BuildingId = reader.uuidOrNone "BuildingId"
+                    OrganizationId = reader.uuidOrNone "OrganizationId"
                 })
             return Some {
                 UserId = userRow.UserId
                 EmailAddress = userRow.EmailAddress
                 DisplayName = userRow.DisplayName
-                Roles = roleRows |> List.choose toRole
+                Roles = roleRows |> List.groupBy (fun r -> r.Role) |> List.collect (toRole cache)
                 PreferredLanguageCode = userRow.PreferredLanguageCode
                 UseTwoFac = userRow.UseTwoFac
             }
     }
 
-    let getUser (conn: string) (userId: Guid) =
-        findUser conn "WHERE UserId = @UserId" [ "@UserId", Sql.uuid userId ]
+    let getUser (conn: string) (cache: IProfessionalSyndicCache) (userId: Guid) =
+        findUser conn cache "WHERE UserId = @UserId" [ "@UserId", Sql.uuid userId ]
 
     type UserAuth = {
         UserId: Guid
         PasswordHash: byte []
     }
 
-    let authenticateUser (conn: string) (pepper: string) (emailAddress: string, password: string) = async {
+    let authenticateUser (conn: string) (cache: IProfessionalSyndicCache) (pepper: string) (emailAddress: string, password: string) = async {
         let! userAuth =
             Sql.connect conn
-            |> Sql.query "SELECT UserId, PasswordHash FROM Users WHERE EmailAddress = @EmailAddress AND IsActive = 1"
+            |> Sql.query "SELECT UserId, PasswordHash FROM [Users] WHERE EmailAddress = @EmailAddress AND IsActive = TRUE"
             |> Sql.parameters [ "@EmailAddress", Sql.string emailAddress ]
             |> Sql.readSingle (fun reader -> {
                 UserId = reader.uuid "UserId"
@@ -97,18 +113,18 @@
         match userAuth with
         | Some userAuth ->            
             if Encryption.verifyPassword pepper (password, userAuth.PasswordHash)
-            then return! getUser conn userAuth.UserId |> Async.map (fun u -> Ok u.Value)
+            then return! getUser conn cache userAuth.UserId |> Async.map (fun u -> Ok u.Value)
             else return Error PasswordNotValid
         | None ->
             return Error UserNotFound
     }
 
-    let findUserByEmailAddress (conn: string) (emailAddress: string) =
-        findUser conn "WHERE EmailAddress = @EmailAddress" [ "@EmailAddress", Sql.string emailAddress ]
+    let findUserByEmailAddress (conn: string) (cache: IProfessionalSyndicCache) (emailAddress: string) =
+        findUser conn cache "WHERE EmailAddress = @EmailAddress" [ "@EmailAddress", Sql.string emailAddress ]
 
-    let getTwoFacPassword (conn: string) (encryptionPassword) (userId: Guid) =
+    let private getTwoFacPassword (conn: string) (encryptionPassword) (userId: Guid) =
         Sql.connect conn
-        |> Sql.query "SELECT TwoFacSecret FROM Users WHERE UserId = @UserId"
+        |> Sql.query "SELECT TwoFacSecret FROM [Users] WHERE UserId = @UserId"
         |> Sql.parameters [ "@UserId", Sql.uuid userId ]
         |> Sql.readSingle (fun reader -> reader.bytea "TwoFacSecret")
         |> Async.map (function | Some bytes -> Some (Encryption.decryptToString(bytes, encryptionPassword)) | None -> None)
@@ -119,3 +135,29 @@
         |> Sql.parameters [ "@UserId", Sql.uuid userId; "@After", Sql.timestamp after.UtcDateTime ]
         |> Sql.readSingle (fun reader -> reader.int "Count")
         |> Async.map (fun count -> count |> Option.defaultValue 0)
+
+    let validateRecoveryCode (conn: string) (pepper: string) (userId: Guid, code: string) =
+        Sql.connect conn
+        |> Sql.query "SELECT RecoveryCodeHash FROM RecoveryCodes WHERE UserId = @UserId"
+        |> Sql.parameters [ "@UserId", Sql.uuid userId ]
+        |> Sql.read (fun reader -> reader.bytea "RecoveryCodeHash")
+        |> Async.map (List.exists (fun hash -> Encryption.verifyPassword pepper (code, hash)))
+
+    let validateTwoFactorPIN (conn) (twoFacEncryptionPassword) (userId, verificationCode) = async {
+        let! twoFacSharedPassword = getTwoFacPassword conn twoFacEncryptionPassword userId
+        match twoFacSharedPassword with
+        | Some twoFacSharedPassword ->
+            let tfa = new TwoFactorAuthenticator();
+            return tfa.ValidateTwoFactorPIN(twoFacSharedPassword, verificationCode, TimeSpan.FromMinutes(2.0))
+        | None ->
+            return false
+    }
+
+    let userWithEmailAddressExists (conn) (emailAddress) =
+        Sql.connect conn
+        |> Sql.query "SELECT COUNT(*) as Count FROM Users WHERE EmailAddress = @EmailAddress"
+        |> Sql.parameters [
+            "@EmailAddress", Sql.string emailAddress
+        ]
+        |> Sql.readSingle (fun reader -> reader.int "Count")
+        |> Async.map (Option.defaultValue 0 >> (>=) 1)

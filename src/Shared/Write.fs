@@ -5,6 +5,7 @@ open Read
 open ConstrainedTypes
 open Library
 open Trial.Control
+open Trial
 
 type ValidatedAddress = 
     {
@@ -101,7 +102,7 @@ type ValidatedPerson =
            also otherContactMethods in person.OtherContactMethods |> List.mapi (fun index c -> ValidatedContactMethod.BasicValidate (sprintf "%s.[%i]" (nameof person.OtherContactMethods) index |> onBasePath) c) |> Trial.sequence
            also otherAddresses in person.OtherAddresses |> List.mapi (fun index a -> ValidatedOtherAddress.BasicValidate (sprintf "%s.[%i]" (nameof person.OtherAddresses) index |> onBasePath) a) |> Trial.sequence
            yield {
-               PersonId = person.PersonId        
+               PersonId = person.PersonId
                FirstName = firstName
                LastName = lastName
                LanguageCode = languageCode
@@ -153,30 +154,30 @@ type ValidatedRole =
         }
         |> Trial.toResult
 
-type SyndicId =
-    | OwnerId of Guid
-    | ProfessionalSyndicId of Guid
-    | OtherId of Guid
+type SyndicInput =
+    | OwnerId of ownerId: Guid
+    | ProfessionalSyndicId of proSyndicId: Guid
+    | Other of Person
 
-type ConciergeId =
-    | OwnerId of Guid
-    | NonOwnerId of Guid
+type ConciergeInput =
+    | OwnerId of ownerId: Guid
+    | NonOwner of Person
 
-let mapSyndicToSyndicId =
+let mapSyndicReadToWrite =
     function
     | Syndic.ProfessionalSyndic prof -> 
-        SyndicId.ProfessionalSyndicId prof.Organization.OrganizationId
+        SyndicInput.ProfessionalSyndicId prof.Organization.OrganizationId
     | Syndic.Owner owner ->
-        SyndicId.OwnerId owner.Person.PersonId
+        SyndicInput.OwnerId owner.Person.PersonId
     | Syndic.Other person ->
-        SyndicId.OtherId person.PersonId
+        SyndicInput.Other person
 
-let mapConciergeToConciergeId =
+let mapConciergeReadToWrite =
     function
-    | Concierge.Owner owner ->
-        ConciergeId.OwnerId owner.Person.PersonId
-    | Concierge.NonOwner person ->
-        ConciergeId.NonOwnerId person.PersonId
+    | Read.Concierge.Owner owner ->
+        OwnerId owner.Person.PersonId
+    | Read.Concierge.NonOwner person ->
+        NonOwner person
 
 type ValidatedBuilding = 
     {
@@ -253,6 +254,7 @@ type ValidatedLot =
 type ValidatedContactPerson = 
     {
         OrganizationId: Guid
+        BuildingId: Guid option
         Person: ValidatedPerson
         RoleWithinOrganization: String32
     }
@@ -262,10 +264,12 @@ type ValidatedContactPerson =
             also role in String32.Of (nameof cp.RoleWithinOrganization) cp.RoleWithinOrganization
             yield {
                 OrganizationId = cp.OrganizationId
+                BuildingId = cp.BuildingId
                 Person = person
                 RoleWithinOrganization = role
             }
         }
+        |> Trial.toResult
 
 type ValidatedOrganization =
     {

@@ -1,21 +1,50 @@
 ﻿module Server.Lots.Workflow
 
 open System
-open Server.Library
 open Shared.Remoting
+open Shared.Read
 open Shared.Write
+open Server.Library
+open Server.LibraryExtensions
+open Storage
 
-let createLot connectionString (message: Message<ValidatedLot>) = async {
-    do! Server.Lots.Storage.createLot connectionString message.Payload
-    return Ok ()
+let createLot (storage: ILotStorage) (msg: Message<Lot>): Async<Result<unit, CreateLotError>> = async {
+    if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId)
+    then
+        let validated = ValidatedLot.Validate (msg.Payload)
+        match validated with
+        | Ok validated ->
+            do! storage.CreateLot validated
+            return Ok ()
+        | Error validationErrors ->
+            return Error (CreateLotError.Validation validationErrors)
+    else
+        return Error CreateLotError.AuthorizationError
 }
 
-let updateLot connectionString (message: Message<ValidatedLot>) = async {
-    do! Server.Lots.Storage.updateLot connectionString message.Payload
-    return Ok ()
+let updateLot (storage: ILotStorage) (msg: Message<Lot>): Async<Result<unit, UpdateLotError>> = async {
+    if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId)
+    then
+        let validated = ValidatedLot.Validate (msg.Payload)
+        match validated with
+        | Ok validated -> 
+            let! nbRowsAffected = storage.UpdateLot validated
+            if nbRowsAffected = 0
+            then return Error (UpdateLotError.NotFound)
+            else return Ok ()
+        | Error validationErrors ->
+            return Error (UpdateLotError.Validation validationErrors)
+    else
+        return Error UpdateLotError.AuthorizationError
 }
 
-let deleteLot connectionString (message: Message<Guid>): Async<Result<unit, AuthorizationError>> = async {
-    do! Server.Lots.Storage.deleteLot connectionString message.Payload
-    return Ok ()
+let deleteLot (storage: ILotStorage) (msg: Message<BuildingId * Guid>): Async<Result<unit, DeleteLotError>> = async {
+    if msg.CurrentUser.HasAdminAccessToBuilding (fst msg.Payload)
+    then
+        let! nbRowsAffected = storage.DeleteLot (msg.Payload)
+        if nbRowsAffected = 0
+        then return Error DeleteLotError.NotFound
+        else return Ok ()
+    else
+        return Error DeleteLotError.AuthorizationError
 }

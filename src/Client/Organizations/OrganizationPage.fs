@@ -36,7 +36,7 @@ type Msg =
     | RemotingError of exn
     | Loaded of listItems: OrganizationListItem list * selectedListItemId: Guid option
     | RemoveListItem of OrganizationListItem
-    | ListItemRemoved of Result<OrganizationListItem, AuthorizationError>
+    | ListItemRemoved of Result<OrganizationListItem, DeleteOrganizationError>
     | Created of Organization
     | Edited of Organization
 
@@ -132,7 +132,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let cmd =
             Cmd.OfAsync.either
                 (Remoting.getRemotingApi().DeleteOrganization)
-                organization.OrganizationId
+                (organization.BuildingId, organization.OrganizationId)
                 (fun r -> r |> Result.map (fun _ -> organization) |> ListItemRemoved)
                 RemotingError
 
@@ -146,9 +146,13 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         cmd
     | ListItemRemoved result ->
         match result with
-        | Ok _ -> state, Cmd.none
-        | Error AuthorizationError.AuthorizationError ->
+        | Ok _ -> 
+            state, Cmd.none
+        | Error DeleteOrganizationError.AuthorizationError ->
             state, showErrorToastCmd "U heeft geen toestemming om een organisatie te verwijderen"
+        | Error DeleteOrganizationError.NotFound ->
+            printf "The organization couldn't be found in the DB, somehow?"
+            state, Cmd.none
     | RemotingError e ->
         state, showGenericErrorModalCmd e
     | Created organization ->

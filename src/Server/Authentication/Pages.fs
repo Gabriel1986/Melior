@@ -166,7 +166,7 @@ let recommendTwoFacPage (antiForgeryToken: AntiforgeryTokenSet) =
                     div [ _class "form-group"] [
                         p [] [
                             str 
-                                "Om uw gegevens te beveiligen raden we aan om een tweede identificatie-methode in te stellen (tweefactorauthenticatie).
+                                "Om uw gegevens te beveiligen raden we aan om een tweede identificatie-methode in te stellen (twee factor authenticatie).
 Hiervoor dient u een authenticator app te installeren op uw smartphone (bvb. google authenticator, authy,...)."
                         ]
                     ]
@@ -211,7 +211,7 @@ let twoFacSucceeded =
     [
         div [ _class "card text-center bg-success" ] [
             h3 [] [
-                str "Het instellen van de tweefactorauthenticatie is geslaagd."
+                str "Het instellen van de twee factor authenticatie is geslaagd."
             ]
             p [] [
                 str "De applicatie zal u de volgende keer, na het aanmelden met gebruikersnaam en wachtwoord, om een code vragen die u op de authenticator app kan terugvinden."
@@ -222,7 +222,7 @@ let twoFacSucceeded =
         ]
     ] |> masterPage ""
 
-let twoFacPage (validationErrors: string list) (antiForgeryToken: AntiforgeryTokenSet) =
+let twoFacPage (validationErrors: string list) (token: string) (antiForgeryToken: AntiforgeryTokenSet) =
     [
         div [ _class "card" ] [
             yield! validationHeader validationErrors
@@ -235,8 +235,41 @@ let twoFacPage (validationErrors: string list) (antiForgeryToken: AntiforgeryTok
                     ]
                 ]
             ]
+            yield div [ _class "card-footer text-muted" ] [
+                a [ _href (sprintf "/authentication/enter2facRecoveryCode?Token=%s" token) ] [ str "Herstelcode ingeven" ]
+                //TODO: send recovery SMS (maybe)
+            ]
         ]
     ] |> masterPage ""
+
+let twoFacRecoveryCodePage (validationErrors: string list) (token: string) (antiForgeryToken: AntiforgeryTokenSet) =
+    [
+        div [ _class "card" ] [
+            yield! validationHeader validationErrors
+            yield div [ _class "card-body" ] [
+                form [ _method "POST" ] [
+                    antiforgeryInput antiForgeryToken
+                    div [ _class "form-group" ] [
+                        label [] [ str "1 van de 4 herstelcodes die u door ons bezorgd werd:" ]
+                        input [ _name "RecoveryCode"; _type "text"; _required; _maxlength "8"; _class "form-control" ]
+                        p [ _class "font-weight-light" ] [
+                            str "Nota: de ingegeven herstelcode wordt onbruikbaar na validatie. U kan een set nieuwe codes aanvragen in 'Mijn profiel'"
+                        ]
+                    ]
+                    div [] [
+                        button [ _class "btn btn-primary"; _type "submit" ] [
+                            str "Valideren"
+                        ]
+                    ]
+                ]
+            ]
+            yield div [ _class "card-footer text-muted" ] [
+                a [ _href (sprintf "/authentication/2fac?Token=%s" token) ] [
+                    str "Terug naar de vorige stap"
+                ]
+            ]
+        ]
+    ] |> masterPage "Herstelcode"
 
 let tooManyFailedTwoFacAttempts =
     [

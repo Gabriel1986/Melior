@@ -3,12 +3,16 @@
 open System
 open Shared.MediaLibrary
 open Server.Library
+open Storage
 
-let createMediaFile (connectionString: string) (msg: Message<MediaFile>): Async<unit> =
-    Server.Media.Storage.createMediaFile connectionString msg.Payload
+//TODO: extra validation (no need for extra authorization here.)
+let createMediaFile (storage: IMediaStorage) (msg: Message<MediaFile>): Async<unit> =
+    storage.CreateMediaFile msg.Payload
 
-let deleteMediaFilesForEntity (connectionString: string) (msg: Message<Guid>) =
-    Server.Media.Storage.deleteMediaFilesForEntity connectionString msg.Payload
+let deleteMediaFilesForEntity (storage: IMediaStorage) (msg: Message<Guid>) =
+    storage.DeleteMediaFilesForEntity msg.Payload
+    |> Async.Ignore
 
-let deleteMediaFile (connectionString: string) (msg: Message<Guid>): Async<unit> =
-    Server.Media.Storage.deleteMediaFile connectionString msg.Payload
+let deleteMediaFile (storage: IMediaStorage) (msg: Message<Guid>) =
+    storage.DeleteMediaFile msg.Payload
+    |> Async.Ignore

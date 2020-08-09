@@ -4,36 +4,52 @@
     open Server.Blueprint.Data.Authentication
     open Microsoft.IdentityModel.Tokens
     open Shared.Library
-    open Google.Authenticator
+    open Storage
+    open Server.Library
 
-    let disableAccount conn (userId: Guid) =
-        Async.lift ()
-
-    let enableAccount conn (userId: Guid) =
-        Async.lift ()
+    //Should be used internally only!
+    let addUser (storage: IAuthenticationStorage) (passwordPepper: string) (user: UserInput) = async {
+        let validated = ValidatedUserInput.Validate passwordPepper user
+        match validated with
+        | Ok validated -> 
+            do! storage.AddUser validated
+            return Ok ()
+        | Error errors -> 
+            return Error (CreateUserError.ValidationError errors)
+    }
 
     module TwoFac =
-        let validateTwoFactorPIN (conn) (twoFacEncryptionPassword) (userId, verificationCode) = async {
-            let! twoFacSharedPassword = Query.getTwoFacPassword conn twoFacEncryptionPassword userId
-            match twoFacSharedPassword with
-            | Some twoFacSharedPassword ->
-                let tfa = new TwoFactorAuthenticator();
-                return tfa.ValidateTwoFactorPIN(twoFacSharedPassword, verificationCode, TimeSpan.FromMinutes(2.0))
-            | None ->
-                return false
+        let updateTwoFactorAuthentication (storage: IAuthenticationStorage) (twoFacPassword: string) (twoFacPepper: string) (updateTwoFactorAuthentication: UpdateTwoFacAuthentication) = async {
+            let encrypted = EncryptedUpdateTwoFacAuthentication.Encrypt twoFacPassword twoFacPepper updateTwoFactorAuthentication
+            //TODO: send email...
+            let! _ = storage.UpdateTwoFacAuthentication encrypted
+            return ()
         }
 
-        let updateTwoFactorAuthentication (password: string) (updateTwoFactorAuthentication: UpdateTwoFacAuthentication) =
-            Async.lift ()
+        let addFailedTwoFacAttempt (storage: IAuthenticationStorage) (attempt: FailedTwoFacAttempt) =
+            storage.AddFailedTwoFacAttempt attempt
 
-        let addFailedTwoFacAttempt (attempt: FailedTwoFacAttempt) =
-            Async.lift ()
+        let generateNewRecoveryCodes (storage: IAuthenticationStorage) (twoFacPepper: string) (userId: Guid, email: string) = async {
+            let codes =
+                [
+                    Encryption.generateRandomString (6)
+                    Encryption.generateRandomString (6)
+                    Encryption.generateRandomString (6)
+                    Encryption.generateRandomString (6)
+                    Encryption.generateRandomString (6)
+                    Encryption.generateRandomString (6)            
+                ]
+            let hashedCodes = codes |> List.map (EncryptedUpdateTwoFacAuthentication.EncryptRecoveryCode twoFacPepper)
+            //TODO: send email...
+            let! _ = storage.UpdateRecoveryCodes (userId, hashedCodes)
+            return codes
+        }
 
-        let generateNewRecoveryCodes (email: string) =
-            Async.lift []
-
-        let removeUsedRecoveryCode (email: string, code: string) =
-            Async.lift ()
+        let removeUsedRecoveryCode (storage: IAuthenticationStorage) (twoFacPepper: string) (userId: Guid, code: string) = async {
+            let hashedCode = EncryptedUpdateTwoFacAuthentication.EncryptRecoveryCode twoFacPepper code
+            let! _ = storage.RemoveUsedRecoveryCode (userId, hashedCode)
+            return ()
+        }
 
     module JwtTokens =
         open System.IdentityModel.Tokens.Jwt

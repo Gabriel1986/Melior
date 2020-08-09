@@ -37,7 +37,7 @@ type Msg =
     | RemotingError of exn
     | Loaded of listItems: OwnerListItem list * selectedListItemId: Guid option
     | RemoveListItem of OwnerListItem
-    | ListItemRemoved of Result<OwnerListItem, AuthorizationError>
+    | ListItemRemoved of Result<OwnerListItem, DeleteOwnerError>
     | Created of Owner
     | Edited of Owner
 
@@ -135,7 +135,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let cmd =
             Cmd.OfAsync.either
                 (Remoting.getRemotingApi().DeleteOwner)
-                owner.PersonId
+                (owner.BuildingId, owner.PersonId)
                 (fun r -> r |> Result.map (fun _ -> owner) |> ListItemRemoved)
                 RemotingError
 
@@ -149,8 +149,11 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | ListItemRemoved result ->
         match result with
         | Ok _ -> state, Cmd.none
-        | Error AuthorizationError.AuthorizationError ->
+        | Error DeleteOwnerError.AuthorizationError ->
             state, showErrorToastCmd "U heeft geen toestemming om een eigenaar te verwijderen"
+        | Error DeleteOwnerError.NotFound ->
+            printf "Could not delete the owner, it was not found in the DB... Somehow..."
+            state, Cmd.none
     | RemotingError e ->
         printf "Error: %A" e
         let alert = SimpleAlert("Er is iets misgegaan bij de communicatie met de server.").Type(AlertType.Error)

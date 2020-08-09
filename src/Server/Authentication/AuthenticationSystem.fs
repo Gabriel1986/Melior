@@ -1,27 +1,27 @@
 ﻿module Server.Authentication.AuthenticationSystem
 
 open System
-open Giraffe
+open Microsoft.IdentityModel.Tokens
+open Microsoft.Extensions.Configuration
 open Server.Blueprint.Behavior.Authentication
 open Server.AppSettings
-open Microsoft.IdentityModel.Tokens
+open Server.LibraryExtensions
+open Server.Blueprint.Behavior.ProfessionalSyndics
 
-let build (settings: AppSettings) =
+let build (config: IConfiguration) =
+    let settings = config.Get<AppSettings>()
     let conn = settings.Database.ConnectionString
     let changePasswordSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(settings.Authentication.ChangePasswordSigningKey))
     let usernamePasswordSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(settings.Authentication.UsernamePasswordSigningKey))
     let twoFacPassword = settings.Authentication.TwoFacPassword
+    let twoFacPepper = settings.Authentication.TwoFacPepper
     let passwordPepper = settings.Authentication.PasswordPepper
+
+    let storage = Storage.makeStorage settings
 
     {
         new IAuthenticationSystem with
-            //Commands
-            member _.DisableAccount userId = 
-                Workflows.disableAccount conn userId
-            
-            member _.EnableAccount userId = 
-                Workflows.enableAccount conn userId
-
+            //Commands (internal)
             member _.GenerateChangePasswordToken (claims, expiresAfter) = 
                 Workflows.JwtTokens.generateToken changePasswordSigningKey (claims, expiresAfter)
             
@@ -34,37 +34,43 @@ let build (settings: AppSettings) =
             member _.ValidateUsernamePasswordToken token = 
                 Workflows.JwtTokens.validateToken usernamePasswordSigningKey token
             
-            member _.ValidateTwoFactorPIN (userId, verificationCode) = 
-                Workflows.TwoFac.validateTwoFactorPIN conn twoFacPassword (userId, verificationCode)
-            
             member _.UpdateTwoFacAuthentication update = 
-                Workflows.TwoFac.updateTwoFactorAuthentication twoFacPassword update
+                Workflows.TwoFac.updateTwoFactorAuthentication storage twoFacPassword twoFacPepper update
             
-            member _.RemoveUsedRecoveryCode (email, code) = 
-                Workflows.TwoFac.removeUsedRecoveryCode (email, code)
+            member _.RemoveUsedRecoveryCode (userId, code) = 
+                Workflows.TwoFac.removeUsedRecoveryCode storage twoFacPepper (userId, code)
             
-            member _.GenerateNewRecoveryCodes email = 
-                Workflows.TwoFac.generateNewRecoveryCodes email
+            member _.GenerateNewRecoveryCodes (userId, email) = 
+                Workflows.TwoFac.generateNewRecoveryCodes storage twoFacPepper (userId, email)
             
             member _.AddFailedTwoFacAttempt failedAttempt = 
-                Workflows.TwoFac.addFailedTwoFacAttempt failedAttempt
+                Workflows.TwoFac.addFailedTwoFacAttempt storage failedAttempt
 
-            //Queries
-            member _.GetTwoFacPassword userId =
-                Query.getTwoFacPassword conn twoFacPassword userId
+            member _.AddUser user =
+                Workflows.addUser storage passwordPepper user
+
+            //Queries (interal)
+            member _.AuthenticateUser msg =
+                Query.authenticateUser conn msg.ProfessionalSyndicCache passwordPepper msg.Payload
             
-            member _.AuthenticateUser (emailAddress, password) =
-                Query.authenticateUser conn passwordPepper (emailAddress, password)
+            member _.ValidateRecoveryCode (userId, recoveryCode) =
+                Query.validateRecoveryCode conn twoFacPepper (userId, recoveryCode)
+
+            member _.ValidateTwoFactorPIN (userId, verificationCode) =
+                Query.validateTwoFactorPIN conn twoFacPassword (userId, verificationCode)
+
+            member _.FindUserByEmailAddress msg =
+                Query.findUserByEmailAddress conn msg.ProfessionalSyndicCache msg.Payload
+
+            member _.UserWithEmailAddressExists emailAddress =
+                Query.userWithEmailAddressExists conn emailAddress
             
-            member _.FindUserByEmailAddress (emailAddress) =
-                Query.findUserByEmailAddress conn emailAddress
-            
-            member _.GetUser userId =
-                Query.getUser conn userId
+            member _.GetUser msg =
+                Query.getUser conn msg.ProfessionalSyndicCache msg.Payload
             
             member _.GetNbFailedTwoFacAttempts (userId, after) =
                 Query.getNbFailedTwoFacAttempts conn (userId, after)
 
             member me.HttpHandler =
-                HttpHandler.createAuthenticationHandler me settings
+                HttpHandler.createAuthenticationHandler settings me
     }

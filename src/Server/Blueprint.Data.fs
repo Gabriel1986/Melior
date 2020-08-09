@@ -1,13 +1,13 @@
 ﻿module Server.Blueprint.Data
 
 open System
+open Shared.Read
 
 module Authentication =
     type UpdateTwoFacAuthentication = {
         UserId: Guid
         UseTwoFac: bool
         TwoFacSecret: string
-        EmailAddress: string
         RecoveryCodes: string list
     }
 
@@ -19,3 +19,16 @@ module Authentication =
     type AuthenticationError =
         | PasswordNotValid
         | UserNotFound
+
+    type UserInput = {
+        UserId: Guid
+        DisplayName: string
+        EmailAddress: string
+        Roles: Role list
+        PreferredLanguageCode: string
+        Password: string
+    }
+
+    type CreateUserError =
+        | ValidationError of (string * string) list
+        | Unauthorized

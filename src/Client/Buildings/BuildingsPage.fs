@@ -69,7 +69,7 @@ type Msg =
     | RemotingError of exn
     | Loaded of listItems: BuildingListItem list * selectedListItemId: Guid option
     | RemoveListItem of BuildingListItem
-    | ListItemRemoved of Result<BuildingListItem, AuthorizationError>
+    | ListItemRemoved of Result<BuildingListItem, DeleteBuildingError>
     | Created of Building
     | Edited of Building
     | CurrentBuildingChanged of BuildingListItem
@@ -148,8 +148,12 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | ListItemRemoved result ->
         match result with
         | Ok _ -> state, Cmd.none
-        | Error AuthorizationError.AuthorizationError ->
+        | Error DeleteBuildingError.AuthorizationError ->
             state, showErrorToastCmd "U heeft geen toestemming om een gebouw te verwijderen"
+        | Error DeleteBuildingError.NotFound ->
+            //Do nothing... something might have gone wrong, maybe?
+            printf "The building that's being deleted was not found O_o?"
+            state, Cmd.none
     | RemotingError e ->
         state, showGenericErrorModalCmd e
     | Created building ->

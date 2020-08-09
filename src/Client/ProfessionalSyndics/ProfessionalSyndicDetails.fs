@@ -101,11 +101,11 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
         match model.State with
         | Editing (_, componentState) ->
             match ValidatedProfessionalSyndic.Validate componentState.ProfessionalSyndic with
-            | Ok professionalSyndic ->
+            | Ok _ ->
                 let cmd = 
                     Cmd.OfAsync.either
                         (Remoting.getRemotingApi().UpdateProfessionalSyndic)
-                        professionalSyndic
+                        componentState.ProfessionalSyndic
                         (fun result -> result |> Result.map (fun _ -> componentState.ProfessionalSyndic) |> ProcessUpdateResult)
                         RemotingError
                 { model with State = Editing (true, componentState) }, cmd
@@ -114,11 +114,11 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 { model with State = Editing (false, newComponentState) }, newComponentCommand |> Cmd.map ProfessionalSyndicEditComponentMsg
         | Creating (_, componentState) ->
             match ValidatedProfessionalSyndic.Validate componentState.ProfessionalSyndic with
-            | Ok professionalSyndic ->
+            | Ok _ ->
                 let cmd =
                     Cmd.OfAsync.either
                         (Remoting.getRemotingApi().CreateProfessionalSyndic)
-                        professionalSyndic
+                        componentState.ProfessionalSyndic
                         (fun result -> result |> Result.map (fun _ -> componentState.ProfessionalSyndic) |> ProcessCreateResult)
                         RemotingError
                 { model with State = Creating(true, componentState) }, cmd
@@ -141,6 +141,13 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             match e with
             | CreateProfessionalSyndicError.AuthorizationError ->
                 model, showErrorToastCmd "U heeft geen toestemming om deze professionele syndicus te updaten"
+            | CreateProfessionalSyndicError.Validation errors ->
+                match model.State with
+                | Creating (_, componentState) ->
+                    let newComponentState, newComponentCommand = ProfessionalSyndicEditComponent.update (ProfessionalSyndicEditComponent.Message.ErrorsChanged errors) (componentState)
+                    { model with State = Creating (false, newComponentState) }, newComponentCommand |> Cmd.map ProfessionalSyndicEditComponentMsg
+                | _ ->
+                    model, Cmd.none                
 
     | ProcessUpdateResult result ->
         match result with
@@ -155,6 +162,14 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 model, showErrorToastCmd "U heeft geen toestemming om deze professionele syndicus te updaten"
             | UpdateProfessionalSyndicError.NotFound ->
                 model, showErrorToastCmd "De professionele syndicus werd niet gevonden in de databank"
+            | UpdateProfessionalSyndicError.Validation errors ->
+                match model.State with
+                | Editing (_, componentState) ->
+                    let newComponentState, newComponentCommand = ProfessionalSyndicEditComponent.update (ProfessionalSyndicEditComponent.Message.ErrorsChanged errors) (componentState)
+                    { model with State = Editing (false, newComponentState) }, newComponentCommand |> Cmd.map ProfessionalSyndicEditComponentMsg
+                | _ ->
+                    model, Cmd.none                
+
 
 let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with

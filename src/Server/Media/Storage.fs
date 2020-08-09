@@ -6,6 +6,13 @@ open Npgsql.FSharp
 open Shared.MediaLibrary
 open Server.PostgreSQL
 
+[<NoEquality; NoComparison>]
+type IMediaStorage =
+    abstract CreateMediaFile: MediaFile -> Async<unit>
+    abstract DeleteMediaFile: Guid -> Async<int>
+    abstract DeleteMediaFilesForEntity: entityId: Guid -> Async<int>
+    
+
 let paramsFor (mediaFile: MediaFile) = [
     "@Partition", Sql.string mediaFile.Partition
     "@EntityId", Sql.uuid mediaFile.EntityId
@@ -40,6 +47,7 @@ let createMediaFile (connectionString: string) (mediaFile: MediaFile) =
         """
     |> Sql.parameters (paramsFor mediaFile)
     |> Sql.writeAsync
+    |> Async.Ignore
 
 let deleteMediaFilesForEntity (connectionString: string) (entityId: Guid) =
     Sql.connect connectionString
@@ -52,3 +60,10 @@ let deleteMediaFile (connectionString: string) (mediaFileId: Guid) =
     |> Sql.query "DELETE FROM MediaFiles WHERE FileId = @MediaFileId"
     |> Sql.parameters [ "@MediaFileId", Sql.uuid mediaFileId ]
     |> Sql.writeAsync
+
+let makeStorage conn: IMediaStorage = {
+    new IMediaStorage with
+        member _.CreateMediaFile mediaFile = createMediaFile conn mediaFile
+        member _.DeleteMediaFile mediaFileId = deleteMediaFile conn mediaFileId
+        member _.DeleteMediaFilesForEntity entityId = deleteMediaFilesForEntity conn entityId
+}

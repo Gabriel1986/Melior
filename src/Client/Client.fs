@@ -80,31 +80,42 @@ module Client =
         s |> BuildingPageState |> Some, cmd |> Cmd.map BuildingPageMsg |> Some
 
     let update (message: ClientMessage) (state: ClientState) =
+        let getFirstBuildingId =            
+            function 
+            | UserRole buildingIds -> buildingIds |> List.tryHead 
+            | SyndicRole buildingIds -> buildingIds |> List.tryHead 
+            | ProfessionalSyndicRole (_, buildingIds) -> buildingIds |> List.tryHead
+            | SysAdminRole -> None
+
         match message with
         | CurrentUserFetched currentUser ->
             let newCmd = 
                 match Library.getCachedCurrentBuilding currentUser with
                 | Some currentBuilding -> 
                     Cmd.ofMsg (StartApplication (currentUser, Some currentBuilding))
-                | None ->                   
-                    match currentUser.Roles |> List.tryPick (fun role -> role.BuildingId) with
-                    | Some buildingId -> 
-                        Cmd.OfAsync.either 
-                            (Client.Remoting.getRemotingApi().GetBuilding) buildingId 
-                            (fun building ->
-                                building
-                                |> Option.map (fun b -> b.ToListItem())
-                                |> (fun currentBuilding -> currentUser, currentBuilding)
-                                |> StartApplication)
-                            StopApplication
-                    | None ->
-                        //Assume the user is not a user or simple syndic then...
-                        Cmd.OfAsync.either
-                            (Client.Remoting.getRemotingApi().GetBuildings) ()
-                            (List.tryHead
+                | None ->
+                    match currentUser.Roles with
+                    | [] ->
+                        Cmd.ofMsg (StopApplication (exn "U heeft geen rollen binnen de applicatie..."))
+                    | roles ->
+                        match roles |> List.tryPick getFirstBuildingId with
+                        | Some buildingId -> 
+                            Cmd.OfAsync.either 
+                                (Client.Remoting.getRemotingApi().GetBuilding) buildingId 
+                                (fun building ->
+                                    building
+                                    |> Option.map (fun b -> b.ToListItem())
+                                    |> (fun currentBuilding -> currentUser, currentBuilding)
+                                    |> StartApplication)
+                                StopApplication
+                        | None ->
+                            //Assume the user is a sysadmin -> pick the first building
+                            Cmd.OfAsync.either
+                                (Client.Remoting.getRemotingApi().GetBuildings) ()
+                                (List.tryHead
                                     >> (fun currentBuilding -> currentUser, currentBuilding)
                                     >> StartApplication)
-                            StopApplication
+                                StopApplication
             state, newCmd
         | StartApplication (currentUser, currentBuilding) ->
             let currentPage = Routing.parseUrl (Router.currentUrl ())

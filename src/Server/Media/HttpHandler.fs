@@ -7,18 +7,22 @@ open Microsoft.AspNetCore.Http
 open Giraffe
 open SixLabors.ImageSharp;
 open SixLabors.ImageSharp.Processing;
+open SixLabors.ImageSharp.Formats.Jpeg
+open Amazon.S3
 open Amazon.S3.Transfer
 open Amazon.S3.Model
 
 open Shared.MediaLibrary
 
-open Server.AppSettings
 open Server.Library
-open Server.Media.Library
-open SixLabors.ImageSharp.Formats.Jpeg
+open Server.Blueprint.Behavior.Media
 
 [<AutoOpen>]
 module private Internals =
+    let createAmazonS3ServiceClient (config: IConfiguration) =
+        let config = config.GetAWSOptions()
+        config.CreateServiceClient<IAmazonS3>()
+
     let createMessage (ctx: HttpContext) (data: 'T) : Message<'T> = { 
         Context = ctx
         Payload = data
@@ -42,7 +46,7 @@ module private Internals =
                 return! text (string fileId) nxt ctx
             }
 
-    let upload (config: IConfiguration) (connectionString: String)  (partition: string, entityId: Guid, fileId: Guid) =
+    let upload (config: IConfiguration) (system: IMediaSystem)  (partition: string, entityId: Guid, fileId: Guid) =
         fun nxt (ctx : HttpContext) ->
             task {
                 match ctx.Request.ContentType with
@@ -108,6 +112,7 @@ module private Internals =
 
                         printfn "Uploading file to S3"
                         //Upload the file to S3
+                        //TODO: downsize PDF files
                         if file.IsImage 
                         then
                             //Generate small and large thumbnails
@@ -144,7 +149,7 @@ module private Internals =
                         do!
                             file
                             |> createMessage ctx
-                            |> Server.Media.Workflow.createMediaFile connectionString
+                            |> system.CreateMediaFile
 
                         //Temporary files are no longer necessary -> They're in S3 now
                         printfn "Deleting temporary directory for chunks and combined file"
@@ -156,7 +161,7 @@ module private Internals =
                     return! setStatusCode (Net.HttpStatusCode.Forbidden |> int) nxt ctx
             }
 
-    let delete (config: IConfiguration) (connectionString: String)  (partition: string, _entityId: Guid) =
+    let delete (config: IConfiguration) (system: IMediaSystem)  (partition: string, _entityId: Guid) =
         fun nxt (ctx: HttpContext) ->
             task {
                 let! body = ctx.ReadBodyFromRequestAsync()
@@ -175,7 +180,7 @@ module private Internals =
                 do!
                     fileId
                     |> createMessage ctx
-                    |> Workflow.deleteMediaFile connectionString  
+                    |> system.DeleteMediaFile  
                 if (chunkDirectoryInfo.Exists) then chunkDirectoryInfo.Delete(true)
                 return! setStatusCode (Net.HttpStatusCode.OK |> int) nxt ctx
             }
@@ -195,10 +200,10 @@ module private Internals =
             setHttpHeader "Upload-Offset" ((latestChunkFileIndex + 1.0) * DefaultChunkSizeInBytes)
         >=> setStatusCode (Net.HttpStatusCode.OK |> int)
 
-    let download (config: IConfiguration) (connectionString: String)  (partition: string, fileId: Guid) =
+    let download (config: IConfiguration) (system: IMediaSystem)  (partition: string, fileId: Guid) =
         fun nxt (ctx: HttpContext) ->
             task {
-                match! Server.Media.Query.getMediaFileById connectionString partition fileId with
+                match! system.GetMediaFile partition fileId with
                 | Some mediaFile ->
                     use s3Client = createAmazonS3ServiceClient config
                     use transferUtility = new TransferUtility(s3Client)
@@ -214,10 +219,10 @@ module private Internals =
                     return! (setStatusCode 404 >=> text "Media file not found") nxt ctx                    
             }
 
-    let thumbnail (config: IConfiguration) (connectionString: String) (size: string, partition: string, fileId: Guid) =
+    let thumbnail (config: IConfiguration) (system: IMediaSystem) (size: string, partition: string, fileId: Guid) =
         fun nxt (ctx: HttpContext) ->
             task {
-                match! Server.Media.Query.getMediaFileById connectionString partition fileId with
+                match! system.GetMediaFile partition fileId with
                 | Some mediaFile ->
                     use s3Client = createAmazonS3ServiceClient config
                     use transferUtility = new TransferUtility(s3Client)
@@ -233,14 +238,14 @@ module private Internals =
                     return! (setStatusCode 404 >=> text "Media file not found") nxt ctx
             }
 
-    let getMediaFilesForEntities (connectionString: string) (partition: string, entityIds: Guid list) =
-        Server.Media.Query.getMediaFilesForEntities connectionString partition entityIds
+    let getMediaFilesForEntities (system: IMediaSystem) (partition: string, entityIds: Guid list) =
+        system.GetMediaFilesForEntities partition entityIds
         |> Async.map (List.groupBy (fun mediaFile -> mediaFile.EntityId))
     
-    let getMediaFileById (connectionString: string) (partition: string, fileId: Guid) = 
+    let getMediaFileById (system: IMediaSystem) (partition: string, fileId: Guid) = 
         fun (nxt) (ctx) ->
             task {
-                let! mediaFileOpt = Server.Media.Query.getMediaFileById connectionString partition fileId
+                let! mediaFileOpt = system.GetMediaFile partition fileId
                 return!
                     match mediaFileOpt with
                     | Some mediaFile -> 
@@ -249,29 +254,27 @@ module private Internals =
                         (setStatusCode 404 >=> text "Media file not found") nxt ctx
             }
 
-    let search (connectionString: string) (partition: string) =
+    let search (system: IMediaSystem) (partition: string) =
         fun (next : HttpFunc) (ctx : HttpContext) -> task {
             let! bound = ctx.BindJsonAsync<{| EntityIds: Guid list option |}>()
             let! mediaFiles =
                 match bound.EntityIds with
-                | Some entityIds -> getMediaFilesForEntities connectionString (partition, entityIds)
+                | Some entityIds -> getMediaFilesForEntities system (partition, entityIds)
                 | None -> async { return [] }
             return! negotiate mediaFiles next ctx
         }
     
-let mediaHandler (config: IConfiguration) =
-    let settings = config.Get<AppSettings>()
-    let connectionString = settings.Database.ConnectionString
+let mediaHandler (config) (system: IMediaSystem) =
     choose [
         //Required for (FilePond) upload
         POST >=> routeCif "/media/upload/%s/%O" post
-        PATCH >=> routeCif "/media/upload/%s/%O/%O" (upload config connectionString)
+        PATCH >=> routeCif "/media/upload/%s/%O/%O" (upload config system)
         HEAD >=> routeCif "/media/upload/%s/%O/%O" determineUploadStatus
-        DELETE >=> routeCif "/media/upload/%s/%O" (delete config connectionString)
+        DELETE >=> routeCif "/media/upload/%s/%O" (delete config system)
 
         //Required for download
-        GET >=> routeCif "/media/download/%s/%O" (download config connectionString)
-        GET >=> routeCif "/media/thumbnail/%s/%s/%O" (thumbnail config connectionString)
-        GET >=> routeCif "/media/meta/%s/%O" (getMediaFileById connectionString)
-        POST >=> routeCif "/media/meta/%s/Search" (search connectionString)
+        GET >=> routeCif "/media/download/%s/%O" (download config system)
+        GET >=> routeCif "/media/thumbnail/%s/%s/%O" (thumbnail config system)
+        GET >=> routeCif "/media/meta/%s/%O" (getMediaFileById system)
+        POST >=> routeCif "/media/meta/%s/Search" (search system)
     ]

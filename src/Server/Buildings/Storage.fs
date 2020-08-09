@@ -4,8 +4,36 @@ open System
 open Npgsql.FSharp
 open Server.Addresses.Workflow
 open Server.PostgreSQL
+open Shared.Read
 open Shared.Write
 open NodaTime
+
+type IBuildingStorage =
+    abstract CreateBuilding: ValidatedBuilding -> Async<unit>
+    abstract UpdateBuilding: ValidatedBuilding -> Async<int>
+    abstract DeleteBuilding: BuildingId -> Async<int>
+    abstract UpdateBuildingSyndic: BuildingId * ValidatedSyndicInput option -> Async<int>
+    abstract UpdateBuildingConcierge: BuildingId * ValidatedConciergeInput option -> Async<int>
+and ValidatedSyndicInput =
+    | ProfessionalSyndicId of Guid
+    | OwnerId of Guid
+    | Other of ValidatedPerson
+    static member Validate =
+        function
+        | SyndicInput.ProfessionalSyndicId proId -> Ok (ValidatedSyndicInput.ProfessionalSyndicId proId)
+        | SyndicInput.OwnerId ownerId -> Ok (ValidatedSyndicInput.OwnerId ownerId)
+        | SyndicInput.Other person ->
+            ValidatedPerson.Validate person
+            |> Result.map ValidatedSyndicInput.Other
+and ValidatedConciergeInput =
+    | OwnerId of Guid
+    | NonOwner of ValidatedPerson
+    static member Validate =
+        function
+        | ConciergeInput.OwnerId ownerId -> Ok (ValidatedConciergeInput.OwnerId ownerId)
+        | ConciergeInput.NonOwner person ->
+            ValidatedPerson.Validate person
+            |> Result.map ValidatedConciergeInput.NonOwner
 
 let private paramsFor (validated: ValidatedBuilding) =
     let today = DateTime.Today
@@ -31,52 +59,92 @@ let private paramsFor (validated: ValidatedBuilding) =
         "@YearOfDelivery"            , Sql.intOrNone (validated.YearOfDelivery |> Option.map (fun x -> x.Value))
     ]
 
-let updateBuildingSyndic (connectionString: string) (buildingId: Guid, syndicId: SyndicId option) =
-    let syndicOwnerId, syndicProfessionalSyndicId, syndicPersonId = 
+let updateBuildingSyndic (connectionString: string) (buildingId: BuildingId, syndicId: ValidatedSyndicInput option) =
+    let syndicOwnerId, syndicProfessionalSyndicId, syndicPerson = 
         match syndicId with
-        | Some (SyndicId.OwnerId ownerId)            -> Some ownerId, None, None
-        | Some (SyndicId.ProfessionalSyndicId proId) -> None, Some proId, None
-        | Some (SyndicId.OtherId personId)           -> None, None , Some personId
+        | Some (ValidatedSyndicInput.OwnerId ownerId)            -> Some ownerId, None, None
+        | Some (ValidatedSyndicInput.ProfessionalSyndicId proId) -> None, Some proId, None
+        | Some (ValidatedSyndicInput.Other person)           -> None, None , Some person
         | None                                       -> None, None , None
 
-    Sql.connect connectionString
-    |> Sql.query
-        """
-            UPDATE Buildings SET
-                SyndicOwnerId = @SyndicOwnerId,
-                SyndicProfessionalSyndicId = @SyndicProfessionalSyndicId,
-                SyndicPersonId = @SyndicPersonId
-            WHERE BuildingId = @BuildingId
-        """
-    |> Sql.parameters [
-        "@BuildingId"                , Sql.uuid buildingId
-        "@SyndicOwnerId"             , Sql.uuidOrNone syndicOwnerId
-        "@SyndicProfessionalSyndicId", Sql.uuidOrNone syndicProfessionalSyndicId
-        "@SyndicPersonId"            , Sql.uuidOrNone syndicPersonId
-    ]
-    |> Sql.writeAsync
+    match syndicPerson with
+    | Some person ->
+        Sql.connect connectionString
+        |> Sql.writeBatchAsync [
+            Server.Persons.Storage.upsertQuery,
+                Server.Persons.Storage.paramsFor person
+        
+            """
+                UPDATE Buildings SET
+                    SyndicOwnerId = @SyndicOwnerId,
+                    SyndicProfessionalSyndicId = @SyndicProfessionalSyndicId,
+                WHERE BuildingId = @BuildingId
+            """, [
+                "@BuildingId"                , Sql.uuid buildingId
+                "@SyndicOwnerId"             , Sql.uuidOrNone None
+                "@SyndicProfessionalSyndicId", Sql.uuidOrNone None
+                "@SyndicPersonId"            , Sql.uuid person.PersonId
+            ]
+        ]
+        |> Async.map (List.skip 1 >> List.tryHead >> Option.defaultValue 0)
+    | None ->
+        Sql.connect connectionString
+        |> Sql.query
+            """
+                UPDATE Buildings SET
+                    SyndicOwnerId = @SyndicOwnerId,
+                    SyndicProfessionalSyndicId = @SyndicProfessionalSyndicId,
+                WHERE BuildingId = @BuildingId
+            """
+        |> Sql.parameters [
+            "@BuildingId"                , Sql.uuid buildingId
+            "@SyndicOwnerId"             , Sql.uuidOrNone syndicOwnerId
+            "@SyndicProfessionalSyndicId", Sql.uuidOrNone syndicProfessionalSyndicId
+            "@SyndicPersonId"            , Sql.uuidOrNone None
+        ]
+        |> Sql.writeAsync
 
-let updateBuildingConcierge (connectionString: string) (buildingId: Guid, conciergeId: ConciergeId option) =
-    let conciergeOwnerId, conciergePersonId =
+let updateBuildingConcierge (connectionString: string) (buildingId: BuildingId, conciergeId: ValidatedConciergeInput option) =
+    let conciergeOwnerId, conciergePerson =
         match conciergeId with
-        | Some (ConciergeId.OwnerId ownerId)     -> Some ownerId, None
-        | Some (ConciergeId.NonOwnerId personId) -> None, Some personId
-        | None                                   -> None, None
+        | Some (ValidatedConciergeInput.OwnerId ownerId)     -> Some ownerId, None
+        | Some (ValidatedConciergeInput.NonOwner person) -> None, Some person
+        | None -> None, None
 
-    Sql.connect connectionString
-    |> Sql.query
-        """
-            UPDATE Buildings SET
-                ConciergeOwnerId = @ConciergeOwnerId,
-                ConciergePersonId = @ConciergePersonId
-            WHERE BuildingId = @BuildingId
-        """
-    |> Sql.parameters [
-        "@BuildingId"                , Sql.uuid buildingId
-        "@ConciergeOwnerId"          , Sql.uuidOrNone conciergeOwnerId
-        "@ConciergePersonId"         , Sql.uuidOrNone conciergePersonId
-    ]
-    |> Sql.writeAsync
+    match conciergePerson with
+    | Some person ->
+        Sql.connect connectionString
+        |> Sql.writeBatchAsync [
+            Server.Persons.Storage.upsertQuery,
+                Server.Persons.Storage.paramsFor person
+        
+            """
+                UPDATE Buildings SET
+                    ConciergeOwnerId = @ConciergeOwnerId,
+                    ConciergePersonId = @ConciergePersonId
+                WHERE BuildingId = @BuildingId
+            """, [
+                "@BuildingId"                , Sql.uuid buildingId
+                "@ConciergeOwnerId"          , Sql.uuidOrNone None
+                "@ConciergePersonId"         , Sql.uuid person.PersonId
+            ]
+        ]
+        |> Async.map (List.skip 1 >> List.tryHead >> Option.defaultValue 0)
+    | None ->
+        Sql.connect connectionString
+        |> Sql.query
+            """
+                UPDATE Buildings SET
+                    ConciergeOwnerId = @ConciergeOwnerId,
+                    ConciergePersonId = @ConciergePersonId
+                WHERE BuildingId = @BuildingId
+            """
+        |> Sql.parameters [
+            "@BuildingId"                , Sql.uuid buildingId
+            "@ConciergeOwnerId"          , Sql.uuidOrNone conciergeOwnerId
+            "@ConciergePersonId"         , Sql.uuidOrNone None
+        ]
+        |> Sql.writeAsync
 
 let createBuilding (connectionString: string) (validated: ValidatedBuilding) =
     Sql.connect connectionString
@@ -108,6 +176,7 @@ let createBuilding (connectionString: string) (validated: ValidatedBuilding) =
         """
     |> Sql.parameters (paramsFor validated)
     |> Sql.writeAsync
+    |> Async.Ignore
 
 let updateBuilding (connectionString: string) (validated: ValidatedBuilding) =
     Sql.connect connectionString
@@ -140,3 +209,12 @@ let deleteBuilding connectionString buildingId =
             "@BuildingId", Sql.uuid buildingId
         ]
     |> Sql.writeAsync
+
+let makeStorage conn = {
+    new IBuildingStorage with
+        member _.CreateBuilding building = createBuilding conn building     
+        member _.UpdateBuilding building = updateBuilding conn building
+        member _.DeleteBuilding buildingId = deleteBuilding conn buildingId     
+        member _.UpdateBuildingSyndic (buildingId, syndicId) = updateBuildingSyndic conn (buildingId, syndicId)
+        member _.UpdateBuildingConcierge (buildingId, conciergeId) = updateBuildingConcierge conn (buildingId, conciergeId)
+}

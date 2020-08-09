@@ -1,4 +1,4 @@
-﻿namespace Shared
+﻿module Shared.Trial
 
 open System
     
@@ -6,7 +6,7 @@ type Trial<'value, 'error> =
     | Pass of 'value
     | Fail of 'error list
 
-[<RequireQualifiedAccess>]
+[<AutoOpen>]
 module Trial =
     let inline dispose (disposable: 'Object when 'Object :> IDisposable) : unit =
         if not (isNull disposable) then disposable.Dispose()
@@ -103,51 +103,51 @@ module Trial =
         | Pass value -> Some value
         | Fail _     -> None
 
-    module Operators =
+module Operators =
 
-        let inline ( <!> ) mapper result = map mapper result
+    let inline ( <!> ) mapper result = map mapper result
 
-        let inline ( <*> ) application result = apply result application
+    let inline ( <*> ) application result = apply result application
 
-    module Control =
-        [<Sealed>]
-        type TrialBuilder() =
-            member _.Delay(generator: unit -> Trial<_, _>) = generator
+module Control =
+    [<Sealed>]
+    type TrialBuilder() =
+        member _.Delay(generator: unit -> Trial<_, _>) = generator
 
-            member _.Run(generator: unit -> Trial<_, _>) = generator ()
+        member _.Run(generator: unit -> Trial<_, _>) = generator ()
 
-            member _.Yield(value) = Pass value
+        member _.Yield(value) = Pass value
 
-            member _.YieldFrom(trial: Trial<_, _>) = trial
+        member _.YieldFrom(trial: Trial<_, _>) = trial
 
-            member _.For(trial, body) =
-                match trial with
+        member _.For(trial, body) =
+            match trial with
+            | Fail fails -> Fail fails
+            | Pass value -> body value
+
+        [<CustomOperation("from", IsLikeZip = true)>]
+        member inline __.Lift(trial1, trial2, merge: unit -> _ -> _) =
+            map2 merge trial1 trial2
+
+        [<CustomOperation("also", IsLikeZip = true)>]
+        member inline __.Merge(trial1, trial2, merge) =
+            map2 merge trial1 trial2
+
+        member inline __.TryWith(body, handler) : Trial<_, _> =
+            try body () with x -> handler x
+
+        member inline __.TryFinally(body, handler) : Trial<_, _> =
+            try body () finally handler ()
+
+        member _.Using(resource, body) : Trial<_, _> =
+            try body resource finally dispose resource
+
+        member me.While(guard, body) =
+            if not (guard ()) then
+                body ()
+            else
+                match body () with
                 | Fail fails -> Fail fails
-                | Pass value -> body value
+                | Pass _     -> me.While(guard, body)
 
-            [<CustomOperation("from", IsLikeZip = true)>]
-            member inline __.Lift(trial1, trial2, merge: unit -> _ -> _) =
-                map2 merge trial1 trial2
-
-            [<CustomOperation("also", IsLikeZip = true)>]
-            member inline __.Merge(trial1, trial2, merge) =
-                map2 merge trial1 trial2
-
-            member inline __.TryWith(body, handler) : Trial<_, _> =
-                try body () with x -> handler x
-
-            member inline __.TryFinally(body, handler) : Trial<_, _> =
-                try body () finally handler ()
-
-            member _.Using(resource, body) : Trial<_, _> =
-                try body resource finally dispose resource
-
-            member me.While(guard, body) =
-                if not (guard ()) then
-                    body ()
-                else
-                    match body () with
-                    | Fail fails -> Fail fails
-                    | Pass _     -> me.While(guard, body)
-
-        let trial = TrialBuilder()
+    let trial = TrialBuilder()

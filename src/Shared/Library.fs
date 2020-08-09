@@ -2,6 +2,7 @@
 
 open System
 open System.Collections.Generic
+open Trial
 
 let validateOptional (validate: 'T -> Trial<'U, _>) (x: 'T option) =
     match x with

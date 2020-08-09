@@ -104,11 +104,11 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
         match model.State with
         | Editing (_, componentState) ->
             match ValidatedOwner.Validate componentState.Owner with
-            | Ok owner ->
+            | Ok _ ->
                 let cmd = 
                     Cmd.OfAsync.either
                         (Remoting.getRemotingApi().UpdateOwner)
-                        owner
+                        componentState.Owner
                         (fun result -> result |> Result.map (fun _ -> componentState.Owner) |> ProcessUpdateResult)
                         RemotingError
                 { model with State = Editing (true, componentState) }, cmd
@@ -117,17 +117,17 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 { model with State = Editing (false, newComponentState) }, newComponentCommand |> Cmd.map OwnerEditComponentMsg
         | Creating (_, componentState) ->
             match ValidatedOwner.Validate componentState.Owner with
-            | Ok owner ->
+            | Ok _ ->
                 let cmd =
                     Cmd.OfAsync.either
                         (Remoting.getRemotingApi().CreateOwner)
-                        owner
+                        componentState.Owner
                         (fun result -> result |> Result.map (fun _ -> componentState.Owner) |> ProcessCreateResult)
                         RemotingError
-                { model with State = Creating(true, componentState) }, cmd
+                { model with State = Creating (true, componentState) }, cmd
             | Error e ->
-                let newComponentState, newComponentCommand = OwnerEditComponent.update (OwnerEditComponent.Message.ErrorsChanged e) (componentState)
-                { model with State = Editing (false, newComponentState) }, newComponentCommand |> Cmd.map OwnerEditComponentMsg
+                let newComponentState, newComponentCommand = OwnerEditComponent.update (OwnerEditComponent.Message.ErrorsChanged e) componentState
+                { model with State = Creating (false, newComponentState) }, newComponentCommand |> Cmd.map OwnerEditComponentMsg
         | _ ->
             //Do nothing, unexpected message O_o
             model, Cmd.none
@@ -144,6 +144,13 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             match e with
             | CreateOwnerError.AuthorizationError ->
                 model, showErrorToastCmd "U heeft geen toestemming om een eigenaar aan te maken"
+            | CreateOwnerError.Validation errors ->
+                match model.State with
+                | Creating (_, componentState) ->
+                    let newComponentState, newComponentCommand = OwnerEditComponent.update (OwnerEditComponent.Message.ErrorsChanged errors) componentState
+                    { model with State = Creating (false, newComponentState) }, newComponentCommand |> Cmd.map OwnerEditComponentMsg
+                | _ ->
+                    model, Cmd.none
 
     | ProcessUpdateResult result ->
         match result with
@@ -158,6 +165,13 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 model, showErrorToastCmd "U heeft geen toestemming om deze eigenaar te updaten"
             | UpdateOwnerError.NotFound ->
                 model, showErrorToastCmd "De eigenaar werd niet gevonden in de databank"
+            | UpdateOwnerError.Validation errors ->
+                match model.State with
+                | Editing (_, componentState) ->
+                    let newComponentState, newComponentCommand = OwnerEditComponent.update (OwnerEditComponent.Message.ErrorsChanged errors) componentState
+                    { model with State = Editing (false, newComponentState) }, newComponentCommand |> Cmd.map OwnerEditComponentMsg
+                | _ ->
+                    model, Cmd.none
 
 let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with

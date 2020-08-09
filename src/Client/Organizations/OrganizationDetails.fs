@@ -104,11 +104,11 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
         match model.State with
         | Editing (_, componentState) ->
             match ValidatedOrganization.Validate componentState.Organization with
-            | Ok organization ->
+            | Ok _ ->
                 let cmd = 
                     Cmd.OfAsync.either
                         (Remoting.getRemotingApi().UpdateOrganization)
-                        organization
+                        componentState.Organization
                         (fun result -> result |> Result.map (fun _ -> componentState.Organization) |> ProcessUpdateResult)
                         RemotingError
                 { model with State = Editing (true, componentState) }, cmd
@@ -117,11 +117,11 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 { model with State = Editing (false, { componentState with Errors = e }) }, Cmd.none
         | Creating (_, componentState) ->
             match ValidatedOrganization.Validate componentState.Organization with
-            | Ok organization ->
+            | Ok _ ->
                 let cmd =
                     Cmd.OfAsync.either
                         (Remoting.getRemotingApi().CreateOrganization)
-                        organization
+                        componentState.Organization
                         (fun result -> result |> Result.map (fun _ -> componentState.Organization) |> ProcessCreateResult)
                         RemotingError
                 { model with State = Creating(true, componentState) }, cmd
@@ -144,6 +144,12 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             match e with
             | CreateOrganizationError.AuthorizationError ->
                 model, showErrorToastCmd "U heeft geen toestemming om een organisatie aan te maken"
+            | CreateOrganizationError.Validation errors ->
+                match model.State with
+                | Creating (_, componentState) ->
+                    { model with State = Creating (false, { componentState with Errors = errors }) }, Cmd.none
+                | _ ->
+                    model, Cmd.none
 
     | ProcessUpdateResult result ->
         match result with
@@ -158,6 +164,12 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 model, showErrorToastCmd "U heeft geen toestemming om deze organisatie te updaten"
             | UpdateOrganizationError.NotFound ->
                 model, showErrorToastCmd "De organisatie werd niet gevonden in de databank"
+            | UpdateOrganizationError.Validation errors ->
+                match model.State with
+                | Editing (_, componentState) ->
+                    { model with State = Editing (false, { componentState with Errors = errors }) }, Cmd.none
+                | _ ->
+                    model, Cmd.none
 
 let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with

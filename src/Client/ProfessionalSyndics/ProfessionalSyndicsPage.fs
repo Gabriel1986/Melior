@@ -35,7 +35,7 @@ type Msg =
     | RemotingError of exn
     | Loaded of listItems: ProfessionalSyndicListItem list * selectedListItemId: Guid option
     | RemoveListItem of ProfessionalSyndicListItem
-    | ListItemRemoved of Result<ProfessionalSyndicListItem, AuthorizationError>
+    | ListItemRemoved of Result<ProfessionalSyndicListItem, DeleteProfessionalSyndicError>
     | Created of ProfessionalSyndic
     | Edited of ProfessionalSyndic
 
@@ -139,9 +139,13 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with SelectedListItems = newSelection; ListItems = newItems }, cmd
     | ListItemRemoved result ->
         match result with
-        | Ok _ -> state, Cmd.none
-        | Error AuthorizationError.AuthorizationError ->
+        | Ok _ -> 
+            state, Cmd.none
+        | Error DeleteProfessionalSyndicError.AuthorizationError ->
             state, showErrorToastCmd "U heeft geen toestemming om deze professionele syndicus te verwijderen"
+        | Error DeleteProfessionalSyndicError.NotFound ->
+            printf "Could not delete the professional syndic, it was not found in the DB, somehow..."
+            state, Cmd.none
     | RemotingError e ->
         state, showGenericErrorModalCmd e
     | Created professionalSyndic ->

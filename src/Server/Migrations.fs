@@ -5,7 +5,7 @@ open Npgsql
 open SimpleMigrations
 open SimpleMigrations.DatabaseProvider
 
-let  run (logger: Serilog.ILogger) (connectionString: string) : unit =
+let run (logger: Serilog.ILogger) (connectionString: string) : unit =
     using (new NpgsqlConnection(connectionString)) (fun connection ->
         try
             let migrationsAssembly = Assembly.GetAssembly(typeof<CreateInitialTables>)
@@ -134,7 +134,7 @@ type CreateInitialTables() =
                 );
                 CREATE INDEX idx_OrganizationOrganizationTypeLinks_OrganizationId ON OrganizationOrganizationTypeLinks(OrganizationId);
 
-                CREATE TABLE OrganizationContactPersons (
+                CREATE TABLE ContactPersons (
                     OrganizationId UUID References Organizations(OrganizationId),
                     PersonId UUID References Persons(PersonId),
                     RoleWithinOrganization VARCHAR(32),
@@ -154,7 +154,7 @@ type CreateInitialTables() =
                     FOREIGN KEY (BuildingId, SyndicOwnerId)
                     REFERENCES Owners(BuildingId, PersonId);
 
-                CREATE INDEX idx_OrganizationContactPersons_OrganizationId ON OrganizationContactPersons(OrganizationId);
+                CREATE INDEX idx_ContactPersons_OrganizationId ON ContactPersons(OrganizationId);
             """
         )
     override u.Down () = failwith "Not supported"
@@ -189,7 +189,7 @@ type CreateUserTables() =
                     UserId UUID PRIMARY KEY,
                     DisplayName VARCHAR(255),
                     EmailAddress VARCHAR(255) UNIQUE,
-                    PreferredLanguageCode VARCHAR(12),
+                    PreferredLanguageCode VARCHAR(16),
                     PasswordHash BYTEA,
                     UseTwoFac Boolean,
                     TwoFacSecret BYTEA,
@@ -197,18 +197,26 @@ type CreateUserTables() =
                 );
                 CREATE INDEX idx_Users_EmailAddress ON Users(EmailAddress);
 
-                CREATE TABLE RecoveryCodes (
-                    EmailAddress VARCHAR(255),
-                    RecoveryCodeHash BYTEA,
-                    PRIMARY KEY (EmailAddress, RecoveryCodeHash)
+                CREATE TABLE UserRoles (
+                    UserId,
+                    Role,
+                    BuildingId,
+                    OrganizationId,
                 );
-                CREATE INDEX idx_RecoveryCodes_EmailAddress ON RecoveryCodes(EmailAddress);
+                CREATE INDEX idx_UserRoles_UserId ON UserRoles(UserId);
+
+                CREATE TABLE RecoveryCodes (
+                    UserId UUID,
+                    RecoveryCodeHash BYTEA,
+                    PRIMARY KEY (UserId, RecoveryCodeHash)
+                );
+                CREATE INDEX idx_RecoveryCodes_UserId ON RecoveryCodes(UserId);
 
                 CREATE TABLE FailedTwoFacEvents (
                     UserId UUID,
-                    TimeStamp TIMESTAMP
+                    TimeStamp TIMESTAMP,
+                    PRIMARY KEY (UserId, TimeStamp)
                 );
-                CREATE INDEX idx_FailedTwoFacEvents_UserId ON FailedTwoFacEvents(UserId);
             """
         )
     override u.Down () = failwith "Not supported"

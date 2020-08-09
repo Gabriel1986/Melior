@@ -39,6 +39,9 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     let changeLot f =
         { state with Lot = f state.Lot }
 
+    let removeError errorName state =
+        { state with Errors = (state.Errors |> List.filter (fun (path, e) -> path <> errorName)) }
+
     let parseInt str =
         match str |> String.toOption with
         | Some s ->
@@ -58,15 +61,20 @@ let update (message: Message) (state: State): State * Cmd<Message> =
 
     match message with
     | CodeChanged x ->
-        changeLot (fun l -> { l with Code = x }), Cmd.none
+        changeLot (fun l -> { l with Code = x })
+        |> removeError (nameof state.Lot.Code), Cmd.none
     | LotTypeChanged x ->
-        changeLot (fun l -> { l with LotType = x }), Cmd.none
+        changeLot (fun l -> { l with LotType = x })
+        |> removeError (nameof state.Lot.LotType), Cmd.none
     | DescriptionChanged x ->
-        changeLot (fun l -> { l with Description = x |> String.toOption }), Cmd.none
+        changeLot (fun l -> { l with Description = x |> String.toOption })
+        |> removeError (nameof state.Lot.Description), Cmd.none
     | FloorChanged x ->
-        changeLot (fun l -> { l with Floor = parseInt x }), Cmd.none
+        changeLot (fun l -> { l with Floor = parseInt x })
+        |> removeError (nameof state.Lot.Floor), Cmd.none
     | SurfaceChanged x ->
-        changeLot (fun l -> { l with Surface = parseInt x }), Cmd.none
+        changeLot (fun l -> { l with Surface = parseInt x })
+        |> removeError (nameof state.Lot.Surface), Cmd.none
     | ChangeLotOwners ->
         { state with ShowingLotOwnerModal = true }, Cmd.none
     | ChangeLotOwnersCanceled ->
@@ -212,7 +220,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     MaxLength 16.0
                     Helpers.valueOrDefault state.Lot.Code
                     OnChange (fun e -> CodeChanged e.Value |> dispatch)
-                ] 
+                ]
                 FormError (errorFor (nameof state.Lot.Code))
             ]
             |> inColomn

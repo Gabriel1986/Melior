@@ -12,10 +12,12 @@ open Server.Library
 module private Readers =
     type ProfessionalSyndicDbModel = {
         OrganizationId: Guid
+        BuildingId: Guid option
     }
 
     let readProfessionalSyndic (reader: CaseInsensitiveRowReader): ProfessionalSyndicDbModel = {
         OrganizationId = reader.uuid "OrganizationId"
+        BuildingId = reader.uuidOrNone "BuildingId"
     }
 
     let readProfessionalSyndics (reader: CaseInsensitiveRowReader): ProfessionalSyndicListItem = {
@@ -30,33 +32,36 @@ module private Readers =
         MainTelephoneNumber = reader.stringOrNone "MainTelephoneNumber"
     }
 
-//Can probably be simplified...
+//Can probably be simplified... Good enough for now.
 let getProfessionalSyndic (connectionString: string) (organizationId: Guid) = async {
     let! result =
         Sql.connect connectionString
         |> Sql.query
             """
                 SELECT
-                    OrganizationId
+                    ps.OrganizationId,
+                    psbuilding.BuildingId
                 FROM
-                    ProfessionalSyndics
+                    ProfessionalSyndics ps
+                LEFT JOIN ProfessioalSyndicBuildings psBuilding on ps.OrganizationId = psBuilding.SyndicId
                 WHERE
-                    OrganizationId = @OrganizationId
+                    ps.OrganizationId = @OrganizationId
             """
         |> Sql.parameters [ "@OrganizationId", Sql.uuid organizationId ]
-        |> Sql.readSingle readProfessionalSyndic
+        |> Sql.read readProfessionalSyndic
 
     match result with
-    | Some dbModel ->
-        match! Server.Organizations.Query.getOrganization connectionString dbModel.OrganizationId with
+    | [] ->
+        return None
+    | professionalSyndics ->
+        match! Server.Organizations.Query.getOrganization connectionString organizationId with
         | Some organization ->
             return Some {
                 Organization = organization
+                BuildingIds = professionalSyndics |> List.choose (fun proSyndic -> proSyndic.BuildingId)
             }
         | None -> 
             return None
-    | None ->
-        return None
 }
 
 let getProfessionalSyndics connectionString () =

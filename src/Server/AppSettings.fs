@@ -13,6 +13,14 @@ type GoogleSettings = {
 }
 
 [<CLIMutable>]
+type SysAdmin = {
+    EmailAddress: string
+    DisplayName: string
+    PreferredLanguageCode: string
+    Password: string
+}
+
+[<CLIMutable>]
 type AuthenticationSettings = {
     PasswordPepper: string
     ChangePasswordSigningKey: string
@@ -20,6 +28,7 @@ type AuthenticationSettings = {
     TwoFacPassword: string
     TwoFacPepper: string
     MaxNbTwoFacAttempts: int
+    SysAdmins: SysAdmin[]
 }
 
 [<CLIMutable>]

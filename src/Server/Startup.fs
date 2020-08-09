@@ -11,7 +11,9 @@ open Thoth.Json.Net
 open Thoth.Json.Giraffe
 open Serilog
 
+open Server.ProfessionalSyndics.ProfessionalSyndicCache
 open Server.AppSettings
+open Server.Blueprint.Behavior.ProfessionalSyndics
 
 type Startup private () =
     new (configuration: IConfiguration) as this =
@@ -20,12 +22,18 @@ type Startup private () =
 
     // This method gets called by the runtime. Use this method to add services to the container.
     member this.ConfigureServices(services: IServiceCollection) =
+        let appSettings = this.Configuration.Get<AppSettings>()
+
         services
             .AddGiraffe()
             .AddSingleton<Serialization.Json.IJsonSerializer>(
                 ThothSerializer (caseStrategy=Thoth.Json.Net.CaseStrategy.PascalCase, extra=Extra.empty, skipNullField=true)
             )
+            .AddSingleton<IProfessionalSyndicCache>(
+                new ProfessionalSyndicCache(appSettings.Database.ConnectionString)
+            )
             |> ignore
+
 
         Authentication.Configuration.addAuthenticationServices (services)
         ()
@@ -33,7 +41,8 @@ type Startup private () =
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     member this.Configure(app: IApplicationBuilder, env: IWebHostEnvironment) =
         let appSettings = this.Configuration.Get<AppSettings>()
-        Migrations.run Log.Logger appSettings.Database.ConnectionString 
+        Migrations.run Log.Logger appSettings.Database.ConnectionString
+        Seedings.run Log.Logger this.Configuration
 
         let handleErrors: ErrorHandler =
             fun ex logger ->

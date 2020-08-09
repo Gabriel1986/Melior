@@ -22,33 +22,40 @@ type User =
     member me.HasAccessToBuilding (buildingId: Guid) =
         me.Roles |> List.exists (
             function
-            | User bId
-            | Syndic bId -> bId = buildingId
-            | ProfessionalSyndic _ -> true
-            | SysAdmin -> true)
+            | UserRole bids -> bids |> List.contains buildingId
+            | SyndicRole bIds -> bIds |> List.contains buildingId
+            | ProfessionalSyndicRole (_orgId, bIds) -> bIds |> List.contains buildingId
+            | SysAdminRole -> true
+        )
     member me.HasAdminAccessToBuilding (buildingId: Guid) =
         me.Roles |> List.exists (
             function
-            | User _ -> false
-            | Syndic bId -> bId = buildingId
-            | ProfessionalSyndic _ -> true
-            | SysAdmin -> true)
-        
+            | UserRole _ -> false
+            | SyndicRole bIds -> bIds |> List.contains buildingId
+            | ProfessionalSyndicRole (_orgId, bIds) -> bIds |> List.contains buildingId
+            | SysAdminRole -> true
+        )
+    member me.IsSysAdmin =
+        me.Roles |> List.contains SysAdminRole
+
 and Role =
-    | User of buildingId: Guid
-    | Syndic of buildingId: Guid
-    //Has access to all buildings the professional syndic org has access to (this could be >100, hence this construct)
-    | ProfessionalSyndic of professionalSyndicId: Guid
+    | UserRole of buildingIds: Guid list
+    | SyndicRole of buildingIds: Guid list
+    | ProfessionalSyndicRole of organizationId: Guid * buildingIds: Guid list
     //Has access to all buildings
-    | SysAdmin
-    member me.BuildingId =
+    | SysAdminRole
+    member me.BuildingIds =
         match me with
-        | User bId | Syndic bId           -> Some bId
-        | SysAdmin | ProfessionalSyndic _ -> None
+        | UserRole bIds -> bIds
+        | SyndicRole bIds -> bIds
+        | ProfessionalSyndicRole (_orgId, bIds) -> bIds
+        | SysAdminRole -> []
+
+type BuildingId = Guid
 
 type Building = 
     {
-        BuildingId: Guid
+        BuildingId: BuildingId
         Code: string
         Name: string
         Address: Address
@@ -137,7 +144,7 @@ and Syndic =
     | Other of Person
 
 and BuildingListItem = {
-    BuildingId: Guid
+    BuildingId: BuildingId
     Code: string
     Name: string
     Address: Address
@@ -264,11 +271,13 @@ and Organization =
 and ContactPerson = 
     {
         OrganizationId: Guid
+        BuildingId: Guid option
         Person: Person
         RoleWithinOrganization: string
     }
-    static member Init (orgId: Guid) = {
+    static member Init (orgId: Guid) (buildingId: Guid option) = {
         OrganizationId = orgId
+        BuildingId = buildingId
         Person = Person.Init ()
         RoleWithinOrganization = ""
     }
@@ -357,9 +366,11 @@ and Tenant = {
 and ProfessionalSyndic = 
     {
         Organization: Organization
+        BuildingIds: BuildingId list
     }
     static member Init () = {
         Organization = Organization.Init None
+        BuildingIds = []
     }
 and OwnerListItem = 
     {

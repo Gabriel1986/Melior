@@ -42,13 +42,13 @@ type Message =
     | Edit of Guid
     | SaveEdit of OrganizationType
     | FinishedEditing of OrganizationType
-    | EditingFailed of UpdateOrganizationTypeError
+    | EditingFailed of OrganizationType * UpdateOrganizationTypeError
     | CancelEdit of Guid
 
     | CreateOrganizationType
     | SaveCreation of OrganizationType
     | FinishedCreating of OrganizationType
-    | CreationFailed of CreateOrganizationTypeError
+    | CreationFailed of OrganizationType * CreateOrganizationTypeError
     | Delete of Guid
     | CancelCreation of Guid
     | EditOrganizationTypeName of (Guid * string)
@@ -88,11 +88,11 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         { state with OrganizationTypes = newOrgTypes }, Cmd.none
     | SaveEdit organizationType ->
         match ValidatedOrganizationType.Validate (organizationType) with
-        | Ok validated ->
+        | Ok _ ->
             let cmd = 
                 Cmd.OfAsync.either
-                    (Client.Remoting.getRemotingApi()).UpdateOrganizationType validated
-                    (fun result -> match result with | Ok _ -> FinishedEditing organizationType | Error editingError -> EditingFailed editingError)
+                    (Client.Remoting.getRemotingApi()).UpdateOrganizationType organizationType
+                    (fun result -> match result with | Ok _ -> FinishedEditing organizationType | Error editingError -> EditingFailed (organizationType, editingError))
                     RemotingError
 
             let newState = changeOrganizationType (organizationType.OrganizationTypeId) id (fun s -> Some { s with IsSaving = true })
@@ -102,11 +102,11 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             newState, Cmd.none
     | SaveCreation organizationType ->
         match ValidatedOrganizationType.Validate (organizationType) with
-        | Ok validated ->
+        | Ok _ ->
             let cmd =
                 Cmd.OfAsync.either
-                    (Client.Remoting.getRemotingApi()).CreateOrganizationType validated
-                    (fun result -> match result with | Ok _ -> FinishedCreating organizationType | Error creationError -> CreationFailed creationError)
+                    (Client.Remoting.getRemotingApi()).CreateOrganizationType organizationType
+                    (fun result -> match result with | Ok _ -> FinishedCreating organizationType | Error creationError -> CreationFailed (organizationType, creationError))
                     RemotingError
             let newState = changeOrganizationType (organizationType.OrganizationTypeId) id (fun s -> Some { s with IsSaving = true })
             newState, cmd
@@ -129,16 +129,20 @@ let update (message: Message) (state: State): State * Cmd<Message> =
                 RemotingError
         let newState = { state with OrganizationTypes = state.OrganizationTypes |> List.filter (fun (orgType, _) -> orgType.OrganizationTypeId <> orgTypeId) }
         newState, cmd
-    | CreationFailed e ->
+    | CreationFailed (organizationType, e) ->
         match e with
         | CreateOrganizationTypeError.AuthorizationError ->
             state, showErrorToastCmd "U heeft geen toestemming om een organisatie type aan te maken"
-    | EditingFailed e ->
+        | CreateOrganizationTypeError.Validation errors ->
+            changeOrganizationType (organizationType.OrganizationTypeId) id (fun s -> Some { s with Errors = errors }), Cmd.none
+    | EditingFailed (organizationType, e) ->
         match e with
         | UpdateOrganizationTypeError.AuthorizationError ->
             state, showErrorToastCmd "U heeft geen toestemming om dit organisatie type te updaten"
         | UpdateOrganizationTypeError.NotFound ->
             state, showErrorToastCmd "Het organisatie type werd niet gevonden in de databank"
+        | UpdateOrganizationTypeError.Validation errors ->
+            changeOrganizationType (organizationType.OrganizationTypeId) id (fun s -> Some { s with Errors = errors }), Cmd.none
     | CancelEdit orgTypeId ->
         let newState = changeOrganizationType (orgTypeId) id (fun _ -> None)
         newState, Cmd.none       
@@ -147,7 +151,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         let newState = changeOrganizationType (orgType.OrganizationTypeId) (fun _ -> orgType) (fun _ -> None)
         newState, Cmd.none
     | EditOrganizationTypeName (orgTypeId, newName) ->
-        let newState = changeOrganizationType (orgTypeId) id (fun s -> Some { s with OrganizationType = { s.OrganizationType with Name = newName } })
+        let newState = changeOrganizationType (orgTypeId) id (fun s -> Some { s with OrganizationType = { s.OrganizationType with Name = newName }; Errors = [] })
         newState, Cmd.none
             
 let view (state: State) (dispatch: Message -> unit) =

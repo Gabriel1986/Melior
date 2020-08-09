@@ -6,11 +6,12 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Library.fs" />
+    <Compile Include="Blueprint.Data.fs" />
+    <Compile Include="Blueprint.Behavior.fs" />
+    <Compile Include="LibraryExtensions.fs" />
     <Compile Include="AppSettings.fs" />
     <Compile Include="Migrations.fs" />
     <Compile Include="PostgreSQL.fs" />
-    <Compile Include="Blueprint.Data.fs" />
-    <Compile Include="Blueprint.Behavior.fs" />
     <Compile Include="Addresses\Library.fs" />
     <Compile Include="Addresses\Workflow.fs" />
     <Compile Include="ContactMethods\Library.fs" />
@@ -18,29 +19,34 @@
     <Compile Include="Persons\Library.fs" />
     <Compile Include="Persons\Query.fs" />
     <Compile Include="Persons\Storage.fs" />
-    <Compile Include="Persons\Workflow.fs" />
     <Compile Include="Owners\Query.fs" />
     <Compile Include="Owners\Storage.fs" />
     <Compile Include="Owners\Workflow.fs" />
+    <Compile Include="Owners\OwnerSystem.fs" />
     <Compile Include="Organizations\GoogleGeocodingApi.fs" />
     <Compile Include="Organizations\ViesService.fs" />
     <Compile Include="Organizations\Query.fs" />
     <Compile Include="Organizations\Storage.fs" />
     <Compile Include="Organizations\Workflow.fs" />
+    <Compile Include="Organizations\OrganizationSystem.fs" />
     <Compile Include="ProfessionalSyndics\Query.fs" />
     <Compile Include="ProfessionalSyndics\Storage.fs" />
     <Compile Include="ProfessionalSyndics\Workflow.fs" />
+    <Compile Include="ProfessionalSyndics\ProfessionalSyndicCache.fs" />
+    <Compile Include="ProfessionalSyndics\ProfessionalSyndicSystem.fs" />
     <Compile Include="Lots\Query.fs" />
     <Compile Include="Lots\Storage.fs" />
     <Compile Include="Lots\Workflow.fs" />
+    <Compile Include="Lots\LotSystem.fs" />
     <Compile Include="Buildings\Query.fs" />
     <Compile Include="Buildings\Storage.fs" />
     <Compile Include="Buildings\Workflow.fs" />
-    <Compile Include="Media\Library.fs" />
+    <Compile Include="Buildings\BuildingSystem.fs" />
     <Compile Include="Media\Query.fs" />
     <Compile Include="Media\Storage.fs" />
     <Compile Include="Media\Workflow.fs" />
     <Compile Include="Media\HttpHandler.fs" />
+    <Compile Include="Media\MediaSystem.fs" />
     <Compile Include="Authentication\Configuration.fs" />
     <Compile Include="Authentication\Encryption.fs" />
     <Compile Include="Authentication\CommonPasswords.fs" />
@@ -52,6 +58,7 @@
     <Compile Include="Authentication\AuthenticationSystem.fs" />
     <Compile Include="Remoting.fs" />
     <Compile Include="Application.fs" />
+    <Compile Include="Seedings.fs" />
     <Compile Include="Startup.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

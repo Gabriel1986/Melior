@@ -140,7 +140,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | AddressChanged newAddress ->
         changeOrganization (fun org -> { org with Address = newAddress }), Cmd.none
     | AddContactPerson ->
-        let componentState, componentCmd = ContactPersonEditComponent.init (ContactPerson.Init state.Organization.OrganizationId)
+        let componentState, componentCmd = ContactPersonEditComponent.init (ContactPerson.Init state.Organization.OrganizationId state.Organization.BuildingId)
         { state with ContactPersonModalState = Creating componentState }, componentCmd |> Cmd.map ContactPersonEditComponentMsg
     | EditContactPerson cp ->
         let componentState, componentCmd = ContactPersonEditComponent.init cp

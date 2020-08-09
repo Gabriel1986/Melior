@@ -4,8 +4,6 @@ open Elmish
 open Elmish.React
 open Fable.React
 open Fable.React.Props
-open Feliz
-open Feliz.ElmishComponents
 
 open Client.ClientStyle
 open Client.ClientStyle.Helpers

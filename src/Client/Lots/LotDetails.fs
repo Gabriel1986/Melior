@@ -104,11 +104,11 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
         match model.State with
         | Editing (_, componentState) ->
             match ValidatedLot.Validate componentState.Lot with
-            | Ok lot ->
+            | Ok _ ->
                 let cmd = 
                     Cmd.OfAsync.either
                         (Remoting.getRemotingApi().UpdateLot)
-                        lot
+                        componentState.Lot
                         (fun result -> result |> Result.map (fun _ -> componentState.Lot) |> ProcessUpdateResult)
                         RemotingError
                 { model with State = Editing (true, componentState) }, cmd
@@ -116,11 +116,11 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 { model with State = Editing (false, { componentState with Errors = e }) }, Cmd.none
         | Creating (_, componentState) ->
             match ValidatedLot.Validate componentState.Lot with
-            | Ok lot ->
+            | Ok _ ->
                 let cmd =
                     Cmd.OfAsync.either
                         (Remoting.getRemotingApi().CreateLot)
-                        lot
+                        componentState.Lot
                         (fun result -> result |> Result.map (fun _ -> componentState.Lot) |> ProcessCreateResult)
                         RemotingError
                 { model with State = Creating(true, componentState) }, cmd
@@ -141,7 +141,13 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
         | Error e ->
             match e with
             | CreateLotError.AuthorizationError ->
-                model, showErrorToastCmd "U heeft geen toestemming om deze kavel te updaten"
+                model, showErrorToastCmd "U heeft geen toestemming om een kavel aan te maken"
+            | CreateLotError.Validation errors ->
+                match model.State with
+                | Creating (_, componentState) ->
+                    { model with State = Creating (false, { componentState with Errors = errors }) }, Cmd.none
+                | _ ->
+                    model, Cmd.none
     | ProcessUpdateResult result ->
         match result with
         | Ok result ->
@@ -155,6 +161,12 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 model, showErrorToastCmd "U heeft geen toestemming om deze kavel te updaten"
             | UpdateLotError.NotFound ->
                 model, showErrorToastCmd "Het kavel werd niet gevonden in de databank"
+            | UpdateLotError.Validation errors ->
+                match model.State with
+                | Editing (_, componentState) ->
+                    { model with State = Editing (false, { componentState with Errors = errors }) }, Cmd.none
+                | _ ->
+                    model, Cmd.none
 
 let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with

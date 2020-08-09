@@ -35,7 +35,6 @@ and State =
     | OwnerNotFound
     | Saving
     | EditingPerson of PersonEditComponent.State
-    | SavingPerson of PersonEditComponent.State
 and ConciergeType =
     | Owner
     | NonOwner
@@ -52,9 +51,6 @@ type Message =
     | OwnerLoaded of Owner option
     | PersonEditComponentMsg of PersonEditComponent.Message
     | SavePerson
-    | PersonSaved
-    | CreatePersonError of CreatePersonError
-    | UpdatePersonError of UpdatePersonError
     | Dismiss
     | RemotingError of exn
     | OpenConciergeTypeSelection
@@ -135,51 +131,19 @@ let update (onConciergeChanged: Concierge -> unit) (onCanceled: unit -> unit) me
         match model.State with
         | EditingPerson componentState ->
             let newComponentState, newCmd = PersonEditComponent.update x componentState
-            { model with State = EditingPerson newComponentState }, newCmd |> Cmd.map PersonEditComponentMsg
-        | SavingPerson componentState ->
-            let newComponentState, newCmd = PersonEditComponent.update x componentState
-            { model with State = SavingPerson newComponentState }, newCmd |> Cmd.map PersonEditComponentMsg
+            { model with State = EditingPerson newComponentState }, newCmd |> Cmd.map PersonEditComponentMsg        
         | _ ->
             model, Cmd.none
     | SavePerson ->
         match model.State with
         | EditingPerson componentState ->
             match ValidatedPerson.Validate componentState.Person with
-            | Ok person ->
-                let cmd =
-                    match componentState.CreateOrUpdate with
-                    | Create -> 
-                        Cmd.OfAsync.either
-                            (Client.Remoting.getRemotingApi()).CreatePerson person
-                            (fun result -> match result with | Ok _ -> PersonSaved | Error e -> CreatePersonError e)
-                            RemotingError
-                    | Update ->
-                        Cmd.OfAsync.either
-                            (Client.Remoting.getRemotingApi()).UpdatePerson person
-                            (fun result -> match result with | Ok _ -> PersonSaved | Error e -> UpdatePersonError e)
-                            RemotingError     
-                { model with State = SavingPerson componentState }, cmd
+            | Ok _ ->
+                onConciergeChanged (Concierge.NonOwner componentState.Person)
+                model, Cmd.none
             | Error e ->
                 { model with State = EditingPerson { componentState with Errors = e } }, Cmd.none
         | _ ->
-            model, Cmd.none
-    | CreatePersonError e ->
-        match e with
-        | CreatePersonError.AuthorizationError ->
-            model, showErrorToastCmd "U heeft geen toestemming om een concierge aan te maken"
-    | UpdatePersonError e ->
-        match e with
-        | UpdatePersonError.AuthorizationError ->
-            model, showErrorToastCmd "U heeft geen toestemming om deze concierge te updaten"
-        | UpdatePersonError.NotFound ->
-            model, showErrorToastCmd "De concierge werd niet gevonden in de databank"
-    | PersonSaved ->
-        match model.State with
-        | SavingPerson componentState ->
-            onConciergeChanged (Concierge.NonOwner componentState.Person)
-            model, Cmd.none
-        | _ ->
-            //Should not occur?
             model, Cmd.none
     | Dismiss ->
         onCanceled()
@@ -234,7 +198,6 @@ let modalContent model dispatch =
         PersonEditComponent.view componentState (PersonEditComponentMsg >> dispatch)
     | OwnerNotFound ->
         div [] [ str "De eigenaar werd niet gevonden in de databank, vreemd genoeg..." ]
-    | SavingPerson _
     | Saving ->
         div [] [ str "Uw wijzigingen worden bewaard" ]
 

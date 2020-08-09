@@ -23,6 +23,11 @@ module ValidatedOtherAddress =
     let listToJson (validated: ValidatedOtherAddress list): string =
         validated |> List.map toOtherAddress |> OtherAddress.listToJson
 
+[<NoComparison; NoEquality>]
+type IPersonStorage =
+    abstract CreatePerson: ValidatedPerson -> Async<unit>
+    abstract UpdatePerson: ValidatedPerson -> Async<int>
+
 let paramsFor (validated: ValidatedPerson) =
     [
         "@PersonId"                  , Sql.uuid validated.PersonId
@@ -41,7 +46,7 @@ let paramsFor (validated: ValidatedPerson) =
         "@OtherContactMethods"       , Sql.jsonb (validated.OtherContactMethods |> ValidatedContactMethod.listToJson)
     ]
 
-let createQuery =
+let [<Literal>] createQuery =
     """
         INSERT INTO Persons (
             PersonId,
@@ -76,7 +81,7 @@ let createQuery =
         )
     """
 
-let updateQuery =
+let [<Literal>] updateQuery =
     """
         UPDATE Persons
         SET 
@@ -95,15 +100,32 @@ let updateQuery =
             OtherContactMethods = @OtherContactMethods
         WHERE PersonId = @PersonId
     """
-    
+
+let upsertQuery =
+    sprintf
+        """
+            %s
+            ON CONFLICT (persons_pkey) DO UPDATE
+            %s
+        """
+        createQuery
+        (updateQuery.[updateQuery.IndexOf("SET")..])
+
 let createPerson (connectionString: string) (validated: ValidatedPerson) =
     Sql.connect connectionString
     |> Sql.query createQuery
     |> Sql.parameters (paramsFor validated)
     |> Sql.writeAsync
+    |> Async.Ignore
 
 let updatePerson connectionString validated =
     Sql.connect connectionString
     |> Sql.query updateQuery
     |> Sql.parameters (paramsFor validated)
     |> Sql.writeAsync
+
+let makeStorage conn = {
+    new IPersonStorage with
+        member _.CreatePerson person = createPerson conn person 
+        member _.UpdatePerson person = updatePerson conn person
+}

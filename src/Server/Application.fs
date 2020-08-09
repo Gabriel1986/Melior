@@ -12,10 +12,7 @@ open Fable.Remoting.Giraffe
 open Serilog
 
 open Server.Remoting
-open Server.Media.HttpHandler
-open Server.AppSettings
 open Server.Blueprint.Behavior
-open Server.Authentication
 
 module Application =
     let errorHandler (ex: System.Exception) (routeInfo: RouteInfo<HttpContext>) =
@@ -28,19 +25,32 @@ module Application =
     let mustBeLoggedIn : HttpHandler =
         requiresAuthentication (challenge CookieAuthenticationDefaults.AuthenticationScheme) 
 
-    let build (config: IConfiguration) next ctx =
-        let appSettings = config.Get<AppSettings>()
-        let authenticationSystem = AuthenticationSystem.build appSettings
+    let createEnvironment (config: IConfiguration) =
+        let authenticationSystem = Authentication.AuthenticationSystem.build config
+        let mediaSystem = Media.MediaSystem.build config
+        let buildingSystem = Buildings.BuildingSystem.build config
+        let professionalSyndicSystem = ProfessionalSyndics.ProfessionalSyndicSystem.build config
+        let lotSystem = Lots.LotSystem.build config
+        let organizationSystem = Organizations.OrganizationSystem.build config
+        let ownerSystem = Owners.OwnerSystem.build config
 
-        let environment: IEnv = {
+        {
             new IEnv with
                 member _.AuthenticationSystem = authenticationSystem
+                member _.MediaSystem = mediaSystem
+                member _.BuildingSystem = buildingSystem
+                member _.ProfessionalSyndicSystem = professionalSyndicSystem
+                member _.LotSystem = lotSystem
+                member _.OrganizationSystem = organizationSystem
+                member _.OwnerSystem = ownerSystem
         }
 
+    let build (config: IConfiguration) next ctx =
+        let environment = createEnvironment config
+
         choose [
-            authenticationSystem.HttpHandler
+            environment.AuthenticationSystem.HttpHandler
             mustBeLoggedIn >=> choose [
-                mediaHandler config
                 route "/" >=> (fun next ctx -> 
                     #if DEBUG
                         //The webpack dev server will host the file -> go fetch
@@ -57,9 +67,12 @@ module Application =
                         htmlFile "main.html" next ctx
                     #endif
                 )
+                
+                environment.MediaSystem.HttpHandler
+
                 Remoting.createApi()
                 |> Remoting.withRouteBuilder Shared.Remoting.routeBuilder
-                |> Remoting.fromContext (meliorBff config environment)
+                |> Remoting.fromContext (meliorBff environment)
                 |> Remoting.withDiagnosticsLogger (printfn "%s")
                 |> Remoting.withErrorHandler (errorHandler)
                 |> Remoting.buildHttpHandler

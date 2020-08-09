@@ -4,12 +4,40 @@ open System
 open Microsoft.AspNetCore.Http
 
 module Library =
-    type Message<'T> = 
-        {
-            CreatedAt: DateTimeOffset
-            Context: HttpContext
-            Payload: 'T
+    [<RequireQualifiedAccess>]
+    module Option =
+        let either fIsSome fIsNone opt =
+            match opt with
+            | Some x -> fIsSome x
+            | None   -> fIsNone
+
+        let fromResult =
+            function
+            | Ok r -> Some r
+            | Error _ -> None
+
+    [<RequireQualifiedAccess>]
+    module Async =
+        let map f op = async {
+            let! x    = op
+            let value = f x
+            return value
         }
+
+        let lift x = async {
+            return x
+        }
+
+        let bind fx x = async {
+            let! y = x
+            return! fx y
+        }
+            
+    type Message<'T> = {
+        CreatedAt: DateTimeOffset
+        Context: HttpContext
+        Payload: 'T
+    }
 
     module Message =
         let map newPayload message = {
@@ -27,35 +55,3 @@ module Library =
             Path = path
             Message = message
         }
-
-    [<RequireQualifiedAccess>]
-    module Option =
-        let either fIsSome fIsNone opt =
-            match opt with
-            | Some x -> fIsSome x
-            | None   -> fIsNone
-
-        let fromResult =
-            function
-            | Ok r -> Some r
-            | Error _ -> None
-
-    module Async =
-        let map f op = async {
-            let! x    = op
-            let value = f x
-            return value
-        }
-
-        let lift x = async {
-            return x
-        }
-
-        let bind fx x = async {
-            let! y = x
-            return! fx y
-        }
-
-    type System.Security.Claims.ClaimsPrincipal with
-        member me.FindFirstValue (ofType: string) =
-            me.FindFirst(ofType).Value

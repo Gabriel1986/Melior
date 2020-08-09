@@ -3,25 +3,25 @@
 open System
 open System.Security.Claims
 open System.Text.RegularExpressions
+open System.IdentityModel.Tokens.Jwt
 open Microsoft.AspNetCore.Authentication
 open Microsoft.AspNetCore.Authentication.Cookies
-open Microsoft.Extensions.Configuration
 open Microsoft.AspNetCore.Http
 open FSharp.Data
 open FSharp.Control.Tasks.V2
 open Giraffe
 open Giraffe.Antiforgery
 open Giraffe.GiraffeViewEngine
+open Google.Authenticator
+open Serilog
 
 open Shared.Read
 open Server.AppSettings
-open System.IdentityModel.Tokens.Jwt
-open Serilog
-open Microsoft.IdentityModel.Tokens
-open Pages
-open Google.Authenticator
 open Server.Blueprint.Behavior.Authentication
 open Server.Blueprint.Data.Authentication
+open Server.LibraryExtensions
+open Pages
+open Server.Library
 
 let [<Literal>] googleRecaptchaResponseExample =
     """
@@ -67,12 +67,23 @@ type TwoFacLoginForm = {
     VerificationCode: string
 }
 
-let usernamePasswordTokenValidity = TimeSpan.FromMinutes(15.0)
-let resetPasswordTokenValidity = TimeSpan.FromHours(1.0)
-let sharedSecretCache = FSharp.Data.Runtime.Caching.createInMemoryCache (usernamePasswordTokenValidity)
+type TwoFacRecoveryForm = {
+    RecoveryCode: string
+}
 
-let createAuthenticationHandler (system: IAuthenticationSystem) (settings: AppSettings): HttpHandler =
+let private usernamePasswordTokenValidity = TimeSpan.FromMinutes(15.0)
+let private resetPasswordTokenValidity = TimeSpan.FromHours(1.0)
+let private sharedSecretCache = FSharp.Data.Runtime.Caching.createInMemoryCache (usernamePasswordTokenValidity)
+
+let createAuthenticationHandler (settings: AppSettings) (system: IAuthenticationSystem): HttpHandler =
     let loginAuthSchema = CookieAuthenticationDefaults.AuthenticationScheme
+    let toClaimsPrincipal = User.ToClaimsPrincipal loginAuthSchema
+
+    let createMessage (ctx: HttpContext) (payload: 'T): Message<'T> = {
+        CreatedAt = DateTimeOffset.UtcNow
+        Context = ctx
+        Payload = payload
+    }
 
     let googleRecaptchSubmitButton btnText =
         div [] [
@@ -94,16 +105,6 @@ let createAuthenticationHandler (system: IAuthenticationSystem) (settings: AppSe
                 attr "data-action" "submit"
             ] [ str btnText ]
         ]
-   
-    let toClaimsPrincipal (user: User) =
-        let claims = [
-            yield  new Claim(JwtRegisteredClaimNames.Sub, string user.UserId)
-            yield  new Claim(JwtRegisteredClaimNames.Email, user.EmailAddress)
-            yield  new Claim(JwtRegisteredClaimNames.GivenName, user.DisplayName)
-            yield! user.Roles |> List.map (fun role -> new Claim("role", string role))
-        ]
-        let identity = ClaimsIdentity(claims, loginAuthSchema)
-        ClaimsPrincipal(identity)
 
     let requiresRecaptchaToken (invalidTokenHandler: HttpHandler) = (fun nxt (ctx: HttpContext) -> 
         task {
@@ -158,7 +159,10 @@ let createAuthenticationHandler (system: IAuthenticationSystem) (settings: AppSe
                         ]
                         match validationErrors with
                         | [] -> 
-                            let! user = system.FindUserByEmailAddress (subject.FindFirstValue(JwtRegisteredClaimNames.Sub))
+                            let! user =
+                                (subject.FindFirstValue(JwtRegisteredClaimNames.Sub))
+                                |> createMessage ctx
+                                |> system.FindUserByEmailAddress
                             match user with
                             | None ->
                                 return! csrfHtmlView (changePasswordPage googleRecaptchSubmitButton [ "Er werd geen gebruiker gevonden voor het opgegeven e-mail adres" ]) nxt ctx
@@ -188,7 +192,10 @@ let createAuthenticationHandler (system: IAuthenticationSystem) (settings: AppSe
                 >=> requiresRecaptchaToken (csrfHtmlView (loginPage googleRecaptchSubmitButton [ "Google recaptcha is niet geldig" ]))
                 >=> (fun nxt ctx -> task {
                     let! loginParams = ctx.BindFormAsync<LoginForm>()
-                    let! authenticatedUserResult = system.AuthenticateUser (loginParams.UserName, loginParams.Password)
+                    let! authenticatedUserResult = 
+                        (loginParams.UserName, loginParams.Password)
+                        |> createMessage ctx
+                        |> system.AuthenticateUser 
 
                     match authenticatedUserResult with
                     | Ok authenticatedUser ->
@@ -222,7 +229,12 @@ let createAuthenticationHandler (system: IAuthenticationSystem) (settings: AppSe
                     | "UseTwoFac" ->
                         return! redirectTo false (sprintf "/authentication/enable2fac?Token=%s" requestParams.Token) nxt ctx
                     | _ ->
-                        match! system.GetUser (identity.FindFirstValue (JwtRegisteredClaimNames.Sub) |> Guid.Parse) with
+                        let! user =
+                            identity.FindFirstValue (JwtRegisteredClaimNames.Sub) 
+                            |> Guid.Parse
+                            |> createMessage ctx
+                            |> system.GetUser
+                        match user with
                         | Some currentUser ->
                             let claimsPrincipal = toClaimsPrincipal currentUser
                             do! ctx.SignInAsync(loginAuthSchema, claimsPrincipal)
@@ -269,13 +281,17 @@ let createAuthenticationHandler (system: IAuthenticationSystem) (settings: AppSe
                     let (secret, recoveryCodes): string * string list = defaultArg (sharedSecretCache.TryRetrieve(requestParams.Token)) ("", [])
                     match tfa.ValidateTwoFactorPIN(secret, postParams.VerificationCode, TimeSpan.FromMinutes(3.0)) with
                     | true ->
-                        match! system.GetUser (identity.FindFirstValue (JwtRegisteredClaimNames.Sub) |> Guid.Parse) with
+                        let! user =
+                            identity.FindFirstValue (JwtRegisteredClaimNames.Sub) 
+                            |> Guid.Parse
+                            |> createMessage ctx
+                            |> system.GetUser
+                        match user with
                         | Some currentUser ->
                             let updateTwoFac = {
                                 UserId = currentUser.UserId
                                 UseTwoFac = true
                                 TwoFacSecret = secret
-                                EmailAddress = currentUser.EmailAddress
                                 RecoveryCodes = recoveryCodes
                             }
                             do! system.UpdateTwoFacAuthentication updateTwoFac
@@ -312,9 +328,9 @@ let createAuthenticationHandler (system: IAuthenticationSystem) (settings: AppSe
                     else
                         match identity.FindFirstValue("use2fac") with
                         | x when x = "1" ->
-                            return! csrfHtmlView (twoFacPage []) nxt ctx
+                            return! csrfHtmlView (twoFacPage [] requestParams.Token) nxt ctx
                         | _ ->
-                            return! redirectTo false (sprintf "/authentication/recommend2fac?token=%s" requestParams.Token) nxt ctx
+                            return! redirectTo false (sprintf "/authentication/recommend2fac?Token=%s" requestParams.Token) nxt ctx
                 | None   -> 
                     return! htmlView usernamePasswordTokenExpiredPage nxt ctx
             })
@@ -325,8 +341,12 @@ let createAuthenticationHandler (system: IAuthenticationSystem) (settings: AppSe
                     let requestParams = ctx.BindQueryString<TokenRequestParams>()
                     match system.ValidateUsernamePasswordToken requestParams.Token with
                     | Some identity ->
-                        let userId = identity.FindFirstValue (JwtRegisteredClaimNames.Sub) |> Guid.Parse
-                        match! system.GetUser userId with
+                        let! user =
+                            identity.FindFirstValue (JwtRegisteredClaimNames.Sub) 
+                            |> Guid.Parse
+                            |> createMessage ctx
+                            |> system.GetUser
+                        match user with
                         | Some currentUser ->
                             match! system.ValidateTwoFactorPIN(currentUser.UserId, postParams.VerificationCode) with
                             | true ->
@@ -335,12 +355,60 @@ let createAuthenticationHandler (system: IAuthenticationSystem) (settings: AppSe
                                 do! ctx.SignInAsync(loginAuthSchema, claimsPrincipal)
                                 return! redirectTo false "/" nxt ctx
                             | false ->
-                                do! system.AddFailedTwoFacAttempt { UserId = userId; Timestamp = DateTimeOffset.UtcNow }
-                                let! nbAttempts = system.GetNbFailedTwoFacAttempts (userId, DateTimeOffset.UtcNow.Subtract(TimeSpan.FromMinutes(15.0)))
+                                do! system.AddFailedTwoFacAttempt { UserId = currentUser.UserId; Timestamp = DateTimeOffset.UtcNow }
+                                let! nbAttempts = system.GetNbFailedTwoFacAttempts (currentUser.UserId, DateTimeOffset.UtcNow.Subtract(TimeSpan.FromMinutes(15.0)))
                                 if nbAttempts > 5 then
                                     return! htmlView tooManyFailedTwoFacAttempts nxt ctx
                                 else
-                                    return! csrfHtmlView (twoFacPage [ "De ingegeven code was niet geldig. Gelieve opnieuw te proberen." ]) nxt ctx
+                                    return! csrfHtmlView (twoFacPage [ "De ingegeven code was niet geldig. Gelieve opnieuw te proberen." ] requestParams.Token) nxt ctx
+                        | None ->
+                            //This should never occur really... But meh :)
+                            return! htmlView usernamePasswordTokenExpiredPage nxt ctx
+                    | None ->
+                        return! htmlView usernamePasswordTokenExpiredPage nxt ctx                        
+                })
+        ]
+        routeCi "/authentication/enter2facRecoveryCode" >=> choose [
+            GET >=> (fun nxt ctx -> task {
+                let requestParams = ctx.BindQueryString<TokenRequestParams>()
+                match system.ValidateUsernamePasswordToken requestParams.Token with 
+                | Some identity ->
+                    let! nbAttempts = system.GetNbFailedTwoFacAttempts (identity.FindFirstValue(JwtRegisteredClaimNames.Sub) |> Guid.Parse, DateTimeOffset.UtcNow.Subtract(TimeSpan.FromMinutes(15.0)))
+                    if nbAttempts > 5 then
+                        return! htmlView tooManyFailedTwoFacAttempts nxt ctx
+                    else
+                        return! csrfHtmlView (twoFacRecoveryCodePage [] requestParams.Token) nxt ctx
+                | None ->
+                    return! htmlView usernamePasswordTokenExpiredPage nxt ctx
+            })
+            POST 
+                >=> requiresCsrfToken (text "CSRF token validation failed...")
+                >=> (fun nxt ctx -> task {
+                    let! postParams = ctx.BindFormAsync<TwoFacRecoveryForm>()
+                    let requestParams = ctx.BindQueryString<TokenRequestParams>()
+                    match system.ValidateUsernamePasswordToken requestParams.Token with
+                    | Some identity ->
+                        let! user = 
+                            identity.FindFirstValue (JwtRegisteredClaimNames.Sub) 
+                            |> Guid.Parse
+                            |> createMessage ctx
+                            |> system.GetUser
+                        match user with
+                        | Some currentUser ->
+                            match! system.ValidateRecoveryCode(currentUser.UserId, postParams.RecoveryCode) with
+                            | true ->
+                                do! system.RemoveUsedRecoveryCode(currentUser.UserId, postParams.RecoveryCode)
+                                let claimsPrincipal = toClaimsPrincipal currentUser
+                                //TODO: double check if everything works properly.
+                                do! ctx.SignInAsync(loginAuthSchema, claimsPrincipal)
+                                return! redirectTo false "/" nxt ctx
+                            | false ->
+                                do! system.AddFailedTwoFacAttempt { UserId = currentUser.UserId; Timestamp = DateTimeOffset.UtcNow }
+                                let! nbAttempts = system.GetNbFailedTwoFacAttempts (currentUser.UserId, DateTimeOffset.UtcNow.Subtract(TimeSpan.FromMinutes(15.0)))
+                                if nbAttempts > 5 then
+                                    return! htmlView tooManyFailedTwoFacAttempts nxt ctx
+                                else
+                                    return! csrfHtmlView (twoFacPage [ "De ingegeven code was niet geldig. Gelieve opnieuw te proberen." ] requestParams.Token) nxt ctx
                         | None ->
                             //This should never occur really... But meh :)
                             return! htmlView usernamePasswordTokenExpiredPage nxt ctx

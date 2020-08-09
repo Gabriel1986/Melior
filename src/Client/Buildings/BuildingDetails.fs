@@ -114,11 +114,11 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
         match model.State with
         | Editing (_, componentState) ->
             match ValidatedBuilding.Validate componentState.Building with
-            | Ok building ->
+            | Ok _ ->
                 let cmd = 
                     Cmd.OfAsync.either
                         (Remoting.getRemotingApi().UpdateBuilding)
-                        building
+                        componentState.Building
                         (fun result -> result |> Result.map (fun _ -> componentState.Building) |> ProcessUpdateResult)
                         RemotingError
                 { model with State = Editing (true, componentState) }, cmd
@@ -127,11 +127,11 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 { model with State = Editing (false, { componentState with Errors = e }) }, Cmd.none
         | Creating (_, componentState) ->
             match ValidatedBuilding.Validate componentState.Building with
-            | Ok building ->
+            | Ok _ ->
                 let cmd =
                     Cmd.OfAsync.either
                         (Remoting.getRemotingApi().CreateBuilding)
-                        building
+                        componentState.Building
                         (fun result -> result |> Result.map (fun _ -> componentState.Building) |> ProcessCreateResult)
                         RemotingError
                 { model with State = Creating(true, componentState) }, cmd
@@ -153,6 +153,12 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             match e with
             | CreateBuildingError.AuthorizationError ->
                 model, showErrorToastCmd "U hebt geen toestemming om een gebouw aan te maken"
+            | CreateBuildingError.Validation errors ->
+                match model.State with
+                | Creating (_, componentState) ->
+                    { model with State = Creating (false, { componentState with Errors = errors }) }, Cmd.none
+                | _ ->
+                    model, Cmd.none
 
     | ProcessUpdateResult result ->
         match result with
@@ -167,6 +173,12 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 model, showErrorToastCmd "U heeft geen toestemming om dit gebouw te updaten"
             | UpdateBuildingError.NotFound ->
                 model, showErrorToastCmd "Het gebouw werd niet gevonden in de databank"
+            | UpdateBuildingError.Validation errors ->
+                match model.State with
+                | Editing (_, componentState) ->
+                    { model with State = Creating (false, { componentState with Errors = errors }) }, Cmd.none
+                | _ ->
+                    model, Cmd.none
 
     | ChangeSyndic ->
         { model with ShowingSyndicModal = true }, Cmd.none
@@ -179,7 +191,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             let cmd = 
                 Cmd.OfAsync.attempt
                     (Remoting.getRemotingApi().UpdateBuildingSyndic)
-                    (state.BuildingId, newSyndic |> Option.map mapSyndicToSyndicId)
+                    (state.BuildingId, newSyndic |> Option.map mapSyndicReadToWrite)
                     (fun e -> RemotingError e)
             { model with ShowingSyndicModal = false; State = newState }, cmd
         | _ ->
@@ -195,7 +207,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             let cmd =
                 Cmd.OfAsync.attempt
                     (Remoting.getRemotingApi().UpdateBuildingConcierge)
-                    (state.BuildingId, newConcierge |> Option.map mapConciergeToConciergeId)
+                    (state.BuildingId, newConcierge |> Option.map mapConciergeReadToWrite)
                     (fun e -> RemotingError e)
             { model with ShowingConciergeModal = false; State = newState }, cmd
         | _ ->

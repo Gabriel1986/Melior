@@ -1,7 +1,7 @@
 ﻿module Shared.ConstrainedTypes
 
 open System
-open Shared
+open Shared.Trial
 
 let private validateStringOfLength path (length: int) (s: string) =
     if String.IsNullOrEmpty (s)

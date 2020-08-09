@@ -36,7 +36,7 @@ type Msg =
     | RemotingError of exn
     | Loaded of listItems: LotListItem list * selectedListItemId: Guid option
     | RemoveListItem of LotListItem
-    | ListItemRemoved of Result<LotListItem, AuthorizationError>
+    | ListItemRemoved of Result<LotListItem, DeleteLotError>
     | Created of Lot
     | Edited of Lot
 
@@ -150,7 +150,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let cmd =
             Cmd.OfAsync.either
                 (Remoting.getRemotingApi().DeleteLot)
-                lot.LotId
+                (lot.BuildingId, lot.LotId)
                 (fun r -> r |> Result.map (fun _ -> lot) |> ListItemRemoved)
                 RemotingError
 
@@ -164,8 +164,11 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | ListItemRemoved result ->
         match result with
         | Ok _ -> state, Cmd.none
-        | Error AuthorizationError.AuthorizationError ->
+        | Error DeleteLotError.AuthorizationError ->
             state, showErrorToastCmd "U heeft niet genoeg rechten om een kavel te verwijderen"
+        | Error DeleteLotError.NotFound ->
+            printf "The lot that was being deleted was not found in the DB... Somehow..."
+            state, Cmd.none
     | RemotingError e ->
         state, showGenericErrorModalCmd e
     | Created lot ->

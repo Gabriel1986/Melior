@@ -3,6 +3,7 @@
 open System
 open Npgsql.FSharp
 open Server.PostgreSQL
+open Shared.Read
 open Shared.Write
 open Server.Addresses.Workflow
 open Server.ContactMethods.Workflow
@@ -12,6 +13,18 @@ let private paramsForContactPerson (validated: ValidatedContactPerson) = [
     "@OrganizationId"        , Sql.uuid   validated.OrganizationId
     "@RoleWithinOrganization", Sql.string (string validated.RoleWithinOrganization)
 ]
+
+[<NoComparison; NoEquality>]
+type IOrganizationStorage =
+    abstract CreateContactPerson: ValidatedContactPerson -> Async<unit>
+    abstract UpdateContactPerson: ValidatedContactPerson -> Async<int>
+    abstract DeleteContactPerson: BuildingId option * contactPersonId: Guid  -> Async<int>
+    abstract CreateOrganization: ValidatedOrganization -> Async<unit>
+    abstract UpdateOrganization: ValidatedOrganization -> Async<int>
+    abstract DeleteOrganization: BuildingId option * organizationId: Guid  -> Async<int>
+    abstract CreateOrganizationType: ValidatedOrganizationType -> Async<unit>
+    abstract UpdateOrganizationType: ValidatedOrganizationType -> Async<int>
+    abstract DeleteOrganizationType: organizationTypeId: Guid  -> Async<int>
 
 let createContactPerson (connectionString: string) (validated: ValidatedContactPerson) =
     Sql.connect connectionString
@@ -31,6 +44,7 @@ let createContactPerson (connectionString: string) (validated: ValidatedContactP
             )
         """, paramsForContactPerson validated
     ]
+    |> Async.Ignore
 
 let updateContactPerson (connectionString: string) (validated: ValidatedContactPerson) =
     Sql.connect connectionString
@@ -44,16 +58,22 @@ let updateContactPerson (connectionString: string) (validated: ValidatedContactP
             WHERE PersonId = @PersonId
         """, paramsForContactPerson validated
     ]
+    |> Async.map (List.skip 1 >> List.tryHead >> Option.defaultValue 0)
 
-let deleteContactPerson connectionString lotId =
+let deleteContactPerson connectionString (buildingId, personId) =
     Sql.connect connectionString
     |> Sql.query
         """
-            UPDATE ContactPersons
+            UPDATE cp
             SET IsActive = FALSE
-            WHERE PersonId = @PersonId
+            FROM ContactPersons cp
+            LEFT JOIN Organizations o on cp.OrganizationId = o.OrganizationId
+            WHERE PersonId = @PersonId AND p.BuildingId = @BuildingId
         """
-    |> Sql.parameters [ "@PersonId" , Sql.uuid lotId ]
+    |> Sql.parameters [ 
+        "@PersonId" , Sql.uuid personId
+        "@BuildingId", Sql.uuidOrNone buildingId
+    ]
     |> Sql.writeAsync
 
 let createQuery =
@@ -124,6 +144,7 @@ let createOrganization (connectionString: string) (validated: ValidatedOrganizat
     |> Sql.query createQuery
     |> Sql.parameters (paramsFor validated)
     |> Sql.writeAsync
+    |> Async.Ignore
 
 let updateOrganization (connectionString: string) (validated: ValidatedOrganization) =
     Sql.connect connectionString
@@ -131,15 +152,18 @@ let updateOrganization (connectionString: string) (validated: ValidatedOrganizat
     |> Sql.parameters (paramsFor validated)
     |> Sql.writeAsync
 
-let deleteOrganization connectionString orgId =
+let deleteOrganization connectionString (buildingId, orgId) =
     Sql.connect connectionString
     |> Sql.query
         """
             UPDATE Organizations 
             SET IsActive = FALSE
-            WHERE OrganizationId = @OrganizationId
+            WHERE OrganizationId = @OrganizationId AND BuildingId = @BuildingId
         """
-    |> Sql.parameters [ "@OrganizationId", Sql.uuid orgId ]
+    |> Sql.parameters [ 
+        "@OrganizationId", Sql.uuid orgId 
+        "@BuildingId", Sql.uuidOrNone buildingId
+    ]
     |> Sql.writeAsync
 
 let private createOrganizationTypeQuery =
@@ -165,7 +189,7 @@ let createOrganizationType (connectionString) (validated: ValidatedOrganizationT
     |> Sql.query createOrganizationTypeQuery
     |> Sql.parameters (paramsForOrganizationType validated)
     |> Sql.writeAsync
-    |> Async.map (fun r -> Query.clearCache(); r)
+    |> Async.map (fun _ -> Query.clearCache(); ())
 
 let updateOrganizationType (connectionString) (validated: ValidatedOrganizationType) =
     Sql.connect connectionString
@@ -182,4 +206,17 @@ let deleteOrganizationType (connectionString) (orgTypeId: Guid) =
         "DELETE FROM OrganizationTypes WHERE OrganizationTypeId = @OrganizationTypeId",
             [ "@OrganizationTypeId", Sql.uuid orgTypeId ]
     ]
-    |> Async.map (fun r -> Query.clearCache(); r)
+    |> Async.map (fun r -> Query.clearCache(); r |> List.skip 1 |> List.tryHead |> Option.defaultValue 0)
+
+let makeStorage conn = {
+    new IOrganizationStorage with
+        member _.CreateContactPerson cp = createContactPerson conn cp
+        member _.UpdateContactPerson cp = updateContactPerson conn cp
+        member _.DeleteContactPerson (buildingId, cpId) = deleteContactPerson conn (buildingId, cpId)
+        member _.CreateOrganization org = createOrganization conn org
+        member _.UpdateOrganization org = updateOrganization conn org
+        member _.DeleteOrganization (buildingId, orgId) = deleteOrganization conn (buildingId, orgId)
+        member _.CreateOrganizationType orgType = createOrganizationType conn orgType
+        member _.UpdateOrganizationType orgType = updateOrganizationType conn orgType
+        member _.DeleteOrganizationType orgTypeId = deleteOrganizationType conn orgTypeId
+}

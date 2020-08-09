@@ -41,7 +41,7 @@ let writeBatchAsync queries props =
     |> Async.map (
         function
         | Ok numberOfRowsList ->
-            ()
+            numberOfRowsList
         | Error e ->
             raise e
     )
@@ -51,7 +51,7 @@ let writeAsync props =
     |> Async.map (
         function
         | Ok numberOfRows -> 
-            ()
+            numberOfRows
         | Error e ->
             raise e
     )

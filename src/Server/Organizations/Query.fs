@@ -64,12 +64,14 @@ module private Readers =
 
     type ContactPersonDbModel = {
         OrganizationId: Guid
+        BuildingId: Guid option
         PersonId: Guid
         RoleWithinOrganization: string
     }
 
     let readContactPerson (reader: CaseInsensitiveRowReader): ContactPersonDbModel = {
         OrganizationId = reader.uuid "OrganizationId"
+        BuildingId = reader.uuidOrNone "BuildingId"
         PersonId = reader.uuid "PersonId"
         RoleWithinOrganization = reader.string "RoleWithinOrganization"
     }
@@ -81,11 +83,13 @@ let getContactPersonsForOrganization (connectionString: string) (organizationId:
         |> Sql.query
             """
                 SELECT 
-                    OrganizationId,
-                    PersonId,
-                    RoleWithinOrganization
-                FROM OrganizationContactPersons
-                WHERE OrganizationId = @OrganizationId
+                    cp.OrganizationId,
+                    o.BuildingId,
+                    cp.PersonId,
+                    cp.RoleWithinOrganization
+                FROM ContactPersons cp
+                LEFT JOIN Organizations o on o.OrganizationId = cp.OrganizationId
+                WHERE cp.OrganizationId = @OrganizationId
             """
         |> Sql.parameters [ "@OrganizationId", Sql.uuid organizationId ]
         |> Sql.read readContactPerson
@@ -96,8 +100,9 @@ let getContactPersonsForOrganization (connectionString: string) (organizationId:
     return
         contactPersons |> List.map (fun cp -> {
             //Referential constraint makes it so there will ALWAYS be a person for every contact person.
-            Person = persons |> List.find (fun p -> cp.PersonId = p.PersonId) 
+            Person = persons |> List.find (fun p -> cp.PersonId = p.PersonId)
             OrganizationId = cp.OrganizationId
+            BuildingId = cp.BuildingId
             RoleWithinOrganization = cp.RoleWithinOrganization 
         })
 }

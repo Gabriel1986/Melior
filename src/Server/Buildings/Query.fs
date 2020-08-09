@@ -62,10 +62,10 @@ module private Internals =
         OrganizationNumber = reader.stringOrNone "OrganizationNumber"
     }
 
-let private forceAddress str =
-    match Address.fromJson str with
-    | Ok addr -> addr
-    | Error _ -> Address.Init
+    let forceAddress str =
+        match Address.fromJson str with
+        | Ok addr -> addr
+        | Error _ -> Address.Init
 
 let getBuilding connectionString (buildingId: Guid): Async<Building option> = async {
     let! result =
@@ -141,9 +141,7 @@ let getBuilding connectionString (buildingId: Guid): Async<Building option> = as
         return None
 }
 
-
-
-let getBuildings connectionString (): Async<BuildingListItem list> = async {
+let getAllBuildings connectionString (): Async<BuildingListItem list> = async {
     let! results =
         Sql.connect connectionString
         |> Sql.query
@@ -158,6 +156,32 @@ let getBuildings connectionString (): Async<BuildingListItem list> = async {
                 WHERE IsActive = TRUE
             """
         |> Sql.parameters []
+        |> Sql.read readBuildingListItem
+
+    return results |> List.map (fun dbModel -> {
+        BuildingId = dbModel.BuildingId
+        Code = dbModel.Code
+        Name = dbModel.Name
+        Address = dbModel.Address |> forceAddress
+        OrganizationNumber = dbModel.OrganizationNumber
+    })
+}
+
+let getBuildingsByIds connectionString buildingIds: Async<BuildingListItem list> = async {
+    let! results =
+        Sql.connect connectionString
+        |> Sql.query
+            """
+                SELECT
+                    BuildingId,
+                    Code,
+                    Name,
+                    Address,
+                    OrganizationNumber
+                FROM Buildings
+                WHERE IsActive = TRUE AND BuildingId in @BuildingIds
+            """
+        |> Sql.parameters [ "@BuildingIds", Sql.uuidArray (buildingIds |> List.toArray) ]
         |> Sql.read readBuildingListItem
 
     return results |> List.map (fun dbModel -> {

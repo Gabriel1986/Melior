@@ -1,8 +1,16 @@
 ﻿module Server.Lots.Storage
 
+open System
 open Npgsql.FSharp
 open Server.PostgreSQL
+open Shared.Read
 open Shared.Write
+
+[<NoComparison; NoEquality>]
+type ILotStorage =
+    abstract CreateLot: ValidatedLot -> Async<unit>
+    abstract UpdateLot: ValidatedLot -> Async<int>
+    abstract DeleteLot: BuildingId * lotId: Guid  -> Async<int>
 
 let private paramsFor (validated: ValidatedLot) =
     [
@@ -44,6 +52,7 @@ let createLot (connectionString: string) (validated: ValidatedLot) =
         """
     |> Sql.parameters (paramsFor validated)
     |> Sql.writeAsync
+    |> Async.Ignore
 
 let updateLot (connectionString: string) (validated: ValidatedLot) =
     Sql.connect connectionString
@@ -62,15 +71,24 @@ let updateLot (connectionString: string) (validated: ValidatedLot) =
     |> Sql.parameters (paramsFor validated)
     |> Sql.writeAsync
 
-let deleteLot connectionString lotId =
+let deleteLot connectionString (buildingId, lotId) =
     Sql.connect connectionString
     |> Sql.query
         """
             UPDATE Lots 
             SET IsActive = FALSE
             WHERE LotId = @LotId
+            AND BuildingId = @BuildingId
         """
     |> Sql.parameters [
             "@LotId", Sql.uuid lotId
+            "@BuildingId", Sql.uuid buildingId
         ]
     |> Sql.writeAsync    
+
+let makeStorage conn = {
+    new ILotStorage with
+        member _.CreateLot lot = createLot conn lot
+        member _.UpdateLot lot = updateLot conn lot
+        member _.DeleteLot (buildingId, lotId) = deleteLot conn (buildingId, lotId)
+}
