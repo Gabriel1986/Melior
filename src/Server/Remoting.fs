@@ -113,4 +113,23 @@
             DeleteOrganizationType = fun orgTypeId ->
                 createMsg orgTypeId
                 |> environment.OrganizationSystem.DeleteOrganizationType
+
+            GetContractTypeAnswers = fun filter ->
+                createMsg {| BuildingId = filter.BuildingId |}
+                |> environment.ContractSystem.GetContractTypeAnswers
+            SaveContractTypeAnswer = fun arg ->
+                createMsg arg
+                |> environment.ContractSystem.SaveContractTypeAnswer
+            GetContracts = fun filter ->
+                createMsg {| BuildingId = filter.BuildingId |}
+                |> environment.ContractSystem.GetContracts
+            CreateContract = fun arg ->
+                createMsg arg
+                |> environment.ContractSystem.CreateContract
+            UpdateContract = fun arg ->
+                createMsg arg
+                |> environment.ContractSystem.UpdateContract
+            DeleteContract = fun (buildingId, contractId) ->
+                createMsg (buildingId, contractId)
+                |> environment.ContractSystem.DeleteContract
         }

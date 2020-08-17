@@ -20,8 +20,17 @@ open Server.Blueprint.Behavior.Media
 [<AutoOpen>]
 module private Internals =
     let createAmazonS3ServiceClient (config: IConfiguration) =
-        let config = config.GetAWSOptions()
-        config.CreateServiceClient<IAmazonS3>()
+#if DEBUG
+        let awsConfig = new Amazon.S3.AmazonS3Config()
+        awsConfig.ServiceURL <- "http://localhost:4572"
+        awsConfig.UseHttp <- true
+        awsConfig.ForcePathStyle <- true //Can't set this using the GetAWSOptions... Needed to do this manually for development....
+        new AmazonS3Client (awsConfig) :> IAmazonS3
+#else
+        let awsConfig = config.GetAWSOptions()
+        let serviceClient = awsConfig.CreateServiceClient<IAmazonS3>()
+        serviceClient
+#endif
 
     let createMessage (ctx: HttpContext) (data: 'T) : Message<'T> = { 
         Context = ctx

@@ -83,7 +83,7 @@ let private convertDbModelToDetail (dbModel: PersonDbModel): Person =
         MainTelephoneNumber = dbModel.MainTelephoneNumber
         MainTelephoneNumberComment = dbModel.MainTelephoneNumberComment
         MainEmailAddress = dbModel.MainEmailAddress
-        MainEmailAddressComment = dbModel.MainTelephoneNumberComment
+        MainEmailAddressComment = dbModel.MainEmailAddressComment
         OtherContactMethods = otherContactMethods
     }
 

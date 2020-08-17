@@ -10,7 +10,7 @@ open Server.Blueprint.Behavior.ProfessionalSyndics
 
 let build (config: IConfiguration) =
     let settings = config.Get<AppSettings>()
-    let conn = settings.Database.ConnectionString
+    let conn = settings.Database.Connection
     let changePasswordSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(settings.Authentication.ChangePasswordSigningKey))
     let usernamePasswordSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(settings.Authentication.UsernamePasswordSigningKey))
     let twoFacPassword = settings.Authentication.TwoFacPassword

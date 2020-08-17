@@ -28,7 +28,6 @@ module Client =
     importAll "./public/styles/bootstrap.min.css"
     importAll "./public/styles/fontawesome.all.min.css"
     importAll "./public/styles/flatpickr.css"
-    importAll "./public/styles/b4vtabs.min.css"
 
     type ClientState =
         | Initializing
@@ -39,18 +38,22 @@ module Client =
         CurrentBuilding: BuildingListItem option
         CurrentPage: Page
         CurrentState: PageState option
+        SidebarIsOpen: bool
+        AdminModeEnabled: bool
     }
     and PageState =
         | BuildingPageState of BuildingsPage.State
     type ClientMessage =
         | CurrentUserFetched of User
-        | StartApplication of User * BuildingListItem option
+        | StartApplication of User * BuildingListItem option * adminModeEnabled: bool
         | StopApplication of exn
         | PageNotFound
         | ChangePage of Routing.Page
         | CurrentBuildingChanged of BuildingListItem
+        | AdminModeChanged of bool
         | ChangeCurrentBuildingAndPage of BuildingListItem * Routing.Page
         | BuildingPageMsg of BuildingsPage.Msg
+        | SetSidebarDocked of bool
 
     let init () =
         let cmd =
@@ -75,6 +78,10 @@ module Client =
         Browser.WebStorage.localStorage.setItem("currentBuilding", currentBuildingStr)
         { running with CurrentBuilding = Some newBuilding }
 
+    let private setAdminMode (running: RunningState) (adminModeEnabled: bool) =
+        Browser.WebStorage.localStorage.setItem("adminModeEnabled", string adminModeEnabled)
+        Running { running with AdminModeEnabled = adminModeEnabled }, Cmd.ofMsg (ChangePage Page.Portal)
+
     let private initializeBuildingsPage props =
         let s, cmd = BuildingsPage.init props
         s |> BuildingPageState |> Some, cmd |> Cmd.map BuildingPageMsg |> Some
@@ -90,13 +97,13 @@ module Client =
         match message with
         | CurrentUserFetched currentUser ->
             let newCmd = 
-                match Library.getCachedCurrentBuilding currentUser with
-                | Some currentBuilding -> 
-                    Cmd.ofMsg (StartApplication (currentUser, Some currentBuilding))
-                | None ->
+                match Library.getCachedSettings currentUser with
+                | (Some currentBuilding, adminModeEnabled) -> 
+                    Cmd.ofMsg (StartApplication (currentUser, Some currentBuilding, adminModeEnabled))
+                | (None, adminModeEnabled) ->
                     match currentUser.Roles with
                     | [] ->
-                        Cmd.ofMsg (StopApplication (exn "U heeft geen rollen binnen de applicatie..."))
+                        Cmd.ofMsg (StopApplication (exn "U heeft geen toegang tot de applicatie..."))
                     | roles ->
                         match roles |> List.tryPick getFirstBuildingId with
                         | Some buildingId -> 
@@ -105,7 +112,7 @@ module Client =
                                 (fun building ->
                                     building
                                     |> Option.map (fun b -> b.ToListItem())
-                                    |> (fun currentBuilding -> currentUser, currentBuilding)
+                                    |> (fun currentBuilding -> currentUser, currentBuilding, adminModeEnabled)
                                     |> StartApplication)
                                 StopApplication
                         | None ->
@@ -113,11 +120,11 @@ module Client =
                             Cmd.OfAsync.either
                                 (Client.Remoting.getRemotingApi().GetBuildings) ()
                                 (List.tryHead
-                                    >> (fun currentBuilding -> currentUser, currentBuilding)
+                                    >> (fun currentBuilding -> currentUser, currentBuilding, adminModeEnabled)
                                     >> StartApplication)
                                 StopApplication
             state, newCmd
-        | StartApplication (currentUser, currentBuilding) ->
+        | StartApplication (currentUser, currentBuilding, adminModeEnabled) ->
             let currentPage = Routing.parseUrl (Router.currentUrl ())
             let currentPageState, currentPageCmd =
                 match currentPage with
@@ -144,6 +151,8 @@ module Client =
                 CurrentPage = currentPage
                 CurrentBuilding = currentBuilding
                 CurrentState = currentPageState
+                SidebarIsOpen = true
+                AdminModeEnabled = adminModeEnabled
             }, match currentPageCmd with | Some cmd -> cmd | None -> Cmd.none
         | StopApplication e ->
             Stopped e, Cmd.none
@@ -200,6 +209,12 @@ module Client =
                     Running newState, Cmd.none
             | _ ->
                 state, Cmd.none
+        | AdminModeChanged adminModeEnabled ->
+            match state with
+            | Running running when running.AdminModeEnabled <> adminModeEnabled ->
+                setAdminMode running adminModeEnabled
+            | _ ->
+                state, Cmd.none
         | ChangeCurrentBuildingAndPage (newBuilding, newPage) ->
             match state with
             | Running running ->
@@ -228,6 +243,10 @@ module Client =
                 Running newState, match newCmd with | Some cmd -> cmd | None -> Cmd.none
             | _ ->
                 state, Cmd.none
+        | SetSidebarDocked opened ->
+            match state with
+            | Running runningState -> Running { runningState with SidebarIsOpen = opened }, Cmd.none
+            | _ -> state, Cmd.none
 
 
 
@@ -265,117 +284,136 @@ module Client =
         match state with
         | Initializing ->
             div [] [                
-                Navbar.render {| CurrentPage = None; CurrentUser = None; CurrentBuilding = None |}
                 div [ Class Bootstrap.py3 ] [ h2 [] [ str "De app wordt gestart" ] ] 
             ]
         | Running runningState ->
             let currentPage =
-                div [ classes [ Bootstrap.containerFluid; Bootstrap.py3 ] ] [
-                    match runningState.CurrentPage, runningState.CurrentState, runningState.CurrentBuilding with
-                    | Page.Portal, _, _ -> 
-                        PortalPage.render 
-                            {| 
-                                CurrentUser = runningState.CurrentUser
-                                CurrentBuilding = runningState.CurrentBuilding
-                            |}
-                    | Page.BuildingList, Some (BuildingPageState s), _ ->
-                        BuildingsPage.view s (BuildingPageMsg >> dispatch)
-                    | Page.BuildingDetails _, Some (BuildingPageState s), _ ->
-                        BuildingsPage.view s (BuildingPageMsg >> dispatch)
-                    | Page.OwnerList _, _, Some building ->
-                        OwnersPage.render 
-                            {| 
-                                CurrentUser = runningState.CurrentUser
-                                CurrentBuilding = building
-                                PersonId = None
-                            |}
-                    | Page.OwnerDetails props, _, Some building ->
-                        OwnersPage.render 
-                            {| 
-                                CurrentUser = runningState.CurrentUser
-                                CurrentBuilding = building
-                                PersonId = Some props.DetailId
-                            |}
-                    | Page.LotList _, _, Some building ->
-                        LotsPage.render 
-                            {| 
-                                CurrentUser = runningState.CurrentUser
-                                CurrentBuilding = building
-                                LotId = None
-                            |}
-                    | Page.LotDetails props, _, Some building ->
-                        LotsPage.render 
-                            {| 
-                                CurrentUser = runningState.CurrentUser
-                                CurrentBuilding = building
-                                LotId = Some props.DetailId
-                            |}                    
-                    | Page.OrganizationList _, _, Some building ->
-                        OrganizationsPage.render 
-                            {| 
-                                CurrentUser = runningState.CurrentUser
-                                CurrentBuilding = building
-                                OrganizationId = None
-                            |}
-                    | Page.OrganizationDetails props, _, Some building ->
-                        OrganizationsPage.render 
-                            {| 
-                                CurrentUser = runningState.CurrentUser
-                                CurrentBuilding = building
-                                OrganizationId = Some props.DetailId
-                            |}
-                    | Page.ProfessionalSyndicList, _, _ ->
-                        ProfessionalSyndicsPage.render 
-                            {|
-                                CurrentUser = runningState.CurrentUser
-                                ProfessionalSyndicId = None
-                            |}
-                    | Page.ProfessionalSyndicDetails proSyndicId, _, _ ->
-                        ProfessionalSyndicsPage.render
-                            {|
-                                CurrentUser = runningState.CurrentUser
-                                ProfessionalSyndicId = Some proSyndicId
-                            |}
-                    | Page.OrganizationTypeList, _, _ ->
-                        OrganizationTypesPage.render 
-                            {|
-                                CurrentUser = runningState.CurrentUser
-                            |}
-                    | Page.Contracts _, _, Some building ->
-                        ContractsPage.render 
-                            {|
-                                CurrentUser = runningState.CurrentUser
-                                CurrentBuildingId = building.BuildingId
-                            |}
-                    | _ -> notFound
-                ]
+                match runningState.CurrentPage, runningState.CurrentState, runningState.CurrentBuilding with
+                | Page.Portal, _, _ -> 
+                    PortalPage.render 
+                        {| 
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuilding = runningState.CurrentBuilding
+                            AdminModeEnabled = runningState.AdminModeEnabled
+                        |}
+                | Page.BuildingList, Some (BuildingPageState s), _ ->
+                    BuildingsPage.view s (BuildingPageMsg >> dispatch)
+                | Page.BuildingDetails _, Some (BuildingPageState s), _ ->
+                    BuildingsPage.view s (BuildingPageMsg >> dispatch)
+                | Page.OwnerList _, _, Some building ->
+                    OwnersPage.render 
+                        {| 
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuilding = building
+                            PersonId = None
+                        |}
+                | Page.OwnerDetails props, _, Some building ->
+                    OwnersPage.render 
+                        {| 
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuilding = building
+                            PersonId = Some props.DetailId
+                        |}
+                | Page.LotList _, _, Some building ->
+                    LotsPage.render 
+                        {| 
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuilding = building
+                            LotId = None
+                        |}
+                | Page.LotDetails props, _, Some building ->
+                    LotsPage.render 
+                        {| 
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuilding = building
+                            LotId = Some props.DetailId
+                        |}                    
+                | Page.OrganizationList _, _, Some building ->
+                    OrganizationsPage.render 
+                        {| 
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuilding = building
+                            OrganizationId = None
+                        |}
+                | Page.OrganizationDetails props, _, Some building ->
+                    OrganizationsPage.render 
+                        {| 
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuilding = building
+                            OrganizationId = Some props.DetailId
+                        |}
+                | Page.ProfessionalSyndicList, _, _ ->
+                    ProfessionalSyndicsPage.render 
+                        {|
+                            CurrentUser = runningState.CurrentUser
+                            ProfessionalSyndicId = None
+                        |}
+                | Page.ProfessionalSyndicDetails proSyndicId, _, _ ->
+                    ProfessionalSyndicsPage.render
+                        {|
+                            CurrentUser = runningState.CurrentUser
+                            ProfessionalSyndicId = Some proSyndicId
+                        |}
+                | Page.OrganizationTypeList, _, _ ->
+                    OrganizationTypesPage.render 
+                        {|
+                            CurrentUser = runningState.CurrentUser
+                        |}
+                | Page.Contracts _, _, Some building ->
+                    ContractsPage.render 
+                        {|
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuildingId = building.BuildingId
+                        |}
+                | _ -> notFound
 
             div [] [
-                Navbar.render 
-                    {| 
-                        CurrentPage = Some runningState.CurrentPage
-                        CurrentUser = Some runningState.CurrentUser
-                        CurrentBuilding = runningState.CurrentBuilding 
-                    |}
-                Router.router [
-                    Router.onUrlChanged (fun urlParts ->
-                        let newPage = Routing.parseUrl urlParts
-                        if runningState.CurrentPage = newPage then ()
-                        elif shouldChangePage runningState.CurrentPage newPage then ChangePage newPage |> dispatch
-                        else ()
-                    )
-                    Router.application currentPage
+                input [ Type "checkbox"; Id "melior-sidebar-toggle" ]
+                header [ classes [ Bootstrap.bgDark; "melior-navbar" ] ] [                    
+                    label [ HtmlFor "melior-sidebar-toggle"] [
+                        span [ classes [ FontAwesome.fas; FontAwesome.faBars ]; Id "melior-sidebar-button" ] []
+                    ]
+                    div [ Class "melior-brand" ] [
+                        h3 [] [ 
+                            str "Syndicus" 
+                            span [ Style [ Color "deepskyblue" ] ] [
+                                str " Assistent"
+                            ]
+                        ]
+                    ]
+                    div [ Class "melior-profile" ] [
+                        span [] [
+                            str "Afmelden"
+                        ]
+                    ]
+                ]                
+                div [ classes [ Bootstrap.navbarDark; Bootstrap.bgDark; "melior-sidebar" ];  ] [
+                    Sidebar.render
+                        {|
+                            SidebarIsOpen = runningState.SidebarIsOpen
+                            OnSetSidebarOpened = SetSidebarDocked >> dispatch
+                            CurrentPage = Some runningState.CurrentPage
+                            CurrentBuilding = runningState.CurrentBuilding
+                            CurrentUser = runningState.CurrentUser
+                            AdminModeEnabled = runningState.AdminModeEnabled
+                            OnChangeAdminMode = AdminModeChanged >> dispatch
+                        |}
+                ]
+                div [ classes [ "melior-content" ] ] [
+                    Router.router [
+                        Router.onUrlChanged (fun urlParts ->
+                            let newPage = Routing.parseUrl urlParts
+                            if runningState.CurrentPage = newPage then ()
+                            elif shouldChangePage runningState.CurrentPage newPage then ChangePage newPage |> dispatch
+                            else ()
+                        )
+                        Router.application currentPage
+                    ]
                 ]
             ]
         | Stopped _ ->
             div [] [
-                Navbar.render 
-                    {| 
-                        CurrentPage = None
-                        CurrentUser = None
-                        CurrentBuilding = None 
-                    |}
-                str "Er is iets misgelopen bij het laden van de applicatie."
+                div [ Class Bootstrap.py3 ] [ h2 [] [ str "Er is iets misgelopen bij het laden van de applicatie." ] ] 
             ]
 
     Program.mkProgram init update view

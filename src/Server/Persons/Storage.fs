@@ -42,7 +42,7 @@ let paramsFor (validated: ValidatedPerson) =
         "@MainTelephoneNumber"       , Sql.stringOrNone (validated.MainTelephoneNumber |> Option.map string)
         "@MainTelephoneNumberComment", Sql.stringOrNone (validated.MainTelephoneNumberComment |> Option.map string)
         "@MainEmailAddress"          , Sql.stringOrNone (validated.MainEmailAddress |> Option.map string)
-        "@MainEmailAddressComment"   , Sql.stringOrNone (validated.MainTelephoneNumberComment |> Option.map string)
+        "@MainEmailAddressComment"   , Sql.stringOrNone (validated.MainEmailAddressComment|> Option.map string)
         "@OtherContactMethods"       , Sql.jsonb (validated.OtherContactMethods |> ValidatedContactMethod.listToJson)
     ]
 
@@ -105,11 +105,11 @@ let upsertQuery =
     sprintf
         """
             %s
-            ON CONFLICT (persons_pkey) DO UPDATE
+            ON CONFLICT ON CONSTRAINT persons_pkey DO UPDATE
             %s
         """
         createQuery
-        (updateQuery.[updateQuery.IndexOf("SET")..])
+        (updateQuery.[updateQuery.IndexOf("SET")..(updateQuery.IndexOf("WHERE") - 1)])
 
 let createPerson (connectionString: string) (validated: ValidatedPerson) =
     Sql.connect connectionString

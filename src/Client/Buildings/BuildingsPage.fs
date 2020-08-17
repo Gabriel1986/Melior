@@ -27,7 +27,7 @@ type SortableAttribute =
         match me with
         | Code -> "Code"
         | Name -> "Naam"
-        | OrganizationNumber -> "OndernemingsNr"
+        | OrganizationNumber -> "Ond. nr."
         | Street -> "Straat"
         | ZipCode -> "Postcode"
         | Town -> "Plaats"
@@ -161,7 +161,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let newListItems = listItem :: state.ListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
         { state with 
-            ListItems = newListItems
+            ListItems = newListItems |> List.sortBy (fun b -> b.Code)
             SelectedListItems = newSelectedListItems
         }, (SelectTab (Tab.Details listItem)) |> Cmd.ofMsg
     | Edited building ->
@@ -187,8 +187,22 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
         String.Join(" ", Bootstrap.navLink::extraClasses)
 
     div [ Class Bootstrap.row ] [
-        div [ Class Bootstrap.colMd3 ] [
-            div [ classes [ Bootstrap.nav; Bootstrap.navTabs; "left-tabs" ] ] [
+        let list (state: State) =
+            let currentBuildingId = state.CurrentBuildingId |> Option.defaultValue (Guid.Empty)
+
+            SortableTable.render 
+                {|
+                    ListItems = state.ListItems
+                    DisplayAttributes = SortableAttribute.All
+                    IsSelected = Some (fun li -> li.BuildingId = currentBuildingId)
+                    OnSelect = Some (CurrentBuildingChanged >> dispatch)
+                    OnEdit = Some (AddDetailTab >> dispatch)
+                    OnDelete = Some (RemoveListItem >> dispatch)
+                    Key = "BuildingsPageTable"
+                |}
+
+        div [ Class Bootstrap.colMd12 ] [
+            div [ classes [ Bootstrap.nav; Bootstrap.navTabs ] ] [
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle List); OnClick (fun _ -> SelectTab List |> dispatch) ] 
@@ -206,23 +220,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                         [ str "Nieuw gebouw" ]
                 ]
             ]
-        ]
-              
-        let list (state: State) =
-            let currentBuildingId = state.CurrentBuildingId |> Option.defaultValue (Guid.Empty)
 
-            SortableTable.render 
-                {|
-                    ListItems = state.ListItems
-                    DisplayAttributes = SortableAttribute.All
-                    IsSelected = Some (fun li -> li.BuildingId = currentBuildingId)
-                    OnSelect = Some (CurrentBuildingChanged >> dispatch)
-                    OnEdit = Some (AddDetailTab >> dispatch)
-                    OnDelete = Some (RemoveListItem >> dispatch)
-                    Key = "BuildingsPageTable"
-                |}
-
-        div [ Class Bootstrap.colMd9 ] [
             div [ Class Bootstrap.tabContent ] [
                 match state.SelectedTab with
                 | List -> list state

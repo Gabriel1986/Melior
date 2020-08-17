@@ -12,7 +12,7 @@ let view (organization: Organization) =
         yield readonlyFormElement "Types" (organization.OrganizationTypes |> List.map (fun ot -> ot.Name) |> (fun result -> String.Join(", ", result)))
         yield readonlyFormElement "Adres" (string organization.Address)
         yield readonlyFormElement "Tel." (defaultArg organization.MainTelephoneNumber "")
-        yield readonlyFormElement "Tel. commentaar" (defaultArg organization.MainTelephoneNumber "")
+        yield readonlyFormElement "Tel. commentaar" (defaultArg organization.MainTelephoneNumberComment "")
 
         yield readonlyFormElement "E-mail" (defaultArg organization.MainEmailAddress "")
         yield readonlyFormElement "E-mail commentaar" (defaultArg organization.MainEmailAddressComment "")

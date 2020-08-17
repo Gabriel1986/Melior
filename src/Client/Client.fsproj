@@ -29,7 +29,6 @@
     <Content Include="public\webfonts\fa-solid-900.eot" />
     <Content Include="public\webfonts\fa-solid-900.ttf" />
     <Content Include="public\webfonts\fa-solid-900.woff" />
-    <Content Include="public\styles\b4vtabs.min.css" />
     <Content Include="public\styles\flatpickr.css" />
     <Content Include="public\styles\fontawesome.all.min.css" />
     <Content Include="public\styles\bootstrap.min.css" />
@@ -49,6 +48,7 @@
     <Compile Include="Components\PersonViewComponent.fs" />
     <Compile Include="Components\PersonEditComponent.fs" />
     <Compile Include="Users\MyAccount.fs" />
+    <Compile Include="NoticeBoard\NoticeBoardPage.fs" />
     <Compile Include="Organizations\OrganizationTypesPage.fs" />
     <Compile Include="Organizations\ContactPersonViewComponent.fs" />
     <Compile Include="Organizations\ContactPersonEditComponent.fs" />
@@ -69,8 +69,9 @@
     <Compile Include="Lots\LotEditComponent.fs" />
     <Compile Include="Lots\LotDetails.fs" />
     <Compile Include="Lots\LotsPage.fs" />
+    <Compile Include="Contracts\Translations.fs" />
+    <Compile Include="Contracts\ContractModal.fs" />
     <Compile Include="Contracts\ContractsPage.fs" />
-    <Compile Include="Contracts\ContractTypesPage.fs" />
     <Compile Include="Buildings\ConciergeModal.fs" />
     <Compile Include="Buildings\SyndicModal.fs" />
     <Compile Include="Buildings\BuildingViewComponent.fs" />
@@ -78,7 +79,7 @@
     <Compile Include="Buildings\BuildingDetails.fs" />
     <Compile Include="Buildings\BuildingsPage.fs" />
     <Compile Include="PortalPage.fs" />
-    <Compile Include="Navbar.fs" />
+    <Compile Include="Sidebar.fs" />
     <Compile Include="Client.fs" />
     <Content Include="index.html" />
   </ItemGroup>

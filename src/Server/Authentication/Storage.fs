@@ -64,13 +64,13 @@ type IAuthenticationStorage =
 
 let disableAccount conn userId =
     Sql.connect conn
-    |> Sql.query "UPDATE [Users] SET IsActive = FALSE WHERE UserId = @UserId"
+    |> Sql.query "UPDATE Users SET IsActive = FALSE WHERE UserId = @UserId"
     |> Sql.parameters [ "@UserId", Sql.uuid userId ]
     |> Sql.writeAsync
 
 let enableAccount conn userId =
     Sql.connect conn
-    |> Sql.query "UPDATE [Users] SET IsActive = TRUE WHERE UserId = @UserId"
+    |> Sql.query "UPDATE Users SET IsActive = TRUE WHERE UserId = @UserId"
     |> Sql.parameters [ "@UserId", Sql.uuid userId ]
     |> Sql.writeAsync
 
@@ -78,7 +78,7 @@ let updateTwoFacAuthentication conn (update: EncryptedUpdateTwoFacAuthentication
     Sql.connect conn
     |> Sql.writeBatchAsync [
         yield
-            "UPDATE [Users] SET UseTwoFac = @UseTwoFac AND TwoFacSecret = @TwoFacSecret WHERE UserId = @UserId", [
+            "UPDATE Users SET UseTwoFac = @UseTwoFac, TwoFacSecret = @TwoFacSecret WHERE UserId = @UserId", [
                 "@UseTwoFac", Sql.bool update.UseTwoFac
                 "@TwoFacSecret", Sql.bytea update.TwoFacSecret
                 "@UserId", Sql.uuid update.UserId
@@ -86,16 +86,16 @@ let updateTwoFacAuthentication conn (update: EncryptedUpdateTwoFacAuthentication
         yield!
             update.RecoveryCodeHashes 
             |> List.map (fun recoveryCodeHash ->
-                "INSERT INTO [RecoveryCodes] (UserId, RecoveryCodeHash) VALUES (@UserId, @RecoveryCodeHash)", [
+                "INSERT INTO RecoveryCodes (UserId, RecoveryCodeHash) VALUES (@UserId, @RecoveryCodeHash)", [
                     "@UserId", Sql.uuid update.UserId
                     "@RecoveryCodeHash", Sql.bytea recoveryCodeHash
                 ])
     ]
-    |> Async.map List.sum
+    |> Async.map (List.tryHead >> Option.defaultValue 0)
 
 let removeUsedRecoveryCode conn (userId, recoveryCodeHash) =
     Sql.connect conn
-    |> Sql.query "DELETE FROM [RecoveryCodes] WHERE UserId = @UserId AND RecoveryCodeHash = @RecoveryCodeHash"
+    |> Sql.query "DELETE FROM RecoveryCodes WHERE UserId = @UserId AND RecoveryCodeHash = @RecoveryCodeHash"
     |> Sql.parameters [ "@UserId", Sql.uuid userId; "@RecoveryCodeHash", Sql.bytea recoveryCodeHash ]
     |> Sql.writeAsync
 
@@ -103,12 +103,12 @@ let setRecoveryCodeHashes conn (userId, recoveryCodeHashes) =
     Sql.connect conn
     |> Sql.writeBatchAsync [
         yield 
-            "DELETE FROM [RecoveryCodes] WHERE UserId = @UserId", [ "@UserId", Sql.uuid userId ]
+            "DELETE FROM RecoveryCodes WHERE UserId = @UserId", [ "@UserId", Sql.uuid userId ]
 
         yield!
             recoveryCodeHashes 
             |> List.map (fun recoveryCodeHash ->
-                "INSERT INTO [RecoveryCodes] (UserId, RecoveryCodeHash) VALUES (@UserId, @RecoveryCodeHash)", [
+                "INSERT INTO RecoveryCodes (UserId, RecoveryCodeHash) VALUES (@UserId, @RecoveryCodeHash)", [
                     "@UserId", Sql.uuid userId
                     "@RecoveryCodeHash", Sql.bytea recoveryCodeHash
                 ])
@@ -117,7 +117,7 @@ let setRecoveryCodeHashes conn (userId, recoveryCodeHashes) =
 
 let addFailedTwoFacAttempt conn (attempt: FailedTwoFacAttempt) =
     Sql.connect conn
-    |> Sql.query "INSERT INTO [FailedTwoFacEvents] (UserId, TimeStamp) VALUES (@UserId, @TimeStamp)"
+    |> Sql.query "INSERT INTO FailedTwoFacEvents (UserId, TimeStamp) VALUES (@UserId, @TimeStamp)"
     |> Sql.parameters [
         "@UserId", Sql.uuid attempt.UserId
         "@TimeStamp", Sql.timestamp attempt.Timestamp.UtcDateTime
@@ -166,7 +166,7 @@ let addUser conn (user: ValidatedUserInput) =
                 | ProfessionalSyndicRole (orgId, _) ->
                     [ nameof ProfessionalSyndicRole, None, Some orgId ]
                 | SysAdminRole ->
-                    [ nameof SysAdmin, None, None ]
+                    [ nameof SysAdminRole, None, None ]
             )
             |> List.map (fun (role, buildingId, orgId) ->
                 """
@@ -185,7 +185,7 @@ let addUser conn (user: ValidatedUserInput) =
     |> Async.Ignore
 
 let makeStorage (settings: AppSettings) = 
-    let conn = settings.Database.ConnectionString
+    let conn = settings.Database.Connection
 
     {
         new IAuthenticationStorage with

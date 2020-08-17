@@ -24,7 +24,7 @@
                     DisplayName, 
                     PreferredLanguageCode,
                     UseTwoFac
-                FROM [Users]
+                FROM Users
             """
 
     type RoleDbRow = 
@@ -67,7 +67,7 @@
                 DisplayName = reader.string "DisplayName"
                 EmailAddress = reader.string "EmailAddress"
                 PreferredLanguageCode = reader.string "PreferredLanguageCode"
-                UseTwoFac = reader.bool "UseTwoFac"
+                UseTwoFac = defaultArg (reader.boolOrNone "UseTwoFac") false
             })
 
         match user with
@@ -104,7 +104,7 @@
     let authenticateUser (conn: string) (cache: IProfessionalSyndicCache) (pepper: string) (emailAddress: string, password: string) = async {
         let! userAuth =
             Sql.connect conn
-            |> Sql.query "SELECT UserId, PasswordHash FROM [Users] WHERE EmailAddress = @EmailAddress AND IsActive = TRUE"
+            |> Sql.query "SELECT UserId, PasswordHash FROM Users WHERE EmailAddress = @EmailAddress AND IsActive = TRUE"
             |> Sql.parameters [ "@EmailAddress", Sql.string emailAddress ]
             |> Sql.readSingle (fun reader -> {
                 UserId = reader.uuid "UserId"
@@ -124,7 +124,7 @@
 
     let private getTwoFacPassword (conn: string) (encryptionPassword) (userId: Guid) =
         Sql.connect conn
-        |> Sql.query "SELECT TwoFacSecret FROM [Users] WHERE UserId = @UserId"
+        |> Sql.query "SELECT TwoFacSecret FROM Users WHERE UserId = @UserId"
         |> Sql.parameters [ "@UserId", Sql.uuid userId ]
         |> Sql.readSingle (fun reader -> reader.bytea "TwoFacSecret")
         |> Async.map (function | Some bytes -> Some (Encryption.decryptToString(bytes, encryptionPassword)) | None -> None)
@@ -160,4 +160,4 @@
             "@EmailAddress", Sql.string emailAddress
         ]
         |> Sql.readSingle (fun reader -> reader.int "Count")
-        |> Async.map (Option.defaultValue 0 >> (>=) 1)
+        |> Async.map (Option.defaultValue 0 >> (=) 1)

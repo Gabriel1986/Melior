@@ -41,32 +41,39 @@ let cookieAuthenticationProperties: AuthenticationProperties =
         IsPersistent = false
     )
    
+[<CLIMutable>]
 type TokenRequestParams = {
     Token: string
 }
 
+[<CLIMutable>]
 type LoginForm = {
     UserName: string
     Password: string
 }
 
+[<CLIMutable>]
 type ChangePasswordForm = {
     NewPassword1: string
     NewPassword2: string
 }
 
+[<CLIMutable>]
 type ForgotPasswordForm = {
     UserName: string
 }
 
+[<CLIMutable>]
 type RecommendTwoFactorAuthenticationForm = {
     SubmitButton: string
 }
 
+[<CLIMutable>]
 type TwoFacLoginForm = {
     VerificationCode: string
 }
 
+[<CLIMutable>]
 type TwoFacRecoveryForm = {
     RecoveryCode: string
 }
@@ -88,18 +95,20 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
     let googleRecaptchSubmitButton btnText =
         div [] [
             script [] [
-                str 
+                rawText
                     """
-                        function onSubmit(token) {
-                            let forms = document.getElementsByTagName("form");                          
+                        function OnSubmit(token) {
+                            let forms = document.getElementsByTagName("form");
                             for (let form of forms) {
                                 form.submit();
                             }
-                        }
+                        };
+                        window.onSubmit = OnSubmit;
+                        console.log("Test test test?")
                     """
             ]
             button [ 
-                _class "g-recaptcha";
+                _class "g-recaptcha btn btn-primary";
                 attr "data-sitekey" settings.Google.RecaptchaClientKey
                 attr "data-callback" "onSubmit" 
                 attr "data-action" "submit"
@@ -112,11 +121,12 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
             let body: HttpRequestBody = seq { "secret", settings.Google.RecaptchaServerKey; "response", token } |> FormValues
             let! stringResponse = Http.AsyncRequestString("https://www.google.com/recaptcha/api/siteverify?", httpMethod = "POST", body = body)
             let parsedResponse = GoogleRecaptchaResponse.Parse(stringResponse)
+            printfn "%A" parsedResponse
             if not parsedResponse.Success then Log.Logger.Error(sprintf "A recaptcha was invalid, details: %s" stringResponse)
             return!
                 if parsedResponse.Success 
-                then invalidTokenHandler nxt ctx
-                else nxt ctx
+                then nxt ctx
+                else invalidTokenHandler nxt ctx
         }
     )
 
@@ -205,7 +215,7 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
                             new Claim ("use2fac", if authenticatedUser.UseTwoFac then "1" else "0")
                         ]
                         let validatedUsernamePasswordToken = system.GenerateUsernamePasswordToken (claims, usernamePasswordTokenValidity)
-                        return! redirectTo false (sprintf "/2fac?Token=%s" validatedUsernamePasswordToken) nxt ctx
+                        return! redirectTo false (sprintf "/authentication/2fac?Token=%s" validatedUsernamePasswordToken) nxt ctx
                     | Error AuthenticationError.UserNotFound
                     | Error AuthenticationError.PasswordNotValid ->
                         return! csrfHtmlView (loginPage googleRecaptchSubmitButton [ "Gebruiker niet gevonden of wachtwoord niet geldig" ]) nxt ctx
@@ -252,7 +262,7 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
                 match system.ValidateUsernamePasswordToken requestParams.Token with 
                 | Some identity ->
                     let userEmailAddress = identity.FindFirstValue(JwtRegisteredClaimNames.Email)
-                    let secret = Encryption.generateRandomString(20)
+                    let secret = Encryption.generateRandomString(16)
                     let recoveryCodes = [
                         Encryption.generateRandomString(8)
                         Encryption.generateRandomString(8)
@@ -264,7 +274,7 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
                     do sharedSecretCache.Set(requestParams.Token, (secret, recoveryCodes))
 
                     let tfa = new TwoFactorAuthenticator()
-                    let setupInfo = tfa.GenerateSetupCode("Melior app", userEmailAddress, secret, false, 4)
+                    let setupInfo = tfa.GenerateSetupCode("Melior Digital", userEmailAddress, secret, false, 4)
                     let qrCodeImageUrl = setupInfo.QrCodeSetupImageUrl; //  assigning the Qr code information + URL to a base64 encoded string
                     let manualEntrySetupCode = setupInfo.ManualEntryKey; // show the Manual Entry Key for the users that don't have app or phone
 

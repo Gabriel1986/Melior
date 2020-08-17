@@ -169,22 +169,21 @@ let renderConciergeTypeSelection dispatch =
     ]
 
 let renderOwnerSelectionList (list: OwnerListItem list) selectedId dispatch =
-    SelectionList.render ({
-        SelectionMode = SelectionMode.SingleSelect
-        LoadItems = fun () -> async {
-            return list |> List.sortBy (fun o -> o.FirstName)        
-        }
-        SelectedItems = 
-            match selectedId with
-            | Some selectedId -> list |> List.filter (fun i -> i.PersonId = selectedId)
-            | None -> []
-        OnSelectionChanged = fun selected -> SelectOwner (selected |> List.head) |> dispatch
-        DisplayListItem = (fun ownerListItem -> 
-            [ownerListItem.FirstName; ownerListItem.LastName] 
-            |> List.choose id 
-            |> String.JoinWith ", "
-            |> str)
-    }, "OwnerSelectionList")
+    SelectionList.render (
+        {|
+            SelectionMode = SelectionMode.SingleSelect
+            AllItems = list |> List.sortBy (fun o -> o.FirstName)        
+            SelectedItems = 
+                match selectedId with
+                | Some selectedId -> list |> List.filter (fun i -> i.PersonId = selectedId)
+                | None -> []
+            OnSelectionChanged = fun selected -> SelectOwner (selected |> List.head) |> dispatch
+            DisplayListItem = (fun ownerListItem -> 
+                [ownerListItem.FirstName; ownerListItem.LastName] 
+                |> List.choose id 
+                |> String.JoinWith ", "
+                |> str)
+        |}, "OwnerSelectionList")
 
 let modalContent model dispatch =
     match model.State with

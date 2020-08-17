@@ -6,7 +6,7 @@ open Server.Blueprint.Behavior.ProfessionalSyndics
 
 let build (config: IConfiguration): IProfessionalSyndicSystem =
     let settings = config.Get<AppSettings>()
-    let conn = settings.Database.ConnectionString
+    let conn = settings.Database.Connection
     let store = Storage.makeStorage conn
     {
         new IProfessionalSyndicSystem with

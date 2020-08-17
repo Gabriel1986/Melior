@@ -163,8 +163,9 @@ let getLots (connectionString: string) (filter: {| BuildingId: Guid |}): Async<L
                 LEFT JOIN LotOwners lotOwner on lot.LotId = lotOwner.LotId
                 LEFT JOIN Persons person on lotOwner.PersonId = person.PersonId
                 LEFT JOIN Organizations org on lotOwner.OrganizationId = org.OrganizationId
-                WHERE lot.BuildingId = @BuildingId AND lot.IsActive = TRUE AND lotOwner.Role = '%s'
-            """ 
-            (string LotOwnerRole.LegalRepresentative))
+                WHERE lot.BuildingId = @BuildingId AND lot.IsActive = TRUE
+            """
+            //(string LotOwnerRole.LegalRepresentative)
+            )
     |> Sql.parameters [ "@BuildingId", Sql.uuid filter.BuildingId ]
     |> Sql.read readLotListItem

@@ -26,7 +26,7 @@ let view (withAddresses: bool) (person: Person) =
         if withAddresses then yield! renderAddressesFor person
 
         yield readonlyFormElement "Tel." (defaultArg person.MainTelephoneNumber "")
-        yield readonlyFormElement "Tel. commentaar" (defaultArg person.MainTelephoneNumber "")
+        yield readonlyFormElement "Tel. commentaar" (defaultArg person.MainTelephoneNumberComment "")
 
         yield readonlyFormElement "E-mail" (defaultArg person.MainEmailAddress "")
         yield readonlyFormElement "E-mail commentaar" (defaultArg person.MainEmailAddressComment "")

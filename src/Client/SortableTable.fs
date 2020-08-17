@@ -75,14 +75,18 @@ let private performSort (sortOn: (ISortableAttribute<'T> * bool) list) (listItem
     |> List.fold (fun acc nextSort -> nextSort acc) listItems
 
 let private performFilter (filterOn: (ISortableAttribute<'T> * string) list) (listItems: 'T list) =
-    let predicates =
-        filterOn
-        |> List.map (fun (attr, filter) ->
-            let filter = filter.ToLowerInvariant()
-            fun li -> (attr.StringValueOf li).ToLowerInvariant().Contains(filter))
+    match filterOn with
+    | [] ->
+        listItems
+    | filterOn ->
+        let predicates =
+            filterOn
+            |> List.map (fun (attr, filter) ->
+                let filter = filter.ToLowerInvariant()
+                fun li -> (attr.StringValueOf li).ToLowerInvariant().Contains(filter))
 
-    listItems
-    |> List.filter (fun li -> predicates |> List.exists (fun predicate -> predicate li))
+        listItems
+        |> List.filter (fun li -> predicates |> List.forall (fun predicate -> predicate li))
 
 let update (msg: Msg<'T>) (state: State<'T, 'U>): State<'T, 'U> * Cmd<Msg<'T>> =
     match msg with
@@ -140,9 +144,9 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
 
     let extraColumnHeaders =
         [ 
-            if state.OnSelect.IsSome && state.IsSelected.IsSome then yield th [] [ str "Geselecteerd" ] 
-            if state.OnEdit.IsSome then yield th [] []
-            if state.OnDelete.IsSome then yield th [] []
+            if state.OnSelect.IsSome && state.IsSelected.IsSome then yield th [ Class Bootstrap.borderTop0 ] [] 
+            if state.OnEdit.IsSome then yield th [ Class Bootstrap.borderTop0 ] []
+            if state.OnDelete.IsSome then yield th [ Class Bootstrap.borderTop0 ] []
         ]
 
     let extraColumns (li: 'T) =
@@ -151,10 +155,11 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
                 yield
                     td [] [
                         div [ Class Bootstrap.formCheck ] [
-                            input [ 
-                                Type "radio"
-                                Class Bootstrap.formCheckInline 
-                                Checked (state.IsSelected.Value li)
+                            button [
+                                Type "button"
+                                classes [ Bootstrap.btn; Bootstrap.btnSm; if state.IsSelected.Value (li) then Bootstrap.btnPrimary else Bootstrap.btnLight ]
+                            ] [
+                                str (if state.IsSelected.Value (li) then "Geselecteerd" else "Selecteren")
                             ]
                         ]
                     ]
@@ -182,22 +187,26 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
 
     let header (attr: ISortableAttribute<'T>) =
         th 
-            [ OnClick (dispatchSortOn attr) ]
+            [ Class Bootstrap.borderTop0 ]
             [
-                div [] [
+                div [ OnClick (dispatchSortOn attr) ] [
                     yield str (sprintf "%s%s " (attr.ToString ()) (sortingIndexNumber attr)) 
                     yield 
                         match sortingDirection attr with
                         | Some true -> i [ classes [ FontAwesome.fa; FontAwesome.faSortDown ] ] []
-                        | Some false -> i [ classes [ FontAwesome.fa; FontAwesome.faSortDown ] ] []
+                        | Some false -> i [ classes [ FontAwesome.fa; FontAwesome.faSortUp ] ] []
                         | None -> null
                 ]
-                div [ Class "form-group has-feedback" ] [ 
+                div [ classes [ Bootstrap.inputGroup; Bootstrap.inputGroupSm ] ] [ 
                     input [ Type "text"
-                            Class "form-control"
-                            Placeholder "Search"
+                            Class Bootstrap.formControl
+                            Placeholder ""
                             OnChange (fun e -> SetFilterOn (attr, e.Value) |> dispatch) ]
-                    i [ classes [ FontAwesome.fa; FontAwesome.faSearch; "form-control-feedback" ] ] [ ] 
+                    div [ Class Bootstrap.inputGroupAppend ] [
+                        span [ Class Bootstrap.inputGroupText ] [
+                            i [ classes [ FontAwesome.fa; FontAwesome.faSearch ] ] [ ] 
+                        ]
+                    ]
                 ]
             ]
 

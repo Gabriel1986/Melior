@@ -31,7 +31,8 @@ module private Readers =
                 person.LastName
             FROM
                 Owners owner
-            LEFT JOIN Persons person on person.PersonId = owner.PersonId
+            LEFT JOIN Persons person on person.PersonId = owner.PersonId 
+            WHERE owner.IsActive = TRUE
         """
 
     let readOwners (reader: CaseInsensitiveRowReader): OwnerListItem = {
@@ -76,7 +77,7 @@ let getOwner (connectionString: string) (ownerId: Guid) = async {
 
 let getOwners (connectionString: string) (filter: {| BuildingId: Guid |}) =
     Sql.connect connectionString
-    |> Sql.query (ownerListItemQuery + " WHERE BuildingId = @BuildingId")
+    |> Sql.query (ownerListItemQuery + " AND BuildingId = @BuildingId")
     |> Sql.parameters [
         "@BuildingId", Sql.uuid filter.BuildingId
     ]
@@ -88,7 +89,7 @@ let getOwnersByIds conn (personIds: Guid list) =
         Async.lift []
     | personIds ->
         Sql.connect conn
-        |> Sql.query (ownerListItemQuery + " WHERE PersonId in @PersonIds")
+        |> Sql.query (ownerListItemQuery + " AND PersonId in @PersonIds")
         |> Sql.parameters [
             "@PersonIds", Sql.uuidArray (personIds |> List.toArray)
         ]

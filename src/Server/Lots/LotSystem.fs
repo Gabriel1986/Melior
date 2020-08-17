@@ -7,7 +7,7 @@ open Server.LibraryExtensions
 
 let build (config: IConfiguration): ILotSystem =
     let settings = config.Get<AppSettings>()
-    let conn = settings.Database.ConnectionString
+    let conn = settings.Database.Connection
     let store = Storage.makeStorage conn
 
     {

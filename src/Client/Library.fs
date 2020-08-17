@@ -4,9 +4,9 @@ open Shared.Read
 open Elmish.SweetAlert
 open Browser.Dom
 
-let getCachedCurrentBuilding (currentUser: User) =
+let getCachedBuilding (currentUser: User) =
     let currentBuildingStr = Browser.WebStorage.localStorage.getItem("currentBuilding")
-    if currentBuildingStr = null || currentBuildingStr.Length < 0 
+    if currentBuildingStr = null || currentBuildingStr.Length = 0 
     then None
     else 
         let currentBuildingOpt = Thoth.Json.Decode.Auto.fromString<BuildingListItem>(currentBuildingStr)
@@ -19,6 +19,23 @@ let getCachedCurrentBuilding (currentUser: User) =
         | Error e -> 
             printf "%A" e
             None
+
+let getAdminModeEnabled (currentUser: User) =
+    currentUser.HasAccessToAdminMode && Browser.WebStorage.localStorage.getItem("adminModeEnabled") = "true"
+
+let getCachedSettings (currentUser: User) =
+    let building = getCachedBuilding currentUser
+    let adminModeEnabled = getAdminModeEnabled currentUser
+    building, adminModeEnabled
+
+let showSuccessToastCmd (message: string) =
+    let alert =
+        (ToastAlert(message)
+            .Timeout(3000)
+            .ConfirmButton(false)
+            .Position(AlertPosition.TopEnd)
+            .Type(AlertType.Success))
+    SweetAlert.Run(alert)
 
 let showErrorToastCmd (message: string) =
     let alert = 

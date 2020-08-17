@@ -219,36 +219,34 @@ let renderSyndicTypeSelection dispatch =
     ]
 
 let renderOwnerSelectionList (list: OwnerListItem list) (selectedId: Guid option) dispatch =
-    SelectionList.render ({
-        SelectionMode = SelectionMode.SingleSelect
-        LoadItems = fun () -> async {
-            return list |> List.sortBy (fun o -> o.FirstName)
-        }
-        SelectedItems = 
-            match selectedId with
-            | Some selectedId -> list |> List.filter (fun o -> o.PersonId = selectedId)
-            | None -> []
-        OnSelectionChanged = fun selection -> selection |> List.head |> SelectOwner |> dispatch
-        DisplayListItem = (fun ownerListItem -> 
-            [ownerListItem.FirstName; ownerListItem.LastName] 
-            |> List.choose id 
-            |> String.JoinWith ", "
-            |> str)
-    }, "OwnerSelectionList")
+    SelectionList.render (
+        {|
+            SelectionMode = SelectionMode.SingleSelect
+            AllItems = list |> List.sortBy (fun o -> o.FirstName)
+            SelectedItems = 
+                match selectedId with
+                | Some selectedId -> list |> List.filter (fun o -> o.PersonId = selectedId)
+                | None -> []
+            OnSelectionChanged = fun selection -> selection |> List.head |> SelectOwner |> dispatch
+            DisplayListItem = (fun ownerListItem -> 
+                [ownerListItem.FirstName; ownerListItem.LastName] 
+                |> List.choose id 
+                |> String.JoinWith ", "
+                |> str)
+        |}, "OwnerSelectionList")
 
 let renderProfessionalSyndicList (list: ProfessionalSyndicListItem list) (selectedId: Guid option) dispatch =
-    SelectionList.render ({
-        SelectionMode = SelectionMode.SingleSelect
-        LoadItems = fun () -> async {
-            return list |> List.sortBy (fun o -> o.Name)
-        }
-        SelectedItems = 
-            match selectedId with
-            | Some selectedId -> list |> List.filter (fun o -> o.OrganizationId = selectedId)
-            | None -> []
-        OnSelectionChanged = fun selection -> selection |> List.head |> SelectProfessionalSyndic |> dispatch
-        DisplayListItem = (fun syndic -> str syndic.Name)
-    }, "SyndicSelectionList")
+    SelectionList.render (
+        {|
+            SelectionMode = SelectionMode.SingleSelect
+            AllItems = list |> List.sortBy (fun o -> o.Name)
+            SelectedItems = 
+                match selectedId with
+                | Some selectedId -> list |> List.filter (fun o -> o.OrganizationId = selectedId)
+                | None -> []
+            OnSelectionChanged = fun selection -> selection |> List.head |> SelectProfessionalSyndic |> dispatch
+            DisplayListItem = (fun syndic -> str syndic.Name)
+        |}, "SyndicSelectionList")
 
 let modalContent model dispatch =
     match model.State with

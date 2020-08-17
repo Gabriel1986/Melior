@@ -102,8 +102,8 @@ let private defaultServerOptions (partition: string) (entityId: Guid): IServerOp
 ]
 
 //I would have done it a smarter way in English, but in other languages it might be more of a difference than just 'file' vs 'files'
-let defaultIdleLabelForMultiple = "Drag & Drop your files or <span class='filepond--label-action'> Browse </span>"
-let defaultIdleLabelForSingular = "Drag & Drop your file or <span class='filepond--label-action'> Browse </span>"
+let defaultIdleLabelForMultiple = "Versleep je bestanden of <span class='filepond--label-action'> Browse </span>"
+let defaultIdleLabelForSingular = "Versleep je bestand of <span class='filepond--label-action'> Browse </span>"
 
 let determineIdleLabel (options: FilePondOptions list): string =
     options

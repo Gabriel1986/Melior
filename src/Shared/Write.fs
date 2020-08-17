@@ -344,3 +344,36 @@ type ValidatedOrganizationType =
             }
         }
         |> Trial.toResult
+
+type ValidatedContract =
+    {
+        ContractId: Guid
+        BuildingId: Guid
+        ContractType: ValidatedContractContractType
+        ContractFileId: Guid option
+        ContractOrganizationId: Guid option
+    }
+    static member Validate (contract: Contract) =
+        let validatedContractType =
+            match contract.ContractType with
+            | PredefinedContractType predefined -> 
+                Trial.Pass (ValidatedPredefinedContractType predefined)
+            | OtherContractType other -> 
+                String255.Of (nameof contract.ContractType) other 
+                |> Trial.map ValidatedOtherContractType
+
+        trial {
+            from contractType in validatedContractType
+            yield {
+                ContractId = contract.ContractId
+                BuildingId = contract.BuildingId
+                ContractType = contractType
+                ContractFileId = contract.ContractFile |> Option.map (fun f -> f.FileId)
+                ContractOrganizationId = contract.ContractOrganization |> Option.map (fun o -> o.OrganizationId) 
+            }
+        }
+        |> Trial.toResult
+
+and ValidatedContractContractType =
+    | ValidatedPredefinedContractType of PredefinedContractType
+    | ValidatedOtherContractType of String255

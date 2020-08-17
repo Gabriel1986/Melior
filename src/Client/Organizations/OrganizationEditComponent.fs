@@ -180,9 +180,12 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         { state with OrganizationTypeModalState = Opened state.Organization.OrganizationTypes }, Cmd.none
     | SelectOrganizationType organizationType ->
         match state.OrganizationTypeModalState with
-        | Opened types ->            
-            let newOrgTypes = (types |> List.filter (fun ot -> ot <> organizationType)) @ [ organizationType ]
-            { state with OrganizationTypeModalState = Opened newOrgTypes }, Cmd.none
+        | Opened types ->
+            if types |> List.contains organizationType 
+            then
+                { state with OrganizationTypeModalState = Opened (types |> List.filter (fun ot -> ot <> organizationType)) }, Cmd.none
+            else
+                { state with OrganizationTypeModalState = Opened (types @ [ organizationType ]) }, Cmd.none
         | Closed ->
             state, Cmd.none
     | ChangeOrganizationTypesCanceled ->
@@ -256,9 +259,9 @@ let private contactMethodTypeOptions (currentlySelected: ContactMethodType): For
 let private renderOtherContactMethods (otherContactMethods: ContactMethod list) dispatch =
     [
         yield! otherContactMethods |> List.mapi (fun index c ->
-            div [] [
+            div [ Class Bootstrap.formInline ] [
                 formGroup [ 
-                    Label c.Description
+                    Label "Beschrijving"
                     Input [ 
                         Type "text"
                         MaxLength 255.0
@@ -283,7 +286,7 @@ let private renderOtherContactMethods (otherContactMethods: ContactMethod list) 
                     }
                 ]
                 formGroup [
-                    Label "Value"
+                    Label "Waarde"
                     Input [
                         Type "text"
                         Helpers.valueOrDefault c.Value
@@ -291,7 +294,7 @@ let private renderOtherContactMethods (otherContactMethods: ContactMethod list) 
                     ]
                 ]
                 button [ 
-                    classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
+                    classes [ Bootstrap.btn; Bootstrap.btnDanger ]
                     OnClick (fun _ -> OtherContactMethodRemoved index |> dispatch) 
                 ] [
                     str "Verwijderen"
@@ -356,7 +359,7 @@ let renderEditContactPersonModal (state: ContactPersonEditComponent.State) dispa
         button [ 
             classes [ Bootstrap.btn; Bootstrap.btnSuccess ] 
             OnClick (fun _ -> ContactPersonEdited state.ContactPerson |> dispatch)
-        ] [ str "Wijzigingen bewaren" ]
+        ] [ str "Bewaren" ]
 
     basicRenderContactPersonModal state dispatch successButton
 
@@ -374,9 +377,9 @@ let renderOrganizationType (dispatch: Message -> unit) (organizationType: Organi
 let renderSelectOrganizationTypes (selectedTypes: OrganizationType list) (allTypes: OrganizationType list) (dispatch: Message -> unit) =
     let successButton = 
         button [ 
-            classes [ Bootstrap.btn; Bootstrap.btnSuccess ] 
+            classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
             OnClick (fun _ -> OrganizationTypesChanged selectedTypes |> dispatch)
-        ] [ str "Opslaan" ]
+        ] [ str "Ok" ]
 
     BasicModal.render 
         {|
@@ -392,7 +395,7 @@ let renderSelectOrganizationTypes (selectedTypes: OrganizationType list) (allTyp
                         yield! 
                             allTypes 
                             |> List.map (fun organizationType -> 
-                                let selected = if selectedTypes |> List.contains organizationType then "selected" else ""
+                                let selected = if selectedTypes |> List.contains organizationType then "active" else ""
                                 li 
                                     [ 
                                         classes [ Bootstrap.listGroupItem; selected; "pointer" ]
@@ -485,8 +488,8 @@ let view state dispatch =
                 if state.Organization.OrganizationTypes.Length > 0
                 then
                     yield! state.Organization.OrganizationTypes |> List.map (renderOrganizationType dispatch)
-
-                yield str "Selecteren"
+                else
+                    yield str "Selecteren"
             ]
         ]
         formGroup [
@@ -500,7 +503,7 @@ let view state dispatch =
                 OnChange (fun e -> OrganizationNumberChanged e.Value |> dispatch)
             ]
         ]
-        renderVatNumber state dispatch
+        if state.Organization.BuildingId.IsSome then renderVatNumber state dispatch else null
         AddressEditComponent.render "Address" state.Organization.Address (fun a -> AddressChanged a |> dispatch) (nameof state.Organization.Address) state.Errors
         formGroup [ 
             Label "Tel."

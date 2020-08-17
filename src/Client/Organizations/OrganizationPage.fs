@@ -64,7 +64,7 @@ type SortableOrganizationListItemAttribute =
         match me with
         | _     -> 
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
-    static member All = [ OrganizationNumber; Name; Type ]
+    static member All = [ Type; Name; OrganizationNumber ]
     interface ISortableAttribute<OrganizationListItem> with
         member me.ToString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
@@ -181,8 +181,20 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
         String.Join(" ", Bootstrap.navLink::extraClasses)
 
     div [ Class Bootstrap.row ] [
-        div [ Class Bootstrap.colMd3 ] [
-            div [ classes [ Bootstrap.nav; Bootstrap.navTabs; "left-tabs" ] ] [
+        let list (state: State) =
+            SortableTable.render 
+                {|
+                    ListItems = state.ListItems
+                    DisplayAttributes = SortableOrganizationListItemAttribute.All
+                    IsSelected = None
+                    OnSelect = None
+                    OnEdit = Some (AddDetailTab >> dispatch)
+                    OnDelete = Some (RemoveListItem >> dispatch)
+                    Key = "OrganizationsPageTable"
+                |}
+
+        div [ Class Bootstrap.colMd12 ] [
+            div [ classes [ Bootstrap.nav; Bootstrap.navTabs ] ] [
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle List); OnClick (fun _ -> SelectTab List |> dispatch) ] 
@@ -200,21 +212,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                         [ str "Nieuwe organisatie" ]
                 ]
             ]
-        ]
-              
-        let list (state: State) =
-            SortableTable.render 
-                {|
-                    ListItems = state.ListItems
-                    DisplayAttributes = SortableOrganizationListItemAttribute.All
-                    IsSelected = None
-                    OnSelect = None
-                    OnEdit = Some (AddDetailTab >> dispatch)
-                    OnDelete = Some (RemoveListItem >> dispatch)
-                    Key = "OrganizationsPageTable"
-                |}
 
-        div [ Class Bootstrap.colMd9 ] [
             match state.SelectedTab with
             | List -> list state
             | Details listItem -> 

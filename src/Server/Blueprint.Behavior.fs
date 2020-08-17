@@ -129,6 +129,20 @@ module Owners =
         abstract GetOwner: Message<Guid> -> Async<Owner option>
         abstract GetOwners: Message<{| BuildingId: Guid |}> -> Async<OwnerListItem list>
 
+module Contracts =
+    [<NoComparison; NoEquality>]
+    type IContractSystem =
+        //Commands
+        abstract SaveContractTypeAnswer: Message<ContractTypeAnswer> -> Async<Result<unit, SaveAnswerError>>
+        abstract CreateContract: Message<Contract> -> Async<Result<unit, SaveContractError>>
+        abstract UpdateContract: Message<Contract> -> Async<Result<unit, SaveContractError>>
+        abstract DeleteContract: Message<BuildingId * Guid> -> Async<Result<unit, DeleteContractError>>
+
+        //Queries
+        abstract GetContractTypeAnswers: Message<{| BuildingId: Guid |}> -> Async<ContractTypeAnswer list>
+        abstract GetContracts: Message<{| BuildingId: Guid |}> -> Async<Contract list>
+
+
 [<NoComparison; NoEquality>]
 type IEnv =
     abstract AuthenticationSystem: Authentication.IAuthenticationSystem
@@ -138,3 +152,4 @@ type IEnv =
     abstract LotSystem: Lots.ILotSystem
     abstract OrganizationSystem: Organizations.IOrganizationSystem
     abstract OwnerSystem: Owners.IOwnerSystem
+    abstract ContractSystem: Contracts.IContractSystem

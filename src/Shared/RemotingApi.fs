@@ -122,6 +122,19 @@ type DeleteOrganizationError =
     | AuthorizationError
     | NotFound
 
+type SaveAnswerError =    
+    | AuthorizationError
+    | NotFound
+
+type SaveContractError =
+    | AuthorizationError
+    | Validation of (string * string) list
+    | NotFound
+
+type DeleteContractError =
+    | AuthorizationError
+    | NotFound
+
 type OwnerId = {
     PersonId: Guid
     BuildingId: Guid
@@ -168,6 +181,13 @@ type RemotingApi = {
     CreateOrganizationType: OrganizationType -> Async<Result<unit, CreateOrganizationTypeError>>
     UpdateOrganizationType: OrganizationType -> Async<Result<unit, UpdateOrganizationTypeError>>
     DeleteOrganizationType: Guid -> Async<Result<unit, DeleteOrganizationTypeError>>
+
+    GetContractTypeAnswers: {| BuildingId: Guid |} -> Async<ContractTypeAnswer list>
+    SaveContractTypeAnswer: ContractTypeAnswer -> Async<Result<unit, SaveAnswerError>>
+    GetContracts: {| BuildingId: Guid |} -> Async<Contract list>
+    CreateContract: Contract -> Async<Result<unit, SaveContractError>>
+    UpdateContract: Contract -> Async<Result<unit, SaveContractError>>
+    DeleteContract: BuildingId * Guid -> Async<Result<unit, DeleteContractError>>
 }
 
 let routeBuilder = sprintf "/remoting/%s/%s"

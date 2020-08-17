@@ -118,10 +118,6 @@ type CreateInitialTables() =
                     Role VARCHAR(32)
                 );
 
-                CREATE INDEX idx_Lots_CurrentOwnerPersonId ON Lots(CurrentOwnerPersonId);
-                CREATE INDEX idx_Lots_CurrentOwnerOrganizationId ON Lots(CurrentOwnerOrganizationId);
-
-
                 CREATE TABLE OrganizationTypes (
                     OrganizationTypeId UUID PRIMARY KEY,
                     Name VARCHAR(255) NOT NULL
@@ -198,10 +194,10 @@ type CreateUserTables() =
                 CREATE INDEX idx_Users_EmailAddress ON Users(EmailAddress);
 
                 CREATE TABLE UserRoles (
-                    UserId,
-                    Role,
-                    BuildingId,
-                    OrganizationId,
+                    UserId UUID,
+                    Role VARCHAR(32),
+                    BuildingId UUID REFERENCES Buildings(BuildingId),
+                    OrganizationId UUID REFERENCES ProfessionalSyndics(OrganizationId)
                 );
                 CREATE INDEX idx_UserRoles_UserId ON UserRoles(UserId);
 
@@ -217,6 +213,65 @@ type CreateUserTables() =
                     TimeStamp TIMESTAMP,
                     PRIMARY KEY (UserId, TimeStamp)
                 );
+                CREATE INDEX idx_FailedTwoFacEvents_UserId ON FailedTwoFacEvents(UserId);
+            """
+        )
+    override u.Down () = failwith "Not supported"
+
+[<Migration(4L, "Create contract tables")>]
+type CreateContractTables() =
+    inherit Migration()
+    override u.Up () =
+        u.Execute(
+            """
+                CREATE TABLE Contracts (
+                    ContractId UUID PRIMARY KEY,
+                    BuildingId UUID REFERENCES Buildings(BuildingId),
+                    ContractType VARCHAR(255) NOT NULL,
+                    ContractFileId UUID REFERENCES MediaFiles(FileId),
+                    ContractOrganizationId UUID REFERENCES Organizations(OrganizationId),
+                    IsActive Boolean Default TRUE,
+                    CreatedBy VARCHAR(255) NOT NULL,
+                    CreatedAt TIMESTAMP NOT NULL,
+                    LastUpdatedBy VARCHAR(255) NOT NULL,
+                    LastUpdatedAt TIMESTAMP NOT NULL
+                );
+                CREATE INDEX idx_Contracts_BuildingId ON Contracts(BuildingId);
+
+                CREATE TABLE Contracts_History (
+                    ContractId UUID REFERENCES Contracts(ContractId),
+                    BuildingId UUID REFERENCES Buildings(BuildingId),
+                    ContractType VARCHAR(255) NOT NULL,
+                    ContractFileId UUID REFERENCES MediaFiles(FileId),
+                    ContractOrganizationId UUID REFERENCES Organizations(OrganizationId),
+                    LastUpdatedBy VARCHAR(255) NOT NULL,
+                    LastUpdatedAt TIMESTAMP NOT NULL,
+                    PRIMARY KEY (ContractId, BuildingId, LastUpdatedAt)
+                );
+
+                CREATE TABLE ContractTypeAnswers (
+                    BuildingId UUID REFERENCES Buildings(BuildingId) NOT NULL,
+                    Question VARCHAR(64) NOT NULL,
+                    IsTrue Boolean,
+                    PRIMARY KEY (BuildingId, Question)
+                );
+                CREATE INDEX idx_ContractTypeAnswers_BuildingId ON ContractTypeAnswers(BuildingId);
+            """
+        )
+    override u.Down () = failwith "Not supported"
+
+[<Migration(5L, "Create many-to-many between Pro syndics and Buildings")>]
+type CreateManyToManyProSyndicBuildings() =
+    inherit Migration()
+    override u.Up () =
+        u.Execute(
+            """
+                CREATE TABLE ProfessionalSyndicBuildings (
+                    OrganizationId UUID REFERENCES ProfessionalSyndics(OrganizationId),
+                    BuildingId UUID REFERENCES Buildings(BuildingId),
+                    PRIMARY KEY (OrganizationId, BuildingId)
+                );
+                CREATE INDEX idx_ProfessionalSyndicBuildings_OrganizationId ON ProfessionalSyndicBuildings(OrganizationId);
             """
         )
     override u.Down () = failwith "Not supported"

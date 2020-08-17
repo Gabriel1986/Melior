@@ -7,3 +7,92 @@
 .modal.show { z-index: 1050 }
 .modal-body { max-height: 75vh; overflow: auto; }
 .pointer { cursor: pointer }
+header {
+    position: fixed;
+    padding: 20px;
+    width: 100%;
+    height: 30px;
+    top: 0;
+}
+.melior-navbar {
+    z-index: 1;
+
+    label {
+        display: unset;
+    }
+
+    label #melior-sidebar-button {
+        z-index: 1;
+        color: #fff;
+        position: fixed;
+        cursor: pointer;
+        margin-top: -7px;
+        transition: 0.5s;
+        transition-property: color;
+
+        &:hover {
+            color: #808080;
+        }
+    }
+
+    .melior-brand {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 900;
+        position: absolute;
+        left: 50px;
+        top: 0;
+        color: white;
+    }
+
+    .melior-profile {
+        padding: 5px;
+        text-decoration: none;
+        float: right;
+        color: white;
+        margin-top: -15px;
+        //margin-right: 40px;
+        transition: 0.5s;
+        transition-property: color;
+        cursor: pointer;
+
+        &:hover {
+            color: #808080;
+        }
+    }
+}
+
+#melior-sidebar-toggle:checked ~ .melior-sidebar {
+    left: -150px;
+}
+
+#melior-sidebar-toggle {
+    display: none;
+}
+
+.melior-sidebar {
+    margin-top: -10px;
+    padding-top: 30px;
+    position: fixed;
+    left: 0;
+    width: 150px;
+    height: 100%;
+    transition: 0.5s;
+    transition-property: left;
+}
+
+.melior-content {
+    margin-left: 160px;
+    margin-top: 50px;
+    transition: 0.5s;
+    transition-property: margin-left;
+    
+    .row {
+        margin-left: 0px;
+        margin-right: 0px;
+    }
+}
+
+#melior-sidebar-toggle:checked ~ .melior-content {
+    margin-left: 10px;
+}

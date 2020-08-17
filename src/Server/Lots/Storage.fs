@@ -23,53 +23,76 @@ let private paramsFor (validated: ValidatedLot) =
         "@Surface"                   , Sql.intOrNone (validated.Surface |> Option.map (fun s -> s.Value))
     ]
 
+let private generateSqlForOwners (lotId: Guid, owners: (LotOwnerId * LotOwnerRole) list) =
+    owners 
+    |> List.map (fun (ownerId, role) ->
+        let personId, orgId =
+            match ownerId with
+            | (LotOwnerId.OwnerId ownerId) ->
+                Some ownerId, None
+            | (LotOwnerId.OrganizationId orgId) ->
+                None, Some orgId
+        """
+            INSERT INTO LotOwners
+                (LotId, Role, PersonId, OrganizationId) 
+            VALUES 
+                (@LotId, @Role, @PersonId, @OrganizationId)
+        """, [
+            "@LotId", Sql.uuid lotId
+            "@Role", Sql.string (string role)
+            "@PersonId", Sql.uuidOrNone personId
+            "@OrganizationId", Sql.uuidOrNone orgId
+        ]
+    )
+
 let createLot (connectionString: string) (validated: ValidatedLot) =
-    //TODO: store owners
     Sql.connect connectionString
-    |> Sql.query
-        """
-            INSERT INTO Lots (
-                LotId,
-                BuildingId,
-                CurrentOwnerPersonId,
-                CurrentOwnerOrganizationId,
-                Code,
-                LotType,
-                Description,
-                Floor,
-                Surface
-            ) VALUES (
-                @LotId,
-                @BuildingId,
-                @CurrentOwnerPersonId,
-                @CurrentOwnerOrganizationId,
-                @Code,
-                @LotType,
-                @Description,
-                @Floor,
-                @Surface
-            )
-        """
-    |> Sql.parameters (paramsFor validated)
-    |> Sql.writeAsync
+    |> Sql.writeBatchAsync [
+        yield
+            """
+                INSERT INTO Lots (
+                    LotId,
+                    BuildingId,
+                    Code,
+                    LotType,
+                    Description,
+                    Floor,
+                    Surface
+                ) VALUES (
+                    @LotId,
+                    @BuildingId,
+                    @Code,
+                    @LotType,
+                    @Description,
+                    @Floor,
+                    @Surface
+                )
+            """, paramsFor validated
+        yield!
+            generateSqlForOwners (validated.LotId, validated.Owners)
+    ]
     |> Async.Ignore
 
 let updateLot (connectionString: string) (validated: ValidatedLot) =
     Sql.connect connectionString
-    |> Sql.query
-        """
-            UPDATE Lots SET
-                CurrentOwnerPersonId = @CurrentOwnerPersonId,
-                CurrentOwnerOrganizationId = @CurrentOwnerOrganizationId,
-                Code = @Code,
-                LotType = @LotType,
-                Description = @Description,
-                Floor = @Floor,
-                Surface = @Surface
-            WHERE LotId = @LotId
-        """
-    |> Sql.parameters (paramsFor validated)
-    |> Sql.writeAsync
+    |> Sql.writeBatchAsync [
+        yield
+            """
+                UPDATE Lots SET
+                    Code = @Code,
+                    LotType = @LotType,
+                    Description = @Description,
+                    Floor = @Floor,
+                    Surface = @Surface
+                WHERE LotId = @LotId
+            """, (paramsFor validated)
+        yield
+            "DELETE FROM LotOwners WHERE LotId = @LotId", [ "@LotId", Sql.uuid validated.LotId ]
+        yield!
+            generateSqlForOwners (validated.LotId, validated.Owners)
+
+    ]
+    |> Async.map (List.tryHead >> Option.defaultValue 0)
 
 let deleteLot connectionString (buildingId, lotId) =
     Sql.connect connectionString

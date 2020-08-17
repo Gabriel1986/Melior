@@ -1,6 +1,7 @@
 ﻿module Client.Routing
     open System
     open Elmish
+    open Feliz.Router
 
     type BuildingSpecificProps = {
         BuildingId: Guid
@@ -26,16 +27,10 @@
         | ProfessionalSyndicDetails of Guid
         | OrganizationTypeList
         | NotFound
-
-    type NavigablePage =
-        | Portal
-        | BuildingList
-        | OwnerList of BuildingSpecificProps
-        | LotList of BuildingSpecificProps
-        | OrganizationList of BuildingSpecificProps
-        | Contracts of BuildingSpecificProps
-        | ProfessionalSyndicsList
-        | OrganizationTypesList
+        | NoticeBoard
+        | MyEvents
+        | MyLots
+        | MyContracts
     
     let [<Literal>] private BuildingsPage: string = "buildings"
     let [<Literal>] private PortalPage: string = ""
@@ -47,20 +42,57 @@
     let [<Literal>] private ContractsPage: string = "contracts"
 
     let private navigateToDetailsPage (identifier: Guid) (page: string) =
-        Feliz.Router.Router.navigate(page, string identifier)
+        Router.navigate(page, string identifier)
 
     let private navigateToBuildingSpecificPage (props: BuildingSpecificProps) (page: string) =
-        Feliz.Router.Router.navigate(BuildingsPage, string props.BuildingId, page)
+        Router.navigate(BuildingsPage, string props.BuildingId, page)
 
     let private navigateToBuildingSpecificDetailsPage (props: BuildingSpecificDetailProps) (page: string) =
-        Feliz.Router.Router.navigate(BuildingsPage, string props.BuildingId, page, string props.DetailId)
+        Router.navigate(BuildingsPage, string props.BuildingId, page, string props.DetailId)
+
+    let private routeToSpecificDetailsPage (page: string, specifics: BuildingSpecificDetailProps) =
+        Router.format(BuildingsPage, string specifics.BuildingId, page, string specifics.DetailId)
+
+    let private routeToSpecificPage (page: string, specifics: BuildingSpecificProps) =
+        Router.format(BuildingsPage, string specifics.BuildingId, page)
+
+    let generateUrl =
+        function
+        | Page.Portal -> 
+            Router.format([])
+        | Page.BuildingList -> 
+            Router.format(BuildingsPage)
+        | Page.BuildingDetails (buildingId) ->
+            Router.format(BuildingsPage, string buildingId)
+        | Page.OwnerDetails specifics ->
+            routeToSpecificDetailsPage (OwnersPage, specifics)
+        | Page.OwnerList specifics ->
+            routeToSpecificPage (OwnersPage, specifics)
+        | Page.LotDetails specifics ->
+            routeToSpecificDetailsPage (LotsPage, specifics)
+        | Page.LotList specifics ->
+            routeToSpecificPage (LotsPage, specifics)
+        | Page.OrganizationDetails specifics ->
+            routeToSpecificDetailsPage (OrganizationsPage, specifics)
+        | Page.OrganizationList specifics ->
+            routeToSpecificPage (OrganizationsPage, specifics)
+        | Page.ProfessionalSyndicDetails proSyndicId ->
+            Router.format(ProfessionalSyndicsPage, string proSyndicId)
+        | Page.ProfessionalSyndicList ->
+            Router.format(ProfessionalSyndicsPage)
+        | Page.OrganizationTypeList ->
+            Router.format(OrganizationTypesPage)
+        | Page.Contracts specifics ->
+            routeToSpecificPage(ContractsPage, specifics)
+        | Page.NotFound ->
+            Router.format(PortalPage)
 
     let navigateToPage =
         function
         | Page.Portal -> 
-            Feliz.Router.Router.navigate(PortalPage)
+            Router.navigate(PortalPage)
         | Page.BuildingList -> 
-            Feliz.Router.Router.navigate(BuildingsPage)
+            Router.navigate(BuildingsPage)
         | Page.BuildingDetails props ->
             BuildingsPage |> navigateToDetailsPage props
         | Page.OwnerList props ->
@@ -76,27 +108,16 @@
         | Page.OrganizationDetails props ->
             OrganizationsPage |> navigateToBuildingSpecificDetailsPage props
         | Page.ProfessionalSyndicList ->
-            Feliz.Router.Router.navigate(ProfessionalSyndicsPage)
+            Router.navigate(ProfessionalSyndicsPage)
         | Page.ProfessionalSyndicDetails props ->
             ProfessionalSyndicsPage |> navigateToDetailsPage props
         | Page.OrganizationTypeList ->
-            Feliz.Router.Router.navigate(OrganizationTypesPage)
+            Router.navigate(OrganizationTypesPage)
         | Page.Contracts props ->
             ContractsPage |> navigateToBuildingSpecificPage props
         | Page.NotFound ->
             //Do nothing... you're not supposed to go to the loading or notfound page from code...
             Cmd.none
-
-    let navigateToNavigablePage =
-        function
-        | NavigablePage.Portal -> navigateToPage Page.Portal
-        | NavigablePage.BuildingList -> navigateToPage Page.BuildingList
-        | NavigablePage.OwnerList props -> navigateToPage (Page.OwnerList props)
-        | NavigablePage.LotList props  -> navigateToPage (Page.LotList props)
-        | NavigablePage.OrganizationList props -> navigateToPage (Page.OrganizationList props)
-        | NavigablePage.ProfessionalSyndicsList -> navigateToPage Page.ProfessionalSyndicList
-        | NavigablePage.OrganizationTypesList -> navigateToPage Page.OrganizationTypeList
-        | NavigablePage.Contracts props -> navigateToPage (Page.Contracts props)
 
     let parseUrl = function
         | [ ] -> 

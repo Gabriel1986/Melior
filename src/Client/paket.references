@@ -12,3 +12,4 @@ Zanaptak.TypedCssClasses
 Thoth.Fetch
 Elmish.SweetAlert
 Fable.React.Flatpickr
+Thoth.Elmish.Debouncer

@@ -11,15 +11,13 @@ let masterPage (pageTitle : string) (content : XmlNode list) =
             meta [ _charset "utf-8" ]
             meta [ _name "viewport"; _content "width=device-width, initial-scale=1, shrink-to-fit=no" ]
             link [ 
-                _href "https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
+                _href "https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.min.css"
                 _rel "stylesheet"
-                _integrity "sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk"
-                _crossorigin "anonymous" 
             ]
             style [ ] [ str 
                 """
                     .login-form {
-                        width: 340px;
+                        max-width: 500px;
                         margin: 50px auto;
           	            font-size: 15px;
                     }
@@ -191,12 +189,12 @@ let initializeTwoFacPage (qrCode: string) (manualEntrySetupCode: string) (valida
             yield div [ _class "card-body" ] [
                 form [ _method "POST" ] [
                     antiforgeryInput antiForgeryToken
-                    div [] [
+                    div [ _style "text-align: center" ] [
                         label [] [ str "U kan deze code scannen in uw gekozen authenticator app:" ]
                         img [ _src qrCode; _alt "Uw browser blokkeert de QR code, gelieve de manuele instellingscode in uw app in te geven" ]
                     ]
                     div [ _class "form-group" ] [
-                        label [] [ str (sprintf "Manuele instellingscode (indien de QR code niet werkt): %s" manualEntrySetupCode) ]
+                        p [] [ str (sprintf "Manuele instellingscode (indien de QR code niet werkt): %s" manualEntrySetupCode) ]
                     ]
                     div [ _class "form-group" ] [
                         label [] [ str "De code die uw app u toont (deze wijzigt elke 30 seconden):" ]
@@ -209,9 +207,9 @@ let initializeTwoFacPage (qrCode: string) (manualEntrySetupCode: string) (valida
 
 let twoFacSucceeded =
     [
-        div [ _class "card text-center bg-success" ] [
+        div [ _class "card text-center" ] [
             h3 [] [
-                str "Het instellen van de twee factor authenticatie is geslaagd."
+                str "Het instellen van de twee factor authenticatie is geslaagd"
             ]
             p [] [
                 str "De applicatie zal u de volgende keer, na het aanmelden met gebruikersnaam en wachtwoord, om een code vragen die u op de authenticator app kan terugvinden."

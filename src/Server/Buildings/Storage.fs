@@ -77,7 +77,7 @@ let updateBuildingSyndic (connectionString: string) (buildingId: BuildingId, syn
             """
                 UPDATE Buildings SET
                     SyndicOwnerId = @SyndicOwnerId,
-                    SyndicProfessionalSyndicId = @SyndicProfessionalSyndicId,
+                    SyndicProfessionalSyndicId = @SyndicProfessionalSyndicId
                 WHERE BuildingId = @BuildingId
             """, [
                 "@BuildingId"                , Sql.uuid buildingId
@@ -93,7 +93,7 @@ let updateBuildingSyndic (connectionString: string) (buildingId: BuildingId, syn
             """
                 UPDATE Buildings SET
                     SyndicOwnerId = @SyndicOwnerId,
-                    SyndicProfessionalSyndicId = @SyndicProfessionalSyndicId,
+                    SyndicProfessionalSyndicId = @SyndicProfessionalSyndicId
                 WHERE BuildingId = @BuildingId
             """
         |> Sql.parameters [

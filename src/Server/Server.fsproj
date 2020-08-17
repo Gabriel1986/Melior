@@ -56,6 +56,10 @@
     <Compile Include="Authentication\Pages.fs" />
     <Compile Include="Authentication\HttpHandler.fs" />
     <Compile Include="Authentication\AuthenticationSystem.fs" />
+    <Compile Include="Contracts\Query.fs" />
+    <Compile Include="Contracts\Storage.fs" />
+    <Compile Include="Contracts\Workflow.fs" />
+    <Compile Include="Contracts\ContractSystem.fs" />
     <Compile Include="Remoting.fs" />
     <Compile Include="Application.fs" />
     <Compile Include="Seedings.fs" />

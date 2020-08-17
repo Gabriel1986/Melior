@@ -26,11 +26,12 @@ type Startup private () =
 
         services
             .AddGiraffe()
+            .AddAntiforgery()
             .AddSingleton<Serialization.Json.IJsonSerializer>(
                 ThothSerializer (caseStrategy=Thoth.Json.Net.CaseStrategy.PascalCase, extra=Extra.empty, skipNullField=true)
             )
             .AddSingleton<IProfessionalSyndicCache>(
-                new ProfessionalSyndicCache(appSettings.Database.ConnectionString)
+                new ProfessionalSyndicCache(appSettings.Database.Connection)
             )
             |> ignore
 
@@ -41,7 +42,7 @@ type Startup private () =
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     member this.Configure(app: IApplicationBuilder, env: IWebHostEnvironment) =
         let appSettings = this.Configuration.Get<AppSettings>()
-        Migrations.run Log.Logger appSettings.Database.ConnectionString
+        Migrations.run Log.Logger appSettings.Database.Connection
         Seedings.run Log.Logger this.Configuration
 
         let handleErrors: ErrorHandler =

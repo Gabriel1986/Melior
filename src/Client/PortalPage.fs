@@ -15,26 +15,26 @@ open Client.ClientStyle.Helpers
 type State = {
     CurrentUser: User
     CurrentBuilding: BuildingListItem option
+    AdminModeEnabled: bool
 }
 
 type Msg =
-    | OpenPage of NavigablePage
+    | OpenPage of Page
 
-type PortalPageProps = {| CurrentUser: User; CurrentBuilding: BuildingListItem option |}
+type PortalPageProps = {| CurrentUser: User; CurrentBuilding: BuildingListItem option; AdminModeEnabled: bool |}
 
 let init (props: PortalPageProps) =
-    { CurrentUser = props.CurrentUser; CurrentBuilding = props.CurrentBuilding }, Cmd.none
+    { CurrentUser = props.CurrentUser; CurrentBuilding = props.CurrentBuilding; AdminModeEnabled = props.AdminModeEnabled }, Cmd.none
 
 let update (msg: Msg) (state: State) =
     match msg with
     | OpenPage page ->
-        state, Routing.navigateToNavigablePage page
+        state, Routing.navigateToPage page
 
-let private inCard (body: string) (imgUrl: string) (element: ReactElement) =
+let private inCard (imgUrl: string) (onClick: unit -> unit) (element: ReactElement) =
     div [ Class Bootstrap.card ] [
-        img [ Class Bootstrap.cardImgTop; Src imgUrl; Alt "Image missing :(" ]
+        img [ classes [ Bootstrap.cardImgTop; "pointer" ]; Src imgUrl; Alt "Image missing :("; OnClick (fun _ -> onClick()) ]
         div [ Class Bootstrap.cardBody ] [
-            p [ Class Bootstrap.cardText ] [ str body ]
             element
         ]
     ]
@@ -44,56 +44,60 @@ let private inCol (element: ReactElement) =
         element
     ]
 
+let private portalButton (btnText: string) (onClick: unit -> unit) =
+    button [ 
+        OnClick (fun _ -> onClick()) 
+        classes [ Bootstrap.btn; Bootstrap.btnBlock; Bootstrap.btnDark ]
+    ] [
+        str btnText
+    ]
+
 let view (state: State) (dispatch: Msg -> unit) =
     div [] [
         div [ classes [ Bootstrap.row; Bootstrap.rowColsLg4; Bootstrap.rowCols2 ] ] [
+            if state.AdminModeEnabled then yield! [
                 yield
-                    button [ 
-                        OnClick (fun _ -> Msg.OpenPage BuildingList |> dispatch) 
-                        classes [ Bootstrap.btn; Bootstrap.btnLink ]
-                    ] [ 
-                        i [ classes [ FontAwesome.fa; FontAwesome.faExternalLinkAlt ] ] []
-                        str " "
-                        str "Gebouwen" 
-                    ]
-                    |> inCard "Gebouwen onder uw beheer" "https://i.ibb.co/rQnJ0hn/architecture-768432-640.jpg"
+                    portalButton "Gebouwen" (fun () -> Msg.OpenPage BuildingList |> dispatch)
+                    |> inCard "https://i.ibb.co/rQnJ0hn/architecture-768432-640.jpg" (fun () -> Msg.OpenPage BuildingList |> dispatch)
                     |> inCol
                 yield!
                     match state.CurrentBuilding with
                     | Some currentBuilding -> [
-                            button [ 
-                                OnClick (fun _ -> Msg.OpenPage (LotList { BuildingId = currentBuilding.BuildingId }) |> dispatch) 
-                                classes [ Bootstrap.btn; Bootstrap.btnLink ]
-                            ] [ 
-                                i [ classes [ FontAwesome.fa; FontAwesome.faExternalLinkAlt ] ] []
-                                str " "
-                                str "Kavels" 
-                            ]
-                            |> inCard (sprintf "De verschillende kavels die horen tot gebouw %s" currentBuilding.Code) "https://i.ibb.co/fXtJZQ0/floor-plan-1474454-640.jpg"
+                            portalButton "Eigenaars" (fun () -> Msg.OpenPage (OwnerList { BuildingId = currentBuilding.BuildingId }) |> dispatch) 
+                            |> inCard "https://i.ibb.co/nbnkx9P/keys-2251770-640.jpg" (fun () -> Msg.OpenPage (OwnerList { BuildingId = currentBuilding.BuildingId }) |> dispatch)
                             |> inCol
-                            button [ 
-                                OnClick (fun _ -> Msg.OpenPage (OwnerList { BuildingId = currentBuilding.BuildingId }) |> dispatch) 
-                                classes [ Bootstrap.btn; Bootstrap.btnLink ]
-                            ] [ 
-                                i [ classes [ FontAwesome.fa; FontAwesome.faExternalLinkAlt ] ] []
-                                str " "
-                                str "Eigenaars"
-                            ]
-                            |> inCard (sprintf "De eigenaars van kavels die horen tot gebouw %s" currentBuilding.Code) "https://i.ibb.co/nbnkx9P/keys-2251770-640.jpg"
+
+                            portalButton "Kavels" (fun () -> Msg.OpenPage (LotList { BuildingId = currentBuilding.BuildingId }) |> dispatch)
+                            |> inCard "https://i.ibb.co/fXtJZQ0/floor-plan-1474454-640.jpg" (fun () -> Msg.OpenPage (LotList { BuildingId = currentBuilding.BuildingId }) |> dispatch)
                             |> inCol
-                            button [ 
-                                OnClick (fun _ -> Msg.OpenPage (OrganizationList { BuildingId = currentBuilding.BuildingId }) |> dispatch) 
-                                classes [ Bootstrap.btn; Bootstrap.btnLink ]
-                            ] [
-                                i [ classes [ FontAwesome.fa; FontAwesome.faExternalLinkAlt ] ] []
-                                str " "
-                                str "Organisaties"  
-                            ]
-                            |> inCard (sprintf "De organisaties (leveranciers, netbeheerders, ...) die diensten verlenen voor gebouw %s" currentBuilding.Code) "https://i.ibb.co/wzsz0wp/hand-4053806-640.jpg"
+
+                            portalButton "Organisaties" (fun () -> Msg.OpenPage (OrganizationList { BuildingId = currentBuilding.BuildingId }) |> dispatch) 
+                            |> inCard "https://i.ibb.co/sCb1XVr/hand.png" (fun () -> Msg.OpenPage (OrganizationList { BuildingId = currentBuilding.BuildingId }) |> dispatch)
+                            |> inCol
+
+                            portalButton "Contracten" (fun () -> Msg.OpenPage (Contracts { BuildingId = currentBuilding.BuildingId }) |> dispatch)
+                            |> inCard "https://i.ibb.co/7N8J4wT/writing-640.jpg" (fun () -> Msg.OpenPage (Contracts { BuildingId = currentBuilding.BuildingId }) |> dispatch)
                             |> inCol
                         ]
                     | None ->
                         []
+            ] else yield! [
+                portalButton "Prikbord" (fun () -> Msg.OpenPage NoticeBoard |> dispatch)
+                |> inCard "https://i.ibb.co/wB1YWSf/tacks-949144-640.jpg" (fun () -> Msg.OpenPage NoticeBoard |> dispatch)
+                |> inCol
+
+                //portalButton "Evenementen" (fun () -> Msg.OpenPage MyEvents |> dispatch)
+                //|> inCard "https://i.ibb.co/wCQtBPs/Max-Pixel-net-Schedule-Monthly-Organizer-Day-Planner-Calendar-828611-640.jpg" (fun () -> Msg.OpenPage MyEvents |> dispatch)
+                //|> inCol
+
+                portalButton "Kavels" (fun () -> Msg.OpenPage MyLots |> dispatch)
+                |> inCard "https://i.ibb.co/fXtJZQ0/floor-plan-1474454-640.jpg" (fun () -> Msg.OpenPage MyLots |> dispatch)
+                |> inCol
+
+                portalButton "Contracten" (fun () -> Msg.OpenPage MyContracts |> dispatch)
+                |> inCard "https://i.ibb.co/7N8J4wT/writing-640.jpg" (fun () -> Msg.OpenPage MyContracts |> dispatch)
+                |> inCol
+            ]
         ]
     ]
 

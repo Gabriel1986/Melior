@@ -43,7 +43,7 @@ let getProfessionalSyndic (connectionString: string) (organizationId: Guid) = as
                     psbuilding.BuildingId
                 FROM
                     ProfessionalSyndics ps
-                LEFT JOIN ProfessioalSyndicBuildings psBuilding on ps.OrganizationId = psBuilding.SyndicId
+                LEFT JOIN ProfessionalSyndicBuildings psBuilding on ps.OrganizationId = psBuilding.OrganizationId
                 WHERE
                     ps.OrganizationId = @OrganizationId
             """

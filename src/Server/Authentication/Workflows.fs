@@ -86,7 +86,7 @@
                 new SecurityTokenDescriptor (
                     Subject = new ClaimsIdentity(claims),
                     Expires = Nullable(DateTime.UtcNow.Add(expiresAfter)),
-                    SigningCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.RsaSha256Signature),
+                    SigningCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256Signature),
                     Issuer = issuer
                 )
 

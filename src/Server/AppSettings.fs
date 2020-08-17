@@ -2,7 +2,7 @@
 
 [<CLIMutable>]
 type DatabaseSettings = {
-    ConnectionString: string
+    Connection: string
 }
 
 [<CLIMutable>]

@@ -8,7 +8,7 @@ open Client.ClientStyle.Helpers
 let view (building: BuildingListItem) (owner: Owner) =
     div [] [
         readonlyFormElement (sprintf "Bewoner van %s?" building.Code) (if owner.IsResident then "Ja" else "Nee")
-        PersonViewComponent.render {| Person = owner.Person; WithAddresses = false |}
+        PersonViewComponent.render {| Person = owner.Person; WithAddresses = owner.Person.MainAddress <> building.Address |}
     ]
 
 let render =

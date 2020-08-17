@@ -35,11 +35,15 @@ let getMediaFilesForEntities (connectionString: string) (partition: string) (ent
     ]
     |> Sql.read readMediaFile
 
-let getMediaFileById (connectionString: string) (partition: string) (fileId: Guid) =
-    Sql.connect connectionString
-    |> Sql.query (sprintf "%s WHERE FileId = @FileId AND Partition = @Partition" selectQuery)
+let getMediaFilesByIds (conn: string) (partition: string) (fileIds: Guid list) =
+    Sql.connect conn
+    |> Sql.query (sprintf "%s WHERE FileId in @FileIds AND Partition = @Partition" selectQuery)
     |> Sql.parameters [ 
-        "@FileId", Sql.uuid fileId 
+        "@FileIds", Sql.uuidArray (fileIds |> Array.ofList)
         "@Partition", Sql.string partition
     ]
-    |> Sql.readSingle readMediaFile
+    |> Sql.read readMediaFile
+
+let getMediaFileById (conn: string) (partition: string) (fileId: Guid) =
+    getMediaFilesByIds conn partition [ fileId ]
+    |> Async.map List.tryHead

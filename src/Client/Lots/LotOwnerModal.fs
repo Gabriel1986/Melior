@@ -156,30 +156,28 @@ let renderLotOwnerTypeSelection dispatch =
     ]
 
 let renderOwnerSelectionList (list: OwnerListItem list) (selected: OwnerListItem list) dispatch =
-    SelectionList.render ({
-        SelectionMode = SelectionMode.MultiSelect
-        LoadItems = fun () -> async {
-            return list |> List.sortBy (fun o -> o.FirstName)
-        }
-        SelectedItems = selected
-        OnSelectionChanged = fun selection -> SetSelectedOwners selection |> dispatch
-        DisplayListItem = (fun ownerListItem -> 
-            [ownerListItem.FirstName; ownerListItem.LastName] 
-            |> List.choose id 
-            |> String.JoinWith " "
-            |> str)
-    }, "OwnerSelectionList")
+    SelectionList.render (
+        {|
+            SelectionMode = SelectionMode.MultiSelect
+            AllItems = list |> List.sortBy (fun o -> o.FirstName)
+            SelectedItems = selected
+            OnSelectionChanged = fun selection -> SetSelectedOwners selection |> dispatch
+            DisplayListItem = (fun ownerListItem -> 
+                [ownerListItem.FirstName; ownerListItem.LastName] 
+                |> List.choose id 
+                |> String.JoinWith " "
+                |> str)
+        |}, "OwnerSelectionList")
 
 let renderOrganizationSelectionList (list: OrganizationListItem list) (selected: OrganizationListItem list) dispatch =
-    SelectionList.render ({
-        SelectionMode = SelectionMode.MultiSelect
-        LoadItems = fun () -> async {
-            return list |> List.sortBy (fun o -> o.Name)
-        }
-        SelectedItems = selected
-        OnSelectionChanged = fun selection -> SetSelectedOrganizations selection |> dispatch
-        DisplayListItem = (fun org -> str org.Name)
-    }, "OrganizationSelectionList")
+    SelectionList.render (
+        {|
+            SelectionMode = SelectionMode.MultiSelect
+            AllItems = list |> List.sortBy (fun o -> o.Name)
+            SelectedItems = selected
+            OnSelectionChanged = fun selection -> SetSelectedOrganizations selection |> dispatch
+            DisplayListItem = (fun org -> str org.Name)
+        |}, "OrganizationSelectionList")
 
 let modalContent model dispatch =
     match model.State with
@@ -241,7 +239,6 @@ let view (model: Model) dispatch =
                 ]
                 Footer [
                     yield FooterProp.Buttons (renderModalButtons model dispatch)
-                    yield FooterProp.ShowDismissButton (Some "Annuleren")
                 ]
             ]           
         |}

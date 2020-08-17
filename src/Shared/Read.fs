@@ -2,12 +2,20 @@ module Shared.Read
 
 open System
 open Library
+open MediaLibrary
+
+type BuildingId = Guid
 
 type GeneralMeetingPeriod = {
     FromDay: int
     FromMonth: int
     UntilDay: int
     UntilMonth: int
+}
+
+type Savable<'T> = {
+    IsSaving: bool
+    Payload: 'T
 }
 
 type User = 
@@ -19,7 +27,7 @@ type User =
         PreferredLanguageCode: string
         UseTwoFac: bool
     }
-    member me.HasAccessToBuilding (buildingId: Guid) =
+    member me.HasAccessToBuilding (buildingId: BuildingId) =
         me.Roles |> List.exists (
             function
             | UserRole bids -> bids |> List.contains buildingId
@@ -27,7 +35,7 @@ type User =
             | ProfessionalSyndicRole (_orgId, bIds) -> bIds |> List.contains buildingId
             | SysAdminRole -> true
         )
-    member me.HasAdminAccessToBuilding (buildingId: Guid) =
+    member me.HasAdminAccessToBuilding (buildingId: BuildingId) =
         me.Roles |> List.exists (
             function
             | UserRole _ -> false
@@ -35,13 +43,14 @@ type User =
             | ProfessionalSyndicRole (_orgId, bIds) -> bIds |> List.contains buildingId
             | SysAdminRole -> true
         )
-    member me.IsSysAdmin =
-        me.Roles |> List.contains SysAdminRole
+    member me.HasAccessToAdminMode with get () = me.Roles |> List.exists (function | SyndicRole | ProfessionalSyndicRole | SysAdminRole -> true | UserRole -> false)
+    member me.IsSysAdmin with get() = me.Roles |> List.contains SysAdminRole
+    member me.Principal with get() = me.EmailAddress
 
 and Role =
-    | UserRole of buildingIds: Guid list
-    | SyndicRole of buildingIds: Guid list
-    | ProfessionalSyndicRole of organizationId: Guid * buildingIds: Guid list
+    | UserRole of buildingIds: BuildingId list
+    | SyndicRole of buildingIds: BuildingId list
+    | ProfessionalSyndicRole of organizationId: Guid * buildingIds: BuildingId list
     //Has access to all buildings
     | SysAdminRole
     member me.BuildingIds =
@@ -50,8 +59,6 @@ and Role =
         | SyndicRole bIds -> bIds
         | ProfessionalSyndicRole (_orgId, bIds) -> bIds
         | SysAdminRole -> []
-
-type BuildingId = Guid
 
 type Building = 
     {
@@ -163,7 +170,7 @@ and CommonSpace = string list
 and Lot = 
     {
         LotId: Guid
-        BuildingId: Guid
+        BuildingId: BuildingId
         Owners: (LotOwner * LotOwnerRole) list
         Code: string
         LotType: LotType
@@ -176,7 +183,7 @@ and Lot =
     member me.LegalRepresentative =
         me.Owners
         |> List.tryPick (fun (owner, role) -> if role = LegalRepresentative then Some owner else None)
-    static member Init (buildingId: Guid) = {
+    static member Init (buildingId: BuildingId) = {
         LotId = Guid.NewGuid()
         BuildingId = buildingId
         Owners = []
@@ -221,7 +228,7 @@ and LotType =
 
 and LotListItem = {
     LotId: Guid
-    BuildingId: Guid
+    BuildingId: BuildingId
     LegalRepresentative: LotOwnerListItem option
     Code: string
     LotType: LotType
@@ -236,7 +243,7 @@ and LotOwnerListItem =
 and Organization = 
     {
         OrganizationId: Guid
-        BuildingId: Guid option
+        BuildingId: BuildingId option
         OrganizationNumber: string option
         VatNumber: string option
         VatNumberVerifiedOn: DateTime option
@@ -250,7 +257,7 @@ and Organization =
         OtherContactMethods: ContactMethod list
         ContactPersons: ContactPerson list
     }
-    static member Init (buildingId: Guid option): Organization = 
+    static member Init (buildingId: BuildingId option): Organization = 
         let orgId = Guid.NewGuid()
         {
             OrganizationId = orgId
@@ -271,11 +278,11 @@ and Organization =
 and ContactPerson = 
     {
         OrganizationId: Guid
-        BuildingId: Guid option
+        BuildingId: BuildingId option
         Person: Person
         RoleWithinOrganization: string
     }
-    static member Init (orgId: Guid) (buildingId: Guid option) = {
+    static member Init (orgId: Guid) (buildingId: BuildingId option) = {
         OrganizationId = orgId
         BuildingId = buildingId
         Person = Person.Init ()
@@ -292,7 +299,7 @@ and OrganizationType =
     }
 and OrganizationListItem = {
     OrganizationId: Guid
-    BuildingId: Guid option
+    BuildingId: BuildingId option
     OrganizationNumber: string option
     OrganizationTypeNames: string list
     Name: string
@@ -349,11 +356,11 @@ and Gender =
 
 and Owner = 
     {
-        BuildingId: Guid
+        BuildingId: BuildingId
         Person: Person
         IsResident: bool
     }
-    static member Init (buildingId: Guid) = {
+    static member Init (buildingId: BuildingId) = {
         BuildingId = buildingId
         Person = Person.Init ()
         IsResident = true
@@ -374,7 +381,7 @@ and ProfessionalSyndic =
     }
 and OwnerListItem = 
     {
-        BuildingId: Guid
+        BuildingId: BuildingId
         PersonId: Guid
         FirstName: string option
         LastName: string option
@@ -404,3 +411,97 @@ type VatNumberValidationResponse = {
     Name: string option
     Address: Address option
 }
+
+type ContractTypeQuestionId = Guid
+
+type ContractTypeQuestion =
+    | BuildingHasElevator
+    | BuildingHasCommonCentralHeating
+    | BuildingHasFireAlarm
+    | BuildingHasFireExtinguisher
+    | BuildingHasFireHoseReel
+    static member AllValues = [|
+        BuildingHasElevator
+        BuildingHasCommonCentralHeating
+        BuildingHasFireAlarm
+        BuildingHasFireExtinguisher
+        BuildingHasFireHoseReel
+    |]
+    static member OfString s =
+        match s with
+        | x when x = string BuildingHasElevator -> Some BuildingHasElevator
+        | x when x = string BuildingHasCommonCentralHeating -> Some BuildingHasCommonCentralHeating
+        | x when x = string BuildingHasFireAlarm -> Some BuildingHasFireAlarm
+        | x when x = string BuildingHasFireExtinguisher -> Some BuildingHasFireExtinguisher
+        | x when x = string BuildingHasFireHoseReel -> Some BuildingHasFireHoseReel
+        | _ -> None
+
+type PredefinedContractType =
+    | ElevatorMaintenance
+    | ElevatorInspection
+    | CommonCentralHeatingInspection
+    | FireAlarmInspection
+    | FireExtinguisherInspection
+    | FireHoseReelInspection
+    | FireInsurance
+    | LiabilityInsurance
+    | CivilLiabilityForCoOwnerCouncil
+    | ElectricitySupplier
+    | WaterSupplier
+
+type ContractTypeAnswer = {
+    BuildingId: BuildingId
+    Question: ContractTypeQuestion
+    IsTrue: bool
+}
+
+type ContractType = {
+    ContractTypeId: Guid
+    Name: string
+}
+
+type ContractContractType =
+    | PredefinedContractType of PredefinedContractType
+    | OtherContractType of string
+type Contract = {
+    ContractId: Guid
+    BuildingId: Guid
+    ContractType: ContractContractType
+    ContractFile: MediaFile option
+    ContractOrganization: OrganizationListItem option
+}
+
+let mandatoryContractTypesFor (answer: ContractTypeAnswer) =
+    if answer.IsTrue then
+        match answer.Question with
+        | BuildingHasElevator -> 
+            [|
+                PredefinedContractType.ElevatorInspection
+                PredefinedContractType.ElevatorMaintenance
+            |]
+        | BuildingHasCommonCentralHeating -> 
+            [|
+                PredefinedContractType.CommonCentralHeatingInspection
+            |]
+        | BuildingHasFireAlarm ->
+            [|
+                PredefinedContractType.FireAlarmInspection
+            |]
+        | BuildingHasFireExtinguisher ->
+            [|
+                PredefinedContractType.FireExtinguisherInspection
+            |]
+        | BuildingHasFireHoseReel ->
+            [|
+                PredefinedContractType.FireHoseReelInspection
+            |]
+    else
+        [||]
+
+let MandatoryContractTypes = [|
+    PredefinedContractType.FireInsurance
+    PredefinedContractType.LiabilityInsurance
+    PredefinedContractType.CivilLiabilityForCoOwnerCouncil
+    PredefinedContractType.ElectricitySupplier
+    PredefinedContractType.WaterSupplier
+|]

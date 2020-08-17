@@ -69,7 +69,7 @@ let view (props: Props) =
                 legend [] [ 
                     div [ Class Bootstrap.formInline ] [
                         div [ Class Bootstrap.formGroup ] [
-                            h2 [] [ str "Concierge" ]
+                            h2 [ Class Bootstrap.mr2 ] [ str "Concierge" ]
                             button [ 
                                 classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm; Bootstrap.mr2 ]
                                 OnClick (fun _ -> props.OnEditConcierge ()) 
