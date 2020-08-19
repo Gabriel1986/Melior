@@ -114,23 +114,28 @@ let renderContractEditView (contract: Contract) dispatch =
     div [] [
         match contract.ContractFile with
         | None ->
-            filePond Partitions.Contracts contract.ContractId [
-                AllowMultiple false
-                MaxFiles 1
-                OnProcessFile (fun error filepondfile ->
-                    if String.IsNullOrWhiteSpace(error) then
-                        filepondfile
-                        |> FilePondFile.toMediaFile Partitions.Contracts contract.ContractId
-                        |> ContractFileUploaded
-                        |> dispatch)
-            ]
+            filePond 
+                {| 
+                    Partition = Partitions.Contracts; 
+                    EntityId = contract.ContractId
+                    Options = [
+                        AllowMultiple false
+                        MaxFiles 1
+                        OnProcessFile (fun error filepondfile ->
+                            if String.IsNullOrWhiteSpace(error) then
+                                filepondfile
+                                |> FilePondFile.toMediaFile Partitions.Contracts contract.ContractId
+                                |> ContractFileUploaded
+                                |> dispatch)
+                    ]
+                |}
         | Some mediaFile ->
             yield! [
                 div [ Class Bootstrap.formGroup ] [
                     label [] [ str "Bestand" ]
                     div [ Class Bootstrap.inputGroup ] [
                         a [ Href (downloadUri Partitions.Contracts mediaFile.FileId); Target "_blank"; Class Bootstrap.formControl ] [
-                            str (sprintf "%s (%s)" mediaFile.FileName mediaFile.FileSizeString)
+                            str (sprintf "%s (%s)" mediaFile.FileName (mediaFile.FileSizeString ()))
                         ]
                         div [ Class Bootstrap.inputGroupAppend ] [
                             button [ classes [ Bootstrap.btn; Bootstrap.btnDanger ]; Type "button"; OnClick (fun _ -> dispatch DeleteContractFile) ] [

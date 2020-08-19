@@ -16,6 +16,7 @@ open Shared.MediaLibrary
 
 open Server.Library
 open Server.Blueprint.Behavior.Media
+open Amazon.Runtime
 
 [<AutoOpen>]
 module private Internals =
@@ -25,7 +26,9 @@ module private Internals =
         awsConfig.ServiceURL <- "http://localhost:4572"
         awsConfig.UseHttp <- true
         awsConfig.ForcePathStyle <- true //Can't set this using the GetAWSOptions... Needed to do this manually for development....
-        new AmazonS3Client (awsConfig) :> IAmazonS3
+        awsConfig.AuthenticationRegion <- "us-east-1"
+        let awsCredentials = new AnonymousAWSCredentials();
+        new AmazonS3Client (awsCredentials, awsConfig) :> IAmazonS3
 #else
         let awsConfig = config.GetAWSOptions()
         let serviceClient = awsConfig.CreateServiceClient<IAmazonS3>()
@@ -122,7 +125,7 @@ module private Internals =
                         printfn "Uploading file to S3"
                         //Upload the file to S3
                         //TODO: downsize PDF files
-                        if file.IsImage 
+                        if file.IsImage ()
                         then
                             //Generate small and large thumbnails
                             use inputStream = FileInfo(combinedPath).OpenRead()

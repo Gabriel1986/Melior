@@ -313,7 +313,7 @@ let renderContactPersons (contactPersons: ContactPerson list) dispatch =
     [
         yield! contactPersons |> List.mapi (fun index cp ->
             div [] [
-                str (sprintf "%s (%s)" cp.Person.FullName cp.RoleWithinOrganization)
+                str (sprintf "%s (%s)" (cp.Person.FullName ()) cp.RoleWithinOrganization)
             ]
         )
         yield
@@ -331,7 +331,7 @@ let basicRenderContactPersonModal (contactPersonEditComponentState: ContactPerso
                 IsOpen true
                 OnDismiss (fun _ -> EditContactPersonCanceled |> dispatch)
                 Header [
-                    Title (sprintf "%s" contactPersonEditComponentState.ContactPerson.Person.FullName)
+                    Title (sprintf "%s" (contactPersonEditComponentState.ContactPerson.Person.FullName ()))
                     HasDismissButton true
                 ]
                 Body [
@@ -364,7 +364,7 @@ let renderEditContactPersonModal (state: ContactPersonEditComponent.State) dispa
     basicRenderContactPersonModal state dispatch successButton
 
 let renderOrganizationType (dispatch: Message -> unit) (organizationType: OrganizationType) =
-    span [ classes [ Bootstrap.badge; Bootstrap.badgeSecondary ] ] [ 
+    span [ classes [ Bootstrap.badge; Bootstrap.badgeSecondary; Bootstrap.mr2 ] ] [ 
         span [ 
             classes [ Bootstrap.badge; Bootstrap.badgeDark; "pointer" ]
             OnClick (fun e -> e.preventDefault(); e.stopPropagation(); RemoveOrganizationType organizationType |> dispatch) 
@@ -481,7 +481,7 @@ let view state dispatch =
         div [ Class Bootstrap.formGroup ] [
             label [ HtmlFor "OrganizationTypes" ] [ str "Types (bvb. leverancier, loodgieter, e.d.)" ]
             div [ 
-                classes [ Bootstrap.formControl; Bootstrap.w100 ]
+                classes [ Bootstrap.formControl; Bootstrap.w100; "pointer" ]
                 OnClick (fun _ -> AddOrganizationType |> dispatch)
                 HTMLAttr.Name "OrganizationTypes"
             ] [

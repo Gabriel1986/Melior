@@ -43,9 +43,9 @@ type User =
             | ProfessionalSyndicRole (_orgId, bIds) -> bIds |> List.contains buildingId
             | SysAdminRole -> true
         )
-    member me.HasAccessToAdminMode with get () = me.Roles |> List.exists (function | SyndicRole | ProfessionalSyndicRole | SysAdminRole -> true | UserRole -> false)
-    member me.IsSysAdmin with get() = me.Roles |> List.contains SysAdminRole
-    member me.Principal with get() = me.EmailAddress
+    member me.HasAccessToAdminMode () = me.Roles |> List.exists (function | SyndicRole | ProfessionalSyndicRole | SysAdminRole -> true | UserRole -> false)
+    member me.IsSysAdmin () = me.Roles |> List.contains SysAdminRole
+    member me.Principal () = me.EmailAddress
 
 and Role =
     | UserRole of buildingIds: BuildingId list
@@ -53,7 +53,7 @@ and Role =
     | ProfessionalSyndicRole of organizationId: Guid * buildingIds: BuildingId list
     //Has access to all buildings
     | SysAdminRole
-    member me.BuildingIds =
+    member me.BuildingIds () =
         match me with
         | UserRole bIds -> bIds
         | SyndicRole bIds -> bIds
@@ -78,7 +78,7 @@ type Building =
         BuildingId = Guid.NewGuid()
         Code = ""
         Name = ""
-        Address = Address.Init
+        Address = Address.Init ()
         OrganizationNumber = None
         Remarks = None
         GeneralMeetingPeriod = None
@@ -101,7 +101,7 @@ and Address =
         Town: string option
         Country: string option
     }
-    static member Init = { 
+    static member Init () = { 
         Street = None
         ZipCode = None
         Town = None
@@ -120,10 +120,10 @@ and OtherAddress =
         Description: string
         Address: Address
     }
-    static member Init = {
+    static member Init () = {
         Name = ""
         Description = ""
-        Address = Address.Init
+        Address = Address.Init ()
     }
 
 and Concierge =
@@ -180,7 +180,7 @@ and Lot =
         //Surface in square metres, if necessary, could be calculated in square feet
         Surface: int option
     }
-    member me.LegalRepresentative =
+    member me.LegalRepresentative () =
         me.Owners
         |> List.tryPick (fun (owner, role) -> if role = LegalRepresentative then Some owner else None)
     static member Init (buildingId: BuildingId) = {
@@ -267,7 +267,7 @@ and Organization =
             VatNumberVerifiedOn = None
             OrganizationTypes = []
             Name = ""
-            Address = Address.Init
+            Address = Address.Init ()
             MainEmailAddress = None
             MainEmailAddressComment = None
             MainTelephoneNumber = None
@@ -300,6 +300,7 @@ and OrganizationType =
 and OrganizationListItem = {
     OrganizationId: Guid
     BuildingId: BuildingId option
+    VatNumber: string option
     OrganizationNumber: string option
     OrganizationTypeNames: string list
     Name: string
@@ -324,7 +325,7 @@ and Person =
         MainEmailAddressComment: string option
         OtherContactMethods: ContactMethod list
     }
-    member me.FullName = [ me.FirstName; me.LastName ] |> String.JoinOptionsWith " "
+    member me.FullName () = [ me.FirstName; me.LastName ] |> String.JoinOptionsWith " "
     static member Init () = {
         PersonId = Guid.NewGuid()
         FirstName = None
@@ -332,7 +333,7 @@ and Person =
         LanguageCode = Some "nl-BE"
         Gender = Male
         Title = None
-        MainAddress = Address.Init
+        MainAddress = Address.Init ()
         ContactAddress = MainAddress
         OtherAddresses = []
         MainTelephoneNumber = None
@@ -387,7 +388,7 @@ and OwnerListItem =
         LastName: string option
         IsResident: bool
     }
-    member me.FullName = [ me.FirstName; me.LastName ] |> String.JoinOptionsWith " "
+    member me.FullName () = [ me.FirstName; me.LastName ] |> String.JoinOptionsWith " "
 and TenantListItem = {
     PersonId: Guid
     FirstName: string
@@ -420,7 +421,7 @@ type ContractTypeQuestion =
     | BuildingHasFireAlarm
     | BuildingHasFireExtinguisher
     | BuildingHasFireHoseReel
-    static member AllValues = [|
+    static member AllValues () = [|
         BuildingHasElevator
         BuildingHasCommonCentralHeating
         BuildingHasFireAlarm

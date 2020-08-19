@@ -45,7 +45,7 @@ module String255 =
 
 type PositiveInt = 
     private | PositiveInt of int
-    member me.Value = match me with | PositiveInt x -> x
+    member me.Value () = match me with | PositiveInt x -> x
 
 let validatePositiveInt path x =
     if x < 0 then Trial.ofError (path, "De waarde moet groter zijn dan 0...") else Trial.Pass (PositiveInt x)
@@ -80,9 +80,15 @@ module OrganizationNumber =
 
 type VatNumber = 
     private | VatNumber of countryCode: string * vatNumber: string
-    member me.CountryCode = match me with | VatNumber (c, _) -> c
-    member me.Value = match me with | VatNumber (_, v) -> v
-    override me.ToString () = match me with | VatNumber (c, v) -> sprintf "%s%s" c v
+    member me.CountryCode () = match me with | VatNumber (c, _) -> c
+    member me.Value () = match me with | VatNumber (_, v) -> v
+    override me.ToString () = 
+        match me with 
+        | VatNumber (c, v) -> 
+            if c = "BE" then
+                sprintf "%s%s.%s.%s" c v.[0..3] v.[4..6] v.[7..9]
+            else
+                sprintf "%s%s" c v
 
 module VatNumber =
     let private parseInt (s: string) = 

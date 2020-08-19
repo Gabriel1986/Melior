@@ -45,6 +45,7 @@ module private Readers =
     type OrganizationListItemDbModel = {
         OrganizationId: Guid
         BuildingId: Guid option
+        VatNumber: string option
         OrganizationNumber: string option
         Name: string
         Address: string
@@ -55,6 +56,7 @@ module private Readers =
     let readOrganizations (reader: CaseInsensitiveRowReader): OrganizationListItemDbModel = {
         OrganizationId = reader.uuid "OrganizationId"
         BuildingId = reader.uuidOrNone "BuildingId"
+        VatNumber = reader.stringOrNone "VatNumber"
         OrganizationNumber = reader.stringOrNone "OrganizationNumber"
         Name = reader.string "Name"
         Address = reader.string "Address"
@@ -183,7 +185,7 @@ let getOrganization (connectionString: string) (organizationId: Guid) = async {
         let forceAddress =
             Address.fromJson
             >> Option.fromResult
-            >> Option.defaultValue Address.Init
+            >> Option.defaultValue (Address.Init ())
 
         let otherContactMethods =
             match dbModel.OtherContactMethods with
@@ -222,6 +224,7 @@ let getOrganizations connectionString (filter: {| BuildingId: Guid |}) = async {
                 SELECT
                     OrganizationId,
                     BuildingId,
+                    VatNumber,
                     OrganizationNumber,
                     Name,
                     Address,
@@ -240,13 +243,14 @@ let getOrganizations connectionString (filter: {| BuildingId: Guid |}) = async {
         organizations |> List.map (fun o -> {
             OrganizationId = o.OrganizationId
             BuildingId = o.BuildingId
+            VatNumber = o.VatNumber
             OrganizationNumber = o.OrganizationNumber
             OrganizationTypeNames = 
                 match organizationTypes.TryGetValue(o.OrganizationId) with
                 | true, types -> types |> List.map (fun t -> t.Name)
                 | false, _ -> []
             Name = o.Name
-            Address = Address.fromJson o.Address |> Option.fromResult |> Option.defaultValue Address.Init
+            Address = Address.fromJson o.Address |> Option.fromResult |> Option.defaultValue (Address.Init ())
         })
 }
 
@@ -267,9 +271,9 @@ let getOrganizationsByIds connectionString (orgIds: Guid list) = async {
                         MainEmailAddress,
                         MainTelephoneNumber
                     FROM Organizations
-                    WHERE OrganizationId = @OrganizationIds
+                    WHERE OrganizationId = ANY (@OrganizationIds)
                 """
-            |> Sql.parameters [ "@BuildingId", Sql.uuidArray (orgIds |> List.toArray) ]
+            |> Sql.parameters [ "@OrganizationIds", Sql.uuidArray (orgIds |> List.toArray) ]
             |> Sql.read readOrganizations
 
         let! organizationTypes = 
@@ -279,13 +283,14 @@ let getOrganizationsByIds connectionString (orgIds: Guid list) = async {
             organizations |> List.map (fun o -> {
                 OrganizationId = o.OrganizationId
                 BuildingId = o.BuildingId
+                VatNumber = o.VatNumber
                 OrganizationNumber = o.OrganizationNumber
                 OrganizationTypeNames = 
                     match organizationTypes.TryGetValue(o.OrganizationId) with
                     | true, types -> types |> List.map (fun t -> t.Name)
                     | false, _ -> []
                 Name = o.Name
-                Address = Address.fromJson o.Address |> Option.fromResult |> Option.defaultValue Address.Init
+                Address = Address.fromJson o.Address |> Option.fromResult |> Option.defaultValue (Address.Init ())
             })
 }
     

@@ -22,10 +22,10 @@ let build (config: IConfiguration): IBuildingSystem =
                 then Query.getBuilding conn msg.Payload
                 else Async.lift None
             member _.GetBuildings msg = 
-                if msg.CurrentUser.IsSysAdmin
+                if msg.CurrentUser.IsSysAdmin ()
                 then
                     Query.getAllBuildings conn ()
                 else
-                    let accessibleBuildingIds = msg.CurrentUser.Roles |> List.collect (fun role -> role.BuildingIds)
+                    let accessibleBuildingIds = msg.CurrentUser.Roles |> List.collect (fun role -> role.BuildingIds ())
                     Query.getBuildingsByIds conn accessibleBuildingIds
     }

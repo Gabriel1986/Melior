@@ -76,7 +76,7 @@ type SortableLotListItemAttribute =
             fun li otherLi -> (defaultArg li.Floor -1000) - (defaultArg otherLi.Floor -1000)
         | _     -> 
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
-    static member All = [ Code;  LotType; Floor; Description ]
+    static member All = [ LotType; Floor; Description; OwnerName; Code ]
     interface ISortableAttribute<LotListItem> with
         member me.ToString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
@@ -104,7 +104,7 @@ let init (props: LotsPageProps) =
 let private mapCurrentOwner =
     function
     | LotOwner.Owner owner -> 
-        LotOwnerListItem.Owner {| PersonId = owner.PersonId; Name = owner.FullName |}
+        LotOwnerListItem.Owner {| PersonId = owner.PersonId; Name = owner.FullName () |}
     | LotOwner.Organization organization -> 
         LotOwnerListItem.Organization {| OrganizationId = organization.OrganizationId; Name = organization.Name |}
 
@@ -113,7 +113,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         LotId = lot.LotId
         BuildingId = lot.BuildingId
         Code = lot.Code
-        LegalRepresentative = lot.LegalRepresentative |> Option.map mapCurrentOwner
+        LegalRepresentative = lot.LegalRepresentative () |> Option.map mapCurrentOwner
         LotType = lot.LotType
         Floor = lot.Floor
         Description = lot.Description

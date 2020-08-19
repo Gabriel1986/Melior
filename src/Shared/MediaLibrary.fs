@@ -13,9 +13,9 @@ type MediaFile =
         MimeType: string
         UploadedOn: DateTimeOffset
     }
-    member me.IsVideo = me.MimeType.StartsWith ("video")
-    member me.IsImage = me.MimeType.StartsWith ("image")
-    member me.FileSizeString =
+    member me.IsVideo () = me.MimeType.StartsWith ("video")
+    member me.IsImage () = me.MimeType.StartsWith ("image")
+    member me.FileSizeString () =
         match me.FileSize with
         | x when x < 1000000 -> sprintf "%s %s" (string (x / 1000)) "KB"
         | x  -> sprintf "%s %s" (string (x / 1000000)) "MB"        

@@ -55,8 +55,8 @@ let private paramsFor (validated: ValidatedBuilding) =
         "@Remarks"                   , Sql.stringOrNone validated.Remarks
         "@GeneralMeetingFrom"        , Sql.timestampOrNone generalMeetingFrom
         "@GeneralMeetingUntil"       , Sql.timestampOrNone  generalMeetingUntil
-        "@YearOfConstruction"        , Sql.intOrNone (validated.YearOfConstruction |> Option.map (fun x -> x.Value))
-        "@YearOfDelivery"            , Sql.intOrNone (validated.YearOfDelivery |> Option.map (fun x -> x.Value))
+        "@YearOfConstruction"        , Sql.intOrNone (validated.YearOfConstruction |> Option.map (fun x -> x.Value ()))
+        "@YearOfDelivery"            , Sql.intOrNone (validated.YearOfDelivery |> Option.map (fun x -> x.Value ()))
     ]
 
 let updateBuildingSyndic (connectionString: string) (buildingId: BuildingId, syndicId: ValidatedSyndicInput option) =

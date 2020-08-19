@@ -26,8 +26,8 @@ module private Readers =
         Address = 
             let addrString = reader.stringOrNone "Address"
             match addrString with
-            | Some str -> Address.fromJson str |> Option.fromResult |> Option.defaultValue Address.Init
-            | None -> Address.Init
+            | Some str -> Address.fromJson str |> Option.fromResult |> Option.defaultValue (Address.Init ())
+            | None -> Address.Init ()
         MainEmailAddress = reader.stringOrNone "MainEmailAddress"
         MainTelephoneNumber = reader.stringOrNone "MainTelephoneNumber"
     }

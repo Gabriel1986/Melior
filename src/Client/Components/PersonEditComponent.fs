@@ -75,7 +75,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | ContactAddressChanged x ->
         changePerson (fun p -> { p with ContactAddress = x }), Cmd.none
     | OtherAddressAdded ->
-        let newOtherAddresses = OtherAddress.Init::state.Person.OtherAddresses
+        let newOtherAddresses = (OtherAddress.Init ())::state.Person.OtherAddresses
         changeOtherAddresses newOtherAddresses, Cmd.none
     | OtherAddressRemoved otherAddressIndex ->
         let newOtherAddresses = 
@@ -218,7 +218,7 @@ let private renderContactAddress (state: State) dispatch =
             Key = "notSame"
             Label = "Nee"
             IsSelected = match contactAddress with | MainAddress -> false | ContactAddress _ -> true
-            OnClick = (fun _ -> ContactAddressChanged (ContactAddress Address.Init) |> dispatch)
+            OnClick = (fun _ -> ContactAddressChanged (ContactAddress (Address.Init ())) |> dispatch)
         }
     ]
 

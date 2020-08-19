@@ -9,6 +9,7 @@ let masterPage (pageTitle : string) (content : XmlNode list) =
         head [] [
             title [] [ str pageTitle ]
             meta [ _charset "utf-8" ]
+            meta [ _httpEquiv "X-UA-Compatible"; _content "IE=edge" ]
             meta [ _name "viewport"; _content "width=device-width, initial-scale=1, shrink-to-fit=no" ]
             link [ 
                 _href "https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.min.css"

@@ -65,7 +65,7 @@ module private Internals =
     let forceAddress str =
         match Address.fromJson str with
         | Ok addr -> addr
-        | Error _ -> Address.Init
+        | Error _ -> Address.Init ()
 
 let getBuilding connectionString (buildingId: Guid): Async<Building option> = async {
     let! result =
@@ -179,7 +179,7 @@ let getBuildingsByIds connectionString buildingIds: Async<BuildingListItem list>
                     Address,
                     OrganizationNumber
                 FROM Buildings
-                WHERE IsActive = TRUE AND BuildingId in @BuildingIds
+                WHERE IsActive = TRUE AND BuildingId = ANY (@BuildingIds)
             """
         |> Sql.parameters [ "@BuildingIds", Sql.uuidArray (buildingIds |> List.toArray) ]
         |> Sql.read readBuildingListItem

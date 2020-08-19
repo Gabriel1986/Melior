@@ -110,7 +110,12 @@ let determineIdleLabel (options: FilePondOptions list): string =
     |> List.tryPick (fun opt -> match opt with | AllowMultiple allow -> (if allow then Some defaultIdleLabelForMultiple else Some defaultIdleLabelForSingular) | _ -> None)
     |> Option.defaultValue defaultIdleLabelForMultiple
 
-let filePond (partition: string) (entityId: System.Guid) (options: FilePondOptions list): ReactElement =
+
+let renderFilePond (props: {| Partition: string; EntityId: System.Guid; Options: FilePondOptions list |}): ReactElement =
+    let partition = props.Partition
+    let entityId = props.EntityId
+    let options = props.Options
+
     let idleLabel =
         options
         |> List.tryPick (fun opt -> match opt with | LabelIdle idleLbl -> Some idleLbl | _ -> None)
@@ -141,3 +146,6 @@ let filePond (partition: string) (entityId: System.Guid) (options: FilePondOptio
         |> create
 
     filePond?render()
+
+let filePond =
+    FunctionComponent.Of (renderFilePond, "FilePondUpload", memoEqualsButFunctions)

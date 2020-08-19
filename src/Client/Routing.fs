@@ -40,6 +40,10 @@
     let [<Literal>] private ProfessionalSyndicsPage: string = "professionalSyndics"
     let [<Literal>] private OrganizationTypesPage: string = "organizationTypes"
     let [<Literal>] private ContractsPage: string = "contracts"
+    let [<Literal>] private MyContractsPage = "mycontracts"
+    let [<Literal>] private MyEventsPage = "myevents"
+    let [<Literal>] private MyLotsPage = "mylots"
+    let [<Literal>] private NoticeBoardPage = "noticeboard"
 
     let private navigateToDetailsPage (identifier: Guid) (page: string) =
         Router.navigate(page, string identifier)
@@ -84,6 +88,14 @@
             Router.format(OrganizationTypesPage)
         | Page.Contracts specifics ->
             routeToSpecificPage(ContractsPage, specifics)
+        | Page.MyContracts ->
+            Router.format(MyContractsPage)
+        | Page.MyEvents ->
+            Router.format(MyEventsPage)
+        | Page.MyLots ->
+            Router.format(MyLotsPage)
+        | Page.NoticeBoard ->
+            Router.format(NoticeBoardPage)
         | Page.NotFound ->
             Router.format(PortalPage)
 
@@ -115,6 +127,15 @@
             Router.navigate(OrganizationTypesPage)
         | Page.Contracts props ->
             ContractsPage |> navigateToBuildingSpecificPage props
+        | Page.MyContracts ->
+            Router.navigate(MyContractsPage)
+        | Page.MyEvents ->
+            Router.navigate(MyEventsPage)
+        | Page.MyLots ->
+            Router.navigate(MyLotsPage)
+        | Page.NoticeBoard ->
+            Router.navigate(NoticeBoardPage)
+
         | Page.NotFound ->
             //Do nothing... you're not supposed to go to the loading or notfound page from code...
             Cmd.none
@@ -146,5 +167,13 @@
             Page.OrganizationTypeList
         | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; ContractsPage ] ->
             Page.Contracts { BuildingId = buildingId }
+        | [ MyContractsPage ] ->
+            Page.MyContracts
+        | [ MyEventsPage ] ->
+            Page.MyEvents
+        | [ MyLotsPage ] ->
+            Page.MyLots
+        | [ NoticeBoardPage ] ->
+            Page.NoticeBoard
         | _ -> 
             Page.NotFound

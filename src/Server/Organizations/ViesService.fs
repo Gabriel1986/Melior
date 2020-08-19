@@ -30,7 +30,7 @@ let private mapViesResponse (appSettings: AppSettings) (viesResponse: ViesCheckV
 let verifyVatNumber (settings: AppSettings) (vatNumber: VatNumber) =
     use manager = new ViesManager(httpClient)
     try
-        manager.IsActive(vatNumber.CountryCode, vatNumber.Value)
+        manager.IsActive(vatNumber.CountryCode (), vatNumber.Value ())
         |> Async.AwaitTask
         |> Async.bind (mapViesResponse settings)
         |> Async.map Ok

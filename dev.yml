@@ -24,6 +24,8 @@ services:
       - SERVICES=s3
       - DEBUG=1
       - DATA_DIR=/tmp/localstack/data
+      - AWS_ACCESS_KEY_ID=foobar
+      - AWS_SECRET_ACCESS_KEY=foobar
     volumes:
       - ./tmp/localstack:/tmp/localstack   
       - /var/run/docker.sock:/var/run/docker.sock

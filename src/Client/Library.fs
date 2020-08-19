@@ -21,7 +21,7 @@ let getCachedBuilding (currentUser: User) =
             None
 
 let getAdminModeEnabled (currentUser: User) =
-    currentUser.HasAccessToAdminMode && Browser.WebStorage.localStorage.getItem("adminModeEnabled") = "true"
+    currentUser.HasAccessToAdminMode () && Browser.WebStorage.localStorage.getItem("adminModeEnabled") = "true"
 
 let getCachedSettings (currentUser: User) =
     let building = getCachedBuilding currentUser

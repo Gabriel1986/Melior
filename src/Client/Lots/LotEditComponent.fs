@@ -123,7 +123,7 @@ let renderEditLotOwners lotOwners dispatch =
 
     let ownerName lotOwner =
         match lotOwner with
-        | LotOwner.Owner o        -> str o.FullName
+        | LotOwner.Owner o        -> str (o.FullName ())
         | LotOwner.Organization o -> str o.Name
 
     let isResident lotOwner =
@@ -133,11 +133,11 @@ let renderEditLotOwners lotOwners dispatch =
 
     let isLegalRepresentative (lotOwner: LotOwner, lotOwnerRole: LotOwnerRole) =
         if lotOwnerRole = LegalRepresentative then
-            button [ classes [ Bootstrap.btn; Bootstrap.btnSuccess ] ] [ str "Ja" ]
+            button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary; Bootstrap.btnSm ] ] [ str "Ja" ]
         else
-            button [ Class Bootstrap.btn; OnClick (fun _ -> SelectLegalRepresentative lotOwner |> dispatch) ] [ str "Nee" ]
+            button [ classes [ Bootstrap.btn; Bootstrap.btnLight; Bootstrap.btnSm ]; OnClick (fun _ -> SelectLegalRepresentative lotOwner |> dispatch) ] [ str "Nee" ]
 
-    div [] [
+    div [ Class Bootstrap.col12 ] [
         yield
             match lotOwners with
             | [] ->
@@ -145,37 +145,33 @@ let renderEditLotOwners lotOwners dispatch =
             | owners ->
                 div [ Class Bootstrap.formGroup ] [
                     label [] [ str "Eigenaar(s)" ]
-                    div [ Class Bootstrap.formInline ] [
-                        div [ Class Bootstrap.formGroup ] [
-                            table [ classes [ Bootstrap.table; Bootstrap.tableStriped; Bootstrap.tableHover ] ] [
-                                thead [] [
-                                    tr [] [
-                                        th [] [ str "Type(s)" ]
-                                        th [] [ str "Naam" ]
-                                        th [] [ str "Inwoner" ]
-                                        th [] [ str "Stemhouder" ]
-                                        th [] []
+                    table [ classes [ Bootstrap.table; Bootstrap.tableStriped; Bootstrap.tableHover ] ] [
+                        thead [] [
+                            tr [] [
+                                th [] [ str "Type(s)" ]
+                                th [] [ str "Naam" ]
+                                th [] [ str "Inwoner" ]
+                                th [] [ str "Stemhouder" ]
+                                th [] []
+                            ]
+                        ]
+                        tbody [] [
+                            yield! owners |> List.map (fun owner ->
+                                tr [] [
+                                    td [] [ ownerTypes (fst owner) ]
+                                    td [] [ ownerName (fst owner) ]
+                                    td [] [ isResident (fst owner) ]
+                                    td [] [ isLegalRepresentative owner ]
+                                    td [] [ 
+                                        a [
+                                            Class "pointer"
+                                            OnClick (fun _ -> RemoveLotOwner (fst owner) |> dispatch)
+                                        ] [
+                                            i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
+                                        ]
                                     ]
                                 ]
-                                tbody [] [
-                                    yield! owners |> List.map (fun owner ->
-                                        tr [] [
-                                            td [] [ ownerTypes (fst owner) ]
-                                            td [] [ ownerName (fst owner) ]
-                                            td [] [ isResident (fst owner) ]
-                                            td [] [ isLegalRepresentative owner ]
-                                            td [] [ 
-                                                a [
-                                                    Class "pointer"
-                                                    OnClick (fun _ -> RemoveLotOwner (fst owner) |> dispatch)
-                                                ] [
-                                                    i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
-                                                ]
-                                            ]
-                                        ]
-                                    )
-                                ]
-                            ]
+                            )
                         ]
                     ]
                 ]
@@ -230,9 +226,6 @@ let view (state: State) (dispatch: Message -> unit) =
                 Select lotTypeSelection
             ]
             |> inColomn
-
-            renderEditLotOwners state.Lot.Owners dispatch
-            |> inColomn
         ]
         div [ Class Bootstrap.row ] [
             div [] [
@@ -270,6 +263,13 @@ let view (state: State) (dispatch: Message -> unit) =
                 ] 
             ]
             |> inColomn
+        ]
+
+        div [ Class Bootstrap.row ] [
+            div [ Class Bootstrap.col12 ] [
+                renderEditLotOwners state.Lot.Owners dispatch
+                |> inColomn
+            ]
         ]
 
         LotOwnerModal.render 

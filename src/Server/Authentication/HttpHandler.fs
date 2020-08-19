@@ -94,21 +94,17 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
 
     let googleRecaptchSubmitButton btnText =
         div [] [
-            script [] [
+            script [ _type "application/javascript" ] [
                 rawText
                     """
-                        function OnSubmit(token) {
-                            let forms = document.getElementsByTagName("form");
-                            for (let form of forms) {
-                                form.submit();
-                            }
+                        var onSubmit = function(token) {
+                            document.forms[0].submit();
                         };
-                        window.onSubmit = OnSubmit;
-                        console.log("Test test test?")
+                        window.onSubmit = onSubmit;
                     """
             ]
             button [ 
-                _class "g-recaptcha btn btn-primary";
+                _class "g-recaptcha btn btn-primary"
                 attr "data-sitekey" settings.Google.RecaptchaClientKey
                 attr "data-callback" "onSubmit" 
                 attr "data-action" "submit"

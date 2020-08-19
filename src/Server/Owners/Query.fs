@@ -36,12 +36,12 @@ module private Readers =
         """
 
     let readOwners (reader: CaseInsensitiveRowReader): OwnerListItem = {
-        PersonId = reader.uuid "PersonId"
-        BuildingId = reader.uuid "BuildingId"
-        FirstName = reader.stringOrNone "FirstName"
-        LastName = reader.stringOrNone "LastName"
-        IsResident = reader.bool "IsResident"
-    }
+            PersonId = reader.uuid "PersonId"
+            BuildingId = reader.uuid "BuildingId"
+            FirstName = reader.stringOrNone "FirstName"
+            LastName = reader.stringOrNone "LastName"
+            IsResident = reader.bool "IsResident"
+        }
 
 let getOwner (connectionString: string) (ownerId: Guid) = async {
     let! result =
@@ -89,8 +89,8 @@ let getOwnersByIds conn (personIds: Guid list) =
         Async.lift []
     | personIds ->
         Sql.connect conn
-        |> Sql.query (ownerListItemQuery + " AND PersonId in @PersonIds")
-        |> Sql.parameters [
-            "@PersonIds", Sql.uuidArray (personIds |> List.toArray)
+        |> Sql.query (ownerListItemQuery + " AND owner.PersonId = ANY (@PersonIds)")
+        |> Sql.parameters [ 
+            "@PersonIds", Sql.uuidArray (personIds |> List.toArray) 
         ]
         |> Sql.read readOwners

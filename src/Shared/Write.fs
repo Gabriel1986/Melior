@@ -278,6 +278,7 @@ type ValidatedOrganization =
         OrganizationNumber: OrganizationNumber option
         VatNumber: VatNumber option
         VatNumberVerifiedOn: DateTime option
+        OrganizationTypeIds: Guid list
         Name: String255
         Address: ValidatedAddress
         MainEmailAddress: String255 option
@@ -304,6 +305,7 @@ type ValidatedOrganization =
                 OrganizationNumber = organizationNumber
                 VatNumber = vatNumber
                 VatNumberVerifiedOn = organization.VatNumberVerifiedOn
+                OrganizationTypeIds = organization.OrganizationTypes |> List.map (fun ot -> ot.OrganizationTypeId)
                 Name = name
                 Address = address
                 MainTelephoneNumber = mainTelephoneNumber

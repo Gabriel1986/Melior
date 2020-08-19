@@ -112,11 +112,12 @@ type CreateInitialTables() =
                 CREATE INDEX idx_Lots_BuildingId ON Owners(BuildingId);
 
                 CREATE TABLE LotOwners (
-                    LotId UUID PRIMARY KEY,
+                    LotId UUID References Lots(LotId),
                     OrganizationId UUID References Organizations(OrganizationId), 
                     PersonId UUID References Persons(PersonId),
                     Role VARCHAR(32)
                 );
+                CREATE INDEX idx_LotOwners_LotId ON LotOwners(LotId);
 
                 CREATE TABLE OrganizationTypes (
                     OrganizationTypeId UUID PRIMARY KEY,

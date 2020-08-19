@@ -20,9 +20,9 @@ let toParams (msg: Message<ValidatedContract>) = [
     "@ContractFileId", Sql.uuidOrNone msg.Payload.ContractFileId
     "@ContractOrganizationId", Sql.uuidOrNone msg.Payload.ContractOrganizationId
     "@ContractType", Sql.string (Thoth.Json.Net.Encode.Auto.toString(0, msg.Payload.ContractType))
-    "@CreatedBy", Sql.string msg.CurrentUser.Principal
+    "@CreatedBy", Sql.string (msg.CurrentUser.Principal ())
     "@CreatedAt", Sql.timestamp DateTime.UtcNow
-    "@LastUpdatedBy", Sql.string msg.CurrentUser.Principal
+    "@LastUpdatedBy", Sql.string (msg.CurrentUser.Principal ())
     "@LastUpdatedAt", Sql.timestamp DateTime.UtcNow
 ]
 
@@ -86,7 +86,7 @@ let deleteContract conn (msg: Message<BuildingId * Guid>) =
         """, [ 
             "@ContractId", Sql.uuid (snd msg.Payload)
             "@BuildingId", Sql.uuid (fst msg.Payload)
-            "@LastUpdatedBy", Sql.string msg.CurrentUser.Principal
+            "@LastUpdatedBy", Sql.string (msg.CurrentUser.Principal ())
             "@LastUpdatedAt", Sql.timestamp DateTime.UtcNow
         ]    
     ]

@@ -15,7 +15,7 @@ let view (detail: Lot) =
 
     let ownerName lotOwner =
         match lotOwner with
-        | LotOwner.Owner o        -> str o.FullName
+        | LotOwner.Owner o        -> str (o.FullName ())
         | LotOwner.Organization o -> str o.Name
 
     let isResident lotOwner =
@@ -52,28 +52,24 @@ let view (detail: Lot) =
                         legend [] [ h2 [] [ str "Eigenaar(s)" ] ]
 
                     yield
-                        div [ Class Bootstrap.formInline ] [
-                            div [ Class Bootstrap.formGroup ] [
-                                table [ classes [ Bootstrap.table; Bootstrap.tableStriped; Bootstrap.tableHover ] ] [
-                                    thead [] [
-                                        tr [] [
-                                            th [] [ str "Type(s)" ]
-                                            th [] [ str "Naam" ]
-                                            th [] [ str "Inwoner" ]
-                                            th [] [ str "Stemhouder" ]
-                                        ]
-                                    ]
-                                    tbody [] [
-                                        yield! owners |> List.map (fun owner ->
-                                            tr [] [
-                                                td [] [ ownerTypes (fst owner) ]
-                                                td [] [ ownerName (fst owner) ]
-                                                td [] [ isResident (fst owner) ]
-                                                td [] [ isLegalRepresentative owner ]
-                                            ]
-                                        )
-                                    ]
+                        table [ classes [ Bootstrap.table; Bootstrap.tableStriped; Bootstrap.tableHover ] ] [
+                            thead [] [
+                                tr [] [
+                                    th [] [ str "Type(s)" ]
+                                    th [] [ str "Naam" ]
+                                    th [] [ str "Inwoner" ]
+                                    th [] [ str "Stemhouder" ]
                                 ]
+                            ]
+                            tbody [] [
+                                yield! owners |> List.map (fun owner ->
+                                    tr [] [
+                                        td [] [ ownerTypes (fst owner) ]
+                                        td [] [ ownerName (fst owner) ]
+                                        td [] [ isResident (fst owner) ]
+                                        td [] [ isLegalRepresentative owner ]
+                                    ]
+                                )
                             ]
                         ]
                 ]

@@ -40,7 +40,6 @@ type Message =
     | EditContract of Contract
     | DeleteContract of Contract
     | ContractDeleted of Result<unit, DeleteContractError>
-    | OpenContractModal of Contract * isNew: bool
     | CloseContractModal
     | SaveContract of Contract * isNew: bool
     | ContractSaved of Result<unit, SaveContractError>
@@ -123,7 +122,7 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
             ContractOrganization = None
             ContractFile = None
         }
-        state, OpenContractModal (contract, true) |> Cmd.ofMsg
+        { state with ContractModalIsOpenOn = Some (contract, true) }, Cmd.none
     | CreateMandatoryContract predefinedType ->
         let contract: Contract = {
             ContractId = Guid.NewGuid()
@@ -132,9 +131,9 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
             ContractOrganization = None
             ContractFile = None
         }
-        state, OpenContractModal (contract, true) |> Cmd.ofMsg
+        { state with ContractModalIsOpenOn = Some (contract, true) }, Cmd.none
     | EditContract contract ->
-        state, OpenContractModal (contract, false) |> Cmd.ofMsg
+        { state with ContractModalIsOpenOn = Some (contract, false) }, Cmd.none
     | DeleteContract contract ->
         let cmd =
             Cmd.OfAsync.either
@@ -151,8 +150,6 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
         | DeleteContractError.NotFound ->
             printf "The contract that was being deleted is not found in the DB, somehow? O_o"
             state, Cmd.none
-    | OpenContractModal (c, isNew) ->
-        { state with ContractModalIsOpenOn = Some (c, isNew) }, Cmd.none
     | CloseContractModal ->
         { state with ContractModalIsOpenOn = None }, Cmd.none
     | SaveContract (c, isNew) ->
@@ -216,7 +213,6 @@ let view (state: State) (dispatch: Message -> unit) =
                     button [ Type "button"; classes [ Bootstrap.btn; Bootstrap.btnLight; Bootstrap.mb2 ]; OnClick (fun _ -> SetAnswer (question, false) |> dispatch) ] [ str "Nee" ]                                    
                 ]
         ]
-
 
     let translateContractType (c: Contract) =
         match c.ContractType with
@@ -310,7 +306,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 div [ Class Bootstrap.card ] [
                     div [ Class Bootstrap.cardBody ] [
                         yield!
-                            ContractTypeQuestion.AllValues 
+                            ContractTypeQuestion.AllValues ()
                             |> Array.map renderQuestion
                     ]
                 ]
@@ -360,13 +356,17 @@ let view (state: State) (dispatch: Message -> unit) =
             ]
         ]
 
-        ContractModal.render
-            {|
-                IsOpenOn = state.ContractModalIsOpenOn
-                BuildingId = state.CurrentBuildingId
-                OnOk = (fun (contract, isNew) -> SaveContract (contract, isNew) |> dispatch)
-                OnCanceled = (fun _ -> Message.CloseContractModal |> dispatch)
-            |}
+        match state.ContractModalIsOpenOn with
+        | Some x ->
+            ContractModal.render
+                {|
+                    IsOpenOn = state.ContractModalIsOpenOn
+                    BuildingId = state.CurrentBuildingId
+                    OnOk = (fun (contract, isNew) -> SaveContract (contract, isNew) |> dispatch)
+                    OnCanceled = (fun _ -> Message.CloseContractModal |> dispatch)
+                |}
+        | None ->
+            ()
     ]
 
 let render (props: ContractsPageProps) =

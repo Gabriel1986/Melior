@@ -91,7 +91,7 @@ let deleteOrganization (storage: IOrganizationStorage) (msg: Message<BuildingId 
 }
 
 let createOrganizationType (storage: IOrganizationStorage) (msg: Message<OrganizationType>): Async<Result<unit, CreateOrganizationTypeError>> = async {
-    if msg.CurrentUser.IsSysAdmin
+    if msg.CurrentUser.IsSysAdmin ()
     then
         let validated = ValidatedOrganizationType.Validate (msg.Payload)
         match validated with
@@ -105,7 +105,7 @@ let createOrganizationType (storage: IOrganizationStorage) (msg: Message<Organiz
 }
 
 let updateOrganizationType (storage: IOrganizationStorage) (msg: Message<OrganizationType>): Async<Result<unit, UpdateOrganizationTypeError>> = async {
-    if msg.CurrentUser.IsSysAdmin
+    if msg.CurrentUser.IsSysAdmin ()
     then
         let validated = ValidatedOrganizationType.Validate (msg.Payload)
         match validated with
@@ -121,7 +121,7 @@ let updateOrganizationType (storage: IOrganizationStorage) (msg: Message<Organiz
 }
 
 let deleteOrganizationType (storage: IOrganizationStorage) (msg: Message<Guid>): Async<Result<unit, DeleteOrganizationTypeError>> = async {
-    if msg.CurrentUser.IsSysAdmin
+    if msg.CurrentUser.IsSysAdmin ()
     then
         let! nbRowsAffected = storage.DeleteOrganizationType (msg.Payload)
         if nbRowsAffected = 0

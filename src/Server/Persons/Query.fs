@@ -50,7 +50,7 @@ let private convertDbModelToDetail (dbModel: PersonDbModel): Person =
     let forceAddress =
         Address.fromJson
         >> Option.fromResult
-        >> Option.defaultValue Address.Init
+        >> Option.defaultValue (Address.Init ())
 
     let mainAddress = forceAddress dbModel.MainAddress
 

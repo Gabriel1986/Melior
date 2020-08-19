@@ -9,7 +9,7 @@ open Server.LibraryExtensions
 open Storage
 
 let createProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<ProfessionalSyndic>): Async<Result<unit, CreateProfessionalSyndicError>> = async {
-    if msg.CurrentUser.IsSysAdmin
+    if msg.CurrentUser.IsSysAdmin ()
     then
         let validated = ValidatedProfessionalSyndic.Validate (msg.Payload)
         match validated with
@@ -23,7 +23,7 @@ let createProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message
 }
 
 let updateProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<ProfessionalSyndic>): Async<Result<unit, UpdateProfessionalSyndicError>> = async {
-    if msg.CurrentUser.IsSysAdmin
+    if msg.CurrentUser.IsSysAdmin ()
     then
         let validated = ValidatedProfessionalSyndic.Validate (msg.Payload)
         match validated with
@@ -39,7 +39,7 @@ let updateProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message
 }
 
 let deleteProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<Guid>): Async<Result<unit, DeleteProfessionalSyndicError>> = async {
-    if msg.CurrentUser.IsSysAdmin
+    if msg.CurrentUser.IsSysAdmin ()
     then
         let! nbRowsAffected = storage.DeleteProfessionalSyndic (msg.Payload)
         if nbRowsAffected = 0

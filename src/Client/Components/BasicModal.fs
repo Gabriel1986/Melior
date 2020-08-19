@@ -23,7 +23,7 @@ module BasicModal =
     [<AutoOpen>]
     module private Internals =
         let headerTitle title =
-            h5 [ Class Bootstrap.modalTitle ] [ str title ]
+            h5 [ Class Bootstrap.cardTitle ] [ str title ]
 
         let headerClose onClose =
             button [ Type "button"; Class Bootstrap.close; OnClick onClose ] [
@@ -42,19 +42,19 @@ module BasicModal =
                 |> List.tryPick (function | HeaderProp.HasDismissButton x -> Some x | _ -> None)
                 |> Option.defaultValue false
 
-            div [ Class Bootstrap.modalHeader ] [
+            div [ Class Bootstrap.cardHeader ] [
                     if title.IsSome then yield headerTitle title.Value
                     if showDismissButton then yield headerClose (fun _ -> onDismiss())
                 ]
 
         let body children =
-            div [ Class Bootstrap.modalBody ] [ yield! children ]
+            div [ Class Bootstrap.cardBody ] [ yield! children ]
 
         let footer (onDismiss: unit -> unit) (footerProps: FooterProp list) =
             let buttons = footerProps |> List.tryPick (function | Buttons x -> Some x | _ -> None)
             let dismissButton = footerProps |> List.tryPick (function | FooterProp.ShowDismissButton x -> x | _ -> None)
 
-            div [ Class Bootstrap.modalFooter ] [
+            div [ classes [ Bootstrap.cardFooter; Bootstrap.textRight ] ] [
                 if dismissButton.IsSome then yield footerClose (fun _ -> onDismiss()) dismissButton.Value
                 if buttons.IsSome then yield! buttons.Value
             ]
@@ -92,21 +92,25 @@ module BasicModal =
                 |> List.tryPick (function | DisableBackgroundClick x -> Some x | _ -> None)
                 |> Option.defaultValue false
 
-            div [ 
-                classes ([ Bootstrap.modal; Bootstrap.fade; ] @ if isShowing then [ Bootstrap.show; Bootstrap.modalOpen ] else [])
-                OnClick (fun _ -> if disableBackgroundClick then () else onDismiss()) 
-            ] [ 
-                div [ classes [ Bootstrap.modalDialog;  Bootstrap.modalLg ] ] [
-                    div [ 
-                        Class Bootstrap.modalContent
-                        OnClick (fun e -> e.preventDefault(); e.stopPropagation()) 
-                    ] [
-                        header onDismiss headerProps
-                        body content
-                        footer onDismiss footerProps
+            if isShowing then
+                div [ Class "melior-modal-grid" ] [
+                    div [ Class "melior-modal-background-up" ] []
+                    div [ Class "melior-modal-background-left" ] []
+                    div [ Class "melior-modal" ] [
+                        div [
+                            Class Bootstrap.card
+                            OnClick (fun e -> if e.target = e.currentTarget then (if disableBackgroundClick then () else onDismiss())) 
+                        ] [
+                            header onDismiss headerProps
+                            body content
+                            footer onDismiss footerProps
+                        ]
                     ]
+                    div [ Class "melior-modal-background-right" ] []
+                    div [ Class "melior-modal-background-down" ] []
                 ]
-            ]
+            else
+                null
 
-    let render =
-        FunctionComponent.Of (render = (fun p -> modal p), memoizeWith = memoEqualsButFunctions)
+    let render (props: {| ModalProps: ModalProp list |}) =
+       modal props

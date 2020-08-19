@@ -21,7 +21,7 @@ let private renderAddressesFor (person: Person) =
 
 let view (withAddresses: bool) (person: Person) =
     div [] [
-        yield readonlyFormElement "Naam" person.FullName
+        yield readonlyFormElement "Naam" (person.FullName ())
 
         if withAddresses then yield! renderAddressesFor person
 

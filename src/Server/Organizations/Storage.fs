@@ -138,19 +138,33 @@ let paramsFor (validated: ValidatedOrganization) = [
     "@OtherContactMethods"       , Sql.jsonb (validated.OtherContactMethods |> ValidatedContactMethod.listToJson)
 ]
 
+let deleteOrganizationTypeLinks (validated: ValidatedOrganization) =
+    "Delete FROM OrganizationOrganizationTypeLinks WHERE OrganizationId = @OrganizationId", [ "@OrganizationId", Sql.uuid validated.OrganizationId ]
+
+let createOrganizationTypeLinks (validated: ValidatedOrganization) =
+    validated.OrganizationTypeIds 
+    |> List.map (fun otId -> 
+        "INSERT INTO OrganizationOrganizationTypeLinks (OrganizationId, OrganizationTypeId) VALUES (@OrganizationId, @OrganizationTypeId)",
+        [ "@OrganizationId", Sql.uuid validated.OrganizationId; "@OrganizationTypeId", Sql.uuid otId ]
+    )
+
 
 let createOrganization (connectionString: string) (validated: ValidatedOrganization) =
     Sql.connect connectionString
-    |> Sql.query createQuery
-    |> Sql.parameters (paramsFor validated)
-    |> Sql.writeAsync
+    |> Sql.writeBatchAsync [
+        yield createQuery, (paramsFor validated)
+        yield! createOrganizationTypeLinks validated
+    ]
     |> Async.Ignore
 
 let updateOrganization (connectionString: string) (validated: ValidatedOrganization) =
     Sql.connect connectionString
-    |> Sql.query updateQuery
-    |> Sql.parameters (paramsFor validated)
-    |> Sql.writeAsync
+    |> Sql.writeBatchAsync [
+        yield updateQuery, (paramsFor validated)
+        yield deleteOrganizationTypeLinks validated
+        yield! createOrganizationTypeLinks validated
+    ]
+    |> Async.map List.head
 
 let deleteOrganization connectionString (buildingId, orgId) =
     Sql.connect connectionString

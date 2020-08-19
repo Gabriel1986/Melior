@@ -12,26 +12,22 @@ registerPlugin(FilePondPluginFileValidateType);
 class FilePondComponent {
     constructor(props) {
         this.props = props;
-    }    
+    }   
 
     render() {
         return (
-            <div>
-                <div id="filePond">
-                    <FilePond
-                        acceptedFileTypes={this.props.acceptedFileTypes}
-                        allowMultiple={this.props.allowMultiple}
-                        maxFiles={this.props.maxFiles}
-                        disabled={this.props.disabled}
-                        server={this.props.server}
-                        chunkUploads={true}
-                        chunkForce={true}
-                        chunkSize={this.props.chunkSize}
-                        onprocessfile={this.props.onProcessFile}
-                        onremovefile={this.props.onRemoveFile}
-                        labelIdle={this.props.labelIdle} />
-                </div>
-            </div>
+            <FilePond
+                acceptedFileTypes={this.props.acceptedFileTypes}
+                allowMultiple={this.props.allowMultiple}
+                maxFiles={this.props.maxFiles}
+                disabled={this.props.disabled}
+                server={this.props.server}
+                chunkUploads={true}
+                chunkForce={true}
+                chunkSize={this.props.chunkSize}
+                onprocessfile={this.props.onProcessFile}
+                onremovefile={this.props.onRemoveFile}
+                labelIdle={this.props.labelIdle} />
         );
     }
 }

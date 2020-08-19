@@ -49,22 +49,22 @@ type OrganizationPageProps = {|
 type SortableOrganizationListItemAttribute =
     | Type
     | Name
-    | OrganizationNumber
+    | VatOrOrgNumber
     member me.ToString' () =
         match me with
         | Type -> "Type"
         | Name -> "Naam"
-        | OrganizationNumber -> "Ondernemingsnr."
+        | VatOrOrgNumber -> "BTW / Ondernemingsnr."
     member me.StringValueOf': OrganizationListItem -> string =
         match me with
         | Type -> (fun li -> String.Join(", ", li.OrganizationTypeNames))
         | Name -> (fun li -> string li.Name)
-        | OrganizationNumber -> (fun li -> string li.OrganizationNumber)
+        | VatOrOrgNumber -> (fun li -> li.VatNumber |> Option.orElse li.OrganizationNumber |> Option.defaultValue "")
     member me.Compare': OrganizationListItem -> OrganizationListItem -> int =
         match me with
         | _     -> 
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
-    static member All = [ Type; Name; OrganizationNumber ]
+    static member All = [ Type; Name; VatOrOrgNumber ]
     interface ISortableAttribute<OrganizationListItem> with
         member me.ToString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
@@ -93,6 +93,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     let toListItem (organization: Organization): OrganizationListItem = {
         OrganizationId = organization.OrganizationId
         BuildingId = organization.BuildingId
+        VatNumber = organization.VatNumber
         OrganizationNumber = organization.OrganizationNumber
         OrganizationTypeNames = organization.OrganizationTypes |> List.map (fun t -> t.Name)
         Name = organization.Name
@@ -137,10 +138,10 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
                 RemotingError
 
         let newSelection =
-            state.SelectedListItems |> List.filter (fun selected -> selected.OrganizationNumber <> organization.OrganizationNumber)
+            state.SelectedListItems |> List.filter (fun selected -> selected.OrganizationId <> organization.OrganizationId)
 
         let newItems =
-            state.ListItems |> List.filter (fun item -> item.OrganizationNumber <> organization.OrganizationNumber)
+            state.ListItems |> List.filter (fun item -> item.OrganizationId <> organization.OrganizationId)
 
         { state with SelectedListItems = newSelection; ListItems = newItems }, 
         cmd
@@ -164,8 +165,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         Cmd.none
     | Edited organization ->
         let listItem = toListItem organization
-        let newListItems = state.ListItems |> List.map (fun li -> if li.OrganizationNumber = organization.OrganizationNumber then listItem else li)
-        let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.OrganizationNumber = organization.OrganizationNumber then listItem else li)
+        let newListItems = state.ListItems |> List.map (fun li -> if li.OrganizationId = organization.OrganizationId then listItem else li)
+        let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.OrganizationId = organization.OrganizationId then listItem else li)
         
         { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, 
         Cmd.none
@@ -204,7 +205,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     yield li [ Class Bootstrap.navItem ] [
                         a 
                             [ Class (determineNavItemStyle (Details selected)); OnClick (fun _ -> SelectTab (Details selected) |> dispatch) ] 
-                            [ str (sprintf "%s (%A)" selected.Name selected.OrganizationNumber) ]
+                            [ str (sprintf "%s (%A)" selected.Name (selected.VatNumber |> Option.orElse selected.OrganizationNumber |> Option.defaultValue "")) ]
                     ]
                 yield li [ Class Bootstrap.navItem ] [
                     a 

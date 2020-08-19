@@ -165,7 +165,7 @@ let renderUserMode (state: State) (currentPage: Page option) (dispatch: Msg -> u
 
 let renderNavigation (state: State) (currentPage: Page option) (dispatch: Msg -> unit) = 
     [
-        if state.CurrentUser.HasAccessToAdminMode then
+        if state.CurrentUser.HasAccessToAdminMode () then
             yield li [ Class Bootstrap.navItem ] [
                 div [ classes [ Bootstrap.btnGroup; Bootstrap.btnGroupSm ] ] [
                     button [ classes [ Bootstrap.btn; (if state.AdminModeEnabled then Bootstrap.btnPrimary else Bootstrap.btnLight) ]; OnClick (fun _ -> dispatch SetAdminMode) ] [

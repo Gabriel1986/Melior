@@ -28,7 +28,7 @@ module private Readers =
 
 let getMediaFilesForEntities (connectionString: string) (partition: string) (entityIds: Guid list) =
     Sql.connect connectionString
-    |> Sql.query (sprintf "%s WHERE Partition = @Partition AND EntityId in @EntityIds" selectQuery)
+    |> Sql.query (sprintf "%s WHERE Partition = @Partition AND EntityId = ANY (@EntityIds)" selectQuery)
     |> Sql.parameters [ 
         "@EntityIds", Sql.uuidArray (entityIds |> List.toArray) 
         "@Partition", Sql.string partition
@@ -37,7 +37,7 @@ let getMediaFilesForEntities (connectionString: string) (partition: string) (ent
 
 let getMediaFilesByIds (conn: string) (partition: string) (fileIds: Guid list) =
     Sql.connect conn
-    |> Sql.query (sprintf "%s WHERE FileId in @FileIds AND Partition = @Partition" selectQuery)
+    |> Sql.query (sprintf "%s WHERE FileId = ANY (@FileIds) AND Partition = @Partition" selectQuery)
     |> Sql.parameters [ 
         "@FileIds", Sql.uuidArray (fileIds |> Array.ofList)
         "@Partition", Sql.string partition

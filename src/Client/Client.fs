@@ -287,7 +287,7 @@ module Client =
                 div [ Class Bootstrap.py3 ] [ h2 [] [ str "De app wordt gestart" ] ] 
             ]
         | Running runningState ->
-            let currentPage =
+            let currentPage =                
                 match runningState.CurrentPage, runningState.CurrentState, runningState.CurrentBuilding with
                 | Page.Portal, _, _ -> 
                     PortalPage.render 
@@ -365,6 +365,13 @@ module Client =
                             CurrentUser = runningState.CurrentUser
                             CurrentBuildingId = building.BuildingId
                         |}
+                | Page.NoticeBoard, _, _
+                | Page.MyEvents, _, _
+                | Page.MyLots, _, _
+                | Page.MyContracts, _, _ ->
+                    div [] [
+                        str "Deze pagina is nog niet beschikbaar"
+                    ]
                 | _ -> notFound
 
             div [] [

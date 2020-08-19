@@ -20,7 +20,7 @@ let private paramsFor (validated: ValidatedLot) =
         "@LotType"                   , Sql.string (string validated.LotType)
         "@Description"               , Sql.stringOrNone validated.Description
         "@Floor"                     , Sql.intOrNone validated.Floor
-        "@Surface"                   , Sql.intOrNone (validated.Surface |> Option.map (fun s -> s.Value))
+        "@Surface"                   , Sql.intOrNone (validated.Surface |> Option.map (fun s -> s.Value ()))
     ]
 
 let private generateSqlForOwners (lotId: Guid, owners: (LotOwnerId * LotOwnerRole) list) =

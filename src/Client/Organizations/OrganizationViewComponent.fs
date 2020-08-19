@@ -8,7 +8,8 @@ open Client.ClientStyle.Helpers
 let view (organization: Organization) =
     div [] [
         yield readonlyFormElement "Naam" organization.Name
-        yield readonlyFormElement "Ondernemingsnummer" (string organization.OrganizationNumber)
+        yield readonlyFormElement "Ondernemingsnummer" (organization.OrganizationNumber |> Option.defaultValue "")
+        yield readonlyFormElement "BTW nummer" (organization.VatNumber |> Option.defaultValue "")
         yield readonlyFormElement "Types" (organization.OrganizationTypes |> List.map (fun ot -> ot.Name) |> (fun result -> String.Join(", ", result)))
         yield readonlyFormElement "Adres" (string organization.Address)
         yield readonlyFormElement "Tel." (defaultArg organization.MainTelephoneNumber "")
