@@ -54,6 +54,18 @@ type ContractsPageProps =
 
 //TODO: get contracts, get answers
 let init (props: ContractsPageProps) =
+    let cmd1 =
+        Cmd.OfAsync.either
+            (Client.Remoting.getRemotingApi()).GetContracts {| BuildingId = props.CurrentBuildingId |}
+            ContractsRetrieved
+            RemotingException
+
+    let cmd2 =
+        Cmd.OfAsync.either
+            (Client.Remoting.getRemotingApi()).GetContractTypeAnswers {| BuildingId = props.CurrentBuildingId |}
+            ContractTypeAnswersRetrieved
+            RemotingException
+
     { 
         CurrentBuildingId = props.CurrentBuildingId
         CurrentUser = props.CurrentUser 
@@ -62,7 +74,7 @@ let init (props: ContractsPageProps) =
         Contracts = []
         ContractModalIsOpenOn = None
         Debouncer = Debouncer.create()
-    }, Cmd.none
+    }, Cmd.batch [ cmd1; cmd2 ]
 
 let update (msg: Message) (state: State): State * Cmd<Message> =
     match msg with
@@ -183,8 +195,6 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
         printf "Error details: %A" e
         state, showErrorToastCmd "Er is iets misgelopen bij het bewaren van uw gegevens. Gelieve de pagina te verversen."
         
-let partition = "contracts"
-
 let view (state: State) (dispatch: Message -> unit) =
     let renderQuestion (question: ContractTypeQuestion) =
         let answer = state.ContractTypeAnswers |> List.tryFind (fun answer -> answer.Payload.Question = question)
@@ -229,8 +239,8 @@ let view (state: State) (dispatch: Message -> unit) =
                         str mediaFile.FileName
                     ]
                     str " "
-                    span [] [
-                        a [ Href (downloadUri partition mediaFile.FileId) ] [
+                    span [ Title "Downloaden" ] [
+                        a [ Target "_blank"; Href (downloadUri Partitions.Contracts mediaFile.FileId) ] [
                             span [ classes [ FontAwesome.fas; FontAwesome.faCloudDownloadAlt ] ] []
                         ]
                     ]
@@ -238,17 +248,10 @@ let view (state: State) (dispatch: Message -> unit) =
             td [] [ 
                 match c.ContractOrganization with 
                 | Some org -> 
-                    span [] [ str org.Name ]
-                    span [ Class Bootstrap.floatRight ] [
-                        span [ Title "Bekijken in huidige tab" ] [
-                            a [ Class "pointer"; OnClick (fun _ -> ShowOrganizationDetails org.OrganizationId |> dispatch) ] [
-                                span [ classes [ FontAwesome.fas; FontAwesome.faEye ] ] []
-                            ]
-                        ]
-                        str " "
+                    span [] [ 
                         span [ Title "Openen in nieuwe tab" ] [
                             a [ Target "_blank"; Href (Client.Routing.generateUrl (Page.OrganizationDetails { BuildingId = state.CurrentBuildingId; DetailId = org.OrganizationId })) ] [
-                                span [ classes [ FontAwesome.fas; FontAwesome.faExternalLinkAlt ] ] []
+                                str org.Name
                             ]
                         ]
                     ]
@@ -257,22 +260,13 @@ let view (state: State) (dispatch: Message -> unit) =
             ]
             td [] [
                 a [ Class "pointer"; OnClick (fun _ -> EditContract c |> dispatch) ] [
-                    span [ classes [ FontAwesome.fas; FontAwesome.faEdit ] ] []
+                    span [ classes [ FontAwesome.fas; FontAwesome.faEdit; Bootstrap.textPrimary ] ] []
                 ]
             ]
             td [] [
-                match c.ContractFile with 
-                | None when isMandatory -> 
-                    span [ Class Bootstrap.textDanger ] [
-                        span [ classes [ FontAwesome.fa; FontAwesome.faExclamationTriangle ] ] []  
-                        str "Wettelijk verplicht"
-                    ]
-                | Some when isMandatory-> 
-                    span [ classes [ FontAwesome.fa; FontAwesome.faCheckSquare ] ] []
-                | _ -> 
-                    a [ classes [ "pointer"; Bootstrap.textDanger ]; OnClick (fun _ -> DeleteContract c |> dispatch) ] [
-                        span [ classes [ FontAwesome.fas; FontAwesome.faTrashAlt ] ] []
-                    ]
+                a [ classes [ "pointer"; Bootstrap.textDanger ]; OnClick (fun _ -> DeleteContract c |> dispatch) ] [
+                    span [ classes [ FontAwesome.fas; FontAwesome.faTrashAlt ] ] []
+                ]
             ]
         ]
 
@@ -285,14 +279,12 @@ let view (state: State) (dispatch: Message -> unit) =
                     td [] [ str (translatePredefinedType predefined ) ]
                     td [] [ str "Geen bestand" ]
                     td [] []
-                    td [ Class Bootstrap.textDanger ] [ 
+                    td [ Title "Wettelijk verplicht"; Class Bootstrap.textDanger ] [ 
                         span [ classes [ FontAwesome.fas; FontAwesome.faExclamationTriangle ] ] []
-                        str " Wettelijk verplicht"
                     ]
                     td [] [
                         a [ classes [ "pointer"; Bootstrap.textPrimary ]; OnClick (fun _ -> CreateMandatoryContract predefined |> dispatch) ] [
                             span [ classes [ FontAwesome.fas; FontAwesome.faCloudUploadAlt ] ] []
-                            str " Uploaden"
                         ]
                     ]
                 ]
@@ -301,7 +293,7 @@ let view (state: State) (dispatch: Message -> unit) =
             contracts |> List.map (rowsForContract true)
 
     div [ Class Bootstrap.row ] [
-        div [ classes [ Bootstrap.colMd4; Bootstrap.col12 ] ] [
+        div [ classes [] ] [
             yield
                 div [ Class Bootstrap.card ] [
                     div [ Class Bootstrap.cardBody ] [
@@ -342,16 +334,13 @@ let view (state: State) (dispatch: Message -> unit) =
                             match c.ContractType with 
                             | ContractContractType.OtherContractType _ -> Some (rowsForContract false c) 
                             | _ -> None)
-
-                    yield
-                        tr [] [
-                            td [ ColSpan 4 ] []
-                            td [] [
-                                button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; Type "button"; OnClick (fun _ -> CreateNewContract |> dispatch) ] [
-                                    str "Contract aanmaken"
-                                ]
-                            ]
-                        ]
+                ]
+            ]
+            div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+                div [ Class Bootstrap.cardBody ] [
+                    button [ classes [ Bootstrap.btn; Bootstrap.btnSuccess ]; Type "button"; OnClick (fun _ -> CreateNewContract |> dispatch) ] [
+                        str "Contract aanmaken"
+                    ]
                 ]
             ]
         ]

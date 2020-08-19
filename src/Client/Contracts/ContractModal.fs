@@ -112,25 +112,53 @@ let renderContractEditView (contract: Contract) dispatch =
     let orgName = contract.ContractOrganization |> Option.map (fun org -> org.Name)
 
     div [] [
-        match contract.ContractFile with
-        | None ->
-            filePond 
-                {| 
-                    Partition = Partitions.Contracts; 
-                    EntityId = contract.ContractId
-                    Options = [
-                        AllowMultiple false
-                        MaxFiles 1
-                        OnProcessFile (fun error filepondfile ->
-                            if String.IsNullOrWhiteSpace(error) then
-                                filepondfile
-                                |> FilePondFile.toMediaFile Partitions.Contracts contract.ContractId
-                                |> ContractFileUploaded
-                                |> dispatch)
+        yield! [
+            match contract.ContractType with
+            | ContractContractType.PredefinedContractType predefined -> 
+                div [ Class Bootstrap.formGroup ] [
+                    label [] [ str "Naam" ]
+                    div [] [
+                        input [ Class Bootstrap.formControl; HTMLAttr.Disabled true; Value (translatePredefinedType predefined) ]
                     ]
-                |}
-        | Some mediaFile ->
-            yield! [
+                ]
+            | ContractContractType.OtherContractType name ->
+                div [ Class Bootstrap.formGroup ] [
+                    label [] [ str "Naam" ]
+                    div [] [
+                        input [ Class Bootstrap.formControl; Helpers.valueOrDefault name; OnChange (fun e -> ChangeContractName e.Value |> dispatch) ]
+                    ]
+                ]
+
+            div [ Class Bootstrap.formGroup ] [
+                label [] [ str "Organisatie" ]
+                div [ Class Bootstrap.inputGroup; OnClick (fun _ -> dispatch SearchOrganization) ] [
+                    input [ classes [ Bootstrap.formControl; "pointer" ]; Helpers.valueOrDefault orgName; ]
+                    div [ Class Bootstrap.inputGroupAppend ] [
+                        button [ classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]  ] [
+                            span [ classes [ FontAwesome.fas; FontAwesome.faLink ] ] []
+                        ]
+                    ]
+                ]
+            ]
+
+            match contract.ContractFile with
+            | None ->
+                filePond 
+                    {| 
+                        Partition = Partitions.Contracts; 
+                        EntityId = contract.ContractId
+                        Options = [
+                            AllowMultiple false
+                            MaxFiles 1
+                            OnProcessFile (fun error filepondfile ->
+                                if String.IsNullOrWhiteSpace(error) then
+                                    filepondfile
+                                    |> FilePondFile.toMediaFile Partitions.Contracts contract.ContractId
+                                    |> ContractFileUploaded
+                                    |> dispatch)
+                        ]
+                    |}
+            | Some mediaFile ->
                 div [ Class Bootstrap.formGroup ] [
                     label [] [ str "Bestand" ]
                     div [ Class Bootstrap.inputGroup ] [
@@ -138,41 +166,13 @@ let renderContractEditView (contract: Contract) dispatch =
                             str (sprintf "%s (%s)" mediaFile.FileName (mediaFile.FileSizeString ()))
                         ]
                         div [ Class Bootstrap.inputGroupAppend ] [
-                            button [ classes [ Bootstrap.btn; Bootstrap.btnDanger ]; Type "button"; OnClick (fun _ -> dispatch DeleteContractFile) ] [
+                            button [ classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]; Type "button"; OnClick (fun _ -> dispatch DeleteContractFile) ] [
                                 span [ classes [ FontAwesome.fas; FontAwesome.faTrashAlt ] ] []
                             ]
                         ]
                     ]
                 ]
-
-                match contract.ContractType with
-                | ContractContractType.PredefinedContractType predefined -> 
-                    div [ Class Bootstrap.formGroup ] [
-                        label [] [ str "Naam" ]
-                        div [] [
-                            input [ Class Bootstrap.formControl; HTMLAttr.Disabled true; Value (translatePredefinedType predefined) ]
-                        ]
-                    ]
-                | ContractContractType.OtherContractType name ->
-                    div [ Class Bootstrap.formGroup ] [
-                        label [] [ str "Naam" ]
-                        div [] [
-                            input [ Class Bootstrap.formControl; Helpers.valueOrDefault name; OnChange (fun e -> ChangeContractName e.Value |> dispatch) ]
-                        ]
-                    ]
-
-                div [ Class Bootstrap.formGroup ] [
-                    label [] [ str "Organisatie" ]
-                    div [ Class Bootstrap.inputGroup; OnClick (fun _ -> dispatch SearchOrganization) ] [
-                        input [ classes [ Bootstrap.formControl; "pointer" ]; Helpers.valueOrDefault orgName; ]
-                        div [ Class Bootstrap.inputGroupAppend ] [
-                            button [ classes [ Bootstrap.btn; Bootstrap.btnOutlineSecondary ]  ] [
-                                span [ classes [ FontAwesome.fas; FontAwesome.faLink ] ] []
-                            ]
-                        ]
-                    ]
-                ]
-            ]
+        ]
     ]
 
 let renderOrganizationSelectionList (list: OrganizationListItem list) (selected: OrganizationListItem option) dispatch =

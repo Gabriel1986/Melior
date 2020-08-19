@@ -86,9 +86,9 @@ type VatNumber =
         match me with 
         | VatNumber (c, v) -> 
             if c = "BE" then
-                sprintf "%s%s.%s.%s" c v.[0..3] v.[4..6] v.[7..9]
+                sprintf "%s %s.%s.%s" c v.[0..3] v.[4..6] v.[7..9]
             else
-                sprintf "%s%s" c v
+                sprintf "%s %s" c v
 
 module VatNumber =
     let private parseInt (s: string) = 

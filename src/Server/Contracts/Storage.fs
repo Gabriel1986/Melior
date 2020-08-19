@@ -14,12 +14,17 @@ type IContractStorage =
     abstract DeleteContract: Message<BuildingId * Guid> -> Async<int>
     abstract SaveContractTypeAnswer: ContractTypeAnswer -> Async<int>
 
+let private toContractType (validated: ValidatedContractContractType): ContractContractType =
+    match validated with
+    | ValidatedOtherContractType name -> OtherContractType (string name)
+    | ValidatedPredefinedContractType predefined -> PredefinedContractType predefined
+
 let toParams (msg: Message<ValidatedContract>) = [
     "@ContractId", Sql.uuid msg.Payload.ContractId
     "@BuildingId", Sql.uuid msg.Payload.BuildingId
     "@ContractFileId", Sql.uuidOrNone msg.Payload.ContractFileId
     "@ContractOrganizationId", Sql.uuidOrNone msg.Payload.ContractOrganizationId
-    "@ContractType", Sql.string (Thoth.Json.Net.Encode.Auto.toString(0, msg.Payload.ContractType))
+    "@ContractType", Sql.string (Thoth.Json.Net.Encode.Auto.toString(0, toContractType msg.Payload.ContractType))
     "@CreatedBy", Sql.string (msg.CurrentUser.Principal ())
     "@CreatedAt", Sql.timestamp DateTime.UtcNow
     "@LastUpdatedBy", Sql.string (msg.CurrentUser.Principal ())
@@ -45,19 +50,20 @@ let updateContract conn (msg: Message<ValidatedContract>) =
         """
             INSERT INTO Contracts_History
                 (ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType, LastUpdatedBy, LastUpdatedAt)
-            VALUES 
-                (SELECT 
-                    ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType, LastUpdatedBy, LastUpdatedAt
-                    FROM Contracts
-                    WHERE ContractId = @ContractId AND BuildingId = @BuildingId)
+            SELECT 
+                ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType, LastUpdatedBy, LastUpdatedAt
+                FROM Contracts
+                WHERE ContractId = @ContractId AND BuildingId = @BuildingId
         """, [ "@ContractId", Sql.uuid msg.Payload.ContractId; "@BuildingId", Sql.uuid msg.Payload.BuildingId ]
 
         """
             UPDATE Contracts
                 SET 
-                    ContractFileId = @ContractFileId
-                    ContractOrganizationId = @ContractOrganizationId
-                    ContractType = @ContractType
+                    ContractFileId = @ContractFileId,
+                    ContractOrganizationId = @ContractOrganizationId,
+                    ContractType = @ContractType,
+                    LastUpdatedBy = @LastUpdatedBy,
+                    LastUpdatedAt = @LastUpdatedAt
                 WHERE
                     ContractId = @ContractId AND BuildingId = @BuildingId;
         """, msg |> toParams

@@ -27,7 +27,7 @@ module private Internals =
         awsConfig.UseHttp <- true
         awsConfig.ForcePathStyle <- true //Can't set this using the GetAWSOptions... Needed to do this manually for development....
         awsConfig.AuthenticationRegion <- "us-east-1"
-        let awsCredentials = new AnonymousAWSCredentials();
+        let awsCredentials = new EnvironmentVariablesAWSCredentials();
         new AmazonS3Client (awsCredentials, awsConfig) :> IAmazonS3
 #else
         let awsConfig = config.GetAWSOptions()

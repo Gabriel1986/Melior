@@ -266,6 +266,7 @@ let getOrganizationsByIds connectionString (orgIds: Guid list) = async {
                         OrganizationId,
                         BuildingId,
                         OrganizationNumber,
+                        VatNumber,
                         Name,
                         Address,
                         MainEmailAddress,
