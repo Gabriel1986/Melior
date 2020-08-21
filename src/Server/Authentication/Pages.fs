@@ -141,7 +141,7 @@ let loginPage (submitButton: string -> XmlNode) (validationErrors: string list) 
                     antiforgeryInput antiForgeryToken
                     div [ _class "form-group"] [
                         label [] [ str "E-mail adres:" ]
-                        input [ _name "UserName"; _type "text"; _required; _class "form-control" ]
+                        input [ _name "UserName"; _type "email"; _required; _autofocus; _class "form-control" ]
                     ]
                     div [ _class "form-group" ] [
                         label [] [ str "Wachtwoord:" ]
@@ -199,7 +199,7 @@ let initializeTwoFacPage (qrCode: string) (manualEntrySetupCode: string) (valida
                     ]
                     div [ _class "form-group" ] [
                         label [] [ str "De code die uw app u toont (deze wijzigt elke 30 seconden):" ]
-                        input [ _name "VerificationCode"; _type "text"; _required; _maxlength "6"; _class "form-control" ]
+                        input [ _name "VerificationCode"; _type "text"; _required; _autofocus; _maxlength "6"; _class "form-control" ]
                     ]
                 ]
             ]
@@ -230,7 +230,7 @@ let twoFacPage (validationErrors: string list) (token: string) (antiForgeryToken
                     antiforgeryInput antiForgeryToken
                     div [ _class "form-group" ] [
                         label [] [ str "Code die door de authenticator app getoond wordt:" ]
-                        input [ _name "VerificationCode"; _type "text"; _required; _maxlength "6"; _class "form-control" ]
+                        input [ _name "VerificationCode"; _type "text"; _required; _autofocus; _maxlength "6"; _class "form-control" ]
                     ]
                 ]
             ]
