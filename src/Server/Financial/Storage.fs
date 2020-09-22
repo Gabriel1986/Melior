@@ -13,6 +13,10 @@ type IFinancialStorage =
     abstract UpdateDistributionKey: Message<ValidatedDistributionKey> -> Async<int>
     abstract DeleteDistributionKey: Message<BuildingId * Guid> -> Async<int>
 
+    abstract CreateInvoice: Message<ValidatedInvoice> -> Async<unit>
+    abstract UpdateInvoice: Message<ValidatedInvoice> -> Async<int>
+    abstract DeleteInvoice: Message<BuildingId * Guid> -> Async<int>
+
 let private generateSqlForLotsOrLotTypes (distributionKeyId: Guid, lotsOrLotTypes: LotsOrLotTypes) =
     match lotsOrLotTypes with
     | Lots lotIds ->
@@ -123,9 +127,26 @@ let deleteDistributionKey (conn) (msg: Message<BuildingId * Guid>) =
     ]
     |> Sql.writeAsync
 
+let mutable invoices: ValidatedInvoice list = []
+let createInvoice (conn: string) (msg: Message<ValidatedInvoice>) =
+    invoices <- msg.Payload::invoices
+    Async.lift ()
+
+let updateInvoice (conn: string) (msg: Message<ValidatedInvoice>) =
+    invoices <- invoices |> List.map (fun invoice -> if invoice.InvoiceId = msg.Payload.InvoiceId then msg.Payload else invoice)
+    Async.lift 1
+
+let deleteInvoice (conn: string) (msg: Message<BuildingId * Guid>) =
+    invoices <- invoices |> List.filter (fun invoice -> invoice.InvoiceId = snd msg.Payload)
+    Async.lift 1
+
 let makeStorage conn = {
     new IFinancialStorage with
         member _.CreateDistributionKey msg = createDistributionKey conn msg
         member _.UpdateDistributionKey msg = updateDistributionKey conn msg
         member _.DeleteDistributionKey msg = deleteDistributionKey conn msg
+
+        member _.CreateInvoice msg = createInvoice conn msg
+        member _.UpdateInvoice msg = updateInvoice conn msg
+        member _.DeleteInvoice msg = deleteInvoice conn msg
 }

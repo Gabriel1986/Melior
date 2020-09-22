@@ -272,6 +272,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         |> removeError (nameof state.Invoice.Description)
         , Cmd.none
     | VatRateChanged vatRate ->
+        printf "New vat rate: %f" vatRate
         state
         |> changeInvoice (fun invoice -> { invoice with VatRate = vatRate })
         |> removeError (nameof state.Invoice.VatRate)
@@ -407,7 +408,7 @@ let view (state: State) (dispatch: Message -> unit) =
 
     let vatRateSelection: FormSelect = {
         Identifier = "vatRate"
-        OnChanged = (fun e -> VatRateChanged (float e) |> dispatch)
+        OnChanged = (fun e -> VatRateChanged (float (e.TrimEnd('%'))) |> dispatch)
         Options = possibleTaxRates |> List.map vatRateToOption
     }
 
@@ -448,7 +449,7 @@ let view (state: State) (dispatch: Message -> unit) =
         match cost with
         | Some x ->
             match Double.TryParse(x) with
-            | true, parsed -> Math.Round(parsed * vatRate, 2)
+            | true, parsed -> Math.Round(parsed * vatRate / 100.0, 2)
             | false, _ -> 0.0
         | None ->
             0.0
@@ -529,13 +530,28 @@ let view (state: State) (dispatch: Message -> unit) =
                 FormError (errorFor (nameof state.Invoice.BookingDate))
             ]
             |> inColumn
+
+            formGroup [
+                Label "Rubriek"
+                Input [
+                    Type "text"
+                    OnClick (fun _ -> ChangeCategory |> dispatch)
+                    valueOrDefault 
+                        (match state.Invoice.CategoryCode, state.Invoice.CategoryDescription with
+                        | Some cat, Some desc ->
+                            (sprintf "%s - %s" cat desc)
+                        | _ ->
+                            "")
+                ]
+            ]
+            |> inColumn
+
         ]
         div [ Class Bootstrap.row ] [
             formGroup [
                 Label "Leverancier"
                 Input [
                     Type "text"
-                    Disabled true
                     OnClick (fun _ -> ChangeOrganization |> dispatch)
                     valueOrDefault state.Invoice.OrganizationName
                 ]
@@ -573,6 +589,8 @@ let view (state: State) (dispatch: Message -> unit) =
                 ]
             |> inColumn
 
+        ]
+        div [ Class Bootstrap.row ] [
             formGroup [
                 Label "Factuurnummer"
                 Input [
@@ -595,6 +613,15 @@ let view (state: State) (dispatch: Message -> unit) =
             ]
             |> inColumn
 
+            formGroup [
+                Label "Uiterste betaaldatum"
+                Input [
+                    Type "date"
+                    OnChange (fun e -> DueDateChanged e.Value |> dispatch)
+                    valueOrDefault (state.Invoice.DueDate)
+                ]
+            ]
+            |> inColumn
         ]
         div [ Class Bootstrap.row ] [
             formGroup [
@@ -621,6 +648,16 @@ let view (state: State) (dispatch: Message -> unit) =
                     Type "text"
                     Disabled true
                     valueOrDefault (calculateVat state.Invoice.Cost state.Invoice.VatRate)
+                ]
+            ]
+            |> inColumn
+
+            formGroup [
+                Label "Verdeelsleutel"
+                Input [
+                    Type "text"
+                    OnClick (fun e -> ChangeDistributionKey |> dispatch)
+                    valueOrDefault (state.Invoice.DistributionKey |> Option.map (fun dKey -> dKey.Name) |> Option.defaultValue "")
                 ]
             ]
             |> inColumn

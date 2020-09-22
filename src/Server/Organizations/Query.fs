@@ -210,6 +210,8 @@ let getOrganization (connectionString: string) (organizationId: Guid) = async {
             MainTelephoneNumber = dbModel.MainTelephoneNumber
             MainTelephoneNumberComment = dbModel.MainTelephoneNumberComment
             OtherContactMethods = otherContactMethods
+            MainBankAccount = None
+            OtherBankAccounts = []
         }
         return Some organization
     | None ->
@@ -251,6 +253,8 @@ let getOrganizations connectionString (buildingId: Guid) = async {
                 | false, _ -> []
             Name = o.Name
             Address = Address.fromJson o.Address |> Option.fromResult |> Option.defaultValue (Address.Init ())
+            MainBankAccount = None
+            OtherBankAccounts = []
         })
 }
 
@@ -292,6 +296,8 @@ let getOrganizationsByIds connectionString (orgIds: Guid list) = async {
                     | false, _ -> []
                 Name = o.Name
                 Address = Address.fromJson o.Address |> Option.fromResult |> Option.defaultValue (Address.Init ())
+                MainBankAccount = None
+                OtherBankAccounts = []
             })
 }
     

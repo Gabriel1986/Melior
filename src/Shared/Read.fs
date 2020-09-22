@@ -602,8 +602,8 @@ type InvoiceListItem =
         FinancialYearCode: string
         FinancialYearIsClosed: bool
         InvoiceNumber: int
-        Cost: int
-        VatRate: int
+        Cost: float
+        VatRate: float
         DistributionKeyName: string
         OrganizationName: string
         CategoryCode: string //Rubriek

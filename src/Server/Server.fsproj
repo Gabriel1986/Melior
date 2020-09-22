@@ -60,8 +60,8 @@
     <Compile Include="Contracts\Storage.fs" />
     <Compile Include="Contracts\Workflow.fs" />
     <Compile Include="Contracts\ContractSystem.fs" />
-    <Compile Include="Financial\Query.fs" />
     <Compile Include="Financial\Storage.fs" />
+    <Compile Include="Financial\Query.fs" />
     <Compile Include="Financial\Workflow.fs" />
     <Compile Include="Financial\FinancialSystem.fs" />
     <Compile Include="Remoting.fs" />

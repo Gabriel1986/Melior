@@ -33,7 +33,7 @@ type SortableAttribute =
         fun li otherLi ->
             match me with
             | NbMatchingLots ->
-                li.MatchingLots.Length.CompareTo(otherLi.MatchingLots.Length)
+                li.MatchingLots.Length - otherLi.MatchingLots.Length
             | _ ->
                 let result = me.StringValueOf'(li).CompareTo(me.StringValueOf'(otherLi))
                 result
@@ -202,7 +202,9 @@ let view (state: State) (dispatch: Msg -> unit) =
                     DisplayAttributes = SortableAttribute.All
                     IsSelected = None
                     OnSelect = None
+                    IsEditable = None
                     OnEdit = Some (AddDetailTab >> dispatch)
+                    IsDeletable = None
                     OnDelete = Some (RemoveListItem >> dispatch)
                     Key = "DistributionKeysPageTable"
                 |}

@@ -68,6 +68,8 @@ let getOwner (connectionString: string) (ownerId: Guid) = async {
                 Person = person
                 BuildingId = dbModel.BuildingId
                 IsResident = dbModel.IsResident
+                MainBankAccount = None
+                OtherBankAccounts = []
             }
         | None -> 
             return None

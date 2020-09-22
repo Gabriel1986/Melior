@@ -135,6 +135,8 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             state, showErrorToastCmd "U heeft geen toestemming om een leverancier type aan te maken"
         | SaveOrganizationTypeError.Validation errors ->
             changeOrganizationType (organizationType.OrganizationTypeId) id (fun s -> Some { s with Errors = errors }), Cmd.none
+        | SaveOrganizationTypeError.NotFound ->
+            state, showErrorToastCmd "Het leverancier type werd niet gevonden in de databank"
     | EditingFailed (organizationType, e) ->
         match e with
         | SaveOrganizationTypeError.AuthorizationError ->

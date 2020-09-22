@@ -19,7 +19,7 @@ open Client.Library
 
 type State = {
     CurrentUser: User
-    CurrentBuildingId: Guid
+    CurrentBuilding: BuildingListItem
     SelectedListItems: InvoiceListItem list
     SelectedTab: Tab
     LoadingListItems: bool
@@ -37,7 +37,7 @@ type Msg =
     | RemoveDetailTab of InvoiceListItem
     | SelectTab of Tab
     | RemotingError of exn
-    | Loaded of listItems: InvoiceListItem list
+    | Loaded of listItems: InvoiceListItem list * selectedListItem: Guid option
     | FinancialYearsLoaded of financialYears: FinancialYear list
     | RemoveListItem of InvoiceListItem
     | ListItemRemoved of Result<InvoiceListItem, DeleteInvoiceError>
@@ -46,7 +46,7 @@ type Msg =
 
 type CostDiaryProps = {|
     CurrentUser: User
-    CurrentBuildingId: Guid
+    CurrentBuilding: BuildingListItem
     InvoiceId: Guid option
 |}
 
@@ -98,9 +98,9 @@ type SortableInvoiceListItemAttribute =
         | DueDate -> 
             fun li otherLi -> li.DueDate.CompareTo(otherLi.DueDate)
         | Cost ->
-            fun li otherLi -> li.Cost.CompareTo(otherLi.Cost)
+            fun li otherLi -> int li.Cost - int otherLi.Cost
         | VatRate ->
-            fun li otherLi -> li.Cost.CompareTo(otherLi.VatRate)
+            fun li otherLi -> int li.VatRate - int otherLi.VatRate
         | _     -> 
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
     static member All = [ InvoiceNumber; Category; Organization; DistributionKey; Cost; VatRate; DueDate; HasBeenPaid ]
@@ -113,7 +113,7 @@ type SortableInvoiceListItemAttribute =
 let init (props: CostDiaryProps) =
     let state = { 
         CurrentUser = props.CurrentUser
-        CurrentBuildingId = props.CurrentBuildingId
+        CurrentBuilding = props.CurrentBuilding
         SelectedListItems = []
         SelectedTab = List
         ListItems = []
@@ -126,7 +126,7 @@ let init (props: CostDiaryProps) =
     let cmd =
         Cmd.OfAsync.either
             (Remoting.getRemotingApi().GetFinancialYears)
-            props.CurrentBuildingId
+            props.CurrentBuilding.BuildingId
             (fun years -> FinancialYearsLoaded years)
             RemotingError
     state, cmd
@@ -141,7 +141,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         Cost = invoice.Cost
         VatRate = invoice.VatRate
         DistributionKeyName = invoice.DistributionKey.Name
-        OrganizationName = invoice.Organization.Name
+        OrganizationName = invoice.OrganizationName
         CategoryCode = invoice.CategoryCode
         DueDate = invoice.DueDate
         HasBeenPaid = not invoice.PaymentIds.IsEmpty
@@ -208,6 +208,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let newListItems = state.ListItems |> List.map (fun li -> if li.InvoiceId = invoice.InvoiceId then listItem else li)
         let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.InvoiceId = invoice.InvoiceId then listItem else li)
         { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
+    | FinancialYearsLoaded financialYears ->
+        { state with FinancialYears = financialYears }, Cmd.none
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =
@@ -250,7 +252,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle New); OnClick (fun _ -> SelectTab New |> dispatch) ] 
-                        [ str "Nieuwe kavel" ]
+                        [ str "Nieuwe factuur" ]
                 ]
             ]
 

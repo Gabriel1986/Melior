@@ -85,6 +85,13 @@ let convertCurrentPageForNavigation page =
     | Some (Page.MyEvents)                    -> Some (Page.MyEvents)
     | Some (Page.MyLots)                      -> Some (Page.MyLots)
     | Some (Page.MyContracts)                 -> Some (Page.MyContracts)
+    | Some (Page.MyFinancials)                -> Some (Page.MyFinancials)
+    | Some (Page.DistributionKeyList p)       -> Some (Page.DistributionKeyList p)
+    | Some (Page.DistributionKeyDetails p)    -> Some (Page.DistributionKeyList { BuildingId = p.BuildingId })
+    | Some (Page.CostDiary p)                 -> Some (Page.CostDiary p)
+    | Some (Page.InvoiceDetails p)            -> Some (Page.CostDiary { BuildingId = p.BuildingId })
+    | Some (Page.FinancialDiary p)            -> Some (Page.FinancialDiary p)
+    | Some (Page.IncomeDiary p)               -> Some (Page.IncomeDiary p)
     | Some (Page.NotFound)
     | None                                    -> None
 
@@ -139,7 +146,7 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
             ]
             yield li [ Class Bootstrap.navItem ] [
                 a [
-                    Class Bootstrap.navItem
+                    Class Bootstrap.navLink
                     OnClick (fun _ -> ToggleFinancialSubmenu |> dispatch)
                 ] [ str "Boekhouding" ]
 
@@ -155,19 +162,19 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
                             a [
                                 Class (determineStyle currentPage (Page.IncomeDiary buildingSpecificProps))
                                 OnClick (fun _ -> NavigateToPage (Page.IncomeDiary buildingSpecificProps) |> dispatch)
-                            ] [ str "Opbrengstendagboek" ]
+                            ] [ str "Provisies" ]
                         ]
                         li [ Class Bootstrap.navItem ] [
                             a [
                                 Class (determineStyle currentPage (Page.CostDiary buildingSpecificProps))
                                 OnClick (fun _ -> NavigateToPage (Page.CostDiary buildingSpecificProps) |> dispatch)
-                            ] [ str "Kostendagboek" ]
+                            ] [ str "Facturen" ]
                         ]
                         li [ Class Bootstrap.navItem ] [
                             a [
                                 Class (determineStyle currentPage (Page.FinancialDiary buildingSpecificProps))
                                 OnClick (fun _ -> NavigateToPage (Page.FinancialDiary buildingSpecificProps) |> dispatch)
-                            ] [ str "Financieel dagboek" ]
+                            ] [ str "Bankuittreksels" ]
                         ]
                     ]
                 else

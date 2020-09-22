@@ -405,7 +405,7 @@ type ValidatedInvoice =
     {
         InvoiceId: Guid
         BuildingId: Guid
-        FinancialYearId: Guid
+        FinancialYear: FinancialYear
         Description: string option
         Cost: float
         VatRate: PositiveFloat
@@ -417,7 +417,7 @@ type ValidatedInvoice =
         ToBankAccountIBAN: String64
         ToBankAccountBIC: String16
         BookingDate: DateTime //Date when booked
-        DistributionKeyId: Guid
+        DistributionKey: DistributionKey
         OrganizationId: Guid
         OrganizationName: string
         OrganizationNumber: string option
@@ -440,7 +440,7 @@ type ValidatedInvoice =
             yield {
                 InvoiceId = invoice.InvoiceId
                 BuildingId = invoice.BuildingId
-                FinancialYearId = invoice.FinancialYear.FinancialYearId
+                FinancialYear = invoice.FinancialYear
                 Description = invoice.Description
                 Cost = invoice.Cost
                 VatRate = vatRate
@@ -452,7 +452,7 @@ type ValidatedInvoice =
                 ToBankAccountIBAN = toBankAccountIBAN
                 ToBankAccountBIC = toBankAccountBIC
                 BookingDate = invoice.BookingDate
-                DistributionKeyId = invoice.DistributionKey.DistributionKeyId
+                DistributionKey = invoice.DistributionKey
                 InvoiceDate = invoice.InvoiceDate
                 DueDate = invoice.DueDate
                 ExternalInvoiceNumber = invoice.ExternalInvoiceNumber

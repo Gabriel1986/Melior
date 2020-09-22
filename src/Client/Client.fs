@@ -25,6 +25,7 @@ open Client.ProfessionalSyndics
 open Client.Contracts
 open Client.Financial
 open Client.Financial.DistributionKeys
+open Client.Financial.CostDiary
 
 module Client =
     importAll "./public/styles/bootstrap.min.css"
@@ -391,17 +392,17 @@ module Client =
                             DistributionKeyId = Some props.DetailId
                         |}
                 | Page.CostDiary props, _, Some building ->
-                    CostDiary.render
+                    CostDiaryPage.render
                         {|
-                            CurrentUser = runningState.CurrentBuilding
-                            CurrentBuildingId = building.BuildingId
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuilding = building
                             InvoiceId = None
                         |}
                 | Page.InvoiceDetails props, _, Some building ->
-                    CostDiary.render
+                    CostDiaryPage.render
                         {|
-                            CurrentUser = runningState.CurrentBuilding
-                            CurrentBuildingId = building.BuildingId
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuilding = building
                             InvoiceId = Some props.DetailId
                         |}
                 | Page.NoticeBoard, _, _

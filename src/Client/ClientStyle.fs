@@ -76,10 +76,11 @@ module Helpers =
         div [] (props.RadioButtons |> List.map toRadio)
 
     let private formSelect (props: FormSelect) =
+        let selected = props.Options |> List.tryFind (fun opt -> opt.IsSelected)
         let toOption (opt: FormSelectOption) =
-            option [ Value opt.Key; Selected opt.IsSelected ] [ str opt.Label ]
+            option [ Value opt.Key ] [ str opt.Label ]
 
-        select [ Class Bootstrap.formControl; Id props.Identifier; OnChange (fun e -> props.OnChanged e.Value) ] [
+        select [ Class Bootstrap.formControl; Id props.Identifier; Value (selected |> Option.map (fun s -> s.Key) |> Option.defaultValue "") ; OnChange (fun e -> props.OnChanged e.Value) ] [
             yield! props.Options |> List.map toOption
         ]
 

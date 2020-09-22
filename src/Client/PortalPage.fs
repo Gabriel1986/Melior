@@ -80,7 +80,7 @@ let view (state: State) (dispatch: Msg -> unit) =
                             |> inCol
 
                             portalButton "Boekhouding" (fun () -> Msg.OpenPage (CostDiary { BuildingId = currentBuilding.BuildingId }) |> dispatch)
-                            |> inCard "https://i.ibb.co/803ZJF3/coins-1726618-640.jpg" (fun () -> Msg.OpenPage (Contracts { BuildingId = currentBuilding.BuildingId }) |> dispatch)
+                            |> inCard "https://i.ibb.co/803ZJF3/coins-1726618-640.jpg" (fun () -> Msg.OpenPage (CostDiary { BuildingId = currentBuilding.BuildingId }) |> dispatch)
                             |> inCol
                         ]
                     | None ->

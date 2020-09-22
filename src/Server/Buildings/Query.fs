@@ -136,6 +136,7 @@ let getBuilding connectionString (buildingId: Guid): Async<Building option> = as
             Syndic = syndic
             YearOfConstruction = dbModel.YearOfConstruction
             YearOfDelivery = dbModel.YearOfDelivery
+            BankAccounts = []
         }
     | None ->
         return None
@@ -164,6 +165,7 @@ let getAllBuildings connectionString (): Async<BuildingListItem list> = async {
         Name = dbModel.Name
         Address = dbModel.Address |> forceAddress
         OrganizationNumber = dbModel.OrganizationNumber
+        BankAccounts = []
     })
 }
 
@@ -190,5 +192,6 @@ let getBuildingsByIds connectionString buildingIds: Async<BuildingListItem list>
         Name = dbModel.Name
         Address = dbModel.Address |> forceAddress
         OrganizationNumber = dbModel.OrganizationNumber
+        BankAccounts = []
     })
 }
