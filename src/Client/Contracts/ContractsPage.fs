@@ -14,6 +14,7 @@ open Shared.Remoting
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Library
+open Client.Components
 open Client.Upload
 open Client.Routing
 open Client.Contracts.Translations
@@ -25,6 +26,7 @@ type State = {
     ContractTypeAnswers: Savable<ContractTypeAnswer> list
     Contracts: Contract list
     ContractModalIsOpenOn: (Contract * bool) option
+    QuestionModalIsOpen: bool
     Debouncer: Debouncer.State
 }
 
@@ -45,6 +47,8 @@ type Message =
     | ContractSaved of Result<unit, SaveContractError>
     | DebouncerSelfMsg  of Debouncer.SelfMessage<Message>
     | RemotingException of exn
+    | OpenQuestionModal
+    | CloseQuestionModal
 
 type ContractsPageProps = 
     {|
@@ -56,13 +60,13 @@ type ContractsPageProps =
 let init (props: ContractsPageProps) =
     let cmd1 =
         Cmd.OfAsync.either
-            (Client.Remoting.getRemotingApi()).GetContracts {| BuildingId = props.CurrentBuildingId |}
+            (Client.Remoting.getRemotingApi()).GetContracts props.CurrentBuildingId
             ContractsRetrieved
             RemotingException
 
     let cmd2 =
         Cmd.OfAsync.either
-            (Client.Remoting.getRemotingApi()).GetContractTypeAnswers {| BuildingId = props.CurrentBuildingId |}
+            (Client.Remoting.getRemotingApi()).GetContractTypeAnswers props.CurrentBuildingId
             ContractTypeAnswersRetrieved
             RemotingException
 
@@ -73,15 +77,34 @@ let init (props: ContractsPageProps) =
         ContractTypeAnswers = []
         Contracts = []
         ContractModalIsOpenOn = None
+        QuestionModalIsOpen = false
         Debouncer = Debouncer.create()
     }, Cmd.batch [ cmd1; cmd2 ]
+
+let private unansweredQuestionsExist (answeredQuestions: ContractTypeAnswer list): bool =
+    let allQuestions =
+        ContractTypeQuestion.AllValues () 
+        |> Set.ofArray
+
+    let answeredQuestions =
+        answeredQuestions
+        |> List.map (fun a -> a.Question)
+        |> Set.ofList
+
+    allQuestions 
+    |> Set.difference answeredQuestions 
+    |> Set.count = 0
 
 let update (msg: Message) (state: State): State * Cmd<Message> =
     match msg with
     | ContractsRetrieved contracts ->
         { state with Contracts = contracts }, Cmd.none
     | ContractTypeAnswersRetrieved answers ->
-        { state with ContractTypeAnswers = answers |> List.map (fun a -> { IsSaving = false; Payload = a  }) }, Cmd.none
+        let cmd =
+            if unansweredQuestionsExist answers
+            then Cmd.ofMsg OpenQuestionModal
+            else Cmd.none
+        { state with ContractTypeAnswers = answers |> List.map (fun a -> { IsSaving = false; Payload = a  }) }, cmd
     | DebouncerSelfMsg debouncerMsg ->
         let (debouncerModel, debouncerCmd) = Debouncer.update debouncerMsg state.Debouncer
         { state with Debouncer = debouncerModel }, debouncerCmd
@@ -194,6 +217,10 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
     | RemotingException e ->
         printf "Error details: %A" e
         state, showErrorToastCmd "Er is iets misgelopen bij het bewaren van uw gegevens. Gelieve de pagina te verversen."
+    | OpenQuestionModal ->
+        { state with QuestionModalIsOpen = true }, Cmd.none
+    | CloseQuestionModal ->
+        { state with QuestionModalIsOpen = false }, Cmd.none
         
 let view (state: State) (dispatch: Message -> unit) =
     let renderQuestion (question: ContractTypeQuestion) =
@@ -293,54 +320,42 @@ let view (state: State) (dispatch: Message -> unit) =
             contracts |> List.map (rowsForContract true)
 
     div [ Class Bootstrap.row ] [
-        div [ classes [] ] [
-            yield
-                div [ Class Bootstrap.card ] [
-                    div [ Class Bootstrap.cardBody ] [
-                        yield!
-                            ContractTypeQuestion.AllValues ()
-                            |> Array.map renderQuestion
-                    ]
-                ]
-        ]
-        div [ classes [ Bootstrap.colMd8; Bootstrap.col12 ] ] [
-            table [ classes [ Bootstrap.table; Bootstrap.tableHover ] ] [
-                thead [] [
-                    tr [] [
-                        th [] [ str "Naam" ]
-                        th [] [ str "Bestand" ]
-                        th [] [ str "Organisatie" ]
-                        th [] []
-                        th [] []
-                    ]
-                ]
-                tbody [] [
-                    yield! 
-                        MandatoryContractTypes  
-                        |> Array.toList
-                        |> List.collect rowsForPredefinedContractType
-
-                    yield!
-                        state.ContractTypeAnswers 
-                        |> List.collect (fun answer ->
-                            mandatoryContractTypesFor answer.Payload
-                            |> Array.toList
-                            |> List.collect rowsForPredefinedContractType
-                        )
-
-                    yield!
-                        state.Contracts
-                        |> List.choose (fun c -> 
-                            match c.ContractType with 
-                            | ContractContractType.OtherContractType _ -> Some (rowsForContract false c) 
-                            | _ -> None)
+        table [ classes [ Bootstrap.table; Bootstrap.tableHover ] ] [
+            thead [] [
+                tr [] [
+                    th [] [ str "Naam" ]
+                    th [] [ str "Bestand" ]
+                    th [] [ str "Leverancier" ]
+                    th [] []
+                    th [] []
                 ]
             ]
-            div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
-                div [ Class Bootstrap.cardBody ] [
-                    button [ classes [ Bootstrap.btn; Bootstrap.btnSuccess ]; Type "button"; OnClick (fun _ -> CreateNewContract |> dispatch) ] [
-                        str "Contract aanmaken"
-                    ]
+            tbody [] [
+                yield! 
+                    MandatoryContractTypes  
+                    |> Array.toList
+                    |> List.collect rowsForPredefinedContractType
+
+                yield!
+                    state.ContractTypeAnswers 
+                    |> List.collect (fun answer ->
+                        mandatoryContractTypesFor answer.Payload
+                        |> Array.toList
+                        |> List.collect rowsForPredefinedContractType
+                    )
+
+                yield!
+                    state.Contracts
+                    |> List.choose (fun c -> 
+                        match c.ContractType with 
+                        | ContractContractType.OtherContractType _ -> Some (rowsForContract false c) 
+                        | _ -> None)
+            ]
+        ]
+        div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+            div [ Class Bootstrap.cardBody ] [
+                button [ classes [ Bootstrap.btn; Bootstrap.btnSuccess ]; Type "button"; OnClick (fun _ -> CreateNewContract |> dispatch) ] [
+                    str "Contract aanmaken"
                 ]
             ]
         ]
@@ -356,6 +371,18 @@ let view (state: State) (dispatch: Message -> unit) =
                 |}
         | None ->
             ()
+
+        BasicModal.render 
+            {|
+                ModalProps = [
+                    BasicModal.IsOpen state.QuestionModalIsOpen
+                    BasicModal.OnDismiss (fun () -> CloseQuestionModal |> dispatch)
+                    BasicModal.DisableBackgroundClick false
+                    BasicModal.Header [ BasicModal.HeaderProp.Title "Instellingen van het gebouw" ]
+                    BasicModal.Body (ContractTypeQuestion.AllValues () |> Array.map renderQuestion |> Array.toList)
+                    BasicModal.Footer [ BasicModal.FooterProp.ShowDismissButton (Some "Sluiten") ]
+                ]
+            |}
     ]
 
 let render (props: ContractsPageProps) =

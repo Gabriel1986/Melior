@@ -142,7 +142,7 @@ let getLot (connectionString: string) (lotId: Guid): Async<Lot option> = async {
 
 
 
-let getLots (connectionString: string) (filter: {| BuildingId: Guid |}): Async<LotListItem list> =
+let getLots (connectionString: string) (buildingId: Guid): Async<LotListItem list> =
     Sql.connect connectionString
     |> Sql.query
         (sprintf 
@@ -167,5 +167,5 @@ let getLots (connectionString: string) (filter: {| BuildingId: Guid |}): Async<L
             """
             (string LotOwnerRole.LegalRepresentative)
         )
-    |> Sql.parameters [ "@BuildingId", Sql.uuid filter.BuildingId ]
+    |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
     |> Sql.read readLotListItem

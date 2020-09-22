@@ -47,7 +47,7 @@ let showErrorToastCmd (message: string) =
     SweetAlert.Run(alert)
 
 let showGenericErrorModalCmd (e: exn) =
-    console.error(string e)
+    console.error("Error details:", e)
     let modal =
         (SimpleAlert("Er is iets misgelopen bij de communicatie met de server, gelieve de pagina te verversen als dit probleem zich blijft voordoen."))
             .Timeout(3000)

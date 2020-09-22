@@ -101,7 +101,7 @@ let update (onConciergeChanged: Concierge -> unit) (onCanceled: unit -> unit) me
     | LoadOwners ->
         let cmd =
             Cmd.OfAsync.either
-                (Client.Remoting.getRemotingApi()).GetOwners {| BuildingId = model.BuildingId |}
+                (Client.Remoting.getRemotingApi()).GetOwners model.BuildingId
                 OwnersLoaded
                 RemotingError
         { model with State = LoadingOwners }, cmd

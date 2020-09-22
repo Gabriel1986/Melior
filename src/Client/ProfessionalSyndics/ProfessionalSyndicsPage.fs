@@ -177,7 +177,9 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     DisplayAttributes = SortableProfessionalSyndicListItemAttribute.All
                     IsSelected = None
                     OnSelect = None
+                    IsEditable = None
                     OnEdit = Some (AddDetailTab >> dispatch)
+                    IsDeletable = None
                     OnDelete = Some (RemoveListItem >> dispatch)
                     Key = "ProfessionalSyndicsPageTable"
                 |}

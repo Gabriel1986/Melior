@@ -7,6 +7,7 @@ type MediaFile =
     {
         Partition: string
         EntityId: Guid
+        BuildingId: Guid option
         FileId: Guid
         FileName: string
         FileSize: int
@@ -17,8 +18,8 @@ type MediaFile =
     member me.IsImage () = me.MimeType.StartsWith ("image")
     member me.FileSizeString () =
         match me.FileSize with
-        | x when x < 1000000 -> sprintf "%s %s" (string (x / 1000)) "KB"
-        | x  -> sprintf "%s %s" (string (x / 1000000)) "MB"        
+        | x when x < 1000000 -> sprintf "%s%s" (string (x / 1000)) "KB"
+        | x  -> sprintf "%s%s" (string (x / 1000000)) "MB"
 
 let [<Literal>] DefaultChunkSizeInBytes = 5000000.00
 

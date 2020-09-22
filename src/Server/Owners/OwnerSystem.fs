@@ -23,7 +23,7 @@ let build (config: IConfiguration): IOwnerSystem =
                     return None
             }
             member _.GetOwners msg = 
-                if msg.CurrentUser.HasAccessToBuilding msg.Payload.BuildingId 
+                if msg.CurrentUser.HasAccessToBuilding msg.Payload 
                 then
                     Query.getOwners conn msg.Payload
                 else

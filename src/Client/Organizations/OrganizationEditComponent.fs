@@ -387,7 +387,7 @@ let renderSelectOrganizationTypes (selectedTypes: OrganizationType list) (allTyp
                 IsOpen true
                 OnDismiss (fun _ -> OrganizationTypesChanged selectedTypes |> dispatch)
                 Header [
-                    Title "Organisatietypes toevoegen"
+                    Title "Leveranciertypes toevoegen"
                     HasDismissButton true
                 ]
                 Body [

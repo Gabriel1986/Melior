@@ -15,6 +15,7 @@ open Amazon.S3.Model
 open Shared.MediaLibrary
 
 open Server.Library
+open Server.LibraryExtensions
 open Server.Blueprint.Behavior.Media
 open Amazon.Runtime
 
@@ -68,6 +69,10 @@ module private Internals =
                     let uploadLength = getHeaderValue "Upload-Length" |> Double.Parse
                     let uploadName = getHeaderValue "Upload-Name"
                     let uploadOffset = getHeaderValue "Upload-Offset" |> Double.Parse
+                    let buildingId = 
+                        match ctx.Request.Headers.TryGetValue "BuildingId" with
+                        | true, values -> Some (Guid values.[0])
+                        | false, _ -> None
 
                     //Generate file path
                     let temporaryFileNumber = uploadOffset / DefaultChunkSizeInBytes |> int
@@ -115,6 +120,7 @@ module private Internals =
                                 Partition = partition
                                 EntityId = entityId
                                 FileId = fileId
+                                BuildingId = buildingId
                                 FileName = uploadName
                                 FileSize = uploadLength |> int
                                 MimeType = MimeTypes.getMimeType(fileExtension)
@@ -154,7 +160,7 @@ module private Internals =
                             printfn "Uploading object from file path async."
                             printfn "Service url: %s" client.Config.ServiceURL
                             printfn "Using HTTP: %O" client.Config.UseHttp
-                            do! client.UploadObjectFromFilePathAsync(partition, string fileId, combinedPath, [] |> dict)
+                            do! client.UploadObjectFromFilePathAsync("MeliorDigital", sprintf "%s/%s" partition (string fileId), combinedPath, [] |> dict)
 
                         //Store the file metadata
                         printfn "Storing file metadata in the database"
@@ -178,23 +184,36 @@ module private Internals =
             task {
                 let! body = ctx.ReadBodyFromRequestAsync()
                 let fileId = Guid body
-                let chunkDirectoryInfo = DirectoryInfo (getChunkDirectory partition fileId)
 
-                use client = createAmazonS3ServiceClient config
-                let deleteObjectsRequest = new DeleteObjectsRequest(BucketName = partition)
-                deleteObjectsRequest.AddKey(sprintf "%O"    fileId)
-                deleteObjectsRequest.AddKey(sprintf "%O_%s" fileId "large")
-                deleteObjectsRequest.AddKey(sprintf "%O_%s" fileId "small")
+                match! system.GetMediaFile partition fileId with
+                | Some mediaFile ->
+                    let currentUser = User.OfContext ctx
+                    let userHasAccessToFile =
+                        match mediaFile.BuildingId with
+                        | Some buildingId -> currentUser.HasAccessToBuilding buildingId
+                        | None -> true
+                    if userHasAccessToFile then
+                        let chunkDirectoryInfo = DirectoryInfo (getChunkDirectory partition fileId)
 
-                //TODO: do something with the response? do we care about the response?
-                let! response = client.DeleteObjectsAsync(deleteObjectsRequest)
+                        use client = createAmazonS3ServiceClient config
+                        let deleteObjectsRequest = new DeleteObjectsRequest(BucketName = partition)
+                        deleteObjectsRequest.AddKey(sprintf "%O"    fileId)
+                        deleteObjectsRequest.AddKey(sprintf "%O_%s" fileId "large")
+                        deleteObjectsRequest.AddKey(sprintf "%O_%s" fileId "small")
+
+                        //TODO: do something with the response? do we care about the response?
+                        let! response = client.DeleteObjectsAsync(deleteObjectsRequest)
                     
-                do!
-                    fileId
-                    |> createMessage ctx
-                    |> system.DeleteMediaFile  
-                if (chunkDirectoryInfo.Exists) then chunkDirectoryInfo.Delete(true)
-                return! setStatusCode (Net.HttpStatusCode.OK |> int) nxt ctx
+                        do!
+                            fileId
+                            |> createMessage ctx
+                            |> system.DeleteMediaFile  
+                        if (chunkDirectoryInfo.Exists) then chunkDirectoryInfo.Delete(true)
+                        return! setStatusCode (Net.HttpStatusCode.OK |> int) nxt ctx
+                    else
+                        return! setStatusCode 403 nxt ctx
+                | None ->
+                    return! (setStatusCode 404 >=> text "Media file not found") nxt ctx    
             }
 
     //See FilePond docs -> server responds with Upload-Offset set to the next expected chunk offset in bytes.
@@ -217,16 +236,24 @@ module private Internals =
             task {
                 match! system.GetMediaFile partition fileId with
                 | Some mediaFile ->
-                    use s3Client = createAmazonS3ServiceClient config
-                    use transferUtility = new TransferUtility(s3Client)
-                    try
-                        use! readStream = transferUtility.OpenStreamAsync(partition, string fileId)
-                        let assembled =
-                            setHttpHeader "Content-Type" mediaFile.MimeType
-                            >=> streamData true readStream None (Some mediaFile.UploadedOn)
-                        return! assembled nxt ctx
-                    with
-                        | ex -> return! raise ex
+                    let currentUser = User.OfContext ctx
+                    let userHasAccessToFile =
+                        match mediaFile.BuildingId with
+                        | Some buildingId -> currentUser.HasAccessToBuilding buildingId
+                        | None -> true
+                    if userHasAccessToFile then
+                        use s3Client = createAmazonS3ServiceClient config
+                        use transferUtility = new TransferUtility(s3Client)
+                        try
+                            use! readStream = transferUtility.OpenStreamAsync(partition, string fileId)
+                            let assembled =
+                                setHttpHeader "Content-Type" mediaFile.MimeType
+                                >=> streamData true readStream None (Some mediaFile.UploadedOn)
+                            return! assembled nxt ctx
+                        with
+                            | ex -> return! raise ex
+                    else
+                        return! setStatusCode 403 nxt ctx
                 | None ->
                     return! (setStatusCode 404 >=> text "Media file not found") nxt ctx                    
             }
@@ -236,16 +263,24 @@ module private Internals =
             task {
                 match! system.GetMediaFile partition fileId with
                 | Some mediaFile ->
-                    use s3Client = createAmazonS3ServiceClient config
-                    use transferUtility = new TransferUtility(s3Client)
-                    try
-                        use! readStream = transferUtility.OpenStreamAsync(partition, sprintf "%O_%s" fileId size)
-                        let assembled =
-                            setHttpHeader "Content-Type" mediaFile.MimeType
-                            >=> streamData true readStream None (Some mediaFile.UploadedOn)
-                        return! assembled nxt ctx
-                    with
-                        | ex -> return! raise ex
+                    let currentUser = User.OfContext ctx
+                    let userHasAccessToFile =
+                        match mediaFile.BuildingId with
+                        | Some buildingId -> currentUser.HasAccessToBuilding buildingId
+                        | None -> true
+                    if userHasAccessToFile then
+                        use s3Client = createAmazonS3ServiceClient config
+                        use transferUtility = new TransferUtility(s3Client)
+                        try
+                            use! readStream = transferUtility.OpenStreamAsync(partition, sprintf "%O_%s" fileId size)
+                            let assembled =
+                                setHttpHeader "Content-Type" mediaFile.MimeType
+                                >=> streamData true readStream None (Some mediaFile.UploadedOn)
+                            return! assembled nxt ctx
+                        with
+                            | ex -> return! raise ex
+                    else
+                        return! setStatusCode 403 nxt ctx
                 | None ->
                     return! (setStatusCode 404 >=> text "Media file not found") nxt ctx
             }
@@ -260,21 +295,19 @@ module private Internals =
                 let! mediaFileOpt = system.GetMediaFile partition fileId
                 return!
                     match mediaFileOpt with
-                    | Some mediaFile -> 
-                        negotiate mediaFile nxt ctx
+                    | Some mediaFile ->
+                        let currentUser = User.OfContext ctx
+                        let userHasAccessToFile =
+                            match mediaFile.BuildingId with
+                            | Some buildingId -> currentUser.HasAccessToBuilding buildingId
+                            | None -> true
+                        if userHasAccessToFile then
+                            negotiate mediaFile nxt ctx
+                        else
+                            setStatusCode 403 nxt ctx
                     | None ->
                         (setStatusCode 404 >=> text "Media file not found") nxt ctx
             }
-
-    let search (system: IMediaSystem) (partition: string) =
-        fun (next : HttpFunc) (ctx : HttpContext) -> task {
-            let! bound = ctx.BindJsonAsync<{| EntityIds: Guid list option |}>()
-            let! mediaFiles =
-                match bound.EntityIds with
-                | Some entityIds -> getMediaFilesForEntities system (partition, entityIds)
-                | None -> async { return [] }
-            return! negotiate mediaFiles next ctx
-        }
     
 let mediaHandler (config) (system: IMediaSystem) =
     choose [
@@ -288,5 +321,4 @@ let mediaHandler (config) (system: IMediaSystem) =
         GET >=> routeCif "/media/download/%s/%O" (download config system)
         GET >=> routeCif "/media/thumbnail/%s/%s/%O" (thumbnail config system)
         GET >=> routeCif "/media/meta/%s/%O" (getMediaFileById system)
-        POST >=> routeCif "/media/meta/%s/Search" (search system)
     ]

@@ -96,7 +96,7 @@ let init (props: LotsPageProps) =
     let cmd =
         Cmd.OfAsync.either
             (Remoting.getRemotingApi().GetLots)
-            {| BuildingId = props.CurrentBuilding.BuildingId |}
+            props.CurrentBuilding.BuildingId
             (fun lots -> Loaded (lots, props.LotId))
             RemotingError
     state, cmd
@@ -200,7 +200,9 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     DisplayAttributes = SortableLotListItemAttribute.All
                     IsSelected = None
                     OnSelect = None
+                    IsEditable = None
                     OnEdit = Some (AddDetailTab >> dispatch)
+                    IsDeletable = None
                     OnDelete = Some (RemoveListItem >> dispatch)
                     Key = "LotsPageTable"
                 |}

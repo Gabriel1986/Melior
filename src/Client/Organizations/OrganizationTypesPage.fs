@@ -42,13 +42,13 @@ type Message =
     | Edit of Guid
     | SaveEdit of OrganizationType
     | FinishedEditing of OrganizationType
-    | EditingFailed of OrganizationType * UpdateOrganizationTypeError
+    | EditingFailed of OrganizationType * SaveOrganizationTypeError
     | CancelEdit of Guid
 
     | CreateOrganizationType
     | SaveCreation of OrganizationType
     | FinishedCreating of OrganizationType
-    | CreationFailed of OrganizationType * CreateOrganizationTypeError
+    | CreationFailed of OrganizationType * SaveOrganizationTypeError
     | Delete of Guid
     | CancelCreation of Guid
     | EditOrganizationTypeName of (Guid * string)
@@ -131,17 +131,17 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         newState, cmd
     | CreationFailed (organizationType, e) ->
         match e with
-        | CreateOrganizationTypeError.AuthorizationError ->
-            state, showErrorToastCmd "U heeft geen toestemming om een organisatie type aan te maken"
-        | CreateOrganizationTypeError.Validation errors ->
+        | SaveOrganizationTypeError.AuthorizationError ->
+            state, showErrorToastCmd "U heeft geen toestemming om een leverancier type aan te maken"
+        | SaveOrganizationTypeError.Validation errors ->
             changeOrganizationType (organizationType.OrganizationTypeId) id (fun s -> Some { s with Errors = errors }), Cmd.none
     | EditingFailed (organizationType, e) ->
         match e with
-        | UpdateOrganizationTypeError.AuthorizationError ->
-            state, showErrorToastCmd "U heeft geen toestemming om dit organisatie type te updaten"
-        | UpdateOrganizationTypeError.NotFound ->
-            state, showErrorToastCmd "Het organisatie type werd niet gevonden in de databank"
-        | UpdateOrganizationTypeError.Validation errors ->
+        | SaveOrganizationTypeError.AuthorizationError ->
+            state, showErrorToastCmd "U heeft geen toestemming om dit leverancier type te updaten"
+        | SaveOrganizationTypeError.NotFound ->
+            state, showErrorToastCmd "Het leverancier type werd niet gevonden in de databank"
+        | SaveOrganizationTypeError.Validation errors ->
             changeOrganizationType (organizationType.OrganizationTypeId) id (fun s -> Some { s with Errors = errors }), Cmd.none
     | CancelEdit orgTypeId ->
         let newState = changeOrganizationType (orgTypeId) id (fun _ -> None)

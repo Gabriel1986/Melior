@@ -38,8 +38,8 @@ type Msg =
     | Edit of Lot
     | RemotingError of exn
     | Save
-    | ProcessCreateResult of Result<Lot, CreateLotError>
-    | ProcessUpdateResult of Result<Lot, UpdateLotError>
+    | ProcessCreateResult of Result<Lot, SaveLotError>
+    | ProcessUpdateResult of Result<Lot, SaveLotError>
 
 type DetailsProps = {|
     CurrentUser: User
@@ -76,6 +76,21 @@ let init (props: DetailsProps): Model * Cmd<Msg> =
     }, cmd
 
 let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
+    let processSaveLotError =
+        function
+        | SaveLotError.AuthorizationError ->
+            model, showErrorToastCmd "U heeft geen toestemming om deze kavel te bewaren"
+        | SaveLotError.NotFound ->
+            model, showErrorToastCmd "Het kavel werd niet gevonden in de databank"
+        | SaveLotError.Validation errors ->
+            match model.State with
+            | Creating (_, componentState) ->
+                { model with State = Creating (false, { componentState with Errors = errors }) }, Cmd.none
+            | Editing (_, componentState) ->
+                { model with State = Editing (false, { componentState with Errors = errors }) }, Cmd.none
+            | _ ->
+                model, Cmd.none
+
     match msg with
     | View lot ->
         match lot with
@@ -139,15 +154,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            match e with
-            | CreateLotError.AuthorizationError ->
-                model, showErrorToastCmd "U heeft geen toestemming om een kavel aan te maken"
-            | CreateLotError.Validation errors ->
-                match model.State with
-                | Creating (_, componentState) ->
-                    { model with State = Creating (false, { componentState with Errors = errors }) }, Cmd.none
-                | _ ->
-                    model, Cmd.none
+            processSaveLotError e
     | ProcessUpdateResult result ->
         match result with
         | Ok result ->
@@ -156,17 +163,8 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            match e with
-            | UpdateLotError.AuthorizationError ->
-                model, showErrorToastCmd "U heeft geen toestemming om deze kavel te updaten"
-            | UpdateLotError.NotFound ->
-                model, showErrorToastCmd "Het kavel werd niet gevonden in de databank"
-            | UpdateLotError.Validation errors ->
-                match model.State with
-                | Editing (_, componentState) ->
-                    { model with State = Editing (false, { componentState with Errors = errors }) }, Cmd.none
-                | _ ->
-                    model, Cmd.none
+            processSaveLotError e
+
 
 let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with

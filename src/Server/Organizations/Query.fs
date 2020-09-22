@@ -216,7 +216,7 @@ let getOrganization (connectionString: string) (organizationId: Guid) = async {
         return None
 }
 
-let getOrganizations connectionString (filter: {| BuildingId: Guid |}) = async {
+let getOrganizations connectionString (buildingId: Guid) = async {
     let! organizations =
         Sql.connect connectionString
         |> Sql.query
@@ -233,7 +233,7 @@ let getOrganizations connectionString (filter: {| BuildingId: Guid |}) = async {
                 FROM Organizations
                 WHERE BuildingId = @BuildingId
             """
-        |> Sql.parameters [ "@BuildingId", Sql.uuid filter.BuildingId ]
+        |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
         |> Sql.read readOrganizations
 
     let! organizationTypes = 

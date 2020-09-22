@@ -165,6 +165,7 @@ type CreateMediaFileTables() =
                 CREATE TABLE MediaFiles (
                     Partition VARCHAR(64) NOT NULL,
                     EntityId UUID NOT NULL,
+                    BuildingId UUID References Buildings(BuildingId),
                     FileId UUID PRIMARY KEY,
                     FileName VARCHAR(255),
                     FileSize INT,
@@ -273,6 +274,37 @@ type CreateManyToManyProSyndicBuildings() =
                     PRIMARY KEY (OrganizationId, BuildingId)
                 );
                 CREATE INDEX idx_ProfessionalSyndicBuildings_OrganizationId ON ProfessionalSyndicBuildings(OrganizationId);
+            """
+        )
+    override u.Down () = failwith "Not supported"
+
+[<Migration(6L, "Add DistributionKey tables")>]
+type AddDistributionKeyTables() =
+    inherit Migration()
+    override u.Up () =
+        u.Execute(
+            """
+                CREATE TABLE DistributionKeys (
+                    DistributionKeyId UUID PRIMARY KEY,
+                    BuildingId UUID REFERENCES Buildings(BuildingId),
+                    Name VARCHAR(255),
+                    DistributionType VARCHAR(32),
+                    IsActive BOOLEAN DEFAULT TRUE,
+                    CreatedBy VARCHAR(255) NOT NULL,
+                    CreatedAt TIMESTAMP NOT NULL,
+                    LastUpdatedBy VARCHAR(255) NOT NULL,
+                    LastUpdatedAt TIMESTAMP NOT NULL
+                );
+                CREATE INDEX idx_DistributionKeys_BuildingId ON DistributionKeys(BuildingId);
+
+                CREATE TABLE DistributionKeyLotsOrLotTypes (
+                    DistributionKeyId UUID REFERENCES DistributionKeys(DistributionKeyId),
+                    LotId UUID REFERENCES Lots(LotId),
+                    LotType VARCHAR(32)
+                );
+                CREATE INDEX idx_DistributionKeyLotsOrLotTypes_DistributionKeyId ON DistributionKeyLotsOrLotTypes(DistributionKeyId);
+                CREATE INDEX idx_DistributionKeyLotsOrLotTypes_LotId ON DistributionKeyLotsOrLotTypes(LotId);
+                CREATE INDEX idx_DistributionKeyLotsOrLotTypes_LotType ON DistributionKeyLotsOrLotTypes(LotType);
             """
         )
     override u.Down () = failwith "Not supported"

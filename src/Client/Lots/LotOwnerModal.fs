@@ -41,7 +41,7 @@ and LotOwnerType =
     override me.ToString() =
         match me with
         | Owner -> "Eigenaar"
-        | Organization -> "Organisatie"
+        | Organization -> "Leverancier"
 
 type Message =
     | LotOwnerTypeSelected of LotOwnerType
@@ -69,7 +69,7 @@ let init (props: LotOwnerModalProps) =
         match props.LotOwners with
         | [] -> 
             SelectingLotOwnerType, Cmd.none, None
-        | x when props.LotOwners |> List.forall (fun o -> match o with | LotOwner.Organization -> true | LotOwner.Owner -> false) ->
+        | x when props.LotOwners |> List.forall (fun o -> match o with | LotOwner.Organization _ -> true | LotOwner.Owner _ -> false) ->
             LoadingOrganizations, Cmd.ofMsg LoadOrganizations, Some Organization
         | _ ->
             LoadingOwners, Cmd.ofMsg LoadOwners, Some Owner
@@ -102,7 +102,7 @@ let update onOk onCanceled message model =
             match model.AllOwners with
             | [] ->
                 Cmd.OfAsync.either
-                    (Client.Remoting.getRemotingApi()).GetOwners {| BuildingId = model.BuildingId |}
+                    (Client.Remoting.getRemotingApi()).GetOwners model.BuildingId
                     OwnersLoaded
                     RemotingError
             | owners ->
@@ -117,7 +117,7 @@ let update onOk onCanceled message model =
             match model.AllOrganizations with
             | [] ->
                 Cmd.OfAsync.either
-                    (Client.Remoting.getRemotingApi()).GetOrganizations {| BuildingId = model.BuildingId |}
+                    (Client.Remoting.getRemotingApi()).GetOrganizations model.BuildingId
                     OrganizationsLoaded
                     RemotingError
             | orgs ->
@@ -186,7 +186,7 @@ let modalContent model dispatch =
     | LoadingOwners ->
         div [] [ str "Eigenaars worden geladen..." ]
     | LoadingOrganizations ->
-        div [] [ str "Organisaties worden geladen..." ]
+        div [] [ str "Leveranciers worden geladen..." ]
     | SelectingOwners ->
         renderOwnerSelectionList 
             model.AllOwners 

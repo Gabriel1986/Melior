@@ -13,6 +13,7 @@ module private Readers =
         Partition = reader.string "Partition"
         EntityId = reader.uuid "EntityId"
         FileId = reader.uuid "FileId"
+        BuildingId = reader.uuidOrNone "BuildingId"
         FileName = reader.string "FileName"
         FileSize = reader.int "FileSize"
         MimeType = reader.string "MimeType"
@@ -21,10 +22,9 @@ module private Readers =
 
     let selectQuery =
         """
-            SELECT Partition, EntityId, FileId, FileName, FileSize, MimeType, UploadedOn
+            SELECT Partition, EntityId, FileId, BuildingId, FileName, FileSize, MimeType, UploadedOn
             FROM MediaFiles
         """
-
 
 let getMediaFilesForEntities (connectionString: string) (partition: string) (entityIds: Guid list) =
     Sql.connect connectionString

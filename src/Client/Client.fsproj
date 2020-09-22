@@ -78,6 +78,18 @@
     <Compile Include="Buildings\BuildingEditComponent.fs" />
     <Compile Include="Buildings\BuildingDetails.fs" />
     <Compile Include="Buildings\BuildingsPage.fs" />
+    <Compile Include="Financial\CostDiary\InvoiceEditComponent.fs" />
+    <Compile Include="Financial\CostDiary\InvoiceViewComponent.fs" />
+    <Compile Include="Financial\CostDiary\InvoiceDetails.fs" />
+    <Compile Include="Financial\CostDiary\CostDiary.fs" />
+    <Compile Include="Financial\DistributionKeys\Types.fs" />
+    <Compile Include="Financial\DistributionKeys\DistributionKeyEditComponent.fs" />
+    <Compile Include="Financial\DistributionKeys\DistributionKeyViewComponent.fs" />
+    <Compile Include="Financial\DistributionKeys\DistributionKeyDetails.fs" />
+    <Compile Include="Financial\DistributionKeys\DistributionKeysPage.fs" />
+    <Compile Include="Financial\Settings.fs" />
+    <Compile Include="Financial\IncomeDiary.fs" />
+    <Compile Include="Financial\FinancialDiary.fs" />
     <Compile Include="PortalPage.fs" />
     <Compile Include="Sidebar.fs" />
     <Compile Include="Client.fs" />
@@ -85,6 +97,9 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Files\" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

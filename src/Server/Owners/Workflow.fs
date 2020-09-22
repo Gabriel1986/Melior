@@ -8,7 +8,7 @@ open Server.Library
 open Server.LibraryExtensions
 open Storage
 
-let createOwner (storage: IOwnerStorage) (msg: Message<Owner>): Async<Result<unit, CreateOwnerError>> = async {
+let createOwner (storage: IOwnerStorage) (msg: Message<Owner>): Async<Result<unit, SaveOwnerError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId)
     then
         let validated = ValidatedOwner.Validate (msg.Payload)
@@ -17,12 +17,12 @@ let createOwner (storage: IOwnerStorage) (msg: Message<Owner>): Async<Result<uni
             do! storage.CreateOwner validated
             return Ok ()
         | Error validationErrors ->
-            return Error (CreateOwnerError.Validation validationErrors)
+            return Error (SaveOwnerError.Validation validationErrors)
     else
-        return Error CreateOwnerError.AuthorizationError
+        return Error SaveOwnerError.AuthorizationError
 }
 
-let updateOwner (storage: IOwnerStorage) (msg: Message<Owner>): Async<Result<unit, UpdateOwnerError>> = async {
+let updateOwner (storage: IOwnerStorage) (msg: Message<Owner>): Async<Result<unit, SaveOwnerError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId)
     then
         let validated = ValidatedOwner.Validate (msg.Payload)
@@ -30,12 +30,12 @@ let updateOwner (storage: IOwnerStorage) (msg: Message<Owner>): Async<Result<uni
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateOwner validated
             if nbRowsAffected = 0
-            then return Error (UpdateOwnerError.NotFound)
+            then return Error (SaveOwnerError.NotFound)
             else return Ok ()
         | Error validationErrors ->
-            return Error (UpdateOwnerError.Validation validationErrors)
+            return Error (SaveOwnerError.Validation validationErrors)
     else
-        return Error UpdateOwnerError.AuthorizationError
+        return Error SaveOwnerError.AuthorizationError
 }
 
 let deleteOwner (storage: IOwnerStorage) (msg: Message<BuildingId * Guid>): Async<Result<unit, DeleteOwnerError>> = async {

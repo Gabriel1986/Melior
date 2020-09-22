@@ -14,11 +14,11 @@ type ContractDbType = {
     ContractType: ContractContractType
 }
 
-let getContracts conn (filter: {| BuildingId: Guid |}) = async {
+let getContracts conn (buildingId: BuildingId) = async {
     let! contracts = 
         Sql.connect conn
         |> Sql.query "SELECT ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType FROM Contracts WHERE BuildingId = @BuildingId"
-        |> Sql.parameters [ "@BuildingId", Sql.uuid filter.BuildingId ]
+        |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
         |> Sql.read (fun reader -> {
             ContractId = reader.uuid "ContractId"
             BuildingId = reader.uuid "BuildingId"
@@ -53,10 +53,10 @@ let getContracts conn (filter: {| BuildingId: Guid |}) = async {
     })
 }
 
-let getContractTypeAnswers conn (filter: {| BuildingId: Guid |}) =
+let getContractTypeAnswers conn (buildingId: BuildingId) =
     Sql.connect conn
     |> Sql.query "SELECT BuildingId, Question, IsTrue FROM ContractTypeAnswers WHERE BuildingId = @BuildingId"
-    |> Sql.parameters [ "@BuildingId", Sql.uuid filter.BuildingId ]
+    |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
     |> Sql.read (fun reader -> 
         match reader.string "Question" |> ContractTypeQuestion.OfString with
         | Some question ->

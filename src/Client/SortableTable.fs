@@ -26,7 +26,9 @@ type SortableTableProps<'T, 'U when 'U :> ISortableAttribute<'T>> =
         Key: string
         IsSelected: ('T -> bool) option
         OnSelect: ('T -> unit) option
+        IsEditable: ('T -> bool) option
         OnEdit: ('T -> unit) option
+        IsDeletable: ('T -> bool) option
         OnDelete: ('T -> unit) option
     |}
 
@@ -38,7 +40,9 @@ type State<'T, 'U when 'U :> ISortableAttribute<'T>> = {
     FilterOn: (ISortableAttribute<'T> * string) list
     IsSelected: ('T -> bool) option
     OnSelect: ('T -> unit) option
+    IsEditable: ('T -> bool) option
     OnEdit: ('T -> unit) option
+    IsDeletable: ('T -> bool) option
     OnDelete: ('T -> unit) option
 }
 
@@ -56,7 +60,9 @@ let init (props: SortableTableProps<'T, 'U>): State<'T, 'U> * Cmd<Msg<'T>> =
         FilterOn = []
         IsSelected = props.IsSelected
         OnSelect = props.OnSelect
+        IsDeletable = props.IsDeletable
         OnDelete = props.OnDelete
+        IsEditable = props.IsEditable
         OnEdit = props.OnEdit
     }, Cmd.none
 
@@ -163,7 +169,7 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
                             ]
                         ]
                     ]
-            if state.OnEdit.IsSome then
+            if state.OnEdit.IsSome && (not state.IsEditable.IsSome || state.IsEditable.Value(li)) then
                 yield
                     td [] [ 
                         a [ 
@@ -173,7 +179,7 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
                             i [ classes [ FontAwesome.fa; FontAwesome.faExternalLinkAlt] ] []
                         ] 
                     ]
-            if state.OnDelete.IsSome then
+            if state.OnDelete.IsSome && (not state.IsDeletable.IsSome || state.IsDeletable.Value(li)) then
                 yield
                     td [] [ 
                         a [

@@ -39,8 +39,8 @@ type Msg =
     | Edit of Building
     | RemotingError of exn
     | Save
-    | ProcessCreateResult of Result<Building, CreateBuildingError>
-    | ProcessUpdateResult of Result<Building, UpdateBuildingError>
+    | ProcessCreateResult of Result<Building, SaveBuildingError>
+    | ProcessUpdateResult of Result<Building, SaveBuildingError>
     | ChangeSyndic
     | SyndicChanged of Syndic option
     | SyndicChangeCanceled
@@ -87,6 +87,21 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
         match model.State with
         | Viewing building -> Viewing (change building)
         | other -> other
+
+    let processSaveBuildingError =
+        function
+        | SaveBuildingError.AuthorizationError ->
+            model, showErrorToastCmd "U heeft geen toestemming om dit gebouw te bewaren"
+        | SaveBuildingError.NotFound ->
+            model, showErrorToastCmd "Het gebouw werd niet gevonden in de databank"
+        | SaveBuildingError.Validation errors ->
+            match model.State with
+            | Creating (_, componentState) ->
+                { model with State = Creating (false, { componentState with Errors = errors }) }, Cmd.none                
+            | Editing (_, componentState) ->
+                { model with State = Editing (false, { componentState with Errors = errors }) }, Cmd.none
+            | _ ->
+                model, Cmd.none
 
     match msg with
     | View building ->
@@ -150,15 +165,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            match e with
-            | CreateBuildingError.AuthorizationError ->
-                model, showErrorToastCmd "U hebt geen toestemming om een gebouw aan te maken"
-            | CreateBuildingError.Validation errors ->
-                match model.State with
-                | Creating (_, componentState) ->
-                    { model with State = Creating (false, { componentState with Errors = errors }) }, Cmd.none
-                | _ ->
-                    model, Cmd.none
+            processSaveBuildingError e
 
     | ProcessUpdateResult result ->
         match result with
@@ -168,17 +175,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            match e with
-            | UpdateBuildingError.AuthorizationError ->
-                model, showErrorToastCmd "U heeft geen toestemming om dit gebouw te updaten"
-            | UpdateBuildingError.NotFound ->
-                model, showErrorToastCmd "Het gebouw werd niet gevonden in de databank"
-            | UpdateBuildingError.Validation errors ->
-                match model.State with
-                | Editing (_, componentState) ->
-                    { model with State = Creating (false, { componentState with Errors = errors }) }, Cmd.none
-                | _ ->
-                    model, Cmd.none
+            processSaveBuildingError e
 
     | ChangeSyndic ->
         { model with ShowingSyndicModal = true }, Cmd.none

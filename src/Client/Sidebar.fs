@@ -18,11 +18,13 @@ type State = {
     CurrentBuilding: BuildingListItem option
     CurrentUser: User
     AdminModeEnabled: bool
+    FinancialSubmenuIsOpen: bool
 }
 
 type Msg =
     | SetOpen of bool
     | NavigateToPage of Page
+    | ToggleFinancialSubmenu
     | SetAdminMode
     | SetUserMode
 
@@ -32,6 +34,7 @@ let init (isOpen: bool) (currentBuilding: BuildingListItem option) (currentUser:
         CurrentBuilding = currentBuilding
         CurrentUser = currentUser
         AdminModeEnabled = adminModeEnabled
+        FinancialSubmenuIsOpen = false
     }, Cmd.none
 
 let update onSetSidebarOpened onChangeAdminMode (msg: Msg) (state: State): State * Cmd<Msg> =
@@ -50,6 +53,9 @@ let update onSetSidebarOpened onChangeAdminMode (msg: Msg) (state: State): State
     | SetUserMode ->
         onChangeAdminMode false
         state, Cmd.none
+
+    | ToggleFinancialSubmenu ->
+        { state with FinancialSubmenuIsOpen = not state.FinancialSubmenuIsOpen }, Cmd.none
 
 let determineStyle selectedPage page =
     let extraClasses =
@@ -84,7 +90,7 @@ let convertCurrentPageForNavigation page =
 
 let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> unit) =
     let userHasAccessToMultipleBuildings =
-        state.CurrentUser.Roles |> List.exists (function | ProfessionalSyndicRole | SysAdminRole -> true | UserRole | SyndicRole -> false) 
+        state.CurrentUser.Roles |> List.exists (function | ProfessionalSyndicRole _ | SysAdminRole -> true | UserRole _ | SyndicRole _ -> false) 
 
     [
         if userHasAccessToMultipleBuildings then
@@ -108,29 +114,65 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
 
             let buildingSpecificProps = { BuildingId = state.CurrentBuilding.Value.BuildingId }
             yield li [ Class Bootstrap.navItem ] [
-                    a [
-                        Class (determineStyle currentPage (Page.OwnerList buildingSpecificProps))
-                        OnClick (fun _ -> NavigateToPage (Page.OwnerList buildingSpecificProps) |> dispatch)
-                    ] [ str "Eigenaars" ]
-                ]
+                a [
+                    Class (determineStyle currentPage (Page.OwnerList buildingSpecificProps))
+                    OnClick (fun _ -> NavigateToPage (Page.OwnerList buildingSpecificProps) |> dispatch)
+                ] [ str "Eigenaars" ]
+            ]
             yield li [ Class Bootstrap.navItem ] [
-                    a [
-                        Class (determineStyle currentPage (Page.LotList buildingSpecificProps))
-                        OnClick (fun _ -> NavigateToPage (Page.LotList buildingSpecificProps) |> dispatch)
-                    ] [ str "Kavels" ]
-                ]
+                a [
+                    Class (determineStyle currentPage (Page.LotList buildingSpecificProps))
+                    OnClick (fun _ -> NavigateToPage (Page.LotList buildingSpecificProps) |> dispatch)
+                ] [ str "Kavels" ]
+            ]
             yield li [ Class Bootstrap.navItem ] [
-                    a [
-                        Class (determineStyle currentPage (Page.OrganizationList buildingSpecificProps))
-                        OnClick (fun _ -> NavigateToPage (Page.OrganizationList buildingSpecificProps) |> dispatch)
-                    ] [ str "Organisaties" ]
-                ]
+                a [
+                    Class (determineStyle currentPage (Page.OrganizationList buildingSpecificProps))
+                    OnClick (fun _ -> NavigateToPage (Page.OrganizationList buildingSpecificProps) |> dispatch)
+                ] [ str "Leveranciers" ]
+            ]
             yield li [ Class Bootstrap.navItem ] [
-                    a [
-                        Class (determineStyle currentPage (Page.Contracts buildingSpecificProps))
-                        OnClick (fun _ -> NavigateToPage (Page.Contracts buildingSpecificProps) |> dispatch)                
-                    ] [ str "Contracten" ]
-                ]
+                a [
+                    Class (determineStyle currentPage (Page.Contracts buildingSpecificProps))
+                    OnClick (fun _ -> NavigateToPage (Page.Contracts buildingSpecificProps) |> dispatch)                
+                ] [ str "Contracten" ]
+            ]
+            yield li [ Class Bootstrap.navItem ] [
+                a [
+                    Class Bootstrap.navItem
+                    OnClick (fun _ -> ToggleFinancialSubmenu |> dispatch)
+                ] [ str "Boekhouding" ]
+
+                let currentPageIsFinancialPage =
+                    match currentPage with 
+                    | Some(Page.IncomeDiary _) 
+                    | Some(Page.CostDiary _) 
+                    | Some(Page.FinancialDiary _) -> true | _ -> false
+
+                if state.FinancialSubmenuIsOpen || currentPageIsFinancialPage then
+                    ul [ classes [ Bootstrap.navbarNav; Bootstrap.flexColumn; Bootstrap.px4 ] ] [
+                        li [ Class Bootstrap.navItem ] [
+                            a [
+                                Class (determineStyle currentPage (Page.IncomeDiary buildingSpecificProps))
+                                OnClick (fun _ -> NavigateToPage (Page.IncomeDiary buildingSpecificProps) |> dispatch)
+                            ] [ str "Opbrengstendagboek" ]
+                        ]
+                        li [ Class Bootstrap.navItem ] [
+                            a [
+                                Class (determineStyle currentPage (Page.CostDiary buildingSpecificProps))
+                                OnClick (fun _ -> NavigateToPage (Page.CostDiary buildingSpecificProps) |> dispatch)
+                            ] [ str "Kostendagboek" ]
+                        ]
+                        li [ Class Bootstrap.navItem ] [
+                            a [
+                                Class (determineStyle currentPage (Page.FinancialDiary buildingSpecificProps))
+                                OnClick (fun _ -> NavigateToPage (Page.FinancialDiary buildingSpecificProps) |> dispatch)
+                            ] [ str "Financieel dagboek" ]
+                        ]
+                    ]
+                else
+                    null
+            ]
         ]
     ]
 

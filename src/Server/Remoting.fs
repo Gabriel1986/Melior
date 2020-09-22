@@ -48,8 +48,8 @@
             DeleteOwner = fun ownerId ->
                 createMsg ownerId
                 |> environment.OwnerSystem.DeleteOwner
-            GetOwners = fun buildingFilter ->
-                createMsg {| BuildingId = buildingFilter.BuildingId |}
+            GetOwners = fun buildingId ->
+                createMsg buildingId
                 |> environment.OwnerSystem.GetOwners            
             GetOwner = fun ownerId ->
                 createMsg ownerId
@@ -63,8 +63,8 @@
             DeleteLot = fun lotId ->
                 createMsg lotId
                 |> environment.LotSystem.DeleteLot
-            GetLots = fun buildingFilter ->
-                createMsg {| BuildingId = buildingFilter.BuildingId |}
+            GetLots = fun buildingId ->
+                createMsg buildingId
                 |> environment.LotSystem.GetLots
             GetLot = fun lotId ->
                 createMsg lotId
@@ -78,8 +78,8 @@
             DeleteOrganization = fun orgNr ->
                 createMsg orgNr
                 |> environment.OrganizationSystem.DeleteOrganization
-            GetOrganizations = fun buildingFilter ->
-                createMsg {| BuildingId = buildingFilter.BuildingId |}
+            GetOrganizations = fun buildingId ->
+                createMsg buildingId
                 |> environment.OrganizationSystem.GetOrganizations
             GetOrganization = fun orgNr ->
                 createMsg orgNr
@@ -114,14 +114,14 @@
                 createMsg orgTypeId
                 |> environment.OrganizationSystem.DeleteOrganizationType
 
-            GetContractTypeAnswers = fun filter ->
-                createMsg {| BuildingId = filter.BuildingId |}
+            GetContractTypeAnswers = fun buildingId ->
+                createMsg buildingId
                 |> environment.ContractSystem.GetContractTypeAnswers
             SaveContractTypeAnswer = fun arg ->
                 createMsg arg
                 |> environment.ContractSystem.SaveContractTypeAnswer
-            GetContracts = fun filter ->
-                createMsg {| BuildingId = filter.BuildingId |}
+            GetContracts = fun buildingId ->
+                createMsg buildingId
                 |> environment.ContractSystem.GetContracts
             CreateContract = fun arg ->
                 createMsg arg
@@ -132,4 +132,43 @@
             DeleteContract = fun (buildingId, contractId) ->
                 createMsg (buildingId, contractId)
                 |> environment.ContractSystem.DeleteContract
+
+            GetDistributionKeys = fun buildingId ->
+                createMsg buildingId
+                |> environment.FinancialSystem.GetDistributionKeys
+            GetDistributionKeyListItems = fun buildingId ->
+                createMsg buildingId
+                |> environment.FinancialSystem.GetDistributionKeyListItems
+            CreateDistributionKey = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.CreateDistributionKey
+            UpdateDistributionKey = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.UpdateDistributionKey
+            DeleteDistributionKey = fun (buildingId, distributionKeyId) ->
+                createMsg (buildingId, distributionKeyId)
+                |> environment.FinancialSystem.DeleteDistributionKey
+
+            GetInvoices = fun filter ->
+                createMsg filter
+                |> environment.FinancialSystem.GetInvoices
+            GetInvoice = fun invoiceId ->
+                createMsg invoiceId
+                |> environment.FinancialSystem.GetInvoice
+            CreateInvoice = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.CreateInvoice
+            UpdateInvoice = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.UpdateInvoice
+            DeleteInvoice = fun (buildingId, invoiceId) ->
+                createMsg (buildingId, invoiceId)
+                |> environment.FinancialSystem.DeleteInvoice
+
+            GetFinancialYears = fun buildingId ->
+                createMsg buildingId
+                |> environment.FinancialSystem.GetFinancialYears
+            GetFinancialCategories = fun buildingId ->
+                createMsg buildingId
+                |> environment.FinancialSystem.GetFinancialCategories
         }

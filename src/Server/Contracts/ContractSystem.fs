@@ -18,7 +18,7 @@ let build (config: IConfiguration) =
             member _.SaveContractTypeAnswer msg = Workflow.saveContractTypeAnswer store msg
 
             member _.GetContracts msg = async {
-                if msg.CurrentUser.HasAccessToBuilding msg.Payload.BuildingId
+                if msg.CurrentUser.HasAccessToBuilding msg.Payload
                 then
                     return! Query.getContracts conn msg.Payload
                 else
@@ -26,7 +26,7 @@ let build (config: IConfiguration) =
             }
 
             member _.GetContractTypeAnswers msg = async {
-                if msg.CurrentUser.HasAccessToBuilding msg.Payload.BuildingId
+                if msg.CurrentUser.HasAccessToBuilding msg.Payload
                 then
                     return! Query.getContractTypeAnswers conn msg.Payload
                 else

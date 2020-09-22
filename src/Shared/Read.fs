@@ -18,6 +18,13 @@ type Savable<'T> = {
     Payload: 'T
 }
 
+type BankAccount = {
+    BankAccountType: string
+    IBAN: string
+    BIC: string
+    //CurrencyCode: string
+}
+
 type User = 
     {
         UserId: Guid
@@ -43,7 +50,7 @@ type User =
             | ProfessionalSyndicRole (_orgId, bIds) -> bIds |> List.contains buildingId
             | SysAdminRole -> true
         )
-    member me.HasAccessToAdminMode () = me.Roles |> List.exists (function | SyndicRole | ProfessionalSyndicRole | SysAdminRole -> true | UserRole -> false)
+    member me.HasAccessToAdminMode () = me.Roles |> List.exists (function | SyndicRole _ | ProfessionalSyndicRole _ | SysAdminRole -> true | UserRole _ -> false)
     member me.IsSysAdmin () = me.Roles |> List.contains SysAdminRole
     member me.Principal () = me.EmailAddress
 
@@ -60,6 +67,12 @@ and Role =
         | ProfessionalSyndicRole (_orgId, bIds) -> bIds
         | SysAdminRole -> []
 
+and RoleKind =
+    | UserRoleKind
+    | SyndicRoleKind
+    | ProfessionalSyndicRoleKind
+    | SysAdminRoleKind
+
 type Building = 
     {
         BuildingId: BuildingId
@@ -73,6 +86,7 @@ type Building =
         Syndic: Syndic option
         YearOfConstruction: int option
         YearOfDelivery: int option
+        BankAccounts: BankAccount list
     }
     static member Init () = {
         BuildingId = Guid.NewGuid()
@@ -86,6 +100,7 @@ type Building =
         Syndic = None
         YearOfConstruction = None
         YearOfDelivery = None
+        BankAccounts = []
     }
     member me.ToListItem (): BuildingListItem = {
         BuildingId = me.BuildingId
@@ -93,6 +108,7 @@ type Building =
         Name = me.Name
         Address = me.Address
         OrganizationNumber = me.OrganizationNumber
+        BankAccounts = me.BankAccounts
     }
 and Address =
     {
@@ -156,14 +172,8 @@ and BuildingListItem = {
     Name: string
     Address: Address
     OrganizationNumber: string option
+    BankAccounts: BankAccount list
 }
-//and BankAccount = {
-//    CurrencyCode: string
-//    BankAccountId: Guid
-//    Number: string
-//    Iban: string
-//    Bic: string
-//}
 
 //Gemeenschappelijke ruimte
 and CommonSpace = string list
@@ -256,6 +266,8 @@ and Organization =
         MainTelephoneNumberComment: string option
         OtherContactMethods: ContactMethod list
         ContactPersons: ContactPerson list
+        MainBankAccount: BankAccount option
+        OtherBankAccounts: BankAccount list
     }
     static member Init (buildingId: BuildingId option): Organization = 
         let orgId = Guid.NewGuid()
@@ -274,6 +286,8 @@ and Organization =
             MainTelephoneNumberComment = None
             OtherContactMethods = []
             ContactPersons = []
+            MainBankAccount = None
+            OtherBankAccounts = []
         }
 and ContactPerson = 
     {
@@ -305,6 +319,8 @@ and OrganizationListItem = {
     OrganizationTypeNames: string list
     Name: string
     Address: Address
+    MainBankAccount: BankAccount option
+    OtherBankAccounts: BankAccount list
 }
 //A flesh and blood person
 and Person = 
@@ -360,17 +376,21 @@ and Owner =
         BuildingId: BuildingId
         Person: Person
         IsResident: bool
+        MainBankAccount: BankAccount option
+        OtherBankAccounts: BankAccount list
     }
     static member Init (buildingId: BuildingId) = {
         BuildingId = buildingId
         Person = Person.Init ()
         IsResident = true
+        MainBankAccount = None
+        OtherBankAccounts = []
     }
-and Tenant = {
-    Person: Person
-    MoveInDate: DateTimeOffset
-    MoveOutDate: DateTimeOffset option
-}
+//and Tenant = {
+//    Person: Person
+//    MoveInDate: DateTimeOffset
+//    MoveOutDate: DateTimeOffset option
+//}
 and ProfessionalSyndic = 
     {
         Organization: Organization
@@ -389,13 +409,13 @@ and OwnerListItem =
         IsResident: bool
     }
     member me.FullName () = [ me.FirstName; me.LastName ] |> String.JoinOptionsWith " "
-and TenantListItem = {
-    PersonId: Guid
-    FirstName: string
-    LastName: string
-    MoveInDate: DateTimeOffset
-    MoveOutDate: DateTimeOffset option
-}
+//and TenantListItem = {
+//    PersonId: Guid
+//    FirstName: string
+//    LastName: string
+//    MoveInDate: DateTimeOffset
+//    MoveOutDate: DateTimeOffset option
+//}
 and ProfessionalSyndicListItem = {
     OrganizationId: Guid
     Name: string
@@ -506,3 +526,128 @@ let MandatoryContractTypes = [|
     PredefinedContractType.ElectricitySupplier
     PredefinedContractType.WaterSupplier
 |]
+
+//TODO: place the distribution keys in the DB
+//type PredefinedDistributionKey =
+//    | ``Total according to shares``
+//    | ``Appartments according to shares``
+//    | ``Appartments without ground floor according to shares``
+//    | ``Garages and parking spaces according to shares``
+//    | ``Storage and basements according to shares``
+//    | ``Total according to equal parts``
+//    | ``Appartments according to equal parts``
+//    | ``Appartments without ground floor according to equal parts``
+//    | ``Garages and parking spaces according to equal parts``
+//    | ``Storage and basements according to equal parts``
+//    override me.ToString () =
+//        match me with
+//        | ``Total according to shares`` -> "Totaal – volgens aandelen"
+//        | ``Appartments according to shares`` -> "Appartementen - volgens aandelen"
+//        | ``Appartments without ground floor according to shares`` -> "Appartementen zonder gelijkvloer - volgens aandelen"
+//        | ``Garages and parking spaces according to shares`` -> "Staanplaatsen / garages - volgens aandelen"
+//        | ``Storage and basements according to shares`` -> "Bergingen / kelders - volgens aandelen"
+//        | ``Total according to equal parts`` -> "Totaal – volgens gelijke delen"
+//        | ``Appartments according to equal parts`` -> "Appartementen - volgens gelijke delen"
+//        | ``Appartments without ground floor according to equal parts`` -> "Appartementen zonder gelijkvloer - volgens gelijke delen"
+//        | ``Garages and parking spaces according to equal parts`` -> "Staanplaatsen / garages - volgens gelijke delen"
+//        | ``Storage and basements according to equal parts`` -> "Bergingen / kelders - volgens gelijke delen"
+
+type DistributionKey = {
+    DistributionKeyId: Guid
+    BuildingId: Guid option
+    Name: string
+    DistributionType: DistributionType
+    LotsOrLotTypes: LotsOrLotTypes
+}
+and DistributionType =
+    | EqualParts
+    | Shares
+    override me.ToString () =
+        match me with
+        | EqualParts -> "Volgens gelijke delen"
+        | Shares -> "Volgens aandelen"
+and LotsOrLotTypes =
+    | Lots of lotIds: Guid list
+    | LotTypes of lotType: LotType list
+
+type DistributionKeyListItem = {
+    DistributionKeyId: Guid
+    BuildingId: Guid option
+    Name: string
+    DistributionType: DistributionType
+}
+
+type FinancialYear = {
+    FinancialYearId: Guid
+    Code: string
+    StartDate: DateTimeOffset
+    EndDate: DateTimeOffset
+    IsClosed: bool
+}
+
+type FinancialCategory = {
+    FinancialCategoryId: Guid
+    Code: string
+    Description: string
+}
+
+module Invoice =
+    let calculateLocalInvoiceNumber (financialYearCode: string, invoiceNumber: int) =
+        sprintf "%s/%06i" financialYearCode invoiceNumber
+
+type InvoiceListItem = 
+    {
+        InvoiceId: Guid
+        BuildingId: BuildingId
+        FinancialYearCode: string
+        FinancialYearIsClosed: bool
+        InvoiceNumber: int
+        Cost: int
+        VatRate: int
+        DistributionKeyName: string
+        OrganizationName: string
+        CategoryCode: string //Rubriek
+        DueDate: DateTime
+        HasBeenPaid: bool
+    }
+    member me.LocalInvoiceNumber = Invoice.calculateLocalInvoiceNumber (me.FinancialYearCode, me.InvoiceNumber)
+
+type InvoiceFilterPeriod =
+    | FinancialYear of financialYearId: Guid
+    | Year of int
+    | Quarter of int
+    | Month of int
+
+type InvoiceFilter = {
+    BuildingId: Guid
+    Period: InvoiceFilterPeriod
+}
+
+type Invoice = 
+    {
+        InvoiceId: Guid
+        BuildingId: Guid
+        FinancialYear: FinancialYear
+        InvoiceNumber: int
+        Description: string option
+        Cost: float
+        VatRate: float
+        CategoryCode: string
+        CategoryDescription: string
+        FromBankAccountType: string
+        FromBankAccountIBAN: string
+        FromBankAccountBIC: string
+        ToBankAccountIBAN: string
+        ToBankAccountBIC: string
+        BookingDate: DateTime //Date when booked
+        DistributionKey: DistributionKey
+        OrganizationId: Guid
+        OrganizationName: string
+        OrganizationNumber: string option
+        OrganizationVatNumber: string option
+        ExternalInvoiceNumber: string option //Number @ supplier
+        InvoiceDate: DateTime //Date on the invoice
+        DueDate: DateTime //Due date of the invoice
+        PaymentIds: Guid list
+    }
+    member me.LocalInvoiceNumber = Invoice.calculateLocalInvoiceNumber (me.FinancialYear.Code, me.InvoiceNumber)

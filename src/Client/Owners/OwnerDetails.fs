@@ -38,8 +38,8 @@ type Msg =
     | Edit of Owner
     | RemotingError of exn
     | Save
-    | ProcessCreateResult of Result<Owner, CreateOwnerError>
-    | ProcessUpdateResult of Result<Owner, UpdateOwnerError>
+    | ProcessCreateResult of Result<Owner, SaveOwnerError>
+    | ProcessUpdateResult of Result<Owner, SaveOwnerError>
 
 type DetailsProps = {|
     CurrentUser: User
@@ -77,6 +77,23 @@ let init (props: DetailsProps): Model * Cmd<Msg> =
     }, cmd
 
 let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
+    let processSaveOwnerError =
+        function
+        | SaveOwnerError.AuthorizationError ->
+            model, showErrorToastCmd "U heeft geen toestemming om deze eigenaar te bewaren"
+        | SaveOwnerError.NotFound ->
+            model, showErrorToastCmd "De eigenaar werd niet gevonden in de databank"
+        | SaveOwnerError.Validation errors ->
+            match model.State with
+            | Creating (_, componentState) ->
+                let newComponentState, newComponentCommand = OwnerEditComponent.update (OwnerEditComponent.Message.ErrorsChanged errors) componentState
+                { model with State = Creating (false, newComponentState) }, newComponentCommand |> Cmd.map OwnerEditComponentMsg
+            | Editing (_, componentState) ->
+                let newComponentState, newComponentCommand = OwnerEditComponent.update (OwnerEditComponent.Message.ErrorsChanged errors) componentState
+                { model with State = Editing (false, newComponentState) }, newComponentCommand |> Cmd.map OwnerEditComponentMsg
+            | _ ->
+                model, Cmd.none
+
     match msg with
     | View owner ->
         match owner with
@@ -141,16 +158,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            match e with
-            | CreateOwnerError.AuthorizationError ->
-                model, showErrorToastCmd "U heeft geen toestemming om een eigenaar aan te maken"
-            | CreateOwnerError.Validation errors ->
-                match model.State with
-                | Creating (_, componentState) ->
-                    let newComponentState, newComponentCommand = OwnerEditComponent.update (OwnerEditComponent.Message.ErrorsChanged errors) componentState
-                    { model with State = Creating (false, newComponentState) }, newComponentCommand |> Cmd.map OwnerEditComponentMsg
-                | _ ->
-                    model, Cmd.none
+            processSaveOwnerError e
 
     | ProcessUpdateResult result ->
         match result with
@@ -160,18 +168,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            match e with
-            | UpdateOwnerError.AuthorizationError ->
-                model, showErrorToastCmd "U heeft geen toestemming om deze eigenaar te updaten"
-            | UpdateOwnerError.NotFound ->
-                model, showErrorToastCmd "De eigenaar werd niet gevonden in de databank"
-            | UpdateOwnerError.Validation errors ->
-                match model.State with
-                | Editing (_, componentState) ->
-                    let newComponentState, newComponentCommand = OwnerEditComponent.update (OwnerEditComponent.Message.ErrorsChanged errors) componentState
-                    { model with State = Editing (false, newComponentState) }, newComponentCommand |> Cmd.map OwnerEditComponentMsg
-                | _ ->
-                    model, Cmd.none
+            processSaveOwnerError e
 
 let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with

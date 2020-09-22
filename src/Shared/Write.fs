@@ -379,3 +379,88 @@ type ValidatedContract =
 and ValidatedContractContractType =
     | ValidatedPredefinedContractType of PredefinedContractType
     | ValidatedOtherContractType of String255
+
+type ValidatedDistributionKey = 
+    {
+        DistributionKeyId: Guid
+        BuildingId: Guid option
+        Name: String255
+        DistributionType: DistributionType
+        LotsOrLotTypes: LotsOrLotTypes
+    }
+    static member Validate (distributionKey: DistributionKey) =
+        trial {
+            from name in (String255.Of (nameof distributionKey.Name) distributionKey.Name)
+            yield {
+                DistributionKeyId = distributionKey.DistributionKeyId
+                BuildingId = distributionKey.BuildingId
+                Name = name
+                DistributionType = distributionKey.DistributionType
+                LotsOrLotTypes = distributionKey.LotsOrLotTypes
+            }
+        }
+        |> Trial.toResult
+
+type ValidatedInvoice = 
+    {
+        InvoiceId: Guid
+        BuildingId: Guid
+        FinancialYearId: Guid
+        Description: string option
+        Cost: float
+        VatRate: PositiveFloat
+        CategoryCode: String16
+        CategoryDescription: String64
+        FromBankAccountType: String255
+        FromBankAccountIBAN: String64
+        FromBankAccountBIC: String16
+        ToBankAccountIBAN: String64
+        ToBankAccountBIC: String16
+        BookingDate: DateTime //Date when booked
+        DistributionKeyId: Guid
+        OrganizationId: Guid
+        OrganizationName: string
+        OrganizationNumber: string option
+        OrganizationVatNumber: string option
+        ExternalInvoiceNumber: string option //Number @ supplier
+        InvoiceDate: DateTime //Date on the invoice
+        DueDate: DateTime //Due date of the invoice
+        PaymentIds: Guid list
+    }
+    static member Validate (invoice: Invoice) =
+        trial {
+            from vatRate in validatePositiveFloat (nameof invoice.VatRate) invoice.VatRate
+            also categoryCode in String16.Of (nameof invoice.CategoryCode) invoice.CategoryCode
+            also categoryDescription in String64.Of (nameof invoice.CategoryDescription) invoice.CategoryDescription
+            also fromBankAccountType in String255.Of (nameof invoice.FromBankAccountType) invoice.FromBankAccountType
+            also fromBankAccountIBAN in String64.Of (nameof invoice.FromBankAccountIBAN) invoice.FromBankAccountIBAN
+            also fromBankAccountBIC in String16.Of (nameof invoice.FromBankAccountBIC) invoice.FromBankAccountBIC
+            also toBankAccountIBAN in String64.Of (nameof invoice.ToBankAccountIBAN) invoice.ToBankAccountIBAN
+            also toBankAccountBIC in String16.Of (nameof invoice.ToBankAccountBIC) invoice.ToBankAccountBIC
+            yield {
+                InvoiceId = invoice.InvoiceId
+                BuildingId = invoice.BuildingId
+                FinancialYearId = invoice.FinancialYear.FinancialYearId
+                Description = invoice.Description
+                Cost = invoice.Cost
+                VatRate = vatRate
+                CategoryCode = categoryCode
+                CategoryDescription = categoryDescription
+                FromBankAccountType = fromBankAccountType
+                FromBankAccountIBAN = fromBankAccountIBAN
+                FromBankAccountBIC = fromBankAccountBIC
+                ToBankAccountIBAN = toBankAccountIBAN
+                ToBankAccountBIC = toBankAccountBIC
+                BookingDate = invoice.BookingDate
+                DistributionKeyId = invoice.DistributionKey.DistributionKeyId
+                InvoiceDate = invoice.InvoiceDate
+                DueDate = invoice.DueDate
+                ExternalInvoiceNumber = invoice.ExternalInvoiceNumber
+                OrganizationId = invoice.OrganizationId
+                OrganizationName = invoice.OrganizationName
+                OrganizationNumber = invoice.OrganizationNumber
+                OrganizationVatNumber = invoice.OrganizationVatNumber
+                PaymentIds = invoice.PaymentIds
+            }
+        }        
+        |> Trial.toResult

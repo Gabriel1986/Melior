@@ -75,11 +75,11 @@ let getOwner (connectionString: string) (ownerId: Guid) = async {
         return None
 }
 
-let getOwners (connectionString: string) (filter: {| BuildingId: Guid |}) =
+let getOwners (connectionString: string) (buildingId: BuildingId) =
     Sql.connect connectionString
     |> Sql.query (ownerListItemQuery + " AND BuildingId = @BuildingId")
     |> Sql.parameters [
-        "@BuildingId", Sql.uuid filter.BuildingId
+        "@BuildingId", Sql.uuid buildingId
     ]
     |> Sql.read readOwners
 

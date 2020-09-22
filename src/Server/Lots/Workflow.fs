@@ -8,7 +8,7 @@ open Server.Library
 open Server.LibraryExtensions
 open Storage
 
-let createLot (storage: ILotStorage) (msg: Message<Lot>): Async<Result<unit, CreateLotError>> = async {
+let createLot (storage: ILotStorage) (msg: Message<Lot>) = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId)
     then
         let validated = ValidatedLot.Validate (msg.Payload)
@@ -17,12 +17,12 @@ let createLot (storage: ILotStorage) (msg: Message<Lot>): Async<Result<unit, Cre
             do! storage.CreateLot validated
             return Ok ()
         | Error validationErrors ->
-            return Error (CreateLotError.Validation validationErrors)
+            return Error (SaveLotError.Validation validationErrors)
     else
-        return Error CreateLotError.AuthorizationError
+        return Error SaveLotError.AuthorizationError
 }
 
-let updateLot (storage: ILotStorage) (msg: Message<Lot>): Async<Result<unit, UpdateLotError>> = async {
+let updateLot (storage: ILotStorage) (msg: Message<Lot>) = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId)
     then
         let validated = ValidatedLot.Validate (msg.Payload)
@@ -30,12 +30,12 @@ let updateLot (storage: ILotStorage) (msg: Message<Lot>): Async<Result<unit, Upd
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateLot validated
             if nbRowsAffected = 0
-            then return Error (UpdateLotError.NotFound)
+            then return Error (SaveLotError.NotFound)
             else return Ok ()
         | Error validationErrors ->
-            return Error (UpdateLotError.Validation validationErrors)
+            return Error (SaveLotError.Validation validationErrors)
     else
-        return Error UpdateLotError.AuthorizationError
+        return Error SaveLotError.AuthorizationError
 }
 
 let deleteLot (storage: ILotStorage) (msg: Message<BuildingId * Guid>): Async<Result<unit, DeleteLotError>> = async {

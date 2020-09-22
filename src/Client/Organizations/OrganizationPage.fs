@@ -84,7 +84,7 @@ let init (props: OrganizationPageProps) =
     let cmd =
         Cmd.OfAsync.either
             (Remoting.getRemotingApi().GetOrganizations)
-            {| BuildingId = props.CurrentBuilding.BuildingId |}
+            props.CurrentBuilding.BuildingId
             (fun owners -> Loaded (owners, props.OrganizationId))
             RemotingError
     state, cmd
@@ -150,7 +150,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         | Ok _ -> 
             state, Cmd.none
         | Error DeleteOrganizationError.AuthorizationError ->
-            state, showErrorToastCmd "U heeft geen toestemming om een organisatie te verwijderen"
+            state, showErrorToastCmd "U heeft geen toestemming om een leverancier te verwijderen"
         | Error DeleteOrganizationError.NotFound ->
             printf "The organization couldn't be found in the DB, somehow?"
             state, Cmd.none
@@ -189,7 +189,9 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     DisplayAttributes = SortableOrganizationListItemAttribute.All
                     IsSelected = None
                     OnSelect = None
+                    IsEditable = None
                     OnEdit = Some (AddDetailTab >> dispatch)
+                    IsDeletable = None
                     OnDelete = Some (RemoveListItem >> dispatch)
                     Key = "OrganizationsPageTable"
                 |}
@@ -210,7 +212,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle New); OnClick (fun _ -> SelectTab New |> dispatch) ] 
-                        [ str "Nieuwe organisatie" ]
+                        [ str "Nieuwe leverancier" ]
                 ]
             ]
 

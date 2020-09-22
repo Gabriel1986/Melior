@@ -8,7 +8,7 @@ open Server.Library
 open Server.LibraryExtensions
 open Storage
 
-let createContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPerson>): Async<Result<unit, CreateContactPersonError>> = async {
+let createContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPerson>): Async<Result<unit, SaveContactPersonError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
         let validated = ValidatedContactPerson.Validate (msg.Payload)
@@ -17,12 +17,12 @@ let createContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPer
             do! storage.CreateContactPerson validated
             return Ok ()
         | Error validationErrors ->
-            return Error (CreateContactPersonError.Validation validationErrors)
+            return Error (SaveContactPersonError.Validation validationErrors)
     else
-        return Error CreateContactPersonError.AuthorizationError
+        return Error SaveContactPersonError.AuthorizationError
 }
 
-let updateContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPerson>): Async<Result<unit, UpdateContactPersonError>> = async {
+let updateContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPerson>): Async<Result<unit, SaveContactPersonError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
         let validated = ValidatedContactPerson.Validate (msg.Payload)
@@ -30,12 +30,12 @@ let updateContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPer
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateContactPerson validated
             if nbRowsAffected = 0
-            then return Error UpdateContactPersonError.NotFound
+            then return Error SaveContactPersonError.NotFound
             else return Ok ()
         | Error validationErrors ->
-            return Error (UpdateContactPersonError.Validation validationErrors)
+            return Error (SaveContactPersonError.Validation validationErrors)
     else
-        return Error UpdateContactPersonError.AuthorizationError
+        return Error SaveContactPersonError.AuthorizationError
 }
 
 let deleteContactPerson (storage: IOrganizationStorage) (msg: Message<BuildingId option * Guid>): Async<Result<unit, DeleteContactPersonError>> = async {
@@ -49,7 +49,7 @@ let deleteContactPerson (storage: IOrganizationStorage) (msg: Message<BuildingId
         return Error DeleteContactPersonError.AuthorizationError
 }
 
-let createOrganization (storage: IOrganizationStorage) (msg: Message<Organization>): Async<Result<unit, CreateOrganizationError>> = async {
+let createOrganization (storage: IOrganizationStorage) (msg: Message<Organization>): Async<Result<unit, SaveOrganizationError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
         let validated = ValidatedOrganization.Validate (msg.Payload)
@@ -58,12 +58,12 @@ let createOrganization (storage: IOrganizationStorage) (msg: Message<Organizatio
             do! storage.CreateOrganization validated
             return Ok ()
         | Error validationErrors ->
-            return Error (CreateOrganizationError.Validation validationErrors)
+            return Error (SaveOrganizationError.Validation validationErrors)
     else
-        return Error CreateOrganizationError.AuthorizationError
+        return Error SaveOrganizationError.AuthorizationError
 }
 
-let updateOrganization (storage: IOrganizationStorage) (msg: Message<Organization>): Async<Result<unit, UpdateOrganizationError>> = async {
+let updateOrganization (storage: IOrganizationStorage) (msg: Message<Organization>): Async<Result<unit, SaveOrganizationError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
         let validated = ValidatedOrganization.Validate (msg.Payload)
@@ -71,12 +71,12 @@ let updateOrganization (storage: IOrganizationStorage) (msg: Message<Organizatio
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateOrganization validated
             if nbRowsAffected = 0
-            then return Error UpdateOrganizationError.NotFound
+            then return Error SaveOrganizationError.NotFound
             else return Ok ()
         | Error validationErrors ->
-            return Error (UpdateOrganizationError.Validation validationErrors)
+            return Error (SaveOrganizationError.Validation validationErrors)
     else
-        return Error UpdateOrganizationError.AuthorizationError
+        return Error SaveOrganizationError.AuthorizationError
 }
 
 let deleteOrganization (storage: IOrganizationStorage) (msg: Message<BuildingId option * Guid>): Async<Result<unit, DeleteOrganizationError>> = async {
@@ -90,7 +90,7 @@ let deleteOrganization (storage: IOrganizationStorage) (msg: Message<BuildingId 
         return Error DeleteOrganizationError.AuthorizationError
 }
 
-let createOrganizationType (storage: IOrganizationStorage) (msg: Message<OrganizationType>): Async<Result<unit, CreateOrganizationTypeError>> = async {
+let createOrganizationType (storage: IOrganizationStorage) (msg: Message<OrganizationType>): Async<Result<unit, SaveOrganizationTypeError>> = async {
     if msg.CurrentUser.IsSysAdmin ()
     then
         let validated = ValidatedOrganizationType.Validate (msg.Payload)
@@ -99,12 +99,12 @@ let createOrganizationType (storage: IOrganizationStorage) (msg: Message<Organiz
             do! storage.CreateOrganizationType validated
             return Ok ()
         | Error validationErrors ->
-            return Error (CreateOrganizationTypeError.Validation validationErrors)
+            return Error (SaveOrganizationTypeError.Validation validationErrors)
     else
-        return Error CreateOrganizationTypeError.AuthorizationError
+        return Error SaveOrganizationTypeError.AuthorizationError
 }
 
-let updateOrganizationType (storage: IOrganizationStorage) (msg: Message<OrganizationType>): Async<Result<unit, UpdateOrganizationTypeError>> = async {
+let updateOrganizationType (storage: IOrganizationStorage) (msg: Message<OrganizationType>): Async<Result<unit, SaveOrganizationTypeError>> = async {
     if msg.CurrentUser.IsSysAdmin ()
     then
         let validated = ValidatedOrganizationType.Validate (msg.Payload)
@@ -112,12 +112,12 @@ let updateOrganizationType (storage: IOrganizationStorage) (msg: Message<Organiz
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateOrganizationType validated
             if nbRowsAffected = 0
-            then return Error UpdateOrganizationTypeError.NotFound
+            then return Error SaveOrganizationTypeError.NotFound
             else return Ok ()
         | Error validationErrors ->
-            return Error (UpdateOrganizationTypeError.Validation validationErrors)
+            return Error (SaveOrganizationTypeError.Validation validationErrors)
     else
-        return Error UpdateOrganizationTypeError.AuthorizationError
+        return Error SaveOrganizationTypeError.AuthorizationError
 }
 
 let deleteOrganizationType (storage: IOrganizationStorage) (msg: Message<Guid>): Async<Result<unit, DeleteOrganizationTypeError>> = async {

@@ -75,7 +75,7 @@ let update (onOk: Contract * bool -> unit) (onCanceled: unit -> unit) (msg: Mess
     | LoadOrganizations ->
         let cmd =
             Cmd.OfAsync.either
-                (Client.Remoting.getRemotingApi()).GetOrganizations {| BuildingId = model.BuildingId |}
+                (Client.Remoting.getRemotingApi()).GetOrganizations model.BuildingId
                 OrganizationsLoaded
                 RemotingErrorOccured
         model, cmd
@@ -130,7 +130,7 @@ let renderContractEditView (contract: Contract) dispatch =
                 ]
 
             div [ Class Bootstrap.formGroup ] [
-                label [] [ str "Organisatie" ]
+                label [] [ str "Leverancier" ]
                 div [ Class Bootstrap.inputGroup; OnClick (fun _ -> dispatch SearchOrganization) ] [
                     input [ classes [ Bootstrap.formControl; "pointer" ]; Helpers.valueOrDefault orgName; ]
                     div [ Class Bootstrap.inputGroupAppend ] [
@@ -145,7 +145,8 @@ let renderContractEditView (contract: Contract) dispatch =
             | None ->
                 filePond 
                     {| 
-                        Partition = Partitions.Contracts; 
+                        BuildingId = Some contract.BuildingId
+                        Partition = Partitions.Contracts
                         EntityId = contract.ContractId
                         Options = [
                             AllowMultiple false
@@ -153,7 +154,7 @@ let renderContractEditView (contract: Contract) dispatch =
                             OnProcessFile (fun error filepondfile ->
                                 if String.IsNullOrWhiteSpace(error) then
                                     filepondfile
-                                    |> FilePondFile.toMediaFile Partitions.Contracts contract.ContractId
+                                    |> FilePondFile.toMediaFile Partitions.Contracts (Some contract.BuildingId) contract.ContractId
                                     |> ContractFileUploaded
                                     |> dispatch)
                         ]

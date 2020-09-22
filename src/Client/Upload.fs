@@ -43,9 +43,10 @@ type FilePondFile = {
 }
 
 module FilePondFile =
-    let toMediaFile (partition: string) (entityId: Guid) (filePondFile: FilePondFile): MediaFile = {
+    let toMediaFile (partition: string) (buildingId: Guid option) (entityId: Guid) (filePondFile: FilePondFile): MediaFile = {
         Partition = partition
         EntityId = entityId
+        BuildingId = buildingId
         FileId = Guid.Parse (filePondFile.serverId)
         FileName = filePondFile.filename
         FileSize = filePondFile.fileSize
@@ -60,6 +61,7 @@ type IServerOptions =
     | Fetch of string
     | Revert of string
     | Restore of string
+    | Headers of obj
 
 type FilePondOptions =
     | MaxFiles of int
@@ -92,13 +94,14 @@ let private create (_options: obj) = import "create" "./public/FilePond/FilePond
 let private convertToServerOptions (options: IServerOptions list): obj =
     keyValueList CaseRules.LowerFirst options
 
-let private defaultServerOptions (partition: string) (entityId: Guid): IServerOptions list = [
+let private defaultServerOptions (partition: string) (buildingId: System.Guid option) (entityId: Guid): IServerOptions list = [
     Url (sprintf "%s/media/upload/%s/%O" htmlBasePath partition entityId)
     Process ""
     Patch "/"
     Revert "" //Deletes to root with <fileId> as body for some reason in stead of root/<fileId>...
     Fetch "/"
     Restore null
+    Headers {| BuildingId = buildingId |}
 ]
 
 //I would have done it a smarter way in English, but in other languages it might be more of a difference than just 'file' vs 'files'
@@ -111,9 +114,10 @@ let determineIdleLabel (options: FilePondOptions list): string =
     |> Option.defaultValue defaultIdleLabelForMultiple
 
 
-let renderFilePond (props: {| Partition: string; EntityId: System.Guid; Options: FilePondOptions list |}): ReactElement =
+let renderFilePond (props: {| Partition: string; BuildingId: System.Guid option; EntityId: System.Guid; Options: FilePondOptions list |}): ReactElement =
     let partition = props.Partition
     let entityId = props.EntityId
+    let buildingId = props.BuildingId
     let options = props.Options
 
     let idleLabel =
@@ -128,7 +132,7 @@ let renderFilePond (props: {| Partition: string; EntityId: System.Guid; Options:
 
     let serverOptions =
         match options |> List.collect (function | ServerOptions opt -> opt | _ -> []) with
-        | [] -> convertToServerOptions (defaultServerOptions partition entityId)
+        | [] -> convertToServerOptions (defaultServerOptions partition buildingId entityId)
         | xs -> convertToServerOptions xs
 
     let otherFilePondOptions =

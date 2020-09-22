@@ -196,7 +196,9 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     DisplayAttributes = SortableAttribute.All
                     IsSelected = Some (fun li -> li.BuildingId = currentBuildingId)
                     OnSelect = Some (CurrentBuildingChanged >> dispatch)
+                    IsEditable = None
                     OnEdit = Some (AddDetailTab >> dispatch)
+                    IsDeletable = None
                     OnDelete = Some (RemoveListItem >> dispatch)
                     Key = "BuildingsPageTable"
                 |}

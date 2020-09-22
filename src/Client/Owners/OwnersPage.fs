@@ -90,7 +90,7 @@ let init (props: OwnersPageProps) =
     let cmd =
         Cmd.OfAsync.either
             (Remoting.getRemotingApi().GetOwners)
-            {| BuildingId = state.CurrentBuilding.BuildingId |}
+            state.CurrentBuilding.BuildingId
             (fun owners -> Loaded (owners, props.PersonId))
             RemotingError
     state, cmd
@@ -189,7 +189,9 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     DisplayAttributes = SortableOwnerListItemAttribute.All
                     IsSelected = None
                     OnSelect = None
+                    IsEditable = None
                     OnEdit = Some (AddDetailTab >> dispatch)
+                    IsDeletable = None
                     OnDelete = Some (RemoveListItem >> dispatch)
                     Key = "OwnersPageTable"
                 |}

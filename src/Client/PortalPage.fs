@@ -71,12 +71,16 @@ let view (state: State) (dispatch: Msg -> unit) =
                             |> inCard "https://i.ibb.co/fXtJZQ0/floor-plan-1474454-640.jpg" (fun () -> Msg.OpenPage (LotList { BuildingId = currentBuilding.BuildingId }) |> dispatch)
                             |> inCol
 
-                            portalButton "Organisaties" (fun () -> Msg.OpenPage (OrganizationList { BuildingId = currentBuilding.BuildingId }) |> dispatch) 
+                            portalButton "Leveranciers" (fun () -> Msg.OpenPage (OrganizationList { BuildingId = currentBuilding.BuildingId }) |> dispatch) 
                             |> inCard "https://i.ibb.co/sCb1XVr/hand.png" (fun () -> Msg.OpenPage (OrganizationList { BuildingId = currentBuilding.BuildingId }) |> dispatch)
                             |> inCol
 
                             portalButton "Contracten" (fun () -> Msg.OpenPage (Contracts { BuildingId = currentBuilding.BuildingId }) |> dispatch)
                             |> inCard "https://i.ibb.co/7N8J4wT/writing-640.jpg" (fun () -> Msg.OpenPage (Contracts { BuildingId = currentBuilding.BuildingId }) |> dispatch)
+                            |> inCol
+
+                            portalButton "Boekhouding" (fun () -> Msg.OpenPage (CostDiary { BuildingId = currentBuilding.BuildingId }) |> dispatch)
+                            |> inCard "https://i.ibb.co/803ZJF3/coins-1726618-640.jpg" (fun () -> Msg.OpenPage (Contracts { BuildingId = currentBuilding.BuildingId }) |> dispatch)
                             |> inCol
                         ]
                     | None ->

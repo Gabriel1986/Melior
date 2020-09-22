@@ -56,11 +56,11 @@ module Buildings =
     [<NoComparison; NoEquality>]
     type IBuildingSystem =
         //Commands
-        abstract CreateBuilding: msg: Message<Building> -> Async<Result<unit, CreateBuildingError>>        
-        abstract UpdateBuilding: msg: Message<Building> -> Async<Result<unit, UpdateBuildingError>>
+        abstract CreateBuilding: msg: Message<Building> -> Async<Result<unit, SaveBuildingError>>        
+        abstract UpdateBuilding: msg: Message<Building> -> Async<Result<unit, SaveBuildingError>>
         abstract DeleteBuilding: msg: Message<Guid> -> Async<Result<unit, DeleteBuildingError>>
-        abstract UpdateBuildingSyndic: msg: Message<BuildingId * SyndicInput option> -> Async<Result<unit, UpdateBuildingError>>
-        abstract UpdateBuildingConcierge: msg: Message<BuildingId * ConciergeInput option> -> Async<Result<unit, UpdateBuildingError>>
+        abstract UpdateBuildingSyndic: msg: Message<BuildingId * SyndicInput option> -> Async<Result<unit, SaveBuildingError>>
+        abstract UpdateBuildingConcierge: msg: Message<BuildingId * ConciergeInput option> -> Async<Result<unit, SaveBuildingError>>
 
         //Queries
         abstract GetBuilding: buildingId: Message<Guid> -> Async<Building option>
@@ -70,20 +70,20 @@ module Lots =
     [<NoComparison; NoEquality>]
     type ILotSystem =
         //Commands
-        abstract CreateLot: msg: Message<Lot> -> Async<Result<unit, CreateLotError>>       
-        abstract UpdateLot: msg: Message<Lot> -> Async<Result<unit, UpdateLotError>>
+        abstract CreateLot: msg: Message<Lot> -> Async<Result<unit, SaveLotError>>       
+        abstract UpdateLot: msg: Message<Lot> -> Async<Result<unit, SaveLotError>>
         abstract DeleteLot: msg: Message<BuildingId * Guid> -> Async<Result<unit, DeleteLotError>>
 
         //Queries
         abstract GetLot: lotId: Message<Guid> -> Async<Lot option>
-        abstract GetLots: filter: Message<{| BuildingId: Guid |}> -> Async<LotListItem list>
+        abstract GetLots: filter: Message<BuildingId> -> Async<LotListItem list>
 
 module ProfessionalSyndics =
     [<NoComparison; NoEquality>]
     type IProfessionalSyndicSystem =
         //Commands
-        abstract CreateProfessionalSyndic: msg: Message<ProfessionalSyndic> -> Async<Result<unit, CreateProfessionalSyndicError>>       
-        abstract UpdateProfessionalSyndic: msg: Message<ProfessionalSyndic> -> Async<Result<unit, UpdateProfessionalSyndicError>>
+        abstract CreateProfessionalSyndic: msg: Message<ProfessionalSyndic> -> Async<Result<unit, SaveProfessionalSyndicError>>       
+        abstract UpdateProfessionalSyndic: msg: Message<ProfessionalSyndic> -> Async<Result<unit, SaveProfessionalSyndicError>>
         abstract DeleteProfessionalSyndic: msg: Message<Guid> -> Async<Result<unit, DeleteProfessionalSyndicError>>
 
         //Queries
@@ -99,21 +99,21 @@ module Organizations =
     [<NoComparison; NoEquality>]
     type IOrganizationSystem =
         //Commands
-        abstract CreateOrganization: msg: Message<Organization> -> Async<Result<unit, CreateOrganizationError>>       
-        abstract UpdateOrganization: msg: Message<Organization> -> Async<Result<unit, UpdateOrganizationError>>
+        abstract CreateOrganization: msg: Message<Organization> -> Async<Result<unit, SaveOrganizationError>>       
+        abstract UpdateOrganization: msg: Message<Organization> -> Async<Result<unit, SaveOrganizationError>>
         abstract DeleteOrganization: msg: Message<BuildingId option * Guid> -> Async<Result<unit, DeleteOrganizationError>>
 
-        abstract CreateContactPerson: Message<ContactPerson> -> Async<Result<unit, CreateContactPersonError>>
-        abstract UpdateContactPerson: Message<ContactPerson> -> Async<Result<unit, UpdateContactPersonError>>
+        abstract CreateContactPerson: Message<ContactPerson> -> Async<Result<unit, SaveContactPersonError>>
+        abstract UpdateContactPerson: Message<ContactPerson> -> Async<Result<unit, SaveContactPersonError>>
         abstract DeleteContactPerson: Message<BuildingId option * Guid> -> Async<Result<unit, DeleteContactPersonError>>
 
-        abstract CreateOrganizationType: Message<OrganizationType> -> Async<Result<unit, CreateOrganizationTypeError>>
-        abstract UpdateOrganizationType: Message<OrganizationType> -> Async<Result<unit, UpdateOrganizationTypeError>>
+        abstract CreateOrganizationType: Message<OrganizationType> -> Async<Result<unit, SaveOrganizationTypeError>>
+        abstract UpdateOrganizationType: Message<OrganizationType> -> Async<Result<unit, SaveOrganizationTypeError>>
         abstract DeleteOrganizationType: Message<Guid> -> Async<Result<unit, DeleteOrganizationTypeError>>
 
         //Queries
         abstract GetOrganization: orgId: Message<Guid> -> Async<Organization option>
-        abstract GetOrganizations: filter: Message<{| BuildingId: Guid |}> -> Async<OrganizationListItem list>
+        abstract GetOrganizations: filter: Message<BuildingId> -> Async<OrganizationListItem list>
         abstract VerifyVatNumber: VatNumber -> Async<Result<VatNumberValidationResponse, string>>
         abstract GetOrganizationTypes: unit -> Async<OrganizationType list>
 
@@ -121,13 +121,13 @@ module Owners =
     [<NoComparison; NoEquality>]
     type IOwnerSystem =
         //Commands
-        abstract CreateOwner: msg: Message<Owner> -> Async<Result<unit, CreateOwnerError>>
-        abstract UpdateOwner: msg: Message<Owner> -> Async<Result<unit, UpdateOwnerError>>
+        abstract CreateOwner: msg: Message<Owner> -> Async<Result<unit, SaveOwnerError>>
+        abstract UpdateOwner: msg: Message<Owner> -> Async<Result<unit, SaveOwnerError>>
         abstract DeleteOwner: msg: Message<BuildingId * Guid> -> Async<Result<unit, DeleteOwnerError>>
 
         //Queries
         abstract GetOwner: Message<Guid> -> Async<Owner option>
-        abstract GetOwners: Message<{| BuildingId: Guid |}> -> Async<OwnerListItem list>
+        abstract GetOwners: Message<BuildingId> -> Async<OwnerListItem list>
 
 module Contracts =
     [<NoComparison; NoEquality>]
@@ -139,9 +139,27 @@ module Contracts =
         abstract DeleteContract: Message<BuildingId * Guid> -> Async<Result<unit, DeleteContractError>>
 
         //Queries
-        abstract GetContractTypeAnswers: Message<{| BuildingId: Guid |}> -> Async<ContractTypeAnswer list>
-        abstract GetContracts: Message<{| BuildingId: Guid |}> -> Async<Contract list>
+        abstract GetContractTypeAnswers: Message<BuildingId> -> Async<ContractTypeAnswer list>
+        abstract GetContracts: Message<BuildingId> -> Async<Contract list>
 
+module Financial =
+    [<NoComparison; NoEquality>]
+    type IFinancialSystem =
+        //Commands
+        abstract CreateDistributionKey: Message<DistributionKey> -> Async<Result<unit, SaveDistributionKeyError>>
+        abstract UpdateDistributionKey: Message<DistributionKey> -> Async<Result<unit, SaveDistributionKeyError>>
+        abstract DeleteDistributionKey: Message<BuildingId * Guid> -> Async<Result<unit, DeleteDistributionKeyError>>
+
+        abstract CreateInvoice: Message<Invoice> -> Async<Result<unit, SaveInvoiceError>>
+        abstract UpdateInvoice: Message<Invoice> -> Async<Result<unit, SaveInvoiceError>>
+        abstract DeleteInvoice: Message<BuildingId * Guid> -> Async<Result<unit, DeleteInvoiceError>>
+        //Queries
+        abstract GetDistributionKeys: Message<BuildingId> -> Async<DistributionKey list>
+        abstract GetDistributionKeyListItems: Message<BuildingId> -> Async<DistributionKeyListItem list>
+        abstract GetInvoices: Message<InvoiceFilter> -> Async<InvoiceListItem list>
+        abstract GetInvoice: Message<Guid> -> Async<Invoice option>
+        abstract GetFinancialYears: Message<BuildingId> -> Async<FinancialYear list>
+        abstract GetFinancialCategories: Message<BuildingId> -> Async<FinancialCategory list>
 
 [<NoComparison; NoEquality>]
 type IEnv =
@@ -153,3 +171,4 @@ type IEnv =
     abstract OrganizationSystem: Organizations.IOrganizationSystem
     abstract OwnerSystem: Owners.IOwnerSystem
     abstract ContractSystem: Contracts.IContractSystem
+    abstract FinancialSystem: Financial.IFinancialSystem

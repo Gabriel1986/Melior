@@ -11,7 +11,7 @@ let view (detail: Lot) =
     let ownerTypes lotOwner =
         match lotOwner with
         | LotOwner.Owner _ -> str "Persoon"
-        | LotOwner.Organization o -> str ("Organisatie: " + (o.OrganizationTypeNames |> String.JoinWith ", "))
+        | LotOwner.Organization o -> str ("Leverancier: " + (o.OrganizationTypeNames |> String.JoinWith ", "))
 
     let ownerName lotOwner =
         match lotOwner with

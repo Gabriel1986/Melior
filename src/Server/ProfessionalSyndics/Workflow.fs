@@ -8,7 +8,7 @@ open Server.Library
 open Server.LibraryExtensions
 open Storage
 
-let createProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<ProfessionalSyndic>): Async<Result<unit, CreateProfessionalSyndicError>> = async {
+let createProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<ProfessionalSyndic>): Async<Result<unit, SaveProfessionalSyndicError>> = async {
     if msg.CurrentUser.IsSysAdmin ()
     then
         let validated = ValidatedProfessionalSyndic.Validate (msg.Payload)
@@ -17,12 +17,12 @@ let createProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message
             do! storage.CreateProfessionalSyndic validated
             return Ok ()
         | Error validationErrors ->
-            return Error (CreateProfessionalSyndicError.Validation validationErrors)
+            return Error (SaveProfessionalSyndicError.Validation validationErrors)
     else
-        return Error CreateProfessionalSyndicError.AuthorizationError
+        return Error SaveProfessionalSyndicError.AuthorizationError
 }
 
-let updateProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<ProfessionalSyndic>): Async<Result<unit, UpdateProfessionalSyndicError>> = async {
+let updateProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<ProfessionalSyndic>): Async<Result<unit, SaveProfessionalSyndicError>> = async {
     if msg.CurrentUser.IsSysAdmin ()
     then
         let validated = ValidatedProfessionalSyndic.Validate (msg.Payload)
@@ -30,12 +30,12 @@ let updateProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateProfessionalSyndic validated
             if nbRowsAffected = 0
-            then return Error (UpdateProfessionalSyndicError.NotFound)
+            then return Error (SaveProfessionalSyndicError.NotFound)
             else return Ok ()
         | Error validationErrors ->
-            return Error (UpdateProfessionalSyndicError.Validation validationErrors)
+            return Error (SaveProfessionalSyndicError.Validation validationErrors)
     else
-        return Error UpdateProfessionalSyndicError.AuthorizationError
+        return Error SaveProfessionalSyndicError.AuthorizationError
 }
 
 let deleteProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<Guid>): Async<Result<unit, DeleteProfessionalSyndicError>> = async {

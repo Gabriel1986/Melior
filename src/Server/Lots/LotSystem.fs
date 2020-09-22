@@ -23,7 +23,7 @@ let build (config: IConfiguration): ILotSystem =
                     return None
             }
             member _.GetLots msg = async {
-                if msg.CurrentUser.HasAccessToBuilding msg.Payload.BuildingId
+                if msg.CurrentUser.HasAccessToBuilding msg.Payload
                 then
                     return! Query.getLots conn msg.Payload
                 else

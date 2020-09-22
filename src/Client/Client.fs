@@ -23,6 +23,8 @@ open Client.Organizations
 open Client.Lots
 open Client.ProfessionalSyndics
 open Client.Contracts
+open Client.Financial
+open Client.Financial.DistributionKeys
 
 module Client =
     importAll "./public/styles/bootstrap.min.css"
@@ -169,11 +171,14 @@ module Client =
                 match newPage with
                 | Page.LotList props
                 | Page.OwnerList props
-                | Page.OrganizationList props when currentBuildingId <> props.BuildingId ->
+                | Page.Contracts props                
+                | Page.OrganizationList props
+                | Page.DistributionKeyList props when currentBuildingId <> props.BuildingId ->
                     state, fetchBuildingAndChangePage props.BuildingId newPage
                 | Page.LotDetails props
                 | Page.OwnerDetails props
-                | Page.OrganizationDetails props when currentBuildingId <> props.BuildingId ->
+                | Page.OrganizationDetails props
+                | Page.DistributionKeyDetails props when currentBuildingId <> props.BuildingId ->
                     //Fetch building and set it as current building, then go to page.
                     state, fetchBuildingAndChangePage props.BuildingId newPage
                 | Page.BuildingDetails buildingId ->
@@ -276,6 +281,12 @@ module Client =
             | Page.ProfessionalSyndicDetails _
             | Page.ProfessionalSyndicList -> false
             | _ -> true
+        | Page.DistributionKeyDetails _
+        | Page.DistributionKeyList _ ->
+            match newPage with
+            | Page.DistributionKeyDetails _
+            | Page.DistributionKeyList _ -> false
+            | _ -> true
         | _ -> true
 
     let notFound = div [] [ p [] [ str "Pagina werd niet gevonden." ] ]
@@ -365,10 +376,42 @@ module Client =
                             CurrentUser = runningState.CurrentUser
                             CurrentBuildingId = building.BuildingId
                         |}
+                | Page.DistributionKeyList _, _, Some building ->
+                    DistributionKeysPage.render
+                        {|
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuildingId = building.BuildingId
+                            DistributionKeyId = None
+                        |}
+                | Page.DistributionKeyDetails props, _, Some building ->
+                    DistributionKeysPage.render 
+                        {| 
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuildingId = building.BuildingId
+                            DistributionKeyId = Some props.DetailId
+                        |}
+                | Page.CostDiary props, _, Some building ->
+                    CostDiary.render
+                        {|
+                            CurrentUser = runningState.CurrentBuilding
+                            CurrentBuildingId = building.BuildingId
+                            InvoiceId = None
+                        |}
+                | Page.InvoiceDetails props, _, Some building ->
+                    CostDiary.render
+                        {|
+                            CurrentUser = runningState.CurrentBuilding
+                            CurrentBuildingId = building.BuildingId
+                            InvoiceId = Some props.DetailId
+                        |}
                 | Page.NoticeBoard, _, _
                 | Page.MyEvents, _, _
                 | Page.MyLots, _, _
-                | Page.MyContracts, _, _ ->
+                | Page.MyContracts, _, _
+                | Page.MyFinancials, _, _
+                | Page.InvoiceDetails _, _, _
+                | Page.IncomeDiary _, _, _
+                | Page.FinancialDiary _, _, _ ->
                     div [] [
                         str "Deze pagina is nog niet beschikbaar"
                     ]

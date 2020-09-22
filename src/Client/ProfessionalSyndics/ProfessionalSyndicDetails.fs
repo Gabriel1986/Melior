@@ -37,8 +37,8 @@ type Msg =
     | Edit of ProfessionalSyndic
     | RemotingError of exn
     | Save
-    | ProcessCreateResult of Result<ProfessionalSyndic, CreateProfessionalSyndicError>
-    | ProcessUpdateResult of Result<ProfessionalSyndic, UpdateProfessionalSyndicError>
+    | ProcessCreateResult of Result<ProfessionalSyndic, SaveProfessionalSyndicError>
+    | ProcessUpdateResult of Result<ProfessionalSyndic, SaveProfessionalSyndicError>
 
 type DetailsProps = {|
     CurrentUser: User
@@ -74,6 +74,23 @@ let init (props: DetailsProps): Model * Cmd<Msg> =
     }, cmd
 
 let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
+    let handleSaveProfessionalSyndicError =
+        function
+        | SaveProfessionalSyndicError.AuthorizationError ->
+            model, showErrorToastCmd "U heeft geen toestemming om deze professionele syndicus te bewaren"
+        | SaveProfessionalSyndicError.NotFound ->
+            model, showErrorToastCmd "De professionele syndicus werd niet gevonden in de databank"
+        | SaveProfessionalSyndicError.Validation errors ->
+            match model.State with
+            | Creating (_, componentState) ->
+                let newComponentState, newComponentCommand = ProfessionalSyndicEditComponent.update (ProfessionalSyndicEditComponent.Message.ErrorsChanged errors) (componentState)
+                { model with State = Creating (false, newComponentState) }, newComponentCommand |> Cmd.map ProfessionalSyndicEditComponentMsg
+            | Editing (_, componentState) ->
+                let newComponentState, newComponentCommand = ProfessionalSyndicEditComponent.update (ProfessionalSyndicEditComponent.Message.ErrorsChanged errors) (componentState)
+                { model with State = Editing (false, newComponentState) }, newComponentCommand |> Cmd.map ProfessionalSyndicEditComponentMsg
+            | _ ->
+                model, Cmd.none
+
     match msg with
     | View professionalSyndic ->
         match professionalSyndic with
@@ -138,16 +155,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            match e with
-            | CreateProfessionalSyndicError.AuthorizationError ->
-                model, showErrorToastCmd "U heeft geen toestemming om deze professionele syndicus te updaten"
-            | CreateProfessionalSyndicError.Validation errors ->
-                match model.State with
-                | Creating (_, componentState) ->
-                    let newComponentState, newComponentCommand = ProfessionalSyndicEditComponent.update (ProfessionalSyndicEditComponent.Message.ErrorsChanged errors) (componentState)
-                    { model with State = Creating (false, newComponentState) }, newComponentCommand |> Cmd.map ProfessionalSyndicEditComponentMsg
-                | _ ->
-                    model, Cmd.none                
+            handleSaveProfessionalSyndicError e
 
     | ProcessUpdateResult result ->
         match result with
@@ -157,19 +165,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            match e with
-            | UpdateProfessionalSyndicError.AuthorizationError ->
-                model, showErrorToastCmd "U heeft geen toestemming om deze professionele syndicus te updaten"
-            | UpdateProfessionalSyndicError.NotFound ->
-                model, showErrorToastCmd "De professionele syndicus werd niet gevonden in de databank"
-            | UpdateProfessionalSyndicError.Validation errors ->
-                match model.State with
-                | Editing (_, componentState) ->
-                    let newComponentState, newComponentCommand = ProfessionalSyndicEditComponent.update (ProfessionalSyndicEditComponent.Message.ErrorsChanged errors) (componentState)
-                    { model with State = Editing (false, newComponentState) }, newComponentCommand |> Cmd.map ProfessionalSyndicEditComponentMsg
-                | _ ->
-                    model, Cmd.none                
-
+            handleSaveProfessionalSyndicError e
 
 let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with

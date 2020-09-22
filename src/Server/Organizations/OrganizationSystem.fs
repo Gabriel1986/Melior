@@ -29,7 +29,7 @@ let build (config: IConfiguration): IOrganizationSystem =
                     return None
             }
             member _.GetOrganizations msg =
-                if msg.CurrentUser.HasAccessToBuilding msg.Payload.BuildingId 
+                if msg.CurrentUser.HasAccessToBuilding msg.Payload 
                 then
                     Query.getOrganizations conn msg.Payload
                 else

@@ -38,8 +38,8 @@ type Msg =
     | Edit of Organization
     | RemotingError of exn
     | Save
-    | ProcessCreateResult of Result<Organization, CreateOrganizationError>
-    | ProcessUpdateResult of Result<Organization, UpdateOrganizationError>
+    | ProcessCreateResult of Result<Organization, SaveOrganizationError>
+    | ProcessUpdateResult of Result<Organization, SaveOrganizationError>
 
 type DetailsProps = {|
     CurrentUser: User
@@ -76,6 +76,21 @@ let init (props: DetailsProps): Model * Cmd<Msg> =
     }, cmd
 
 let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
+    let processSaveOrganizationError =
+        function
+        | SaveOrganizationError.AuthorizationError ->
+            model, showErrorToastCmd "U heeft geen toestemming om deze leverancier te bewaren"
+        | SaveOrganizationError.NotFound ->
+            model, showErrorToastCmd "De leverancier werd niet gevonden in de databank"
+        | SaveOrganizationError.Validation errors ->
+            match model.State with
+            | Creating (_, componentState) ->
+                { model with State = Creating (false, { componentState with Errors = errors }) }, Cmd.none
+            | Editing (_, componentState) ->
+                { model with State = Editing (false, { componentState with Errors = errors }) }, Cmd.none
+            | _ ->
+                model, Cmd.none
+
     match msg with
     | View organization ->
         match organization with
@@ -141,15 +156,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            match e with
-            | CreateOrganizationError.AuthorizationError ->
-                model, showErrorToastCmd "U heeft geen toestemming om een organisatie aan te maken"
-            | CreateOrganizationError.Validation errors ->
-                match model.State with
-                | Creating (_, componentState) ->
-                    { model with State = Creating (false, { componentState with Errors = errors }) }, Cmd.none
-                | _ ->
-                    model, Cmd.none
+            processSaveOrganizationError e
 
     | ProcessUpdateResult result ->
         match result with
@@ -159,27 +166,17 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | _ -> ()
             { model with State = Viewing result }, Cmd.none
         | Error e ->
-            match e with
-            | UpdateOrganizationError.AuthorizationError ->
-                model, showErrorToastCmd "U heeft geen toestemming om deze organisatie te updaten"
-            | UpdateOrganizationError.NotFound ->
-                model, showErrorToastCmd "De organisatie werd niet gevonden in de databank"
-            | UpdateOrganizationError.Validation errors ->
-                match model.State with
-                | Editing (_, componentState) ->
-                    { model with State = Editing (false, { componentState with Errors = errors }) }, Cmd.none
-                | _ ->
-                    model, Cmd.none
+            processSaveOrganizationError e
 
 let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with
     | Loading ->  div [] [ str "Details worden geladen" ]
-    | OrganizationNotFound -> div [] [ str "De door u gekozen organisatie werd niet gevonden in de databank..." ]
+    | OrganizationNotFound -> div [] [ str "De door u gekozen leverancier werd niet gevonden in de databank..." ]
     | Editing (isSaving, editState)
     | Creating (isSaving, editState) ->
         if isSaving 
         then
-            div [] [ str "De organisatie wordt bewaard" ]
+            div [] [ str "De leverancier wordt bewaard" ]
         else
             div [] [
                 OrganizationEditComponent.view editState (OrganizationEditMsg >> dispatch)

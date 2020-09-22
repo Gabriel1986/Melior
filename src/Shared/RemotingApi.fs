@@ -7,35 +7,7 @@ open Shared.ConstrainedTypes
 
 type AuthorizationError = AuthorizationError
 
-type BuildingValidationError = {
-    GeneralError: string list
-    CodeError: string list
-    NameError: string list
-    AddressError: string list
-    GeneralMeetingDateError: string list
-}
-
-type PersonValidationError = {
-    GeneralErrors: string list
-    FirstNameErrors: string list
-    LastNameErrors: string list
-    LanguageCodeErrors: string list
-    TitleErrors: string list
-    MainTelephoneNumberErrors: string list
-    MainTelephoneNumberCommentErrors: string list
-    MainEmailAddressErrors: string list
-    MainEmailAddressCommentErrors: string list
-    MainAddressErrors: string list
-    ContactAddressErrors: string list
-    OtherContactMethodsErrors: string list
-    OtherAddressesErrors: string list
-}
-
-type CreateBuildingError =
-    | AuthorizationError
-    | Validation of (string * string) list
-    
-type UpdateBuildingError =
+type SaveBuildingError =
     | AuthorizationError
     | Validation of (string * string) list
     | NotFound
@@ -43,12 +15,8 @@ type UpdateBuildingError =
 type DeleteBuildingError =
     | AuthorizationError
     | NotFound
-
-type CreateLotError =
-    | AuthorizationError
-    | Validation of (string * string) list
     
-type UpdateLotError =
+type SaveLotError =
     | AuthorizationError
     | Validation of (string * string) list
     | NotFound
@@ -57,11 +25,7 @@ type DeleteLotError =
     | AuthorizationError
     | NotFound
 
-type CreateOwnerError =
-    | AuthorizationError
-    | Validation of (string * string) list
-    
-type UpdateOwnerError =
+type SaveOwnerError =
     | AuthorizationError
     | Validation of (string * string) list
     | NotFound
@@ -70,11 +34,7 @@ type DeleteOwnerError =
     | AuthorizationError
     | NotFound
 
-type CreateProfessionalSyndicError =
-    | AuthorizationError
-    | Validation of (string * string) list
-    
-type UpdateProfessionalSyndicError =    
+type SaveProfessionalSyndicError =    
     | AuthorizationError
     | Validation of (string * string) list
     | NotFound
@@ -83,11 +43,7 @@ type DeleteProfessionalSyndicError =
     | AuthorizationError
     | NotFound
 
-type CreateOrganizationTypeError =
-    | AuthorizationError
-    | Validation of (string * string) list
-    
-type UpdateOrganizationTypeError =
+type SaveOrganizationTypeError =
     | AuthorizationError
     | Validation of (string * string) list
     | NotFound
@@ -96,11 +52,7 @@ type DeleteOrganizationTypeError =
     | AuthorizationError
     | NotFound
 
-type CreateContactPersonError =
-    | AuthorizationError
-    | Validation of (string * string) list
-    
-type UpdateContactPersonError =
+type SaveContactPersonError =
     | AuthorizationError
     | Validation of (string * string) list
     | NotFound
@@ -109,11 +61,7 @@ type DeleteContactPersonError =
     | AuthorizationError
     | NotFound
 
-type CreateOrganizationError =
-    | AuthorizationError
-    | Validation of (string * string) list
-    
-type UpdateOrganizationError =
+type SaveOrganizationError =
     | AuthorizationError
     | Validation of (string * string) list
     | NotFound
@@ -135,6 +83,24 @@ type DeleteContractError =
     | AuthorizationError
     | NotFound
 
+type SaveDistributionKeyError =
+    | AuthorizationError
+    | Validation of (string * string) list
+    | NotFound
+
+type DeleteDistributionKeyError =
+    | AuthorizationError
+    | NotFound
+
+type SaveInvoiceError =
+    | AuthorizationError
+    | Validation of (string * string) list
+    | NotFound
+
+type DeleteInvoiceError =
+    | AuthorizationError
+    | NotFound
+
 type OwnerId = {
     PersonId: Guid
     BuildingId: Guid
@@ -144,50 +110,65 @@ type OwnerId = {
 type RemotingApi = {
     GetCurrentUser: unit -> Async<User>
 
-    CreateBuilding: Building -> Async<Result<unit, CreateBuildingError>>
-    UpdateBuilding: Building -> Async<Result<unit, UpdateBuildingError>>
-    DeleteBuilding: Guid -> Async<Result<unit, DeleteBuildingError>>
-    GetBuilding: Guid -> Async<Building option>
+    CreateBuilding: Building -> Async<Result<unit, SaveBuildingError>>
+    UpdateBuilding: Building -> Async<Result<unit, SaveBuildingError>>
+    DeleteBuilding: BuildingId -> Async<Result<unit, DeleteBuildingError>>
+    GetBuilding: BuildingId -> Async<Building option>
     GetBuildings: unit -> Async<BuildingListItem list>
-    UpdateBuildingSyndic: Guid * SyndicInput option    -> Async<Result<unit, UpdateBuildingError>>
-    UpdateBuildingConcierge: Guid * ConciergeInput option -> Async<Result<unit, UpdateBuildingError>>
+    UpdateBuildingSyndic: BuildingId * SyndicInput option    -> Async<Result<unit, SaveBuildingError>>
+    UpdateBuildingConcierge: BuildingId * ConciergeInput option -> Async<Result<unit, SaveBuildingError>>
 
-    CreateLot: Lot  -> Async<Result<unit, CreateLotError>>
-    UpdateLot: Lot  -> Async<Result<unit, UpdateLotError>>
+    CreateLot: Lot -> Async<Result<unit, SaveLotError>>
+    UpdateLot: Lot -> Async<Result<unit, SaveLotError>>
     DeleteLot: BuildingId * Guid -> Async<Result<unit, DeleteLotError>>
     GetLot: Guid -> Async<Lot option>
-    GetLots: {| BuildingId: Guid |} -> Async<LotListItem list>
+    GetLots: BuildingId -> Async<LotListItem list>
     
-    CreateOwner: Owner -> Async<Result<unit, CreateOwnerError>>
-    UpdateOwner: Owner -> Async<Result<unit, UpdateOwnerError>>
+    CreateOwner: Owner -> Async<Result<unit, SaveOwnerError>>
+    UpdateOwner: Owner -> Async<Result<unit, SaveOwnerError>>
     DeleteOwner: BuildingId * Guid -> Async<Result<unit, DeleteOwnerError>>
     GetOwner: Guid -> Async<Owner option>
-    GetOwners: {| BuildingId: Guid |} -> Async<OwnerListItem list>
+    GetOwners: BuildingId -> Async<OwnerListItem list>
 
-    CreateOrganization: Organization -> Async<Result<unit, CreateOrganizationError>>
-    UpdateOrganization: Organization -> Async<Result<unit, UpdateOrganizationError>>
+    CreateOrganization: Organization -> Async<Result<unit, SaveOrganizationError>>
+    UpdateOrganization: Organization -> Async<Result<unit, SaveOrganizationError>>
     DeleteOrganization: BuildingId option * Guid -> Async<Result<unit, DeleteOrganizationError>>
     GetOrganization: Guid -> Async<Organization option>
-    GetOrganizations: {| BuildingId: Guid |} -> Async<OrganizationListItem list>
+    GetOrganizations: BuildingId -> Async<OrganizationListItem list>
     VerifyVatNumber: VatNumber -> Async<Result<VatNumberValidationResponse, string>>
 
-    CreateProfessionalSyndic: ProfessionalSyndic -> Async<Result<unit, CreateProfessionalSyndicError>>
-    UpdateProfessionalSyndic: ProfessionalSyndic -> Async<Result<unit, UpdateProfessionalSyndicError>>
+    CreateProfessionalSyndic: ProfessionalSyndic -> Async<Result<unit, SaveProfessionalSyndicError>>
+    UpdateProfessionalSyndic: ProfessionalSyndic -> Async<Result<unit, SaveProfessionalSyndicError>>
     DeleteProfessionalSyndic: Guid -> Async<Result<unit, DeleteProfessionalSyndicError>>
     GetProfessionalSyndics: unit -> Async<ProfessionalSyndicListItem list>
     GetProfessionalSyndic: Guid -> Async<ProfessionalSyndic option>
 
     GetOrganizationTypes: unit -> Async<OrganizationType list>
-    CreateOrganizationType: OrganizationType -> Async<Result<unit, CreateOrganizationTypeError>>
-    UpdateOrganizationType: OrganizationType -> Async<Result<unit, UpdateOrganizationTypeError>>
+    CreateOrganizationType: OrganizationType -> Async<Result<unit, SaveOrganizationTypeError>>
+    UpdateOrganizationType: OrganizationType -> Async<Result<unit, SaveOrganizationTypeError>>
     DeleteOrganizationType: Guid -> Async<Result<unit, DeleteOrganizationTypeError>>
 
-    GetContractTypeAnswers: {| BuildingId: Guid |} -> Async<ContractTypeAnswer list>
+    GetContractTypeAnswers: BuildingId -> Async<ContractTypeAnswer list>
     SaveContractTypeAnswer: ContractTypeAnswer -> Async<Result<unit, SaveAnswerError>>
-    GetContracts: {| BuildingId: Guid |} -> Async<Contract list>
+    GetContracts: BuildingId -> Async<Contract list>
     CreateContract: Contract -> Async<Result<unit, SaveContractError>>
     UpdateContract: Contract -> Async<Result<unit, SaveContractError>>
     DeleteContract: BuildingId * Guid -> Async<Result<unit, DeleteContractError>>
+
+    GetDistributionKeys: BuildingId -> Async<DistributionKey list>
+    GetDistributionKeyListItems: BuildingId -> Async<DistributionKeyListItem list>
+    CreateDistributionKey: DistributionKey -> Async<Result<unit, SaveDistributionKeyError>>
+    UpdateDistributionKey: DistributionKey -> Async<Result<unit, SaveDistributionKeyError>>
+    DeleteDistributionKey: BuildingId * Guid -> Async<Result<unit, DeleteDistributionKeyError>>
+
+    GetInvoices: InvoiceFilter -> Async<InvoiceListItem list>
+    GetInvoice: Guid -> Async<Invoice option>
+    CreateInvoice: Invoice -> Async<Result<unit, SaveInvoiceError>>
+    UpdateInvoice: Invoice -> Async<Result<unit, SaveInvoiceError>>
+    DeleteInvoice: BuildingId * Guid -> Async<Result<unit, DeleteInvoiceError>>
+
+    GetFinancialYears: BuildingId -> Async<FinancialYear list>
+    GetFinancialCategories: BuildingId -> Async<FinancialCategory list>
 }
 
 let routeBuilder = sprintf "/remoting/%s/%s"

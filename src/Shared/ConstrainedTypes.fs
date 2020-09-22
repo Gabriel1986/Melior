@@ -47,8 +47,15 @@ type PositiveInt =
     private | PositiveInt of int
     member me.Value () = match me with | PositiveInt x -> x
 
+type PositiveFloat =
+    private | PositiveFloat of float
+    member me.Value () = match me with | PositiveFloat x -> x
+
 let validatePositiveInt path x =
-    if x < 0 then Trial.ofError (path, "De waarde moet groter zijn dan 0...") else Trial.Pass (PositiveInt x)
+    if x < 0 then Trial.ofError (path, "De waarde moet groter zijn dan, of gelijk zijn aan 0...") else Trial.Pass (PositiveInt x)
+
+let validatePositiveFloat path x =
+    if x < 0.0 then Trial.ofError (path, "De waarde moet groter zijn dan, of gelijk zijn aan 0...") else Trial.Pass (PositiveFloat x)
 
 module PositiveInt =
     let Of path = validatePositiveInt path
