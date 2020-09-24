@@ -10,6 +10,7 @@ open Client.ClientStyle.Helpers
 open Client.Library
 open Client.Components
 open Client.Components.BasicModal
+open Client.Components.SelectionList
 open Shared.Read
 open Shared.Library
 open Shared.Trial
@@ -52,7 +53,7 @@ type InvoiceInputModel =
         FromAccount: BankAccount option
         ToAccount: BankAccount option
         BookingDate: string option //Date when booked
-        DistributionKey: DistributionKey option
+        DistributionKey: DistributionKeyListItem option
         OrganizationId: Guid option
         OrganizationName: string option
         OrganizationNumber: string option
@@ -72,14 +73,14 @@ type InvoiceInputModel =
         VatRate = 21.0
         CategoryCode = None
         CategoryDescription = None
-        BookingDate = Some (DateTimeOffset.Now.ToString("dd/MM/yyyy"))
+        BookingDate = Some (DateTimeOffset.Now.ToString("yyyy-MM-dd"))
         DistributionKey = None
         OrganizationId = None
         OrganizationName = None
         OrganizationNumber = None
         OrganizationVatNumber = None
         ExternalInvoiceNumber = None
-        InvoiceDate = Some (DateTimeOffset.Now.ToString("dd/MM/yyyy"))
+        InvoiceDate = Some (DateTimeOffset.Now.ToString("yyyy-MM-dd"))
         DueDate = None
         PaymentIds = []
         FromAccount = None
@@ -95,15 +96,15 @@ type InvoiceInputModel =
         VatRate = invoice.VatRate
         CategoryCode = Some invoice.CategoryCode
         CategoryDescription = Some invoice.CategoryDescription
-        BookingDate = Some (invoice.BookingDate.ToString("dd/MM/yyyy"))
+        BookingDate = Some (invoice.BookingDate.ToString("yyyy-MM-dd"))
         DistributionKey = Some invoice.DistributionKey
         OrganizationId = Some invoice.OrganizationId
         OrganizationName = Some invoice.OrganizationName
         OrganizationNumber = invoice.OrganizationNumber
         OrganizationVatNumber = invoice.OrganizationVatNumber
         ExternalInvoiceNumber = invoice.ExternalInvoiceNumber
-        InvoiceDate = Some (invoice.InvoiceDate.ToString("dd/MM/yyyy"))
-        DueDate = Some (invoice.DueDate.ToString("dd/MM/yyyy"))
+        InvoiceDate = Some (invoice.InvoiceDate.ToString("yyyy-MM-dd"))
+        DueDate = Some (invoice.DueDate.ToString("yyyy-MM-dd"))
         PaymentIds = invoice.PaymentIds
         FromAccount = Some { BankAccountType = invoice.FromBankAccountType; BIC = invoice.FromBankAccountBIC; IBAN = invoice.FromBankAccountIBAN }
         ToAccount = Some { BankAccountType = ""; BIC = invoice.ToBankAccountBIC; IBAN = invoice.ToBankAccountIBAN }
@@ -171,15 +172,15 @@ type Message =
     | VatRateChanged of float
     | FinancialYearChanged of FinancialYear
     | ChangeCategory
-    | CategoryChanged of FinancialCategory
+    | CategoryChanged of FinancialCategory option
     | CancelChangeFinancialCategory
     | DescriptionChanged of string
     | BookingDateChanged of string
     | ChangeDistributionKey
-    | DistributionKeyChanged of DistributionKey
+    | DistributionKeyChanged of DistributionKeyListItem option
     | CancelChangeDistributionKey
     | ChangeOrganization
-    | OrganizationChanged of OrganizationListItem
+    | OrganizationChanged of OrganizationListItem option
     | CancelChangeOrganization
     | InvoiceDateChanged of string
     | DueDateChanged of string
@@ -281,22 +282,25 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         { state with ShowingFinancialCategoryModal = true }, Cmd.none
     | CategoryChanged financialCategory ->
         { state with ShowingFinancialCategoryModal = false }
-        |> changeInvoice (fun invoice -> { invoice with CategoryCode = Some financialCategory.Code })
+        |> changeInvoice (fun invoice -> { 
+            invoice with 
+                CategoryCode = financialCategory |> Option.map (fun cat -> cat.Code) 
+                CategoryDescription = financialCategory |> Option.map (fun cat -> cat.Description)
+        })
         |> removeError (nameof state.Invoice.CategoryCode)
         , Cmd.none
     | CancelChangeFinancialCategory ->
         { state with ShowingFinancialCategoryModal = false }, Cmd.none
     | BookingDateChanged bookingDate ->
-        let newBookingDate = if String.IsNullOrWhiteSpace(bookingDate) then None else Some bookingDate
         state
-        |> changeInvoice (fun invoice -> { invoice with BookingDate = newBookingDate })
+        |> changeInvoice (fun invoice -> { invoice with BookingDate = Some bookingDate })
         |> removeError (nameof state.Invoice.BookingDate)
         , Cmd.none
     | ChangeDistributionKey ->
         { state with ShowingDistributionKeyModal = true }, Cmd.none
     | DistributionKeyChanged distributionKey ->
         { state with ShowingDistributionKeyModal = false }
-        |> changeInvoice (fun invoice -> { invoice with DistributionKey = Some distributionKey })
+        |> changeInvoice (fun invoice -> { invoice with DistributionKey = distributionKey })
         |> removeError (nameof state.Invoice.DistributionKey)
         , Cmd.none
     | CancelChangeDistributionKey ->
@@ -304,13 +308,14 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | ChangeOrganization ->
         { state with ShowingOrganizationModal = true }, Cmd.none
     | OrganizationChanged organization ->
-        { state with ShowingOrganizationModal = false; SelectedOrganization = Some organization }
+        { state with ShowingOrganizationModal = false; SelectedOrganization = organization }
         |> changeInvoice (fun invoice -> 
-            { invoice with 
-                OrganizationId = Some organization.OrganizationId
-                OrganizationName = Some organization.Name
-                OrganizationNumber = organization.OrganizationNumber
-                OrganizationVatNumber = organization.VatNumber
+            {
+                invoice with 
+                    OrganizationId = organization |> Option.map (fun o -> o.OrganizationId)
+                    OrganizationName = organization |> Option.map (fun o -> o.Name)
+                    OrganizationNumber = organization |> Option.bind (fun o -> o.OrganizationNumber)
+                    OrganizationVatNumber = organization |> Option.bind (fun o -> o.VatNumber)
             })
         |> removeError (nameof state.Invoice.OrganizationId)
         , Cmd.none
@@ -454,62 +459,93 @@ let view (state: State) (dispatch: Message -> unit) =
         | None ->
             0.0
 
-    let renderFinancialCategoryModal () =
-        BasicModal.render 
-            {| 
-                ModalProps = [
-                    IsOpen state.ShowingFinancialCategoryModal
-                    DisableBackgroundClick true
-                    OnDismiss (fun _ -> dispatch CancelChangeFinancialCategory)
-                    Header [
-                        HeaderProp.HasDismissButton true
-                    ]
-                    Body [
-                        div [] [ str "TODO" ]
-                    ]
-                    Footer [
-                        //yield FooterProp.Buttons []
-                    ]
-                ]           
-            |}
+    let renderFinancialCategoryModal =
+        FunctionComponent.Of((fun (props: {| SelectedCategoryCode: string option; AllCategories: FinancialCategory list; Showing: bool |}) ->
+            BasicModal.render 
+                {| 
+                    ModalProps = [
+                        IsOpen props.Showing
+                        DisableBackgroundClick true
+                        OnDismiss (fun _ -> dispatch CancelChangeFinancialCategory)
+                        Header [ HeaderProp.HasDismissButton true ]
+                        Body [
+                            SelectionList.render (
+                                {|
+                                    SelectionMode = SelectionMode.SingleSelect
+                                    AllItems = props.AllCategories |> List.sortBy (fun cat -> cat.Code)
+                                    SelectedItems = 
+                                        match props.SelectedCategoryCode with
+                                        | Some selected -> props.AllCategories |> List.filter (fun cat -> cat.Code = selected)
+                                        | None -> []
+                                    OnSelectionChanged = fun selection -> Message.CategoryChanged (selection |> List.tryHead) |> dispatch
+                                    DisplayListItem = 
+                                        (fun financialCategory -> 
+                                            [
+                                                span [ Key financialCategory.Code ] [ str financialCategory.Code ]
+                                                str " - "
+                                                span [ Key (financialCategory.Code + "1") ] [ str financialCategory.Description ]
+                                            ] 
+                                            |> ofList)
+                                |}, "FinancialCategorySelectionList")
+                        ]
+                        Footer [
+                            //yield FooterProp.Buttons []
+                        ]
+                    ]           
+                |}), "FinancialCategoryModal", equalsButFunctions)
 
-    let renderDistributionKeyModal () =
-        BasicModal.render 
-            {| 
-                ModalProps = [
-                    IsOpen state.ShowingDistributionKeyModal
-                    DisableBackgroundClick true
-                    OnDismiss (fun _ -> dispatch CancelChangeDistributionKey)
-                    Header [
-                        HeaderProp.HasDismissButton true
+    let renderDistributionKeyModal =
+        FunctionComponent.Of((fun (props: {| SelectedDistributionKey: DistributionKeyListItem option; AllDistributionKeys: DistributionKeyListItem list; Showing: bool |}) ->
+            BasicModal.render 
+                {| 
+                    ModalProps = [
+                        IsOpen props.Showing
+                        DisableBackgroundClick true
+                        OnDismiss (fun _ -> dispatch CancelChangeDistributionKey)
+                        Header [ HeaderProp.HasDismissButton true ]
+                        Body [
+                            SelectionList.render (
+                                {|
+                                    SelectionMode = SelectionMode.SingleSelect
+                                    AllItems = props.AllDistributionKeys |> List.sortBy (fun cat -> cat.Name)
+                                    SelectedItems = [ props.SelectedDistributionKey ] |> List.choose id
+                                    OnSelectionChanged = fun selection -> Message.DistributionKeyChanged (selection |> List.tryHead) |> dispatch
+                                    DisplayListItem = fun dKey -> str dKey.Name
+                                |}, "DistributionKeySelectionList")
+                        ]
+                        Footer [
+                            //yield FooterProp.Buttons []
+                        ]
                     ]
-                    Body [
-                        div [] [ str "TODO" ]
-                    ]
-                    Footer [
-                        //yield FooterProp.Buttons []
-                    ]
-                ]           
-            |}
+                |}), "DistributionKeyModal", equalsButFunctions)
 
-    let renderOrganizationModal () =
-        BasicModal.render 
-            {| 
-                ModalProps = [
-                    IsOpen state.ShowingOrganizationModal
-                    DisableBackgroundClick true
-                    OnDismiss (fun _ -> dispatch CancelChangeOrganization)
-                    Header [
-                        HeaderProp.HasDismissButton true
+    let renderOrganizationModal =
+        FunctionComponent.Of((fun (props: {| SelectedOrganizationId: Guid option; AllOrganizations: OrganizationListItem list; Showing: bool |}) ->
+            BasicModal.render 
+                {| 
+                    ModalProps = [
+                        IsOpen props.Showing
+                        DisableBackgroundClick true
+                        OnDismiss (fun _ -> dispatch CancelChangeOrganization)
+                        Header [ HeaderProp.HasDismissButton true ]
+                        Body [
+                            SelectionList.render (
+                                {|
+                                    SelectionMode = SelectionMode.SingleSelect
+                                    AllItems = props.AllOrganizations |> List.sortBy (fun cat -> cat.Name)
+                                    SelectedItems = 
+                                        match props.SelectedOrganizationId with
+                                        | Some selected -> props.AllOrganizations |> List.filter (fun org -> org.OrganizationId = selected)
+                                        | None -> []
+                                    OnSelectionChanged = fun selection -> Message.OrganizationChanged (selection |> List.tryHead) |> dispatch
+                                    DisplayListItem = fun dKey -> str dKey.Name
+                                |}, "OrganizationSelectionList")
+                        ]
+                        Footer [
+                            //yield FooterProp.Buttons []
+                        ]
                     ]
-                    Body [
-                        div [] [ str "TODO" ]
-                    ]
-                    Footer [
-                        //yield FooterProp.Buttons []
-                    ]
-                ]           
-            |}
+                |}), "OrganizationModal", equalsButFunctions)
 
     div [] [
         div [ Class Bootstrap.row ] [
@@ -533,25 +569,28 @@ let view (state: State) (dispatch: Message -> unit) =
 
             formGroup [
                 Label "Rubriek"
+
+                let shown =
+                    match state.Invoice.CategoryCode, state.Invoice.CategoryDescription with
+                    | Some catCode, Some catDescription -> sprintf "%s - %s" catCode catDescription
+                    | _ -> ""
                 Input [
                     Type "text"
+                    Style [ Cursor "pointer"; BackgroundColor "unset" ]
+                    ReadOnly true
                     OnClick (fun _ -> ChangeCategory |> dispatch)
-                    valueOrDefault 
-                        (match state.Invoice.CategoryCode, state.Invoice.CategoryDescription with
-                        | Some cat, Some desc ->
-                            (sprintf "%s - %s" cat desc)
-                        | _ ->
-                            "")
+                    valueOrDefault shown
                 ]
             ]
             |> inColumn
-
         ]
         div [ Class Bootstrap.row ] [
             formGroup [
                 Label "Leverancier"
                 Input [
                     Type "text"
+                    Style [ Cursor "pointer"; BackgroundColor "unset" ]
+                    ReadOnly true
                     OnClick (fun _ -> ChangeOrganization |> dispatch)
                     valueOrDefault state.Invoice.OrganizationName
                 ]
@@ -656,6 +695,8 @@ let view (state: State) (dispatch: Message -> unit) =
                 Label "Verdeelsleutel"
                 Input [
                     Type "text"
+                    Style [ Cursor "pointer"; BackgroundColor "unset" ]
+                    ReadOnly true
                     OnClick (fun e -> ChangeDistributionKey |> dispatch)
                     valueOrDefault (state.Invoice.DistributionKey |> Option.map (fun dKey -> dKey.Name) |> Option.defaultValue "")
                 ]
@@ -723,8 +764,22 @@ let view (state: State) (dispatch: Message -> unit) =
             |> inColumn
         ]
 
-        //TODO:
-        renderFinancialCategoryModal ()
-        renderDistributionKeyModal ()
-        renderOrganizationModal ()
+        renderFinancialCategoryModal 
+            {| 
+                SelectedCategoryCode = state.Invoice.CategoryCode
+                AllCategories = state.FinancialCategories 
+                Showing = state.ShowingFinancialCategoryModal
+            |}
+        renderDistributionKeyModal 
+            {| 
+                SelectedDistributionKey = state.Invoice.DistributionKey
+                AllDistributionKeys = state.DistributionKeys 
+                Showing = state.ShowingDistributionKeyModal
+            |}
+        renderOrganizationModal 
+            {|
+                SelectedOrganizationId = state.Invoice.OrganizationId
+                AllOrganizations = state.Organizations 
+                Showing = state.ShowingOrganizationModal
+            |}
     ]

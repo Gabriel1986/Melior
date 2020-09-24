@@ -28,10 +28,10 @@
         | OrganizationTypeList
         | DistributionKeyList of BuildingSpecificProps
         | DistributionKeyDetails of BuildingSpecificDetailProps
-        | CostDiary of BuildingSpecificProps //Invoices
+        | Invoices of BuildingSpecificProps //Invoices
         | InvoiceDetails of BuildingSpecificDetailProps
-        | IncomeDiary of BuildingSpecificProps //Management of owner deposits
-        | FinancialDiary of BuildingSpecificProps //Bank debit/credit
+        | Provisions of BuildingSpecificProps //Management of owner deposits
+        | BankNotes of BuildingSpecificProps //Bank debit/credit
         | NotFound
         | NoticeBoard
         | MyEvents
@@ -53,9 +53,9 @@
     let [<Literal>] private MyFinancialsPage = "myFinancials"
     let [<Literal>] private NoticeBoardPage = "noticeboard"
     let [<Literal>] private DistributionKeysPage = "distributionKeys"
-    let [<Literal>] private CostDiaryPage = "costDiary"
-    let [<Literal>] private IncomeDiaryPage = "incomeDiary"
-    let [<Literal>] private FinancialDiaryPage = "financialDiary"
+    let [<Literal>] private InvoicesPage = "invoices"
+    let [<Literal>] private ProvisionsPage = "provisions"
+    let [<Literal>] private BankNotesPage = "banknotes"
 
     let private navigateToDetailsPage (identifier: Guid) (page: string) =
         Router.navigate(page, string identifier)
@@ -116,14 +116,14 @@
             routeToSpecificPage(DistributionKeysPage, specifics)
         | Page.DistributionKeyDetails specifics ->
             routeToSpecificDetailsPage(DistributionKeysPage, specifics)
-        | Page.CostDiary specifics ->
-            routeToSpecificPage(CostDiaryPage, specifics)
+        | Page.Invoices specifics ->
+            routeToSpecificPage(InvoicesPage, specifics)
         | Page.InvoiceDetails specifics ->
-            routeToSpecificDetailsPage(CostDiaryPage, specifics)
-        | Page.IncomeDiary specifics ->
-            routeToSpecificPage(IncomeDiaryPage, specifics)
-        | Page.FinancialDiary specifics ->
-            routeToSpecificPage(FinancialDiaryPage, specifics)
+            routeToSpecificDetailsPage(InvoicesPage, specifics)
+        | Page.Provisions specifics ->
+            routeToSpecificPage(ProvisionsPage, specifics)
+        | Page.BankNotes specifics ->
+            routeToSpecificPage(BankNotesPage, specifics)
 
     let navigateToPage =
         function
@@ -167,14 +167,14 @@
             DistributionKeysPage |> navigateToBuildingSpecificPage props
         | Page.DistributionKeyDetails props ->
             DistributionKeysPage |> navigateToBuildingSpecificDetailsPage props
-        | Page.CostDiary props ->
-            CostDiaryPage |> navigateToBuildingSpecificPage props
+        | Page.Invoices props ->
+            InvoicesPage |> navigateToBuildingSpecificPage props
         | Page.InvoiceDetails props ->
-           CostDiaryPage |> navigateToBuildingSpecificDetailsPage props
-        | Page.IncomeDiary props ->
-            IncomeDiaryPage |> navigateToBuildingSpecificPage props
-        | Page.FinancialDiary props ->
-            FinancialDiaryPage |> navigateToBuildingSpecificPage props
+           InvoicesPage |> navigateToBuildingSpecificDetailsPage props
+        | Page.Provisions props ->
+            ProvisionsPage |> navigateToBuildingSpecificPage props
+        | Page.BankNotes props ->
+            BankNotesPage |> navigateToBuildingSpecificPage props
         | Page.NotFound ->
             //Do nothing... you're not supposed to go to the loading or notfound page from code...
             Cmd.none
@@ -210,14 +210,14 @@
             Page.DistributionKeyList { BuildingId = buildingId }
         | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; DistributionKeysPage ; Feliz.Router.Route.Guid distributionKeyId ] -> 
             Page.LotDetails { BuildingId = buildingId; DetailId = distributionKeyId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; CostDiaryPage ] ->
-            Page.CostDiary { BuildingId = buildingId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; CostDiaryPage ; Feliz.Router.Route.Guid invoiceId ] ->
+        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; InvoicesPage ] ->
+            Page.Invoices { BuildingId = buildingId }
+        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; InvoicesPage ; Feliz.Router.Route.Guid invoiceId ] ->
             Page.InvoiceDetails { BuildingId = buildingId; DetailId = invoiceId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; IncomeDiaryPage ] ->
-            Page.IncomeDiary { BuildingId = buildingId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; FinancialDiaryPage ] ->
-            Page.FinancialDiary { BuildingId = buildingId }
+        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; ProvisionsPage ] ->
+            Page.Provisions { BuildingId = buildingId }
+        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; BankNotesPage ] ->
+            Page.BankNotes { BuildingId = buildingId }
         | [ MyContractsPage ] ->
             Page.MyContracts
         | [ MyEventsPage ] ->

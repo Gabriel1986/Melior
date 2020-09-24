@@ -88,10 +88,10 @@ let convertCurrentPageForNavigation page =
     | Some (Page.MyFinancials)                -> Some (Page.MyFinancials)
     | Some (Page.DistributionKeyList p)       -> Some (Page.DistributionKeyList p)
     | Some (Page.DistributionKeyDetails p)    -> Some (Page.DistributionKeyList { BuildingId = p.BuildingId })
-    | Some (Page.CostDiary p)                 -> Some (Page.CostDiary p)
-    | Some (Page.InvoiceDetails p)            -> Some (Page.CostDiary { BuildingId = p.BuildingId })
-    | Some (Page.FinancialDiary p)            -> Some (Page.FinancialDiary p)
-    | Some (Page.IncomeDiary p)               -> Some (Page.IncomeDiary p)
+    | Some (Page.Invoices p)                 -> Some (Page.Invoices p)
+    | Some (Page.InvoiceDetails p)            -> Some (Page.Invoices { BuildingId = p.BuildingId })
+    | Some (Page.BankNotes p)            -> Some (Page.BankNotes p)
+    | Some (Page.Provisions p)               -> Some (Page.Provisions p)
     | Some (Page.NotFound)
     | None                                    -> None
 
@@ -152,28 +152,35 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
 
                 let currentPageIsFinancialPage =
                     match currentPage with 
-                    | Some(Page.IncomeDiary _) 
-                    | Some(Page.CostDiary _) 
-                    | Some(Page.FinancialDiary _) -> true | _ -> false
+                    | Some(Page.DistributionKeyList _)
+                    | Some(Page.Provisions _) 
+                    | Some(Page.Invoices _) 
+                    | Some(Page.BankNotes _) -> true | _ -> false
 
                 if state.FinancialSubmenuIsOpen || currentPageIsFinancialPage then
                     ul [ classes [ Bootstrap.navbarNav; Bootstrap.flexColumn; Bootstrap.px4 ] ] [
                         li [ Class Bootstrap.navItem ] [
                             a [
-                                Class (determineStyle currentPage (Page.IncomeDiary buildingSpecificProps))
-                                OnClick (fun _ -> NavigateToPage (Page.IncomeDiary buildingSpecificProps) |> dispatch)
+                                Class (determineStyle currentPage (Page.DistributionKeyList buildingSpecificProps))
+                                OnClick (fun _ -> NavigateToPage (Page.DistributionKeyList buildingSpecificProps) |> dispatch)
+                            ] [ str "Verdeelsleutels" ]
+                        ]
+                        li [ Class Bootstrap.navItem ] [
+                            a [
+                                Class (determineStyle currentPage (Page.Provisions buildingSpecificProps))
+                                OnClick (fun _ -> NavigateToPage (Page.Provisions buildingSpecificProps) |> dispatch)
                             ] [ str "Provisies" ]
                         ]
                         li [ Class Bootstrap.navItem ] [
                             a [
-                                Class (determineStyle currentPage (Page.CostDiary buildingSpecificProps))
-                                OnClick (fun _ -> NavigateToPage (Page.CostDiary buildingSpecificProps) |> dispatch)
+                                Class (determineStyle currentPage (Page.Invoices buildingSpecificProps))
+                                OnClick (fun _ -> NavigateToPage (Page.Invoices buildingSpecificProps) |> dispatch)
                             ] [ str "Facturen" ]
                         ]
                         li [ Class Bootstrap.navItem ] [
                             a [
-                                Class (determineStyle currentPage (Page.FinancialDiary buildingSpecificProps))
-                                OnClick (fun _ -> NavigateToPage (Page.FinancialDiary buildingSpecificProps) |> dispatch)
+                                Class (determineStyle currentPage (Page.BankNotes buildingSpecificProps))
+                                OnClick (fun _ -> NavigateToPage (Page.BankNotes buildingSpecificProps) |> dispatch)
                             ] [ str "Bankuittreksels" ]
                         ]
                     ]

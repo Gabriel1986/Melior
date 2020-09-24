@@ -391,7 +391,7 @@ module Client =
                             CurrentBuildingId = building.BuildingId
                             DistributionKeyId = Some props.DetailId
                         |}
-                | Page.CostDiary props, _, Some building ->
+                | Page.Invoices props, _, Some building ->
                     CostDiaryPage.render
                         {|
                             CurrentUser = runningState.CurrentUser
@@ -411,8 +411,8 @@ module Client =
                 | Page.MyContracts, _, _
                 | Page.MyFinancials, _, _
                 | Page.InvoiceDetails _, _, _
-                | Page.IncomeDiary _, _, _
-                | Page.FinancialDiary _, _, _ ->
+                | Page.Provisions _, _, _
+                | Page.BankNotes _, _, _ ->
                     div [] [
                         str "Deze pagina is nog niet beschikbaar"
                     ]

@@ -640,7 +640,7 @@ type Invoice =
         ToBankAccountIBAN: string
         ToBankAccountBIC: string
         BookingDate: DateTime //Date when booked
-        DistributionKey: DistributionKey
+        DistributionKey: DistributionKeyListItem
         OrganizationId: Guid
         OrganizationName: string
         OrganizationNumber: string option

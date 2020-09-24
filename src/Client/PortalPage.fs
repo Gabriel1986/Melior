@@ -79,8 +79,8 @@ let view (state: State) (dispatch: Msg -> unit) =
                             |> inCard "https://i.ibb.co/7N8J4wT/writing-640.jpg" (fun () -> Msg.OpenPage (Contracts { BuildingId = currentBuilding.BuildingId }) |> dispatch)
                             |> inCol
 
-                            portalButton "Boekhouding" (fun () -> Msg.OpenPage (CostDiary { BuildingId = currentBuilding.BuildingId }) |> dispatch)
-                            |> inCard "https://i.ibb.co/803ZJF3/coins-1726618-640.jpg" (fun () -> Msg.OpenPage (CostDiary { BuildingId = currentBuilding.BuildingId }) |> dispatch)
+                            portalButton "Boekhouding" (fun () -> Msg.OpenPage (Invoices { BuildingId = currentBuilding.BuildingId }) |> dispatch)
+                            |> inCard "https://i.ibb.co/803ZJF3/coins-1726618-640.jpg" (fun () -> Msg.OpenPage (Invoices { BuildingId = currentBuilding.BuildingId }) |> dispatch)
                             |> inCol
                         ]
                     | None ->

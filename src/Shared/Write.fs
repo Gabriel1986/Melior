@@ -417,7 +417,7 @@ type ValidatedInvoice =
         ToBankAccountIBAN: String64
         ToBankAccountBIC: String16
         BookingDate: DateTime //Date when booked
-        DistributionKey: DistributionKey
+        DistributionKey: DistributionKeyListItem
         OrganizationId: Guid
         OrganizationName: string
         OrganizationNumber: string option

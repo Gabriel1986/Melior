@@ -28,6 +28,7 @@ module Helpers =
         | Select of FormSelect
         | Radio of FormRadio
         | Date of Flatpickr.IFlatpickrOption list
+        | OtherChildren of ReactElement seq
         | FormError of string option
     and FormSelect = {
         Identifier: string
@@ -92,6 +93,7 @@ module Helpers =
         let selectProps = props |> List.tryPick (function | Select x -> Some x | _ -> None)
         let radioProps = props |> List.tryPick (function | Radio x -> Some x | _ -> None)
         let dateProps = props |> List.tryPick (function | Date x -> Some x | _ -> None)
+        let otherChildren = props |> List.tryPick (function | OtherChildren x -> Some x | _ -> None)
         let error = props |> List.tryPick (function | FormError e -> e | _ -> None)
 
         let theName = name |> Option.orElse lbl |> Option.defaultValue ""
@@ -113,6 +115,8 @@ module Helpers =
                         Flatpickr.ClassName Bootstrap.formControl
                         Flatpickr.Locale Flatpickr.Locales.dutch 
                     ])
+            if otherChildren.IsSome then
+                yield! otherChildren.Value
             if error.IsSome then
                 yield
                     div [ Class Bootstrap.invalidFeedback ] [ str error.Value ]
