@@ -92,22 +92,27 @@ module BasicModal =
                 |> List.tryPick (function | DisableBackgroundClick x -> Some x | _ -> None)
                 |> Option.defaultValue false
 
+            let onBackgroundClick =
+                if disableBackgroundClick then
+                    OnClick (fun _ -> ())
+                else
+                    OnClick (fun e -> if e.target = e.currentTarget then onDismiss())
+
             if isShowing then
                 div [ Class "melior-modal-grid" ] [
-                    div [ Class "melior-modal-background-up" ] []
-                    div [ Class "melior-modal-background-left" ] []
+                    div [ Class "melior-modal-background-up"; onBackgroundClick ] []
+                    div [ Class "melior-modal-background-left"; onBackgroundClick ] []
                     div [ Class "melior-modal" ] [
                         div [
                             Class Bootstrap.card
-                            OnClick (fun e -> if e.target = e.currentTarget then (if disableBackgroundClick then () else onDismiss())) 
                         ] [
                             header onDismiss headerProps
                             body content
                             footer onDismiss footerProps
                         ]
                     ]
-                    div [ Class "melior-modal-background-right" ] []
-                    div [ Class "melior-modal-background-down" ] []
+                    div [ Class "melior-modal-background-right"; onBackgroundClick ] []
+                    div [ Class "melior-modal-background-down"; onBackgroundClick ] []
                 ]
             else
                 null

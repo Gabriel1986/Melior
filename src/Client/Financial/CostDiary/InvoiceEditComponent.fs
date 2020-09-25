@@ -465,7 +465,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 {| 
                     ModalProps = [
                         IsOpen props.Showing
-                        DisableBackgroundClick true
+                        DisableBackgroundClick false
                         OnDismiss (fun _ -> dispatch CancelChangeFinancialCategory)
                         Header [ HeaderProp.HasDismissButton true ]
                         Body [
@@ -500,7 +500,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 {| 
                     ModalProps = [
                         IsOpen props.Showing
-                        DisableBackgroundClick true
+                        DisableBackgroundClick false
                         OnDismiss (fun _ -> dispatch CancelChangeDistributionKey)
                         Header [ HeaderProp.HasDismissButton true ]
                         Body [
@@ -525,7 +525,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 {| 
                     ModalProps = [
                         IsOpen props.Showing
-                        DisableBackgroundClick true
+                        DisableBackgroundClick false
                         OnDismiss (fun _ -> dispatch CancelChangeOrganization)
                         Header [ HeaderProp.HasDismissButton true ]
                         Body [
@@ -736,7 +736,11 @@ let view (state: State) (dispatch: Message -> unit) =
         div [ Class Bootstrap.row ] [
             formGroup [
                 Label "Naar rekening"
-                Select toAccountSelection
+                match state.Invoice.OrganizationId with
+                | Some orgId ->
+                    Select toAccountSelection
+                | None ->
+                    OtherChildren [ div [] [ span [ Class Bootstrap.formControl ] [ str "Gelieve eerst een leverancier te selecteren" ] ] ]
                 FormError (errorFor (nameof state.Invoice.ToAccount))
             ]
             |> inColumn
@@ -746,6 +750,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 Input [
                     Type "text"
                     MaxLength 64.0
+                    Disabled state.Invoice.OrganizationId.IsNone
                     valueOrDefault (state.Invoice.ToAccount |> Option.map (fun f -> f.IBAN))
                 ]
                 FormError (errorFor (nameof state.Invoice.ToAccount))
@@ -757,6 +762,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 Input [
                     Type "text"
                     MaxLength 11.0
+                    Disabled state.Invoice.OrganizationId.IsNone
                     valueOrDefault (state.Invoice.ToAccount |> Option.map (fun f -> f.BIC))
                 ]
                 FormError (errorFor (nameof state.Invoice.ToAccount))

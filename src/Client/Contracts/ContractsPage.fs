@@ -91,9 +91,7 @@ let private unansweredQuestionsExist (answeredQuestions: ContractTypeAnswer list
         |> List.map (fun a -> a.Question)
         |> Set.ofList
 
-    allQuestions 
-    |> Set.difference answeredQuestions 
-    |> Set.count = 0
+    (allQuestions - answeredQuestions) |> Set.count > 0 
 
 let update (msg: Message) (state: State): State * Cmd<Message> =
     match msg with

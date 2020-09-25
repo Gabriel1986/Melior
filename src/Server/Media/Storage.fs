@@ -12,11 +12,11 @@ type IMediaStorage =
     abstract DeleteMediaFile: Guid -> Async<int>
     abstract DeleteMediaFilesForEntity: entityId: Guid -> Async<int>
     
-
 let paramsFor (mediaFile: MediaFile) = [
     "@Partition", Sql.string mediaFile.Partition
     "@EntityId", Sql.uuid mediaFile.EntityId
     "@FileId", Sql.uuid mediaFile.FileId
+    "@BuildingId", Sql.uuidOrNone mediaFile.BuildingId
     "@FileName", Sql.string mediaFile.FileName
     "@FileSize", Sql.int mediaFile.FileSize
     "@MimeType", Sql.string mediaFile.MimeType
@@ -31,6 +31,7 @@ let createMediaFile (connectionString: string) (mediaFile: MediaFile) =
                 Partition,
                 EntityId,
                 FileId,
+                BuildingId,
                 FileName,
                 FileSize,
                 MimeType,
@@ -39,6 +40,7 @@ let createMediaFile (connectionString: string) (mediaFile: MediaFile) =
                 @Partition,
                 @EntityId,
                 @FileId,
+                @BuildingId,
                 @FileName,
                 @FileSize,
                 @MimeType,
