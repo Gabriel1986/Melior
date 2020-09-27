@@ -1,0 +1,14 @@
+packages/
+paket-files/
+paket.local
+node_modules/
+obj/
+bin/
+output/
+.fake/
+temp/
+tmp/
+deploy/
+.vs/
+*.log
+.ionide/

@@ -91,9 +91,6 @@ Target.create "Publish" (fun _ ->
 
     Shell.copyDir publicDir (Path.getFullName "./src/Client/deploy") FileFilter.allFiles
     Shell.copyDir publicDir (Path.getFullName "./src/Client/public") FileFilter.allFiles
-    Shell.copyFile deployDir (Path.getFullName "./Dockerfile")
-    Shell.copyFile deployDir (Path.getFullName "./docker-compose.yml")
-    //Shell.copyDir configDir "src/Configuration" (fun s -> s = "src/Configuration/settings.default.json")
 )
 
 Target.create "Run" (fun _ ->
