@@ -8,7 +8,7 @@ open Server.Blueprint.Data.Authentication
 open Server.Blueprint.Behavior.ProfessionalSyndics
 
 let run (logger: Serilog.ILogger) (config: IConfiguration): unit =
-    logger.Debug("Running seeing")
+    logger.Debug("Running seeding")
     let appSettings = config.Get<AppSettings>()
     let environment = Application.createEnvironment config
 
