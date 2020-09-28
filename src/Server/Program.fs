@@ -29,6 +29,10 @@ module Program =
                             .ReadFrom.Configuration(config)
                             .CreateLogger()
 
+        do
+            config.AsEnumerable (false)
+            |> Seq.iter (fun kv -> Log.Logger.Debug(sprintf "Key: %s - Value: %s" kv.Key kv.Value))
+
         WebHostBuilder()
             .UseConfiguration(config)
             .UseKestrel(fun _ options -> options.Configure(config.GetSection("Kestrel")) |> ignore)
