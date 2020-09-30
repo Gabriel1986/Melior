@@ -14,6 +14,7 @@ open Serilog
 open Server.ProfessionalSyndics.ProfessionalSyndicCache
 open Server.AppSettings
 open Server.Blueprint.Behavior.ProfessionalSyndics
+open Microsoft.AspNetCore.HttpOverrides
 
 type Startup private () =
     new (configuration: IConfiguration) as this =
@@ -55,7 +56,7 @@ type Startup private () =
             app.UseDeveloperExceptionPage() |> ignore
 
         app
-            .UseHttpsRedirection()
+            .UseForwardedHeaders(new ForwardedHeadersOptions(ForwardedHeaders=(ForwardedHeaders.XForwardedFor|||ForwardedHeaders.XForwardedProto)))
             .UseDefaultFiles()
             .UseStaticFiles()
             .UseAuthentication()
