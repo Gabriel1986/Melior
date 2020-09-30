@@ -1,0 +1,14 @@
+{
+  "AWSEBDockerrunVersion": "1",
+  "Image": {
+    "Name": "<AWS_ACCOUNT_ID>.dkr.ecr.eu-central-1.amazonaws.com/syndicusassistent",
+    "Update": "true"
+  },
+  "Ports": [
+    {
+      "ContainerPort": "8095",
+	  "HostPort": "8095"
+    }
+  ],
+  "Logging": "/var/log/myapp"
+}
