@@ -32,8 +32,8 @@ module private Internals =
         new AmazonS3Client (awsCredentials, awsConfig) :> IAmazonS3
 #else
         let awsConfig = config.GetAWSOptions()
-        let serviceClient = awsConfig.CreateServiceClient<IAmazonS3>()
-        serviceClient
+        awsConfig.Credentials <- new EnvironmentVariablesAWSCredentials()
+        awsConfig.CreateServiceClient<IAmazonS3>()
 #endif
 
     let createMessage (ctx: HttpContext) (data: 'T) : Message<'T> = { 
@@ -153,22 +153,19 @@ module private Internals =
                             smallThumbnailStream.Position <- 0L
 
                             use client = createAmazonS3ServiceClient config
-                            printfn "Making sure the bucket exists"
-                            do! client.EnsureBucketExistsAsync("MeliorDigital")
                             printfn "Uploading object from filePath: %A" combinedPath
-                            do! client.UploadObjectFromFilePathAsync("MeliorDigital", sprintf "%s/%O" partition fileId, combinedPath, [] |> dict)
+                            do! client.UploadObjectFromFilePathAsync("meliordigital", sprintf "%s/%O" partition fileId, combinedPath, [] |> dict)
                             printfn "Uploading large thumbnail"
-                            do! client.UploadObjectFromStreamAsync("MeliorDigital", sprintf "%s/%O_%s" partition fileId "large", largeThumbnailStream, [] |> dict)
+                            do! client.UploadObjectFromStreamAsync("meliordigital", sprintf "%s/%O_%s" partition fileId "large", largeThumbnailStream, [] |> dict)
                             printfn "Uploading small thumbnail"
-                            do! client.UploadObjectFromStreamAsync("MeliorDigital", sprintf "%s/%O_%s" partition fileId "small", smallThumbnailStream, [] |> dict)
+                            do! client.UploadObjectFromStreamAsync("meliordigital", sprintf "%s/%O_%s" partition fileId "small", smallThumbnailStream, [] |> dict)
                         else
                             printfn "Uploading file to S3 -> creating client"
                             use client = createAmazonS3ServiceClient config
-                            do! client.EnsureBucketExistsAsync("MeliorDigital")
                             printfn "Uploading object from file path async."
                             printfn "Service url: %s" client.Config.ServiceURL
                             printfn "Using HTTP: %O" client.Config.UseHttp
-                            do! client.UploadObjectFromFilePathAsync("MeliorDigital", sprintf "%s/%O" partition fileId, combinedPath, [] |> dict)
+                            do! client.UploadObjectFromFilePathAsync("meliordigital", sprintf "%s/%O" partition fileId, combinedPath, [] |> dict)
 
                         //Store the file metadata
                         printfn "Storing file metadata in the database"
@@ -204,7 +201,7 @@ module private Internals =
                         let chunkDirectoryInfo = DirectoryInfo (getChunkDirectory partition fileId)
 
                         use client = createAmazonS3ServiceClient config
-                        let deleteObjectsRequest = new DeleteObjectsRequest(BucketName = "MeliorDigital")
+                        let deleteObjectsRequest = new DeleteObjectsRequest(BucketName = "meliordigital")
                         deleteObjectsRequest.AddKey(sprintf "%s/%O"    partition fileId)
                         deleteObjectsRequest.AddKey(sprintf "%s/%O_%s" partition fileId "large")
                         deleteObjectsRequest.AddKey(sprintf "%O_%s" fileId "small")
@@ -253,7 +250,7 @@ module private Internals =
                         use s3Client = createAmazonS3ServiceClient config
                         use transferUtility = new TransferUtility(s3Client)
                         try
-                            use! readStream = transferUtility.OpenStreamAsync("MeliorDigital", sprintf "%s/%O" partition fileId)
+                            use! readStream = transferUtility.OpenStreamAsync("meliordigital", sprintf "%s/%O" partition fileId)
                             let assembled =
                                 setHttpHeader "Content-Type" mediaFile.MimeType
                                 >=> streamData true readStream None (Some mediaFile.UploadedOn)
@@ -280,7 +277,7 @@ module private Internals =
                         use s3Client = createAmazonS3ServiceClient config
                         use transferUtility = new TransferUtility(s3Client)
                         try
-                            use! readStream = transferUtility.OpenStreamAsync("MeliorDigital", sprintf "%s/%O_%s" partition fileId size)
+                            use! readStream = transferUtility.OpenStreamAsync("meliordigital", sprintf "%s/%O_%s" partition fileId size)
                             let assembled =
                                 setHttpHeader "Content-Type" mediaFile.MimeType
                                 >=> streamData true readStream None (Some mediaFile.UploadedOn)
