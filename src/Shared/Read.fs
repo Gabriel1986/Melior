@@ -18,12 +18,24 @@ type Savable<'T> = {
     Payload: 'T
 }
 
-type BankAccount = {
-    BankAccountType: string
-    IBAN: string
-    BIC: string
-    //CurrencyCode: string
-}
+type BankAccount = 
+    {
+        Description: string
+        IBAN: string
+        BIC: string
+    }
+    override me.ToString () =
+        [
+            if not (String.IsNullOrWhiteSpace(me.Description)) then yield me.Description
+            if not (String.IsNullOrWhiteSpace(me.IBAN)) then yield me.IBAN
+            if not (String.IsNullOrWhiteSpace(me.BIC)) then yield me.BIC
+        ]
+        |> String.JoinWith " - "
+    static member Init () = {
+        Description = ""
+        IBAN = ""
+        BIC = ""
+    }
 
 type User = 
     {
@@ -266,8 +278,7 @@ and Organization =
         MainTelephoneNumberComment: string option
         OtherContactMethods: ContactMethod list
         ContactPersons: ContactPerson list
-        MainBankAccount: BankAccount option
-        OtherBankAccounts: BankAccount list
+        BankAccounts: BankAccount list
     }
     static member Init (buildingId: BuildingId option): Organization = 
         let orgId = Guid.NewGuid()
@@ -286,8 +297,7 @@ and Organization =
             MainTelephoneNumberComment = None
             OtherContactMethods = []
             ContactPersons = []
-            MainBankAccount = None
-            OtherBankAccounts = []
+            BankAccounts = []
         }
 and ContactPerson = 
     {
@@ -319,8 +329,7 @@ and OrganizationListItem = {
     OrganizationTypeNames: string list
     Name: string
     Address: Address
-    MainBankAccount: BankAccount option
-    OtherBankAccounts: BankAccount list
+    BankAccounts: BankAccount list
 }
 //A flesh and blood person
 and Person = 
@@ -340,6 +349,7 @@ and Person =
         MainEmailAddress: string option
         MainEmailAddressComment: string option
         OtherContactMethods: ContactMethod list
+        BankAccounts: BankAccount list
     }
     member me.FullName () = [ me.FirstName; me.LastName ] |> String.JoinOptionsWith " "
     static member Init () = {
@@ -357,6 +367,7 @@ and Person =
         MainEmailAddress = None
         MainEmailAddressComment = None
         OtherContactMethods = []
+        BankAccounts = []
     }
 and ContactAddress =
     | MainAddress
@@ -376,15 +387,11 @@ and Owner =
         BuildingId: BuildingId
         Person: Person
         IsResident: bool
-        MainBankAccount: BankAccount option
-        OtherBankAccounts: BankAccount list
     }
     static member Init (buildingId: BuildingId) = {
         BuildingId = buildingId
         Person = Person.Init ()
         IsResident = true
-        MainBankAccount = None
-        OtherBankAccounts = []
     }
 //and Tenant = {
 //    Person: Person
@@ -406,6 +413,7 @@ and OwnerListItem =
         PersonId: Guid
         FirstName: string option
         LastName: string option
+        BankAccounts: BankAccount list
         IsResident: bool
     }
     member me.FullName () = [ me.FirstName; me.LastName ] |> String.JoinOptionsWith " "
@@ -634,11 +642,8 @@ type Invoice =
         VatRate: float
         CategoryCode: string
         CategoryDescription: string
-        FromBankAccountType: string
-        FromBankAccountIBAN: string
-        FromBankAccountBIC: string
-        ToBankAccountIBAN: string
-        ToBankAccountBIC: string
+        FromBankAccount: BankAccount
+        ToBankAccount: BankAccount
         BookingDate: DateTime //Date when booked
         DistributionKey: DistributionKeyListItem
         OrganizationId: Guid
@@ -649,5 +654,6 @@ type Invoice =
         InvoiceDate: DateTime //Date on the invoice
         DueDate: DateTime //Due date of the invoice
         PaymentIds: Guid list
+        MediaFiles: MediaFile list
     }
     member me.LocalInvoiceNumber = Invoice.calculateLocalInvoiceNumber (me.FinancialYear.Code, me.InvoiceNumber)

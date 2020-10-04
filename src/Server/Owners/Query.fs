@@ -28,7 +28,8 @@ module private Readers =
                 owner.BuildingId,
                 owner.IsResident,
                 person.FirstName,
-                person.LastName
+                person.LastName,
+                person.BankAccounts
             FROM
                 Owners owner
             LEFT JOIN Persons person on person.PersonId = owner.PersonId 
@@ -41,6 +42,9 @@ module private Readers =
             FirstName = reader.stringOrNone "FirstName"
             LastName = reader.stringOrNone "LastName"
             IsResident = reader.bool "IsResident"
+            BankAccounts = 
+                reader.stringOrNone "BankAccounts"
+                |> Option.either BankAccount.listFromJson []
         }
 
 let getOwner (connectionString: string) (ownerId: Guid) = async {
@@ -68,8 +72,6 @@ let getOwner (connectionString: string) (ownerId: Guid) = async {
                 Person = person
                 BuildingId = dbModel.BuildingId
                 IsResident = dbModel.IsResident
-                MainBankAccount = None
-                OtherBankAccounts = []
             }
         | None -> 
             return None

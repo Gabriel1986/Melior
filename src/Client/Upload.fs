@@ -54,14 +54,18 @@ module FilePondFile =
         UploadedOn = DateTimeOffset.Now
     }
 
-type IServerOptions =
-    | Url of string
-    | Process of string
-    | Patch of string
-    | Fetch of string
-    | Revert of string
-    | Restore of string
-    | Headers of obj
+type InitialFile = {| source: Guid; options: {| ``type``: string |} |}
+
+type ServerOptions =
+    {|
+        url: obj
+        ``process``: obj
+        revert: obj
+        patch: obj
+        fetch: obj
+        load: obj
+        headers: obj
+    |}
 
 type FilePondOptions =
     | MaxFiles of int
@@ -69,11 +73,13 @@ type FilePondOptions =
     | Disabled of bool
     | Server of obj
     | ChunkSize of double
-    | ServerOptions of IServerOptions list //Get converted to Server
+    | ServerOptions of ServerOptions
     | OnProcessFile of (string -> FilePondFile -> unit) //Finished uploading a file callback
     | OnRemoveFile of (string -> FilePondFile -> unit) //Removed an uploaded file callback
     | AcceptedFileTypes of string array
     | LabelIdle of string
+    | InitialFiles of Guid list
+    | Files of InitialFile array
 
 let private htmlBasePath = document.baseURI.TrimEnd [| '/' |]
 
@@ -130,26 +136,36 @@ let renderFilePond (props: {| Partition: string; BuildingId: System.Guid option;
         |> List.tryPick (fun opt -> match opt with | ChunkSize size -> Some size | _ -> None)
         |> Option.defaultValue DefaultChunkSizeInBytes
 
+    let initialFiles =
+        options
+        |> List.collect (fun opt -> match opt with | InitialFiles fileIds -> fileIds | _ -> [])
+        |> List.map (fun fileId -> {| source = fileId; options = {| ``type`` = "local" |} |})
+        |> List.toArray
+
     let serverOptions =
-        match options |> List.collect (function | ServerOptions opt -> opt | _ -> []) with
-        | [] -> convertToServerOptions (defaultServerOptions partition buildingId entityId)
-        | xs -> convertToServerOptions xs
+        match options |> List.tryPick (function | ServerOptions opt -> Some opt | _ -> None) with
+        | None -> defaultServerOptions partition buildingId entityId
+        | Some options -> options
 
     let otherFilePondOptions =
         options
-        |> List.filter (function | LabelIdle _ -> false | ServerOptions _ -> false | ChunkSize _ -> false | _ -> true)
+        |> List.filter (
+            function 
+            | LabelIdle _ -> false 
+            | ServerOptions _ -> false 
+            | ChunkSize _ -> false 
+            | InitialFiles _ -> false
+            | _ -> true)
 
-    let filePond =
-        [
-            yield Server serverOptions
-            yield LabelIdle idleLabel
-            yield ChunkSize chunkSize
-            yield! otherFilePondOptions
-        ]
-        |> keyValueList CaseRules.LowerFirst
-        |> create
-
-    filePond?render()
+    [
+        yield Server serverOptions
+        yield LabelIdle idleLabel
+        yield ChunkSize chunkSize
+        yield Files initialFiles
+        yield! otherFilePondOptions
+    ]
+    |> keyValueList CaseRules.LowerFirst
+    |> filePondComponent
 
 let filePond =
     FunctionComponent.Of (renderFilePond, "FilePondUpload", memoEqualsButFunctions)

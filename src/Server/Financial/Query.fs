@@ -111,6 +111,12 @@ let toInvoiceListItem (invoiceNumber: int, validated: ValidatedInvoice): Invoice
     HasBeenPaid = not validated.PaymentIds.IsEmpty
 }
 
+let toBankAccount (bankAccount: ValidatedBankAccount): BankAccount = {
+    Description = string bankAccount.Description
+    IBAN = string bankAccount.IBAN
+    BIC = string bankAccount.BIC
+}
+
 let toInvoice (invoice: ValidatedInvoice): Invoice = {
     InvoiceId = invoice.InvoiceId
     BuildingId = invoice.BuildingId
@@ -121,11 +127,8 @@ let toInvoice (invoice: ValidatedInvoice): Invoice = {
     VatRate = invoice.VatRate.Value ()
     CategoryCode = string invoice.CategoryCode
     CategoryDescription = string invoice.CategoryDescription
-    FromBankAccountType = string invoice.FromBankAccountType
-    FromBankAccountIBAN = string invoice.FromBankAccountIBAN
-    FromBankAccountBIC = string invoice.FromBankAccountBIC
-    ToBankAccountIBAN = string invoice.ToBankAccountIBAN
-    ToBankAccountBIC = string invoice.ToBankAccountBIC
+    FromBankAccount = invoice.FromBankAccount |> toBankAccount
+    ToBankAccount = invoice.ToBankAccount |> toBankAccount
     BookingDate = invoice.BookingDate
     DistributionKey = invoice.DistributionKey
     OrganizationId = invoice.OrganizationId
@@ -136,6 +139,7 @@ let toInvoice (invoice: ValidatedInvoice): Invoice = {
     InvoiceDate = invoice.InvoiceDate
     DueDate = invoice.DueDate
     PaymentIds = invoice.PaymentIds
+    MediaFiles = []
 }
 
 let getInvoices (conn: string) (filter: InvoiceFilter) =

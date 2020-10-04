@@ -5,7 +5,6 @@ open Microsoft.Extensions.Configuration
 open AppSettings
 open Shared.Read
 open Server.Blueprint.Data.Authentication
-open Server.Blueprint.Behavior.ProfessionalSyndics
 
 let run (logger: Serilog.ILogger) (config: IConfiguration): unit =
     logger.Debug("Running seeding")

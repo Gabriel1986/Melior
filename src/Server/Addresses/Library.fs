@@ -2,6 +2,7 @@
 
 open Thoth.Json.Net
 open Shared.Read
+open Serilog
 
 [<RequireQualifiedAccess>]
 module Address = 
@@ -20,4 +21,9 @@ module Address =
         Encode.toString 0 (addressListEncoder addresses)
 
     let listFromJson (str: string) =
-        Decode.fromString addressListDecoder str
+        match Decode.fromString addressListDecoder str with
+        | Ok result ->
+            result
+        | Error e ->
+            Log.Logger.Error (e)
+            []

@@ -1,7 +1,7 @@
 import React from 'react';
 import * as FilePondPluginImageExifOrientation from "./filepond-plugin-image-exif-orientation";
 
-import { FilePond, registerPlugin } from "react-filepond"
+import { FilePond, registerPlugin } from "react-filepond";
 import * as FilePondPluginImagePreview from 'filepond-plugin-image-preview';
 import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
 
@@ -9,10 +9,13 @@ registerPlugin(FilePondPluginImageExifOrientation);
 registerPlugin(FilePondPluginImagePreview);
 registerPlugin(FilePondPluginFileValidateType);
 
-class FilePondComponent {
+export class FilePondComponent extends React.Component {
     constructor(props) {
-        this.props = props;
-    }   
+        super(props);
+        this.state = {
+            files: props.files
+        };
+    }
 
     render() {
         return (
@@ -27,9 +30,14 @@ class FilePondComponent {
                 chunkSize={this.props.chunkSize}
                 onprocessfile={this.props.onProcessFile}
                 onremovefile={this.props.onRemoveFile}
-                labelIdle={this.props.labelIdle} />
-        );
+                labelIdle={this.props.labelIdle}
+                files={this.state.files}
+                onupdatefiles={(fileItems) => {
+                    this.setState({
+                        files: fileItems.map(fileItem => fileItem.file)
+                    });
+                }}
+                ref={ref => this.pond = ref} />
+        )
     }
 }
-
-export var create = props => new FilePondComponent(props)

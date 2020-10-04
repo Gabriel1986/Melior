@@ -100,6 +100,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Files\" />
+    <Folder Include="Financial\FinancialCategories\" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

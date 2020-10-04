@@ -4,6 +4,8 @@ open System
 open Fable.React
 open Shared.Read
 open Client.ClientStyle.Helpers
+open Client.Upload
+open Shared.MediaLibrary
 
 type Props = {|
     Invoice: Invoice
@@ -36,17 +38,17 @@ let view (props: Props) =
             readonlyFormElement "OpmaakDatum" (detail.InvoiceDate.ToString("dd/MM/yyyy"))
             readonlyFormElement "Einddatum betaling" (detail.DueDate.ToString("dd/MM/yyyy"))
             readonlyFormElement "Bedrag" (String.Format("{0:0.00}", detail.Cost).Replace('.', ','))
-            readonlyFormElement "Naar rekening" (sprintf "IBAN: %s - BIC: %s" detail.ToBankAccountIBAN detail.ToBankAccountBIC)
+            readonlyFormElement "Naar rekening" (string detail.ToBankAccount)
         ]
         fieldset [] [
             legend [] [ h2 [] [ str "Betaling" ] ]
-            readonlyFormElement "Van rekening" (sprintf "%s - IBAN: %s - BIC: %s" detail.FromBankAccountType detail.FromBankAccountIBAN detail.FromBankAccountBIC)
+            readonlyFormElement "Van rekening" (string detail.FromBankAccount)
             readonlyFormElement "Met verdeelsleutel" detail.DistributionKey.Name
             readonlyFormElement "Reeds betaald?" (if detail.PaymentIds.IsEmpty then "Nee" else "Ja")
         ]
         fieldset [] [
             legend [] [ h2 [] [ str "Gekoppelde documenten" ] ]
-            readonlyFormElement "TODO" "TODO."
+            div [] [ str "TODO." ]
         ]
     ]
 

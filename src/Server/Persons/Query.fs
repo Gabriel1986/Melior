@@ -27,6 +27,7 @@ module private Readers =
         MainEmailAddress: string option
         MainEmailAddressComment: string option
         OtherContactMethods: string option
+        BankAccounts: string option
     }
 
     let readPerson (reader: CaseInsensitiveRowReader): PersonDbModel = {
@@ -44,6 +45,7 @@ module private Readers =
         MainEmailAddress = reader.stringOrNone "MainEmailAddress"
         MainEmailAddressComment = reader.stringOrNone "MainEmailAddressComment"
         OtherContactMethods = reader.stringOrNone "OtherContactMethods"
+        BankAccounts = reader.stringOrNone "BankAccounts"
     }
 
 let private convertDbModelToDetail (dbModel: PersonDbModel): Person =
@@ -85,6 +87,7 @@ let private convertDbModelToDetail (dbModel: PersonDbModel): Person =
         MainEmailAddress = dbModel.MainEmailAddress
         MainEmailAddressComment = dbModel.MainEmailAddressComment
         OtherContactMethods = otherContactMethods
+        BankAccounts = dbModel.BankAccounts |> Option.either BankAccount.listFromJson []
     }
 
 let getPersonsByIds (connectionString: string) (personIds: Guid list) = async {
@@ -106,7 +109,8 @@ let getPersonsByIds (connectionString: string) (personIds: Guid list) = async {
                     MainTelephoneNumberComment,
                     MainEmailAddress,
                     MainEmailAddressComment,
-                    OtherContactMethods
+                    OtherContactMethods,
+                    BankAccounts
                 FROM
                     Persons
                 WHERE

@@ -106,8 +106,8 @@ type InvoiceInputModel =
         InvoiceDate = Some (invoice.InvoiceDate.ToString("yyyy-MM-dd"))
         DueDate = Some (invoice.DueDate.ToString("yyyy-MM-dd"))
         PaymentIds = invoice.PaymentIds
-        FromAccount = Some { BankAccountType = invoice.FromBankAccountType; BIC = invoice.FromBankAccountBIC; IBAN = invoice.FromBankAccountIBAN }
-        ToAccount = Some { BankAccountType = ""; BIC = invoice.ToBankAccountBIC; IBAN = invoice.ToBankAccountIBAN }
+        FromAccount = Some invoice.FromBankAccount
+        ToAccount = Some invoice.ToBankAccount
     }
 
     member me.Validate (): Result<Invoice, (string * string) list> = 
@@ -116,8 +116,8 @@ type InvoiceInputModel =
             | Some x -> Trial.Pass x
             | None -> Trial.ofError (path, "Verplicht veld")
 
-        let validateCost () =
-            match me.Cost |> Option.defaultValue "" with
+        let validateCost (cost) =
+            match cost |> Option.defaultValue "" with
             | x when String.IsNullOrWhiteSpace(x) -> Trial.ofError (nameof me.Cost, "Verplicht veld")
             | x ->
                 match Double.TryParse(x.Replace(',', '.')) with
@@ -129,15 +129,14 @@ type InvoiceInputModel =
             also categoryCode in mandatoryToTrial (nameof me.CategoryCode) me.CategoryCode
             also categoryDescription in mandatoryToTrial (nameof me.CategoryDescription) me.CategoryDescription
             also fromAccount in mandatoryToTrial (nameof me.FromAccount) me.FromAccount
-            also toAccountBic in mandatoryToTrial (nameof me.ToAccount) (me.ToAccount |> Option.map (fun toAccount -> toAccount.BIC))
-            also toAccountIban in mandatoryToTrial (nameof me.ToAccount) (me.ToAccount |> Option.map (fun toAccount -> toAccount.IBAN))
+            also toAccount in mandatoryToTrial (nameof me.ToAccount) me.ToAccount
             also bookingDate in validateMandatoryDateTimeOffset (nameof me.BookingDate) me.BookingDate
             also distributionKey in mandatoryToTrial (nameof me.DistributionKey) me.DistributionKey
             also organizationId in mandatoryToTrial (nameof me.OrganizationId) me.OrganizationId
             also organizationName in mandatoryToTrial (nameof me.OrganizationName) me.OrganizationName
             also invoiceDate in validateMandatoryDateTimeOffset (nameof me.InvoiceDate) me.InvoiceDate
             also dueDate in validateMandatoryDateTimeOffset (nameof me.DueDate) me.DueDate
-            also cost in validateCost ()
+            also cost in validateCost me.Cost
             yield {
                 InvoiceId = me.InvoiceId
                 BuildingId = me.BuildingId
@@ -148,11 +147,8 @@ type InvoiceInputModel =
                 VatRate = me.VatRate
                 CategoryCode = categoryCode
                 CategoryDescription = categoryDescription
-                FromBankAccountType = fromAccount.BankAccountType
-                FromBankAccountBIC = fromAccount.BIC
-                FromBankAccountIBAN = fromAccount.IBAN
-                ToBankAccountBIC = toAccountBic
-                ToBankAccountIBAN = toAccountIban
+                FromBankAccount = fromAccount
+                ToBankAccount = toAccount
                 BookingDate = bookingDate
                 DistributionKey = distributionKey
                 OrganizationId = organizationId
@@ -163,6 +159,7 @@ type InvoiceInputModel =
                 InvoiceDate = invoiceDate
                 DueDate = dueDate
                 PaymentIds = me.PaymentIds
+                MediaFiles = []
             }
         }
         |> Trial.toResult
@@ -350,14 +347,14 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         |> removeError (nameof state.Invoice.ToAccount)
         , Cmd.none
     | ToAccountBICChanged newBic ->
-        let toAccount = state.Invoice.ToAccount |> Option.defaultValue { BankAccountType = ""; BIC = ""; IBAN = "" }
+        let toAccount = state.Invoice.ToAccount |> Option.defaultValue { Description = ""; BIC = ""; IBAN = "" }
         let newBic' = if String.IsNullOrEmpty(newBic) then "" else newBic
 
         state
         |> changeInvoice (fun invoice -> { invoice with ToAccount = Some { toAccount with BIC = newBic' } })
         , Cmd.none
     | ToAccountIBANChanged newIban ->
-        let toAccount = state.Invoice.ToAccount |> Option.defaultValue { BankAccountType = ""; BIC = ""; IBAN = "" }
+        let toAccount = state.Invoice.ToAccount |> Option.defaultValue { Description = ""; BIC = ""; IBAN = "" }
         let newIban' = if String.IsNullOrEmpty(newIban) then "" else newIban
 
         state
@@ -401,13 +398,13 @@ let view (state: State) (dispatch: Message -> unit) =
 
     let fromAccountToOption (account: BankAccount): FormSelectOption = {
         Key = account.IBAN
-        Label = sprintf "%s - %s" account.BankAccountType account.IBAN
+        Label = sprintf "%s - %s" account.Description account.IBAN
         IsSelected = state.Invoice.FromAccount = Some account
     }
 
     let toAccountToOption (account: BankAccount): FormSelectOption = {
         Key = account.IBAN
-        Label = sprintf "%s - %s" account.BankAccountType account.IBAN
+        Label = sprintf "%s - %s" account.Description account.IBAN
         IsSelected = state.Invoice.ToAccount = Some account
     }
 
@@ -439,8 +436,7 @@ let view (state: State) (dispatch: Message -> unit) =
         let possibleBankAccounts = 
             match state.SelectedOrganization with
             | Some org ->
-                org.MainBankAccount::(org.OtherBankAccounts |> List.map Some)
-                |> List.choose id
+                org.BankAccounts @ [ { (BankAccount.Init ()) with Description = "Ander" } ]
             | None ->
                 []
 
@@ -737,7 +733,7 @@ let view (state: State) (dispatch: Message -> unit) =
             formGroup [
                 Label "Naar rekening"
                 match state.Invoice.OrganizationId with
-                | Some orgId ->
+                | Some _ ->
                     Select toAccountSelection
                 | None ->
                     OtherChildren [ div [] [ span [ Class Bootstrap.formControl ] [ str "Gelieve eerst een leverancier te selecteren" ] ] ]

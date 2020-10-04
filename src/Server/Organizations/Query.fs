@@ -25,6 +25,7 @@ module private Readers =
         MainTelephoneNumber: string option
         MainTelephoneNumberComment: string option
         OtherContactMethods: string option
+        BankAccounts: string option
     }
 
     let readOrganization (reader: CaseInsensitiveRowReader): OrganizationDbModel = {
@@ -40,6 +41,7 @@ module private Readers =
         MainTelephoneNumber = reader.stringOrNone "MainTelephoneNumber"
         MainTelephoneNumberComment = reader.stringOrNone "MainTelephoneNumberComment"
         OtherContactMethods = reader.stringOrNone "OtherContactMethods"
+        BankAccounts = reader.stringOrNone "BankAccounts"
     }
 
     type OrganizationListItemDbModel = {
@@ -51,6 +53,7 @@ module private Readers =
         Address: string
         MainEmailAddress: string option
         MainTelephoneNumber: string option
+        BankAccounts: string option
     }
 
     let readOrganizations (reader: CaseInsensitiveRowReader): OrganizationListItemDbModel = {
@@ -62,6 +65,7 @@ module private Readers =
         Address = reader.string "Address"
         MainEmailAddress = reader.stringOrNone "MainEmailAddress"
         MainTelephoneNumber = reader.stringOrNone "MainTelephoneNumber"
+        BankAccounts = reader.stringOrNone "BankAccounts"
     }
 
     type ContactPersonDbModel = {
@@ -173,7 +177,8 @@ let getOrganization (connectionString: string) (organizationId: Guid) = async {
                     MainEmailAddressComment,
                     MainTelephoneNumber,
                     MainTelephoneNumberComment,
-                    OtherContactMethods
+                    OtherContactMethods,
+                    BankAccounts
                 FROM Organizations
                 WHERE OrganizationId = @OrganizationId
             """
@@ -210,8 +215,7 @@ let getOrganization (connectionString: string) (organizationId: Guid) = async {
             MainTelephoneNumber = dbModel.MainTelephoneNumber
             MainTelephoneNumberComment = dbModel.MainTelephoneNumberComment
             OtherContactMethods = otherContactMethods
-            MainBankAccount = None
-            OtherBankAccounts = []
+            BankAccounts = dbModel.BankAccounts |> Option.either BankAccount.listFromJson []
         }
         return Some organization
     | None ->
@@ -231,7 +235,8 @@ let getOrganizations connectionString (buildingId: Guid) = async {
                     Name,
                     Address,
                     MainEmailAddress,
-                    MainTelephoneNumber
+                    MainTelephoneNumber,
+                    BankAccounts
                 FROM Organizations
                 WHERE BuildingId = @BuildingId
             """
@@ -253,8 +258,7 @@ let getOrganizations connectionString (buildingId: Guid) = async {
                 | false, _ -> []
             Name = o.Name
             Address = Address.fromJson o.Address |> Option.fromResult |> Option.defaultValue (Address.Init ())
-            MainBankAccount = None
-            OtherBankAccounts = []
+            BankAccounts = o.BankAccounts |> Option.either BankAccount.listFromJson []
         })
 }
 
@@ -274,7 +278,8 @@ let getOrganizationsByIds connectionString (orgIds: Guid list) = async {
                         Name,
                         Address,
                         MainEmailAddress,
-                        MainTelephoneNumber
+                        MainTelephoneNumber,
+                        BankAccounts
                     FROM Organizations
                     WHERE OrganizationId = ANY (@OrganizationIds)
                 """
@@ -296,8 +301,7 @@ let getOrganizationsByIds connectionString (orgIds: Guid list) = async {
                     | false, _ -> []
                 Name = o.Name
                 Address = Address.fromJson o.Address |> Option.fromResult |> Option.defaultValue (Address.Init ())
-                MainBankAccount = None
-                OtherBankAccounts = []
+                BankAccounts = o.BankAccounts |> Option.either BankAccount.listFromJson []
             })
 }
     
