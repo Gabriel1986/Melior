@@ -259,53 +259,70 @@ let private contactMethodTypeOptions (currentlySelected: ContactMethodType): For
 let private renderOtherContactMethods (otherContactMethods: ContactMethod list) dispatch =
     [
         yield! otherContactMethods |> List.mapi (fun index c ->
-            div [ Class Bootstrap.formInline ] [
-                formGroup [ 
-                    Label "Beschrijving"
-                    Input [ 
-                        Type "text"
-                        MaxLength 255.0
-                        Helpers.valueOrDefault c.Description
-                        OnChange (fun e -> OtherContactMethodDescriptionChanged (index, e.Value) |> dispatch) 
+            div [ classes [ Bootstrap.row; "full-width" ] ] [
+                div [ Class Bootstrap.colMd ] [
+                    formGroup [
+                        Label "Type"
+                        Select {
+                            Identifier = string index
+                            OnChanged = (fun newTypeString ->
+                                let newType =
+                                    match newTypeString with
+                                    | s when s = string EmailAddress -> EmailAddress
+                                    | s when s = string PhoneNumber  -> PhoneNumber
+                                    | s when s = string WebSite      -> WebSite
+                                    | _                              -> ContactMethodType.Other
+                                OtherContactMethodTypeChanged (index, newType) |> dispatch
+                            )
+                            Options = contactMethodTypeOptions c.ContactMethodType
+                        }
                     ]
                 ]
-                formGroup [
-                    Label "Type"
-                    Select {
-                        Identifier = string index
-                        OnChanged = (fun newTypeString ->
-                            let newType =
-                                match newTypeString with
-                                | s when s = string EmailAddress -> EmailAddress
-                                | s when s = string PhoneNumber  -> PhoneNumber
-                                | s when s = string WebSite      -> WebSite
-                                | _                              -> ContactMethodType.Other
-                            OtherContactMethodTypeChanged (index, newType) |> dispatch
-                        )
-                        Options = contactMethodTypeOptions c.ContactMethodType
-                    }
-                ]
-                formGroup [
-                    Label "Waarde"
-                    Input [
-                        Type "text"
-                        Helpers.valueOrDefault c.Value
-                        OnChange (fun e -> OtherContactMethodValueChanged (index, e.Value) |> dispatch) 
+                div [ Class Bootstrap.colMd ] [
+                    formGroup [
+                        Label (string c.ContactMethodType)
+                        Input [
+                            Type "text"
+                            Helpers.valueOrDefault c.Value
+                            OnChange (fun e -> OtherContactMethodValueChanged (index, e.Value) |> dispatch) 
+                        ]
                     ]
                 ]
-                button [ 
-                    classes [ Bootstrap.btn; Bootstrap.btnDanger ]
-                    OnClick (fun _ -> OtherContactMethodRemoved index |> dispatch) 
-                ] [
-                    str "Verwijderen"
+                div [ Class Bootstrap.colMd ] [
+                    formGroup [ 
+                        Label "Omschrijving"
+                        Input [ 
+                            Type "text"
+                            MaxLength 255.0
+                            Helpers.valueOrDefault c.Description
+                            OnChange (fun e -> OtherContactMethodDescriptionChanged (index, e.Value) |> dispatch) 
+                        ]
+                    ]
+                ]
+                div [ Class Bootstrap.colMd ] [
+                    div [] [
+                        label [ Style [ Visibility "hidden" ]; classes [ Bootstrap.dNone; Bootstrap.dMdBlock ] ] [ str "_" ]
+                        div [] [
+                            button [ 
+                                classes [ Bootstrap.btn; Bootstrap.btnDanger ]
+                                OnClick (fun _ -> OtherContactMethodRemoved index |> dispatch) 
+                            ] [
+                                str "Verwijderen"
+                            ] 
+                        ]
+                    ]
                 ]
             ]
         )
         yield
-            button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> OtherContactMethodAdded |> dispatch) ] [
-                i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
-                str " "
-                str "Ander contactmiddel toevoegen"
+            formGroup [
+                OtherChildren [
+                    button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> OtherContactMethodAdded |> dispatch) ] [
+                        i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                        str " "
+                        str "Ander contactmiddel toevoegen"
+                    ]
+                ]
             ]
     ]
 
@@ -504,7 +521,8 @@ let view state dispatch =
             ]
         ]
         if state.Organization.BuildingId.IsSome then renderVatNumber state dispatch else null
-        AddressEditComponent.render "Address" state.Organization.Address (fun a -> AddressChanged a |> dispatch) (nameof state.Organization.Address) state.Errors
+        h4 [] [ str "Adres" ]
+        AddressEditComponent.render state.Organization.Address (Some (fun a -> AddressChanged a |> dispatch)) (nameof state.Organization.Address) state.Errors
         formGroup [ 
             Label "Tel."
             Input [ 

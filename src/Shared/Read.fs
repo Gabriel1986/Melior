@@ -135,6 +135,12 @@ and Address =
         Town = None
         Country = Some "België" 
     }
+    static member Copy (otherAddress: Address) = {
+        Street = otherAddress.Street
+        ZipCode = otherAddress.ZipCode
+        Town = otherAddress.Town
+        Country = otherAddress.Country
+    }
     override me.ToString () =
         [
             if me.Street.IsSome then yield me.Street.Value
@@ -173,6 +179,12 @@ and ContactMethodType =
     | EmailAddress
     | WebSite
     | Other
+    override me.ToString () =
+        match me with
+        | PhoneNumber -> "Tel. nr."
+        | EmailAddress -> "Email"
+        | WebSite -> "Website"
+        | Other -> "Andere"
 and Syndic =
     | Owner of Owner
     | ProfessionalSyndic of ProfessionalSyndic

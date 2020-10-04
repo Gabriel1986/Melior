@@ -118,9 +118,8 @@ let view (state: State) (dispatch: Message -> unit) =
             |> inColomn
         ]
         AddressEditComponent.render 
-            ""
             state.Building.Address 
-            (AddressChanged >> dispatch)
+            (Some (AddressChanged >> dispatch))
             (nameof state.Building.Address)
             state.Errors
 
