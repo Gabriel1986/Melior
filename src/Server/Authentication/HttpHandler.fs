@@ -424,9 +424,6 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
         ]
         routeCi "/authentication/accessDenied" >=> 
             GET >=> htmlView accessDeniedPage
-        routeCi "/authentication/logout" >=> (fun nxt ctx -> task {
-            //signout async will do the redirect, so just return with an earlyReturn
-            do! ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme)
-            return! earlyReturn ctx
-        })
+        routeCi "/authentication/logout" >=>
+            GET >=> signOut CookieAuthenticationDefaults.AuthenticationScheme >=> redirectTo false "/"
     ]
