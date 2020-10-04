@@ -88,21 +88,21 @@ let thumbnailUri (partition: string) (fileId: System.Guid): string =
     then sprintf "%s/media/thumbnail/small/%s/%O" htmlBasePath partition fileId
     else sprintf "%s/media/thumbnail/large/%s/%O" htmlBasePath partition fileId
 
-//This line does the actual javascript call to the react component:
-let private create (_options: obj) = import "create" "./public/FilePond/FilePond.js"
+let inline filePondComponent (props : obj): ReactElement =
+    ofImport "FilePondComponent" "./public/FilePond/FilePond.js" props []
 
-let private convertToServerOptions (options: IServerOptions list): obj =
-    keyValueList CaseRules.LowerFirst options
-
-let private defaultServerOptions (partition: string) (buildingId: System.Guid option) (entityId: Guid): IServerOptions list = [
-    Url (sprintf "%s/media/upload/%s/%O" htmlBasePath partition entityId)
-    Process ""
-    Patch "/"
-    Revert "" //Deletes to root with <fileId> as body for some reason in stead of root/<fileId>...
-    Fetch "/"
-    Restore null
-    Headers {| BuildingId = buildingId |}
-]
+let private defaultServerOptions (partition: string) (buildingId: System.Guid option) (entityId: Guid): ServerOptions = 
+    let uploadPath = sprintf "/upload/%s/%A" partition entityId
+    let downloadPath = sprintf "/download/%s" partition
+    {|
+        url = sprintf "%s/media" htmlBasePath
+        ``process`` = uploadPath
+        revert = uploadPath
+        patch = uploadPath + "/"
+        fetch = uploadPath + "/"
+        load = downloadPath + "/"
+        headers = {| BuildingId = buildingId |}
+    |}
 
 //I would have done it a smarter way in English, but in other languages it might be more of a difference than just 'file' vs 'files'
 let defaultIdleLabelForMultiple = "Versleep je bestanden of <span class='filepond--label-action'> Browse </span>"

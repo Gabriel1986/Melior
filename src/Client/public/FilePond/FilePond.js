@@ -1,5 +1,5 @@
 import React from 'react';
-import * as FilePondPluginImageExifOrientation from "./filepond-plugin-image-exif-orientation"
+import * as FilePondPluginImageExifOrientation from "./filepond-plugin-image-exif-orientation";
 
 import { FilePond, registerPlugin } from "react-filepond"
 import * as FilePondPluginImagePreview from 'filepond-plugin-image-preview';
