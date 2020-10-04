@@ -433,7 +433,7 @@ module Client =
                         ]
                     ]
                     div [ Class "melior-profile" ] [
-                        span [] [
+                        a [ classes [ Bootstrap.btn; Bootstrap.btnSecondary; Bootstrap.btnSm ]; Href "/authentication/logout" ] [
                             str "Afmelden"
                         ]
                     ]

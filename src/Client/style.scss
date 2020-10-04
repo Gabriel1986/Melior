@@ -104,19 +104,10 @@ header {
     }
 
     .melior-profile {
-        padding: 5px;
         text-decoration: none;
         float: right;
-        color: white;
         margin-top: -15px;
-        //margin-right: 40px;
-        transition: 0.5s;
-        transition-property: color;
         cursor: pointer;
-
-        &:hover {
-            color: #808080;
-        }
     }
 }
 
