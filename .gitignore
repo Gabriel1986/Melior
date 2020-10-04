@@ -14,3 +14,4 @@ settings.json
 *.log
 .vs/
 .ionide/
+.vs/Melior/v16/.suo
