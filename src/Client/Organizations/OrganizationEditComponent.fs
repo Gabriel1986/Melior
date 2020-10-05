@@ -65,6 +65,10 @@ type Message =
     | ChangeOrganizationTypesCanceled
     | OrganizationTypesChanged of organizationTypes: OrganizationType list
 
+    | BankAccountAdded
+    | BankAccountChanged of (int * BankAccount)
+    | BankAccountRemoved of int
+
     | VatNumberChanged of string
     | VerifyVatNumber
     | VatNumberVerified of result: Result<VatNumberValidationResponse, string>
@@ -195,6 +199,23 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         { newState with OrganizationTypeModalState = Closed }, Cmd.none
     | VatNumberChanged vatNumber ->
         changeOrganization (fun org -> { org with VatNumber = (if String.IsNullOrEmpty vatNumber then None else Some vatNumber); VatNumberVerifiedOn = None }), Cmd.none
+    | BankAccountAdded ->
+        changeOrganization (fun org -> { org with BankAccounts = org.BankAccounts @ [ BankAccount.Init () ] }), Cmd.none
+    | BankAccountChanged (index, updatedBankAccount) ->
+        changeOrganization (fun org ->
+            let updatedBankAccounts =
+                org.BankAccounts
+                |> List.mapi (fun i bankAccount -> if i = index then updatedBankAccount else bankAccount)
+            { org with BankAccounts = updatedBankAccounts }
+        ), Cmd.none
+    | BankAccountRemoved index ->
+        changeOrganization (fun org ->
+            let updatedBankAccounts =
+                org.BankAccounts
+                |> List.mapi (fun i bankAccount -> if i = index then None else Some bankAccount)
+                |> List.choose id
+            { org with BankAccounts = updatedBankAccounts }
+        ), Cmd.none
     | VerifyVatNumber ->
         match VatNumber.TryParse (defaultArg state.Organization.VatNumber "") with
         | Ok vatNumber ->
@@ -334,10 +355,14 @@ let renderContactPersons (contactPersons: ContactPerson list) dispatch =
             ]
         )
         yield
-            button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> AddContactPerson |> dispatch) ] [
-                i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
-                str " "
-                str "Contactpersoon toevoegen"
+            formGroup [
+                OtherChildren [
+                    button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> AddContactPerson |> dispatch) ] [
+                        i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                        str " "
+                        str "Contactpersoon toevoegen"
+                    ]
+                ]
             ]
     ]
 
@@ -483,6 +508,33 @@ let renderVatNumber state dispatch =
         ]
     ]
 
+let private renderBankAccounts (basePath: string) (bankAccounts: BankAccount list) (errors: (string * string) list) dispatch =
+    [
+        yield! bankAccounts |> List.mapi (fun index bankAccount ->
+            div [] [
+                BankAccountEditComponent.render 
+                    (bankAccount)
+                    (fun updated -> BankAccountChanged (index, updated) |> dispatch) 
+                    (Some (fun _ -> BankAccountRemoved index |> dispatch))
+                    (sprintf "%s.[%i]" basePath index)
+                    errors
+            ]
+        )
+        yield
+            formGroup [
+                OtherChildren [
+                    button [ 
+                        classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
+                        OnClick (fun _ -> BankAccountAdded |> dispatch) 
+                    ] [ 
+                        i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                        str " "
+                        str "Bankrekening toevoegen" 
+                    ]
+                ]
+            ]
+    ]
+
 let view state dispatch =
     div [] [
         formGroup [ 
@@ -560,12 +612,17 @@ let view state dispatch =
             ] 
         ]
         fieldset [] [
-            legend [] [ h2 [] [ str "Andere contactmiddelen" ] ]
+            legend [] [ h4 [] [ str "Andere contactmiddelen" ] ]
             yield! renderOtherContactMethods state.Organization.OtherContactMethods dispatch
         ]
         fieldset [] [
-            legend [] [ h2 [] [ str "Contactpersonen" ] ]
+            legend [] [ h4 [] [ str "Contactpersonen" ] ]
             yield! renderContactPersons state.Organization.ContactPersons dispatch
+        ]
+
+        fieldset [] [
+            legend [] [ h4 [] [ str "Bankrekeningen" ] ]
+            yield! renderBankAccounts (nameof state.Organization.BankAccounts) state.Organization.BankAccounts state.Errors dispatch
         ]
 
         div [] [

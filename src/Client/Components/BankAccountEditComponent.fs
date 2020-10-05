@@ -6,7 +6,6 @@ open Fable.React.Props
 open Elmish.React
 
 open Shared.Read
-open Shared.Library
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 

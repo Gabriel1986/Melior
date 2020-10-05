@@ -66,6 +66,7 @@ type ValidatedBankAccount =
             }
         }
 
+
 type ValidatedContactMethod = 
     {
         ContactMethodType: ContactMethodType

@@ -20,6 +20,9 @@ type Message =
     | GeneralMeetingPeriodChanged of (DateTime * DateTime) option
     | YearOfConstructionChanged of string
     | YearOfDeliveryChanged of string
+    | BankAccountAdded
+    | BankAccountChanged of (int * BankAccount)
+    | BankAccountRemoved of int
 
 type State = {
     Building: Building
@@ -85,8 +88,52 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         changeBuilding (fun b -> { b with YearOfConstruction = parseInt s }), Cmd.none
     | YearOfDeliveryChanged s ->
         changeBuilding (fun b -> { b with YearOfDelivery = parseInt s }), Cmd.none
+    | BankAccountAdded ->
+        changeBuilding (fun b -> { b with BankAccounts = b.BankAccounts @ [ BankAccount.Init () ] }), Cmd.none
+    | BankAccountChanged (index, updatedBankAccount) ->
+        changeBuilding (fun b ->
+            let updatedBankAccounts =
+                b.BankAccounts
+                |> List.mapi (fun i bankAccount -> if i = index then updatedBankAccount else bankAccount)
+            { b with BankAccounts = updatedBankAccounts }
+        ), Cmd.none
+    | BankAccountRemoved index ->
+        changeBuilding (fun b ->
+            let updatedBankAccounts =
+                b.BankAccounts
+                |> List.mapi (fun i bankAccount -> if i = index then None else Some bankAccount)
+                |> List.choose id
+            { b with BankAccounts = updatedBankAccounts }
+        ), Cmd.none
 
 let inColomn x = div [ Class Bootstrap.col ] [ x ]
+
+let private renderBankAccounts (basePath: string) (bankAccounts: BankAccount list) (errors: (string * string) list) dispatch =
+    [
+        yield! bankAccounts |> List.mapi (fun index bankAccount ->
+            div [] [
+                BankAccountEditComponent.render 
+                    (bankAccount)
+                    (fun updated -> BankAccountChanged (index, updated) |> dispatch) 
+                    (Some (fun _ -> BankAccountRemoved index |> dispatch))
+                    (sprintf "%s.[%i]" basePath index)
+                    errors
+            ]
+        )
+        yield
+            formGroup [
+                OtherChildren [
+                    button [ 
+                        classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
+                        OnClick (fun _ -> BankAccountAdded |> dispatch) 
+                    ] [ 
+                        i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                        str " "
+                        str "Bankrekening toevoegen" 
+                    ]
+                ]
+            ]
+    ]
 
 let view (state: State) (dispatch: Message -> unit) =
     let errorFor (path: string) =
@@ -122,6 +169,7 @@ let view (state: State) (dispatch: Message -> unit) =
             (Some (AddressChanged >> dispatch))
             (nameof state.Building.Address)
             state.Errors
+        |> inColomn
 
         div [ Class Bootstrap.row ] [
             div [] [
@@ -187,5 +235,10 @@ let view (state: State) (dispatch: Message -> unit) =
                 FormError (errorFor (nameof state.Building.YearOfDelivery))
             ]
             |> inColomn
+        ]
+        div [ Class Bootstrap.row ] [
+            div [ Class Bootstrap.col ] [
+                yield! renderBankAccounts (nameof state.Building.BankAccounts) state.Building.BankAccounts state.Errors dispatch
+            ]
         ]
     ]

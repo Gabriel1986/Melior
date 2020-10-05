@@ -25,6 +25,10 @@ let view (organization: Organization) =
                 yield legend [] [ h2 [] [ str "Contactpersonen" ] ]
                 yield! organization.ContactPersons |> List.map (fun cp -> ContactPersonViewComponent.render {| ContactPerson = cp |})
             ]
+
+        yield!
+            organization.BankAccounts
+            |> List.mapi (fun i bankAccount -> readonlyFormElement (sprintf "Bankrekening %i" (i+1)) (string bankAccount))
     ]
 
 let render =

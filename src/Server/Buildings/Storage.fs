@@ -4,6 +4,7 @@ open System
 open Npgsql.FSharp
 open Server.Addresses.Workflow
 open Server.PostgreSQL
+open Server.Library
 open Shared.Read
 open Shared.Write
 open NodaTime
@@ -57,6 +58,7 @@ let private paramsFor (validated: ValidatedBuilding) =
         "@GeneralMeetingUntil"       , Sql.timestampOrNone  generalMeetingUntil
         "@YearOfConstruction"        , Sql.intOrNone (validated.YearOfConstruction |> Option.map (fun x -> x.Value ()))
         "@YearOfDelivery"            , Sql.intOrNone (validated.YearOfDelivery |> Option.map (fun x -> x.Value ()))
+        "@BankAccounts"              , Sql.jsonb (validated.BankAccounts |> ValidatedBankAccount.listToJson)
     ]
 
 let updateBuildingSyndic (connectionString: string) (buildingId: BuildingId, syndicId: ValidatedSyndicInput option) =
@@ -160,7 +162,8 @@ let createBuilding (connectionString: string) (validated: ValidatedBuilding) =
                 GeneralMeetingFrom,
                 GeneralMeetingUntil,
                 YearOfConstruction,
-                YearOfDelivery
+                YearOfDelivery,
+                BankAccounts
             ) VALUES (
                 @BuildingId,
                 @Code,
@@ -171,7 +174,8 @@ let createBuilding (connectionString: string) (validated: ValidatedBuilding) =
                 @GeneralMeetingFrom,
                 @GeneralMeetingUntil,
                 @YearOfConstruction,
-                @YearOfDelivery
+                @YearOfDelivery,
+                @BankAccounts
             )
         """
     |> Sql.parameters (paramsFor validated)
@@ -191,7 +195,8 @@ let updateBuilding (connectionString: string) (validated: ValidatedBuilding) =
                 GeneralMeetingFrom = @GeneralMeetingFrom,
                 GeneralMeetingUntil= @GeneralMeetingUntil,
                 YearOfConstruction = @YearOfConstruction,
-                YearOfDelivery = @YearOfDelivery
+                YearOfDelivery = @YearOfDelivery,
+                BankAccounts = @BankAccounts
             WHERE BuildingId = @BuildingId
         """
     |> Sql.parameters (paramsFor validated)
