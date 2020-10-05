@@ -15,9 +15,12 @@ type String16 =
     override me.ToString() = 
         match me with | String16 x -> x
 
-
 module String16 =
     let Of path = validateStringOfLength path 16 >> Trial.map String16
+    let OfOptional path =
+        function
+        | x when String.IsNullOrWhiteSpace(x) -> Trial.Pass None
+        | x -> Of path x |> Trial.map Some
 
 type String32 =
     private | String32 of string
@@ -26,6 +29,10 @@ type String32 =
 
 module String32 =
     let Of path = validateStringOfLength path 32 >> Trial.map String32
+    let OfOptional path =
+        function
+        | x when String.IsNullOrWhiteSpace(x) -> Trial.Pass None
+        | x -> Of path x |> Trial.map Some
 
 type String64 =
     private | String64 of string
@@ -34,6 +41,10 @@ type String64 =
 
 module String64 =
     let Of path = validateStringOfLength path 64 >> Trial.map String64
+    let OfOptional path =
+        function
+        | x when String.IsNullOrWhiteSpace(x) -> Trial.Pass None
+        | x -> Of path x |> Trial.map Some
 
 type String255 =
     private | String255 of string
@@ -42,6 +53,10 @@ type String255 =
 
 module String255 =
     let Of path = validateStringOfLength path 255 >> Trial.map String255
+    let OfOptional path =
+        function
+        | x when String.IsNullOrWhiteSpace(x) -> Trial.Pass None
+        | x -> Of path x |> Trial.map Some
 
 type PositiveInt = 
     private | PositiveInt of int

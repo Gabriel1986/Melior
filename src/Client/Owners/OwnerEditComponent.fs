@@ -67,7 +67,7 @@ let view (state: State) (dispatch: Message -> unit) =
     let inColumn x = div [ Class Bootstrap.col ] [ x ]
 
     div [] [
-        div [ Class Bootstrap.row ] [
+        div [ classes [ Bootstrap.row; "full-width" ] ] [
             formGroup [ 
                 Label "Bewoner"
                 Radio {

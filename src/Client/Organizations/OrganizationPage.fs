@@ -98,9 +98,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         OrganizationTypeNames = organization.OrganizationTypes |> List.map (fun t -> t.Name)
         Name = organization.Name
         Address = organization.Address
-        MainBankAccount = organization.MainBankAccount
-        OtherBankAccounts = organization.OtherBankAccounts
-
+        BankAccounts = organization.BankAccounts
     }
 
     match msg with

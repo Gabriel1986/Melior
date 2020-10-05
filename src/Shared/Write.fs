@@ -47,6 +47,26 @@ type ValidatedOtherAddress =
             }
         }
 
+type ValidatedBankAccount = 
+    {
+        Description: String255 option
+        IBAN: String64 option
+        BIC: String16 option
+    }
+    static member BasicValidate (basePath: string) (bankAccount: BankAccount) =
+        let onBasePath subPath = sprintf "%s.%s" basePath subPath
+        trial {
+            from description in String255.OfOptional (onBasePath (nameof bankAccount.Description)) bankAccount.Description
+            also iban in String64.OfOptional (onBasePath (nameof bankAccount.IBAN)) bankAccount.IBAN
+            also bic in String16.OfOptional (onBasePath (nameof bankAccount.BIC)) bankAccount.BIC
+            yield {
+                Description = description
+                IBAN = iban
+                BIC = bic
+            }
+        }
+
+
 type ValidatedContactMethod = 
     {
         ContactMethodType: ContactMethodType
@@ -85,6 +105,7 @@ type ValidatedPerson =
         MainEmailAddress: String255 option
         MainEmailAddressComment: String255 option
         OtherContactMethods: ValidatedContactMethod list
+        BankAccounts: ValidatedBankAccount list
     }
     static member BasicValidate (basePath: string) (person: Person) =
         let onBasePath subPath = sprintf "%s.%s" basePath subPath
@@ -101,6 +122,7 @@ type ValidatedPerson =
            also contactAddress in validateContactAddress (nameof person.ContactAddress |> onBasePath) person.ContactAddress
            also otherContactMethods in person.OtherContactMethods |> List.mapi (fun index c -> ValidatedContactMethod.BasicValidate (sprintf "%s.[%i]" (nameof person.OtherContactMethods) index |> onBasePath) c) |> Trial.sequence
            also otherAddresses in person.OtherAddresses |> List.mapi (fun index a -> ValidatedOtherAddress.BasicValidate (sprintf "%s.[%i]" (nameof person.OtherAddresses) index |> onBasePath) a) |> Trial.sequence
+           also bankAccounts in person.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.BasicValidate (sprintf "%s.[%i]" (nameof person.BankAccounts) index |> onBasePath) b) |> Trial.sequence
            yield {
                PersonId = person.PersonId
                FirstName = firstName
@@ -116,6 +138,7 @@ type ValidatedPerson =
                MainEmailAddress = mainEmailAddress
                MainEmailAddressComment = mainEmailAddressComment
                OtherContactMethods = otherContactMethods |> List.ofSeq
+               BankAccounts = bankAccounts |> List.ofSeq
            }
         }
     static member Validate (person: Person) =
@@ -190,6 +213,7 @@ type ValidatedBuilding =
         GeneralMeetingPeriod: GeneralMeetingPeriod option
         YearOfConstruction: PositiveInt option
         YearOfDelivery: PositiveInt option
+        BankAccounts: ValidatedBankAccount list
     }
     static member Validate (building: Building): Result<ValidatedBuilding, (string * string) list> =
         trial {
@@ -199,6 +223,7 @@ type ValidatedBuilding =
             also yearOfDelivery in validateOptional (PositiveInt.Of (nameof building.YearOfDelivery))  building.YearOfDelivery
             also address in ValidatedAddress.BasicValidate (nameof building.Address) building.Address
             also orgNr in validateOptional (OrganizationNumber.OfString (nameof building.OrganizationNumber)) building.OrganizationNumber
+            also bankAccounts in building.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.BasicValidate (sprintf "%s.[%i]" (nameof building.BankAccounts) index) b) |> Trial.sequence
             yield {
                 BuildingId = building.BuildingId
                 Code = code
@@ -209,6 +234,7 @@ type ValidatedBuilding =
                 GeneralMeetingPeriod = building.GeneralMeetingPeriod
                 YearOfConstruction = yearOfConstruction
                 YearOfDelivery = yearOfDelivery
+                BankAccounts = bankAccounts |> List.ofSeq
             }
         }
         |> Trial.toResult
@@ -286,6 +312,7 @@ type ValidatedOrganization =
         MainTelephoneNumber: String32 option
         MainTelephoneNumberComment: String255 option
         OtherContactMethods: ValidatedContactMethod list
+        BankAccounts: ValidatedBankAccount list
     }
     static member BasicValidate (basePath: string) (organization: Organization) =
         let onBasePath (s: string) = sprintf "%s.%s" basePath s
@@ -299,6 +326,7 @@ type ValidatedOrganization =
             also mainEmailAddress in validateOptional (String255.Of (nameof organization.MainEmailAddress |> onBasePath)) organization.MainEmailAddress
             also mainEmailAddressComment in validateOptional (String255.Of (nameof organization.MainEmailAddressComment |> onBasePath))  organization.MainEmailAddressComment
             also otherContactMethods in organization.OtherContactMethods |> List.mapi (fun index c -> ValidatedContactMethod.BasicValidate (sprintf "%s.[%i]" (nameof organization.OtherContactMethods) index |> onBasePath) c) |> Trial.sequence
+            also bankAccounts in organization.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.BasicValidate (sprintf "%s.[%i]" (nameof organization.BankAccounts) index |> onBasePath) b) |> Trial.sequence
             yield {
                 OrganizationId = organization.OrganizationId
                 BuildingId = organization.BuildingId
@@ -313,6 +341,7 @@ type ValidatedOrganization =
                 MainEmailAddress = mainEmailAddress
                 MainEmailAddressComment = mainEmailAddressComment
                 OtherContactMethods = otherContactMethods |> List.ofSeq
+                BankAccounts = bankAccounts |> List.ofSeq
             }
         }
     static member Validate (organization: Organization) =
@@ -411,11 +440,8 @@ type ValidatedInvoice =
         VatRate: PositiveFloat
         CategoryCode: String16
         CategoryDescription: String64
-        FromBankAccountType: String255
-        FromBankAccountIBAN: String64
-        FromBankAccountBIC: String16
-        ToBankAccountIBAN: String64
-        ToBankAccountBIC: String16
+        FromBankAccount: ValidatedBankAccount
+        ToBankAccount: ValidatedBankAccount
         BookingDate: DateTime //Date when booked
         DistributionKey: DistributionKeyListItem
         OrganizationId: Guid
@@ -432,11 +458,8 @@ type ValidatedInvoice =
             from vatRate in validatePositiveFloat (nameof invoice.VatRate) invoice.VatRate
             also categoryCode in String16.Of (nameof invoice.CategoryCode) invoice.CategoryCode
             also categoryDescription in String64.Of (nameof invoice.CategoryDescription) invoice.CategoryDescription
-            also fromBankAccountType in String255.Of (nameof invoice.FromBankAccountType) invoice.FromBankAccountType
-            also fromBankAccountIBAN in String64.Of (nameof invoice.FromBankAccountIBAN) invoice.FromBankAccountIBAN
-            also fromBankAccountBIC in String16.Of (nameof invoice.FromBankAccountBIC) invoice.FromBankAccountBIC
-            also toBankAccountIBAN in String64.Of (nameof invoice.ToBankAccountIBAN) invoice.ToBankAccountIBAN
-            also toBankAccountBIC in String16.Of (nameof invoice.ToBankAccountBIC) invoice.ToBankAccountBIC
+            also fromBankAccount in ValidatedBankAccount.BasicValidate (nameof invoice.FromBankAccount) invoice.FromBankAccount
+            also toBankAccount in ValidatedBankAccount.BasicValidate (nameof invoice.ToBankAccount) invoice.ToBankAccount
             yield {
                 InvoiceId = invoice.InvoiceId
                 BuildingId = invoice.BuildingId
@@ -446,11 +469,8 @@ type ValidatedInvoice =
                 VatRate = vatRate
                 CategoryCode = categoryCode
                 CategoryDescription = categoryDescription
-                FromBankAccountType = fromBankAccountType
-                FromBankAccountIBAN = fromBankAccountIBAN
-                FromBankAccountBIC = fromBankAccountBIC
-                ToBankAccountIBAN = toBankAccountIBAN
-                ToBankAccountBIC = toBankAccountBIC
+                FromBankAccount = fromBankAccount
+                ToBankAccount = toBankAccount
                 BookingDate = invoice.BookingDate
                 DistributionKey = invoice.DistributionKey
                 InvoiceDate = invoice.InvoiceDate

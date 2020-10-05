@@ -7,6 +7,7 @@ open Shared.Read
 open Shared.Write
 open Server.Addresses.Workflow
 open Server.ContactMethods.Workflow
+open Server.Library
 
 let private paramsForContactPerson (validated: ValidatedContactPerson) = [
     "@PersonId"              , Sql.uuid   validated.Person.PersonId
@@ -90,7 +91,8 @@ let createQuery =
             MainTelephoneNumberComment,
             MainEmailAddress,
             MainEmailAddressComment,
-            OtherContactMethods
+            OtherContactMethods,
+            BankAccounts
         ) VALUES (
             @OrganizationId,
             @BuildingId,
@@ -103,7 +105,8 @@ let createQuery =
             @MainTelephoneNumberComment,
             @MainEmailAddress,
             @MainEmailAddressComment,
-            @OtherContactMethods
+            @OtherContactMethods,
+            @BankAccounts
         )
     """
 
@@ -119,7 +122,8 @@ let updateQuery =
             MainTelephoneNumberComment = @MainTelephoneNumberComment,
             MainEmailAddress = @MainEmailAddress,
             MainEmailAddressComment = @MainEmailAddressComment,
-            OtherContactMethods = @OtherContactMethods
+            OtherContactMethods = @OtherContactMethods,
+            BankAccounts = @BankAccounts
         WHERE OrganizationId = @OrganizationId
     """
 
@@ -136,6 +140,7 @@ let paramsFor (validated: ValidatedOrganization) = [
     "@MainEmailAddress"          , Sql.stringOrNone (validated.MainEmailAddress |> Option.map string)
     "@MainEmailAddressComment"   , Sql.stringOrNone (validated.MainEmailAddressComment |> Option.map string)
     "@OtherContactMethods"       , Sql.jsonb (validated.OtherContactMethods |> ValidatedContactMethod.listToJson)
+    "@BankAccounts"              , Sql.jsonb (validated.BankAccounts |> ValidatedBankAccount.listToJson)
 ]
 
 let deleteOrganizationTypeLinks (validated: ValidatedOrganization) =

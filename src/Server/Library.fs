@@ -2,6 +2,10 @@
 
 open System
 open Microsoft.AspNetCore.Http
+open Thoth.Json.Net
+open Shared.Read
+open Serilog
+open Shared.Write
 
 module Library =
     [<RequireQualifiedAccess>]
@@ -55,3 +59,38 @@ module Library =
             Path = path
             Message = message
         }
+        
+    [<RequireQualifiedAccess>]
+    module BankAccount =
+        let private bankAccountEncoder = Encode.Auto.generateEncoderCached<BankAccount>()
+        let private bankAccountDecoder = Decode.Auto.generateDecoderCached<BankAccount>()
+        let private bankAccountListEncoder = Encode.Auto.generateEncoderCached<BankAccount list>()
+        let private bankAccountListDecoder = Decode.Auto.generateDecoderCached<BankAccount list>()
+    
+        let toJson (address: BankAccount) =
+            Encode.toString 0 (bankAccountEncoder address)
+    
+        let fromJson (str: string) =
+            Decode.fromString bankAccountDecoder str
+    
+        let listToJson (addresses: BankAccount list) =
+            Encode.toString 0 (bankAccountListEncoder addresses)
+    
+        let listFromJson (str: string) =
+            match Decode.fromString bankAccountListDecoder str with
+            | Ok result ->
+                result
+            | Error e ->
+                Log.Logger.Error (e)
+                []
+
+    [<RequireQualifiedAccess>]
+    module ValidatedBankAccount =
+        let toBankAccount (validated: ValidatedBankAccount): BankAccount = { 
+            Description = match validated.Description with | Some d -> string d | None -> ""
+            IBAN = match validated.IBAN with | Some iban -> string iban | None -> ""
+            BIC = match validated.BIC with | Some bic -> string bic | None -> ""
+        }
+
+        let listToJson (validated: ValidatedBankAccount list): string =
+            validated |> List.map toBankAccount |> BankAccount.listToJson

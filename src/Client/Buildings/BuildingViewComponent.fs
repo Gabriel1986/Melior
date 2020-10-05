@@ -57,6 +57,10 @@ let view (props: Props) =
                 yield readonlyFormElement "Periode algemene vergadering: " (sprintf "Tussen %s en %s" (from.ToString("dd/MM")) (until.ToString("dd/MM")))
             | _ ->
                 ()
+
+            yield!
+                detail.BankAccounts
+                |> List.mapi (fun i bankAccount -> readonlyFormElement (sprintf "Bankrekening %i" (i+1)) (string bankAccount))
         ]
         match detail.Concierge with
         | Some concierge ->

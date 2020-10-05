@@ -184,7 +184,7 @@ let renderEditLotOwners lotOwners dispatch =
     ]
 
 
-let inColomn x = div [ Class Bootstrap.col ] [ x ]
+let inColomn columnClass x = div [ Class columnClass ] [ x ]
 
 let view (state: State) (dispatch: Message -> unit) =
     let errorFor (path: string) =
@@ -219,41 +219,43 @@ let view (state: State) (dispatch: Message -> unit) =
                 ]
                 FormError (errorFor (nameof state.Lot.Code))
             ]
-            |> inColomn
+            |> inColomn Bootstrap.col4
 
             formGroup [ 
                 Label "Type"
                 Select lotTypeSelection
             ]
-            |> inColomn
+            |> inColomn Bootstrap.col
         ]
         div [ Class Bootstrap.row ] [
             div [] [
-                formGroup [
-                    Label "Verdieping"
-                    Input [
-                        Type "number"
-                        Min -20
-                        Max 50
-                        Helpers.valueOrDefault state.Lot.Floor
-                        OnChange (fun e -> FloorChanged e.Value |> dispatch)
+                div [] [
+                    formGroup [
+                        Label "Verdieping"
+                        Input [
+                            Type "number"
+                            Min -20
+                            Max 50
+                            Helpers.valueOrDefault state.Lot.Floor
+                            OnChange (fun e -> FloorChanged e.Value |> dispatch)
+                        ]
+                        FormError (errorFor (nameof state.Lot.Floor))
                     ]
-                    FormError (errorFor (nameof state.Lot.Floor))
                 ]
-                |> inColomn
-                formGroup [
-                    Label "Oppervlakte (m²)"
-                    Input [
-                        Type "number"
-                        Min 0
-                        Helpers.valueOrDefault state.Lot.Surface
-                        OnChange (fun e -> SurfaceChanged e.Value |> dispatch)
+                div [] [
+                    formGroup [
+                        Label "Oppervlakte (m²)"
+                        Input [
+                            Type "number"
+                            Min 0
+                            Helpers.valueOrDefault state.Lot.Surface
+                            OnChange (fun e -> SurfaceChanged e.Value |> dispatch)
+                        ]
+                        FormError (errorFor (nameof state.Lot.Surface))
                     ]
-                    FormError (errorFor (nameof state.Lot.Surface))
                 ]
-                |> inColomn
             ]
-            |> inColomn
+            |> inColomn Bootstrap.col4
             formGroup [ 
                 Label "Omschrijving"
                 TextArea [
@@ -262,15 +264,11 @@ let view (state: State) (dispatch: Message -> unit) =
                     OnChange (fun e -> DescriptionChanged e.Value |> dispatch)
                 ] 
             ]
-            |> inColomn
+            |> inColomn Bootstrap.col
         ]
 
-        div [ Class Bootstrap.row ] [
-            div [ Class Bootstrap.col12 ] [
-                renderEditLotOwners state.Lot.Owners dispatch
-                |> inColomn
-            ]
-        ]
+        renderEditLotOwners state.Lot.Owners dispatch
+        |> inColomn Bootstrap.row
 
         LotOwnerModal.render 
             {|

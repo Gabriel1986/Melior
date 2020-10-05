@@ -65,6 +65,10 @@ type Message =
     | ChangeOrganizationTypesCanceled
     | OrganizationTypesChanged of organizationTypes: OrganizationType list
 
+    | BankAccountAdded
+    | BankAccountChanged of (int * BankAccount)
+    | BankAccountRemoved of int
+
     | VatNumberChanged of string
     | VerifyVatNumber
     | VatNumberVerified of result: Result<VatNumberValidationResponse, string>
@@ -195,6 +199,23 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         { newState with OrganizationTypeModalState = Closed }, Cmd.none
     | VatNumberChanged vatNumber ->
         changeOrganization (fun org -> { org with VatNumber = (if String.IsNullOrEmpty vatNumber then None else Some vatNumber); VatNumberVerifiedOn = None }), Cmd.none
+    | BankAccountAdded ->
+        changeOrganization (fun org -> { org with BankAccounts = org.BankAccounts @ [ BankAccount.Init () ] }), Cmd.none
+    | BankAccountChanged (index, updatedBankAccount) ->
+        changeOrganization (fun org ->
+            let updatedBankAccounts =
+                org.BankAccounts
+                |> List.mapi (fun i bankAccount -> if i = index then updatedBankAccount else bankAccount)
+            { org with BankAccounts = updatedBankAccounts }
+        ), Cmd.none
+    | BankAccountRemoved index ->
+        changeOrganization (fun org ->
+            let updatedBankAccounts =
+                org.BankAccounts
+                |> List.mapi (fun i bankAccount -> if i = index then None else Some bankAccount)
+                |> List.choose id
+            { org with BankAccounts = updatedBankAccounts }
+        ), Cmd.none
     | VerifyVatNumber ->
         match VatNumber.TryParse (defaultArg state.Organization.VatNumber "") with
         | Ok vatNumber ->
@@ -259,53 +280,70 @@ let private contactMethodTypeOptions (currentlySelected: ContactMethodType): For
 let private renderOtherContactMethods (otherContactMethods: ContactMethod list) dispatch =
     [
         yield! otherContactMethods |> List.mapi (fun index c ->
-            div [ Class Bootstrap.formInline ] [
-                formGroup [ 
-                    Label "Beschrijving"
-                    Input [ 
-                        Type "text"
-                        MaxLength 255.0
-                        Helpers.valueOrDefault c.Description
-                        OnChange (fun e -> OtherContactMethodDescriptionChanged (index, e.Value) |> dispatch) 
+            div [ classes [ Bootstrap.row; "full-width" ] ] [
+                div [ Class Bootstrap.colMd ] [
+                    formGroup [
+                        Label "Type"
+                        Select {
+                            Identifier = string index
+                            OnChanged = (fun newTypeString ->
+                                let newType =
+                                    match newTypeString with
+                                    | s when s = string EmailAddress -> EmailAddress
+                                    | s when s = string PhoneNumber  -> PhoneNumber
+                                    | s when s = string WebSite      -> WebSite
+                                    | _                              -> ContactMethodType.Other
+                                OtherContactMethodTypeChanged (index, newType) |> dispatch
+                            )
+                            Options = contactMethodTypeOptions c.ContactMethodType
+                        }
                     ]
                 ]
-                formGroup [
-                    Label "Type"
-                    Select {
-                        Identifier = string index
-                        OnChanged = (fun newTypeString ->
-                            let newType =
-                                match newTypeString with
-                                | s when s = string EmailAddress -> EmailAddress
-                                | s when s = string PhoneNumber  -> PhoneNumber
-                                | s when s = string WebSite      -> WebSite
-                                | _                              -> ContactMethodType.Other
-                            OtherContactMethodTypeChanged (index, newType) |> dispatch
-                        )
-                        Options = contactMethodTypeOptions c.ContactMethodType
-                    }
-                ]
-                formGroup [
-                    Label "Waarde"
-                    Input [
-                        Type "text"
-                        Helpers.valueOrDefault c.Value
-                        OnChange (fun e -> OtherContactMethodValueChanged (index, e.Value) |> dispatch) 
+                div [ Class Bootstrap.colMd ] [
+                    formGroup [
+                        Label (string c.ContactMethodType)
+                        Input [
+                            Type "text"
+                            Helpers.valueOrDefault c.Value
+                            OnChange (fun e -> OtherContactMethodValueChanged (index, e.Value) |> dispatch) 
+                        ]
                     ]
                 ]
-                button [ 
-                    classes [ Bootstrap.btn; Bootstrap.btnDanger ]
-                    OnClick (fun _ -> OtherContactMethodRemoved index |> dispatch) 
-                ] [
-                    str "Verwijderen"
+                div [ Class Bootstrap.colMd ] [
+                    formGroup [ 
+                        Label "Omschrijving"
+                        Input [ 
+                            Type "text"
+                            MaxLength 255.0
+                            Helpers.valueOrDefault c.Description
+                            OnChange (fun e -> OtherContactMethodDescriptionChanged (index, e.Value) |> dispatch) 
+                        ]
+                    ]
+                ]
+                div [ Class Bootstrap.colMd ] [
+                    div [] [
+                        label [ Style [ Visibility "hidden" ]; classes [ Bootstrap.dNone; Bootstrap.dMdBlock ] ] [ str "_" ]
+                        div [] [
+                            button [ 
+                                classes [ Bootstrap.btn; Bootstrap.btnDanger ]
+                                OnClick (fun _ -> OtherContactMethodRemoved index |> dispatch) 
+                            ] [
+                                str "Verwijderen"
+                            ] 
+                        ]
+                    ]
                 ]
             ]
         )
         yield
-            button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> OtherContactMethodAdded |> dispatch) ] [
-                i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
-                str " "
-                str "Ander contactmiddel toevoegen"
+            formGroup [
+                OtherChildren [
+                    button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> OtherContactMethodAdded |> dispatch) ] [
+                        i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                        str " "
+                        str "Ander contactmiddel toevoegen"
+                    ]
+                ]
             ]
     ]
 
@@ -317,10 +355,14 @@ let renderContactPersons (contactPersons: ContactPerson list) dispatch =
             ]
         )
         yield
-            button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> AddContactPerson |> dispatch) ] [
-                i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
-                str " "
-                str "Contactpersoon toevoegen"
+            formGroup [
+                OtherChildren [
+                    button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> AddContactPerson |> dispatch) ] [
+                        i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                        str " "
+                        str "Contactpersoon toevoegen"
+                    ]
+                ]
             ]
     ]
 
@@ -466,6 +508,33 @@ let renderVatNumber state dispatch =
         ]
     ]
 
+let private renderBankAccounts (basePath: string) (bankAccounts: BankAccount list) (errors: (string * string) list) dispatch =
+    [
+        yield! bankAccounts |> List.mapi (fun index bankAccount ->
+            div [] [
+                BankAccountEditComponent.render 
+                    (bankAccount)
+                    (fun updated -> BankAccountChanged (index, updated) |> dispatch) 
+                    (Some (fun _ -> BankAccountRemoved index |> dispatch))
+                    (sprintf "%s.[%i]" basePath index)
+                    errors
+            ]
+        )
+        yield
+            formGroup [
+                OtherChildren [
+                    button [ 
+                        classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
+                        OnClick (fun _ -> BankAccountAdded |> dispatch) 
+                    ] [ 
+                        i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                        str " "
+                        str "Bankrekening toevoegen" 
+                    ]
+                ]
+            ]
+    ]
+
 let view state dispatch =
     div [] [
         formGroup [ 
@@ -504,7 +573,8 @@ let view state dispatch =
             ]
         ]
         if state.Organization.BuildingId.IsSome then renderVatNumber state dispatch else null
-        AddressEditComponent.render "Address" state.Organization.Address (fun a -> AddressChanged a |> dispatch) (nameof state.Organization.Address) state.Errors
+        h4 [] [ str "Adres" ]
+        AddressEditComponent.render state.Organization.Address (Some (fun a -> AddressChanged a |> dispatch)) (nameof state.Organization.Address) state.Errors
         formGroup [ 
             Label "Tel."
             Input [ 
@@ -542,12 +612,17 @@ let view state dispatch =
             ] 
         ]
         fieldset [] [
-            legend [] [ h2 [] [ str "Andere contactmiddelen" ] ]
+            legend [] [ h4 [] [ str "Andere contactmiddelen" ] ]
             yield! renderOtherContactMethods state.Organization.OtherContactMethods dispatch
         ]
         fieldset [] [
-            legend [] [ h2 [] [ str "Contactpersonen" ] ]
+            legend [] [ h4 [] [ str "Contactpersonen" ] ]
             yield! renderContactPersons state.Organization.ContactPersons dispatch
+        ]
+
+        fieldset [] [
+            legend [] [ h4 [] [ str "Bankrekeningen" ] ]
+            yield! renderBankAccounts (nameof state.Organization.BankAccounts) state.Organization.BankAccounts state.Errors dispatch
         ]
 
         div [] [

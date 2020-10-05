@@ -155,3 +155,12 @@ header {
 .form-control.flatpickr-input {
     background-color: unset;
 }
+
+.row.full-width {
+    div:first-child {
+        padding-left: 0;
+    }
+    div:last-child {
+        padding-right: 0;
+    }
+}

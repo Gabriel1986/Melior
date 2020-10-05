@@ -32,6 +32,11 @@ let view (withAddresses: bool) (person: Person) =
         yield readonlyFormElement "E-mail commentaar" (defaultArg person.MainEmailAddressComment "")
 
         yield! person.OtherContactMethods |> List.map (fun cm -> readonlyFormElement cm.Description cm.Value)
+
+        yield!
+            person.BankAccounts
+            |> List.mapi (fun i bankAccount -> readonlyFormElement (sprintf "Bankrekening %i" (i+1)) (string bankAccount))
+
     ]
 
 let render =

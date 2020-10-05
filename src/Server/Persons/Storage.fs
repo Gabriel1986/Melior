@@ -44,6 +44,7 @@ let paramsFor (validated: ValidatedPerson) =
         "@MainEmailAddress"          , Sql.stringOrNone (validated.MainEmailAddress |> Option.map string)
         "@MainEmailAddressComment"   , Sql.stringOrNone (validated.MainEmailAddressComment|> Option.map string)
         "@OtherContactMethods"       , Sql.jsonb (validated.OtherContactMethods |> ValidatedContactMethod.listToJson)
+        "@BankAccounts"              , Sql.jsonb (validated.BankAccounts |> ValidatedBankAccount.listToJson)
     ]
 
 let [<Literal>] createQuery =
@@ -62,7 +63,8 @@ let [<Literal>] createQuery =
             MainTelephoneNumberComment,
             MainEmailAddress,
             MainEmailAddressComment,
-            OtherContactMethods
+            OtherContactMethods,
+            BankAccounts
         ) VALUES (
             @PersonId,
             @FirstName,
@@ -77,7 +79,8 @@ let [<Literal>] createQuery =
             @MainTelephoneNumberComment,
             @MainEmailAddress,
             @MainEmailAddressComment,
-            @OtherContactMethods
+            @OtherContactMethods,
+            @BankAccounts
         )
     """
 
@@ -97,7 +100,8 @@ let [<Literal>] updateQuery =
             MainTelephoneNumberComment = @MainTelephoneNumberComment,
             MainEmailAddress = @MainEmailAddress,
             MainEmailAddressComment = @MainEmailAddressComment,
-            OtherContactMethods = @OtherContactMethods
+            OtherContactMethods = @OtherContactMethods,
+            BankAccounts = @BankAccounts
         WHERE PersonId = @PersonId
     """
 

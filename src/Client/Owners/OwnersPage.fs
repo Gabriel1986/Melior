@@ -102,6 +102,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         FirstName = owner.Person.FirstName
         LastName = owner.Person.LastName
         IsResident = owner.IsResident
+        BankAccounts = owner.Person.BankAccounts
     }
 
     match msg with

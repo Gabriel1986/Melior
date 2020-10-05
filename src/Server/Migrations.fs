@@ -308,3 +308,22 @@ type AddDistributionKeyTables() =
             """
         )
     override u.Down () = failwith "Not supported"
+
+[<Migration(7L, "Add BankAccount columns")>]
+type AddBankAccountColumns() =
+    inherit Migration()
+    override u.Up () =
+        //type BankAccount = { Description: string; IBAN: string; BIC: string }
+        u.Execute(
+            """
+                ALTER TABLE Buildings
+                    ADD COLUMN BankAccounts JSONB;
+
+                ALTER TABLE Organizations
+                    ADD COLUMN BankAccounts JSONB;
+
+                ALTER TABLE Persons
+                    ADD COLUMN BankAccounts JSONB;
+            """
+        )
+    override u.Down () = failwith "Not supported"

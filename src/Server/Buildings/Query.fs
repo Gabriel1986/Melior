@@ -26,6 +26,7 @@ module private Internals =
         SyndicPersonId: Guid option
         YearOfConstruction: int option
         YearOfDelivery: int option
+        BankAccounts: string option
     }
 
     let readBuilding (reader: CaseInsensitiveRowReader): BuildingDbModel = {
@@ -44,6 +45,7 @@ module private Internals =
         SyndicPersonId = reader.uuidOrNone "SyndicPersonId"
         YearOfConstruction = reader.intOrNone "YearOfConstruction"
         YearOfDelivery = reader.intOrNone "YearOfDelivery"
+        BankAccounts = reader.stringOrNone "BankAccounts"
     }
 
     type BuildingListItemDbModel = {
@@ -52,6 +54,7 @@ module private Internals =
         Name: string
         Address: string
         OrganizationNumber: string option
+        BankAccounts: string option
     }
 
     let readBuildingListItem (reader: CaseInsensitiveRowReader): BuildingListItemDbModel = {
@@ -60,6 +63,7 @@ module private Internals =
         Name = reader.string "Name"
         Address = reader.string "Address"
         OrganizationNumber = reader.stringOrNone "OrganizationNumber"
+        BankAccounts = reader.stringOrNone "BankAccounts"
     }
 
     let forceAddress str =
@@ -87,7 +91,8 @@ let getBuilding connectionString (buildingId: Guid): Async<Building option> = as
                     SyndicProfessionalSyndicId,
                     SyndicPersonId,
                     YearOfConstruction,
-                    YearOfDelivery
+                    YearOfDelivery,
+                    BankAccounts
                 FROM Buildings
                 WHERE BuildingId = @BuildingId
             """
@@ -136,7 +141,7 @@ let getBuilding connectionString (buildingId: Guid): Async<Building option> = as
             Syndic = syndic
             YearOfConstruction = dbModel.YearOfConstruction
             YearOfDelivery = dbModel.YearOfDelivery
-            BankAccounts = []
+            BankAccounts = dbModel.BankAccounts |> Option.either BankAccount.listFromJson []
         }
     | None ->
         return None
@@ -152,7 +157,8 @@ let getAllBuildings connectionString (): Async<BuildingListItem list> = async {
                     Code,
                     Name,
                     Address,
-                    OrganizationNumber
+                    OrganizationNumber,
+                    BankAccounts
                 FROM Buildings
                 WHERE IsActive = TRUE
             """
@@ -165,7 +171,7 @@ let getAllBuildings connectionString (): Async<BuildingListItem list> = async {
         Name = dbModel.Name
         Address = dbModel.Address |> forceAddress
         OrganizationNumber = dbModel.OrganizationNumber
-        BankAccounts = []
+        BankAccounts = dbModel.BankAccounts |> Option.either BankAccount.listFromJson []
     })
 }
 
@@ -179,7 +185,8 @@ let getBuildingsByIds connectionString buildingIds: Async<BuildingListItem list>
                     Code,
                     Name,
                     Address,
-                    OrganizationNumber
+                    OrganizationNumber,
+                    BankAccounts
                 FROM Buildings
                 WHERE IsActive = TRUE AND BuildingId = ANY (@BuildingIds)
             """
@@ -192,6 +199,6 @@ let getBuildingsByIds connectionString buildingIds: Async<BuildingListItem list>
         Name = dbModel.Name
         Address = dbModel.Address |> forceAddress
         OrganizationNumber = dbModel.OrganizationNumber
-        BankAccounts = []
+        BankAccounts = dbModel.BankAccounts |> Option.either BankAccount.listFromJson []
     })
 }
