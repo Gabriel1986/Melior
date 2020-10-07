@@ -139,7 +139,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let updatedTabs = 
             state.SelectedListItems 
             |> List.filter (fun li -> li.BuildingId <> listItem.BuildingId)
-        { state with SelectedListItems = updatedTabs; SelectedTab = List }, Cmd.none
+        { state with SelectedListItems = updatedTabs; SelectedTab = List }, Routing.navigateToPage (Routing.Page.DistributionKeyList { BuildingId = state.CurrentBuildingId })
     | SelectTab tab ->
         { state with SelectedTab = tab }, Cmd.none
     | RemoveListItem distributionKey ->

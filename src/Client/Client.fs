@@ -23,9 +23,9 @@ open Client.Organizations
 open Client.Lots
 open Client.ProfessionalSyndics
 open Client.Contracts
-open Client.Financial
 open Client.Financial.DistributionKeys
 open Client.Financial.CostDiary
+open Client.Users
 
 module Client =
     importAll "./public/styles/bootstrap.min.css"
@@ -121,7 +121,7 @@ module Client =
                         | None ->
                             //Assume the user is a sysadmin -> pick the first building
                             Cmd.OfAsync.either
-                                (Client.Remoting.getRemotingApi().GetBuildings) ()
+                                (Client.Remoting.getRemotingApi().GetBuildings) None
                                 (List.tryHead
                                     >> (fun currentBuilding -> currentUser, currentBuilding, adminModeEnabled)
                                     >> StartApplication)
@@ -288,6 +288,12 @@ module Client =
             | Page.DistributionKeyDetails _
             | Page.DistributionKeyList _ -> false
             | _ -> true
+        | Page.UserDetails _
+        | Page.UserList ->
+            match newPage with
+            | Page.UserDetails _
+            | Page.UserList -> false
+            | _ -> true
         | _ -> true
 
     let notFound = div [] [ p [] [ str "Pagina werd niet gevonden." ] ]
@@ -391,7 +397,7 @@ module Client =
                             CurrentBuildingId = building.BuildingId
                             DistributionKeyId = Some props.DetailId
                         |}
-                | Page.Invoices props, _, Some building ->
+                | Page.Invoices _, _, Some building ->
                     CostDiaryPage.render
                         {|
                             CurrentUser = runningState.CurrentUser
@@ -404,6 +410,18 @@ module Client =
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
                             InvoiceId = Some props.DetailId
+                        |}
+                | Page.UserList _, _, _ ->
+                    UsersPage.render
+                        {|
+                            CurrentUser = runningState.CurrentUser
+                            UserId = None
+                        |}
+                | Page.UserDetails userId, _, _ ->
+                    UsersPage.render
+                        {|
+                            CurrentUser = runningState.CurrentUser
+                            UserId = Some userId
                         |}
                 | Page.NoticeBoard, _, _
                 | Page.MyEvents, _, _

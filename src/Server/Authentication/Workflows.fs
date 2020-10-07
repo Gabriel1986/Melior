@@ -6,6 +6,10 @@
     open Shared.Library
     open Storage
     open Server.Library
+    open Server.LibraryExtensions
+    open Shared.Remoting
+    open Shared.Write
+    open Shared.Read
 
     //Should be used internally only!
     let addUser (storage: IAuthenticationStorage) (passwordPepper: string) (user: UserInput) = async {
@@ -16,6 +20,46 @@
             return Ok ()
         | Error errors -> 
             return Error (CreateUserError.ValidationError errors)
+    }
+
+    let createUser (storage: IAuthenticationStorage) (msg: Message<User>) = async {
+        if msg.CurrentUser.IsSysAdmin () then
+            let validated = ValidatedUser.Validate msg.Payload
+            //TODO: send email...
+            match validated with
+            | Ok validated ->
+                do! storage.CreateUser validated
+                return Ok ()
+            | Error errors ->
+                return Error (SaveUserError.Validation errors)
+        else
+            return Error (SaveUserError.AuthorizationError)
+    }
+
+    let updateUser (storage: IAuthenticationStorage) (msg: Message<User>) = async {
+        if msg.CurrentUser.IsSysAdmin () then
+            let validated = ValidatedUser.Validate msg.Payload
+            //TODO: send email...
+            match validated with
+            | Ok validated ->
+                let! nbRowsUpdated = storage.UpdateUser validated
+                if nbRowsUpdated = 1 
+                then return Ok ()
+                else return Error (SaveUserError.NotFound)
+            | Error errors ->
+                return Error (SaveUserError.Validation errors)
+        else
+            return Error (SaveUserError.AuthorizationError)
+    }
+
+    let deleteUser (storage: IAuthenticationStorage) (msg: Message<Guid>) = async {
+        if msg.CurrentUser.IsSysAdmin () then
+            let! nbRowsDeleted = storage.DeleteUser msg.Payload
+            if nbRowsDeleted = 1
+            then return Ok ()
+            else return Error (DeleteUserError.NotFound)
+        else
+            return Error (DeleteUserError.AuthorizationError)
     }
 
     module TwoFac =

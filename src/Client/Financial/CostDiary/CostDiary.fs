@@ -159,7 +159,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let updatedTabs = 
             state.SelectedListItems 
             |> List.filter (fun li -> li.InvoiceId <> listItem.InvoiceId)
-        { state with SelectedListItems = updatedTabs; SelectedTab = List }, Cmd.none
+        { state with SelectedListItems = updatedTabs; SelectedTab = List }, Routing.navigateToPage (Routing.Page.Invoices { BuildingId = state.CurrentBuilding.BuildingId })
     | SelectTab tab ->
         { state with SelectedTab = tab }, Cmd.none
     | Loaded (invoices, selectedInvoiceId) ->

@@ -262,6 +262,7 @@ type CreateContractTables() =
         )
     override u.Down () = failwith "Not supported"
 
+//This is not correct.
 [<Migration(5L, "Create many-to-many between Pro syndics and Buildings")>]
 type CreateManyToManyProSyndicBuildings() =
     inherit Migration()

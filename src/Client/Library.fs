@@ -37,6 +37,15 @@ let showSuccessToastCmd (message: string) =
             .Type(AlertType.Success))
     SweetAlert.Run(alert)
 
+let showConfirmationModal (title: string, message: string, onConfirmed: unit -> 'Msg, onDismissed: unit -> 'Msg) =
+    let alert =
+        (ConfirmAlert(message, (fun result -> match result with | ConfirmAlertResult.Confirmed -> onConfirmed() | ConfirmAlertResult.Dismissed _ -> onDismissed()))
+            .Title(title)
+            .Timeout(10000)
+            .Type(AlertType.Question)
+            .ShowCloseButton(true))
+    SweetAlert.Run(alert)
+
 let showErrorToastCmd (message: string) =
     let alert = 
         (ToastAlert(message))

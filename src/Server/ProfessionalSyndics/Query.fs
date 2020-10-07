@@ -76,6 +76,24 @@ let getProfessionalSyndics connectionString () =
                 org.MainTelephoneNumber
             FROM ProfessionalSyndics pro
             LEFT JOIN Organizations org on pro.OrganizationId = org.OrganizationId
+            WHERE pro.IsActive = TRUE
         """
     |> Sql.parameters []
+    |> Sql.read readProfessionalSyndics
+
+let getProfessionalSyndicsByIds connectionString (organizationIds: Guid list) =
+    Sql.connect connectionString
+    |> Sql.query
+        """
+            SELECT
+                pro.OrganizationId,
+                org.Name,
+                org.Address,
+                org.MainEmailAddress,
+                org.MainTelephoneNumber
+            FROM ProfessionalSyndics pro
+            LEFT JOIN Organizations org on pro.OrganizationId = org.OrganizationId
+            WHERE pro.IsActive = TRUE AND pro.OrganizationId = ANY (@OrganizationIds)
+        """
+    |> Sql.parameters [ "@OrganizationIds", Sql.uuidArray (organizationIds |> Seq.toArray) ]
     |> Sql.read readProfessionalSyndics

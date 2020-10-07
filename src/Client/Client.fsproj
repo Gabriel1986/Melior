@@ -48,7 +48,6 @@
     <Compile Include="Components\AddressEditComponent.fs" />
     <Compile Include="Components\PersonViewComponent.fs" />
     <Compile Include="Components\PersonEditComponent.fs" />
-    <Compile Include="Users\MyAccount.fs" />
     <Compile Include="NoticeBoard\NoticeBoardPage.fs" />
     <Compile Include="Organizations\OrganizationTypesPage.fs" />
     <Compile Include="Organizations\ContactPersonViewComponent.fs" />
@@ -79,6 +78,11 @@
     <Compile Include="Buildings\BuildingEditComponent.fs" />
     <Compile Include="Buildings\BuildingDetails.fs" />
     <Compile Include="Buildings\BuildingsPage.fs" />
+    <Compile Include="Users\UserViewComponent.fs" />
+    <Compile Include="Users\UserEditComponent.fs" />
+    <Compile Include="Users\UserDetails.fs" />
+    <Compile Include="Users\UsersPage.fs" />
+    <Compile Include="Users\MyAccount.fs" />
     <Compile Include="Financial\CostDiary\InvoiceEditComponent.fs" />
     <Compile Include="Financial\CostDiary\InvoiceViewComponent.fs" />
     <Compile Include="Financial\CostDiary\InvoiceDetails.fs" />

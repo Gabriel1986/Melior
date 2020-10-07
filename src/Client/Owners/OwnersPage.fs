@@ -113,12 +113,14 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.LastName)
             |> List.sortBy (fun li -> li.FirstName)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }, Routing.navigateToPage (Routing.Page.OwnerDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.PersonId })
+        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }
+        , Routing.navigateToPage (Routing.Page.OwnerDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.PersonId })
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
             |> List.filter (fun li -> li.PersonId <> listItem.PersonId)
-        { state with SelectedListItems = updatedTabs; SelectedTab = List }, Cmd.none
+        { state with SelectedListItems = updatedTabs; SelectedTab = List }
+        , Routing.navigateToPage (Routing.Page.OwnerList { BuildingId = state.CurrentBuilding.BuildingId })
     | SelectTab tab ->
         { state with SelectedTab = tab }, Cmd.none
     | Loaded (owners, selectedOwnerId) ->

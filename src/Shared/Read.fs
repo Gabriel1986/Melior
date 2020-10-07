@@ -62,16 +62,31 @@ type User =
             | ProfessionalSyndicRole (_orgId, bIds) -> bIds |> List.contains buildingId
             | SysAdminRole -> true
         )
+    member me.HasAdminAccessToProfessionalSyndic (organizationId: Guid) =
+        me.Roles |> List.exists (
+            function
+            | UserRole _ -> false
+            | SyndicRole _ -> false
+            | ProfessionalSyndicRole (orgId, _) -> orgId = organizationId
+            | SysAdminRole -> true
+        )
     member me.HasAccessToAdminMode () = me.Roles |> List.exists (function | SyndicRole _ | ProfessionalSyndicRole _ | SysAdminRole -> true | UserRole _ -> false)
     member me.IsSysAdmin () = me.Roles |> List.contains SysAdminRole
     member me.Principal () = me.EmailAddress
+    static member Init () = {
+        UserId = Guid.NewGuid()
+        EmailAddress = ""
+        DisplayName = ""
+        Roles = []
+        PreferredLanguageCode = "nl-BE"
+        UseTwoFac = false
+    }
 
 and Role =
-    | UserRole of buildingIds: BuildingId list
-    | SyndicRole of buildingIds: BuildingId list
-    | ProfessionalSyndicRole of organizationId: Guid * buildingIds: BuildingId list
-    //Has access to all buildings
-    | SysAdminRole
+    | UserRole of buildingIds: BuildingId list //Regular User
+    | SyndicRole of buildingIds: BuildingId list //Owner Syndic
+    | ProfessionalSyndicRole of organizationId: Guid * buildingIds: BuildingId list //Pro Syndic
+    | SysAdminRole //Has access to all buildings
     member me.BuildingIds () =
         match me with
         | UserRole bIds -> bIds
@@ -405,11 +420,7 @@ and Owner =
         Person = Person.Init ()
         IsResident = true
     }
-//and Tenant = {
-//    Person: Person
-//    MoveInDate: DateTimeOffset
-//    MoveOutDate: DateTimeOffset option
-//}
+
 and ProfessionalSyndic = 
     {
         Organization: Organization
@@ -429,13 +440,7 @@ and OwnerListItem =
         IsResident: bool
     }
     member me.FullName () = [ me.FirstName; me.LastName ] |> String.JoinOptionsWith " "
-//and TenantListItem = {
-//    PersonId: Guid
-//    FirstName: string
-//    LastName: string
-//    MoveInDate: DateTimeOffset
-//    MoveOutDate: DateTimeOffset option
-//}
+
 and ProfessionalSyndicListItem = {
     OrganizationId: Guid
     Name: string

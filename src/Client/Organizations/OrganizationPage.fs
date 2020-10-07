@@ -116,7 +116,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             |> List.filter (fun li -> li.OrganizationId <> listItem.OrganizationId)
         
         { state with SelectedListItems = updatedTabs; SelectedTab = List }, 
-        Cmd.none
+        Routing.navigateToPage (Routing.Page.OrganizationList { BuildingId = state.CurrentBuilding.BuildingId })
     | SelectTab tab ->
         { state with SelectedTab = tab }, Cmd.none
     | Loaded (owners, selectedOrgId) ->
