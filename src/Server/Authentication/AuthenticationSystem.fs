@@ -84,8 +84,8 @@ let build (config: IConfiguration) =
                 Workflows.createUser storage msg
 
             member _.UpdateUser msg =
-                Workflows.updateUser msg
+                Workflows.updateUser storage msg
 
             member _.DeleteUser msg =
-                Workflows.deleteUser msg
+                Workflows.deleteUser storage msg
     }
