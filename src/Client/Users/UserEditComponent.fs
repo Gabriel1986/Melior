@@ -9,23 +9,24 @@ open Client.Library
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Shared.Read
-open Shared.Library
 
 type Message =
     | NameChanged of string
-    | EmailChanged of string
+    | EmailAddressChanged of string
     | LanguageChanged of string
     | TwoFacAuthenticationChanged of bool
     | TwoFacAuthenticationChangedConfirmed of bool
-    | IsSysAdminChanged of string
+    | IsSysAdminChanged of bool
+    | IsSysAdminChangedConfirmed of bool
     | UserRoleChanged of BuildingId list
     | SyndicRoleChanged of BuildingId list
-    | ProfessionalSyndicRoleChanged of proSyndicId: Guid
+    | ProfessionalSyndicRoleChanged of proSyndicIds: Guid list
     | NoOp
     
 type State = {
     User: User
     ShowingBuildingSelectionModal: bool
+    ShowingProSyndicSelectionModal: bool
     Errors: (string * string) list
 }
 
@@ -33,6 +34,7 @@ let init (user: User) =
     {
         User = user
         ShowingBuildingSelectionModal = false
+        ShowingProSyndicSelectionModal = false
         Errors = []
     }, Cmd.none
 
@@ -47,107 +49,112 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | NameChanged x ->
         changeUser (fun l -> { l with DisplayName = x })
         |> removeError (nameof state.User.DisplayName), Cmd.none
-    | EmailChanged x ->
+    | EmailAddressChanged x ->
         changeUser (fun l -> { l with EmailAddress = x })
         |> removeError (nameof state.User.EmailAddress), Cmd.none
     | LanguageChanged x ->
         changeUser (fun l -> { l with PreferredLanguageCode = x })
         |> removeError (nameof state.User.PreferredLanguageCode), Cmd.none
-    | TwoFacAuthenticationChanged x -> 
-        state, showConfirmationModal ("", "", (fun () -> TwoFacAuthenticationChangedConfirmed x), (fun () -> NoOp))
+    | NoOp ->
+        state, Cmd.none
+    | TwoFacAuthenticationChanged x ->
+        state, showConfirmationModal ("Deze actie zal de two-factor authentication van de huidige gebruiker afzetten", "Bent u er zeker van?", (fun () -> TwoFacAuthenticationChangedConfirmed x), (fun () -> NoOp))
+    | TwoFacAuthenticationChangedConfirmed x ->
+        changeUser (fun l -> { l with UseTwoFac = x }), Cmd.none
+    | IsSysAdminChanged x ->
+        state, 
+            if x 
+            then showConfirmationModal ("Deze actie zal van de huidige gebruiker een systeem administrator maken", "Bent u er zeker van?", (fun () -> IsSysAdminChangedConfirmed x), (fun () -> NoOp))
+            else Cmd.none
+    | IsSysAdminChangedConfirmed x ->
+        let rolesWithoutSysAdminRole = state.User.Roles |> List.filter (function | SysAdminRole -> false | _ -> true)
+        let newRoles = if x then SysAdminRole::rolesWithoutSysAdminRole else rolesWithoutSysAdminRole
+        changeUser (fun l -> { l with Roles = newRoles })
+        , Cmd.none
+    | ProfessionalSyndicRoleChanged syndicIds ->
+        let rolesWithoutProSyndicRoles = state.User.Roles |> List.filter (function | ProfessionalSyndicRole _ -> false | _ -> true)
+        let newProSyndicRoles = syndicIds |> List.map (fun orgId -> ProfessionalSyndicRole (orgId, []))
+        changeUser (fun l -> { l with Roles = newProSyndicRoles @ rolesWithoutProSyndicRoles })
+        , Cmd.none
+    | SyndicRoleChanged buildingIds ->
+        let rolesWithoutSyndicRoles = state.User.Roles |> List.filter (function | SyndicRole _ -> false | _ -> true)
+        changeUser (fun l -> { l with Roles = SyndicRole buildingIds::rolesWithoutSyndicRoles })
+        , Cmd.none
+    | UserRoleChanged buildingIds ->
+        let rolesWithoutUserRoles = state.User.Roles |> List.filter (function | UserRole _ -> false | _ -> true)
+        changeUser (fun l -> { l with Roles = UserRole buildingIds::rolesWithoutUserRoles })
+        , Cmd.none
+        
 
 let inColomn columnClass x = div [ Class columnClass ] [ x ]
 
-//let view (state: State) (dispatch: Message -> unit) =
-//    let errorFor (path: string) =
-//        state.Errors |> List.tryPick (fun (p, error) -> if p = path then Some error else None)
+let view (state: State) (dispatch: Message -> unit) =
+    let errorFor (path: string) =
+        state.Errors |> List.tryPick (fun (p, error) -> if p = path then Some error else None)
 
-//    let toOption (lotType: LotType): FormSelectOption = {
-//        Key = string lotType
-//        Label = string lotType
-//        IsSelected = state.Lot.LotType = lotType
-//    }
+    div [] [
+        div [ Class Bootstrap.row ] [
+            formGroup [ 
+                Label "E-mail"
+                Input [ 
+                    Type "text"
+                    MaxLength 255.0
+                    Helpers.valueOrDefault state.User.EmailAddress
+                    OnChange (fun e -> EmailAddressChanged e.Value |> dispatch)
+                ]
+                FormError (errorFor (nameof state.User.EmailAddress))
+            ]
+            |> inColomn Bootstrap.col4
 
-//    let lotTypeSelection: FormSelect = {
-//        Identifier = string state.Lot.LotId
-//        OnChanged = (fun e ->
-//            let lotType = LotType.OfString e     
-//            LotTypeChanged lotType |> dispatch
-//        )
-//        Options = 
-//            [ Appartment; Studio; ParkingSpace; CommercialProperty; Garage; Storage; LotType.Other ]
-//            |> List.map toOption
-//    }
+            formGroup [ 
+                Label "Naam"
+                Input [ 
+                    Type "text"
+                    MaxLength 255.0
+                    Helpers.valueOrDefault state.User.EmailAddress
+                    OnChange (fun e -> EmailAddressChanged e.Value |> dispatch)
+                ]
+                FormError (errorFor (nameof state.User.EmailAddress))
+            ]
+            |> inColomn Bootstrap.col4
 
-//    div [] [
-//        div [ Class Bootstrap.row ] [
-//            formGroup [ 
-//                Label "Code"
-//                Input [ 
-//                    Type "text"
-//                    MaxLength 16.0
-//                    Helpers.valueOrDefault state.Lot.Code
-//                    OnChange (fun e -> CodeChanged e.Value |> dispatch)
-//                ]
-//                FormError (errorFor (nameof state.Lot.Code))
-//            ]
-//            |> inColomn Bootstrap.col4
-
-//            formGroup [ 
-//                Label "Type"
-//                Select lotTypeSelection
-//            ]
-//            |> inColomn Bootstrap.col
-//        ]
-//        div [ Class Bootstrap.row ] [
-//            div [] [
-//                div [] [
-//                    formGroup [
-//                        Label "Verdieping"
-//                        Input [
-//                            Type "number"
-//                            Min -20
-//                            Max 50
-//                            Helpers.valueOrDefault state.Lot.Floor
-//                            OnChange (fun e -> FloorChanged e.Value |> dispatch)
-//                        ]
-//                        FormError (errorFor (nameof state.Lot.Floor))
-//                    ]
-//                ]
-//                div [] [
-//                    formGroup [
-//                        Label "Oppervlakte (m²)"
-//                        Input [
-//                            Type "number"
-//                            Min 0
-//                            Helpers.valueOrDefault state.Lot.Surface
-//                            OnChange (fun e -> SurfaceChanged e.Value |> dispatch)
-//                        ]
-//                        FormError (errorFor (nameof state.Lot.Surface))
-//                    ]
-//                ]
-//            ]
-//            |> inColomn Bootstrap.col4
-//            formGroup [ 
-//                Label "Omschrijving"
-//                TextArea [
-//                    Rows 4
-//                    Helpers.valueOrDefault state.Lot.Description
-//                    OnChange (fun e -> DescriptionChanged e.Value |> dispatch)
-//                ] 
-//            ]
-//            |> inColomn Bootstrap.col
-//        ]
-
-//        renderEditLotOwners state.Lot.Owners dispatch
-//        |> inColomn Bootstrap.row
-
-//        LotOwnerModal.render 
-//            {|
-//                IsOpen = state.ShowingLotOwnerModal
-//                BuildingId = state.Lot.BuildingId
-//                LotOwners = state.Lot.Owners |> List.map fst
-//                OnOk = (fun owners -> LotOwnersChanged owners |> dispatch)
-//                OnCanceled = (fun _ -> ChangeLotOwnersCanceled |> dispatch) 
-//            |}
-//    ]
+            //TODO: should probably have a selection box here.
+            formGroup [ 
+                Label "Taal"
+                Input [ 
+                    Type "text"
+                    MaxLength 16.0
+                    Helpers.valueOrDefault state.User.PreferredLanguageCode
+                    OnChange (fun e -> LanguageChanged e.Value |> dispatch)
+                ]
+                FormError (errorFor (nameof state.User.PreferredLanguageCode))
+            ]
+            |> inColomn Bootstrap.col4
+        ]
+        div [ Class Bootstrap.row ] [
+            formGroup [
+                Name "usingTFA"
+                Label "TFA afzetten (TFA en codes vergeten...)"
+                Input [
+                    HTMLAttr.Name "usingTFA"
+                    Type "checkbox"
+                    Checked state.User.UseTwoFac
+                    OnChange (fun _ -> TwoFacAuthenticationChangedConfirmed (not state.User.UseTwoFac) |> dispatch)
+                ]
+            ]
+            |> inColomn Bootstrap.col
+        ]
+        div [ Class Bootstrap.row ] [
+            formGroup [
+                Name "isSystemAdmin"
+                Label "System admin?"
+                Input [
+                    HTMLAttr.Name "isSystemAdmin"
+                    Type "checkbox"
+                    Checked (state.User.IsSysAdmin ())
+                    OnChange (fun _ -> TwoFacAuthenticationChangedConfirmed (not (state.User.IsSysAdmin ())) |> dispatch)
+                ]
+            ]
+            |> inColomn Bootstrap.col
+        ]
+    ]
