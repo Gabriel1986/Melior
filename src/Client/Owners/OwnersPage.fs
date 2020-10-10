@@ -73,6 +73,7 @@ type SortableOwnerListItemAttribute =
     static member All = [ FirstName; LastName; IsResident ]
     interface ISortableAttribute<OwnerListItem> with
         member me.ToString = me.ToString'
+        member me.ToLongString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member _.IsFilterable = true

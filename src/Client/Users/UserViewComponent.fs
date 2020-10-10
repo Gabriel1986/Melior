@@ -11,7 +11,7 @@ module SubComponents =
     let renderBuildings (buildings: BuildingListItem list) (key: string) =
         SortableTable.render 
             {|
-                ListItems = buildings
+                ListItems = (buildings |> List.sortBy (fun b -> b.Code))
                 DisplayAttributes = Buildings.BuildingsPage.SortableAttribute.All
                 IsSelected = None
                 OnSelect = None
@@ -22,10 +22,10 @@ module SubComponents =
                 Key = key
             |}
 
-    let renderProfessionalSyndics (proSyndics: ProfessionalSyndicListItem list) =
+    let renderProfessionalSyndics (proSyndics: ProfessionalSyndicListItem list) (key: string) =
         SortableTable.render
             {|
-                ListItems = proSyndics
+                ListItems = (proSyndics |> List.sortBy (fun p -> p.Name))
                 DisplayAttributes = ProfessionalSyndics.ProfessionalSyndicsPage.SortableProfessionalSyndicListItemAttribute.All
                 IsSelected = None
                 OnSelect = None
@@ -33,17 +33,17 @@ module SubComponents =
                 OnEdit = None
                 IsDeletable = None
                 OnDelete = None
-                Key = "ProfessionalSyndicRoles"
+                Key = key
             |}
 
-    module UserRoleViewComponent =
-        type UserRoleViewComponentProps = {| BuildingIds: Guid list |}
+    module BuildingBasedRoleViewComponent =
+        type BuildingBasedRoleViewComponentProps = {| Title: string; BuildingIds: Guid list |}
 
         type State =
             | Loading
             | Loaded of BuildingListItem list
 
-        let view (props: UserRoleViewComponentProps) =
+        let view (props: BuildingBasedRoleViewComponentProps) =
             let componentState = Hooks.useState Loading
             Hooks.useEffect (fun () ->
                 async {
@@ -57,52 +57,20 @@ module SubComponents =
             div [] [
                 fieldset [] [
                     legend [] [
-                        h4 [] [ str "Eigenaar rollen" ]
+                        h4 [] [ str props.Title ]
                     ]
                     match componentState.current with
                     | Loading ->
                         div [] [ str "Gebouwen worden geladen" ]
+                    | Loaded [] ->
+                        div [] [ str "Er werden geen gebouwen gevonden" ]
                     | Loaded buildings ->
-                        renderBuildings buildings "UserRoles"
+                        renderBuildings buildings (string buildings.Length)
                 ]
             ]
 
         let render =          
-            FunctionComponent.Of ((fun (props: UserRoleViewComponentProps) -> view props), memoizeWith = memoEqualsButFunctions)
-
-    module SyndicRoleComponent =
-        type SyndicRoleComponentProps = {| BuildingIds: Guid list |}
-
-        type State =
-            | Loading
-            | Loaded of BuildingListItem list
-
-        let view (props: SyndicRoleComponentProps) =
-            let componentState = Hooks.useState Loading
-            Hooks.useEffect (fun () ->
-                async {
-                    let! buildings = Client.Remoting.getRemotingApi().GetBuildings (Some props.BuildingIds)
-                    componentState.update (Loaded buildings)
-                }
-                |> Async.StartAsPromise
-                |> ignore
-            , [| props.BuildingIds |])
-
-            div [] [
-                fieldset [] [
-                    legend [] [
-                        h4 [] [ str "Eigenaar syndicus rollen" ]
-                    ]
-                    match componentState.current with
-                    | Loading ->
-                        div [] [ str "Gebouwen worden geladen" ]
-                    | Loaded buildings ->
-                        renderBuildings buildings "SyndicRoles"
-                ]
-            ]
-
-        let render =          
-            FunctionComponent.Of ((fun (props: SyndicRoleComponentProps) -> view props), memoizeWith = memoEqualsButFunctions)
+            FunctionComponent.Of ((fun (props: BuildingBasedRoleViewComponentProps) -> view props), memoizeWith = memoEqualsButFunctions)
 
     module ProfessionalSyndicRoleComponent =
         type ProfessionalSyndicRoleComponentProps = {| OrganizationIds: Guid list |}
@@ -129,9 +97,11 @@ module SubComponents =
                     ]
                     match componentState.current with
                     | Loading ->
-                        div [] [ str "Organisaties worden geladen" ]
+                        div [] [ str "Kantoren worden geladen" ]
+                    | Loaded [] ->
+                        div [] [ str "Er werden geen kantoren gevonden gevonden" ]
                     | Loaded professionalSyndics ->
-                        renderProfessionalSyndics professionalSyndics
+                        renderProfessionalSyndics professionalSyndics (string professionalSyndics.Length)
                 ]
             ]
 
@@ -147,14 +117,13 @@ let view (user: User) =
         yield readonlyFormElement "Gebruikt TFA?" (if user.UseTwoFac then "Ja" else "Nee")
         yield readonlyFormElement "System admin?" (if user.IsSysAdmin () then "Ja" else "Nee")
 
-        if user.Roles.Length > 0 then
-            yield fieldset [] [
-                legend [] [ h2 [] [ str "Rollen" ] ]
-                SubComponents.UserRoleViewComponent.render {| BuildingIds = user.Roles |> List.collect (function | UserRole buildingIds -> buildingIds | _ -> []) |}
-                SubComponents.SyndicRoleComponent.render {| BuildingIds = user.Roles |> List.collect (function | SyndicRole buildingIds -> buildingIds | _ -> []) |}
-                SubComponents.ProfessionalSyndicRoleComponent.render {| OrganizationIds = user.Roles |> List.collect (function | ProfessionalSyndicRole (orgId, _) -> [ orgId ] | _ -> []) |}
-            ]
+        yield fieldset [] [
+            legend [] [ h3 [] [ str "Rollen" ] ]
+            SubComponents.BuildingBasedRoleViewComponent.render {| Title = "Gebruikersrollen"; BuildingIds = user.Roles |> List.collect (function | UserRole buildingIds -> buildingIds | _ -> []) |}
+            SubComponents.BuildingBasedRoleViewComponent.render {| Title = "Eigenaar syndicus rollen"; BuildingIds = user.Roles |> List.collect (function | SyndicRole buildingIds -> buildingIds | _ -> []) |}
+            SubComponents.ProfessionalSyndicRoleComponent.render {| OrganizationIds = user.Roles |> List.collect (function | ProfessionalSyndicRole (orgId, _) -> [ orgId ] | _ -> []) |}
+        ]
     ]
 
 let render =
-    FunctionComponent.Of ((fun (props: {| User: User |}) -> view props.User), memoizeWith = memoEqualsButFunctions)
+    FunctionComponent.Of ((fun (props: {| User: User |}) -> view props.User), memoizeWith = equalsButFunctions)

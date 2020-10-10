@@ -14,6 +14,7 @@ open Fable.Core
 
 type ISortableAttribute<'T> =
     abstract member ToString: (unit -> string)
+    abstract member ToLongString: (unit -> string)
     abstract member StringValueOf: ('T -> string)
     abstract member Compare: 'T -> 'T -> int
     abstract member IsFilterable: bool
@@ -192,11 +193,13 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
         }
 
     let header (attr: ISortableAttribute<'T>) =
+        let name = attr.ToString ()
+        let longName = attr.ToLongString ()
         th 
             [ Class Bootstrap.borderTop0 ]
             [
-                div [ OnClick (dispatchSortOn attr) ] [
-                    yield str (sprintf "%s%s " (attr.ToString ()) (sortingIndexNumber attr)) 
+                div [ OnClick (dispatchSortOn attr); if name <> longName then Title longName ] [
+                    yield str (sprintf "%s%s " name (sortingIndexNumber attr)) 
                     yield 
                         match sortingDirection attr with
                         | Some true -> i [ classes [ FontAwesome.fa; FontAwesome.faSortDown ] ] []

@@ -22,12 +22,15 @@ module BasicModal =
 
     [<AutoOpen>]
     module private Internals =
-        let headerTitle title =
-            h5 [ Class Bootstrap.cardTitle ] [ str title ]
-
         let headerClose onClose =
-            button [ Type "button"; Class Bootstrap.close; OnClick onClose ] [
-                span [] [ str "X" ]
+            button [ Type "button"; classes [ Bootstrap.floatRight; Bootstrap.close ]; OnClick onClose ] [
+                span [] [ str "×" ]
+            ]
+
+        let headerTitle title (onDismiss: (unit -> unit) option) =
+            h5 [ classes [ Bootstrap.cardTitle; Bootstrap.dInline ] ] [ 
+                yield str title 
+                if onDismiss.IsSome then yield headerClose (fun _ -> onDismiss.Value())
             ]
 
         let footerClose onClose label =
@@ -42,10 +45,9 @@ module BasicModal =
                 |> List.tryPick (function | HeaderProp.HasDismissButton x -> Some x | _ -> None)
                 |> Option.defaultValue false
 
-            div [ Class Bootstrap.cardHeader ] [
-                    if title.IsSome then yield headerTitle title.Value
-                    if showDismissButton then yield headerClose (fun _ -> onDismiss())
-                ]
+            div [ Class Bootstrap.cardHeader ] [                
+                if title.IsSome then yield headerTitle title.Value (if showDismissButton then Some onDismiss else None)
+            ]
 
         let body children =
             div [ Class Bootstrap.cardBody ] [ yield! children ]

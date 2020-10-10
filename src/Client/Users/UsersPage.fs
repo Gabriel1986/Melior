@@ -48,24 +48,57 @@ type SortableUserAttribute =
     | EmailAddress
     | DisplayName
     | PreferredLanguageCode
-    | NbBuildings
+    | IsSysAdmin
+    | NbUserRoles
+    | NbSyndicRoles
+    | NbProSyndicRoles
     member me.ToString' () =
         match me with
         | EmailAddress -> "E-mail"
         | DisplayName -> "Naam"
         | PreferredLanguageCode -> "Taal"
-        | NbBuildings -> "#Rollen"
+        | IsSysAdmin -> "Admin"
+        | NbUserRoles -> "#G"
+        | NbSyndicRoles -> "#E"
+        | NbProSyndicRoles -> "#P"
+    member me.ToLongString' () =
+        match me with
+        | NbUserRoles -> "#Gebruikersrollen"
+        | NbSyndicRoles -> "#Eigenaar-syndicus rollen"
+        | NbProSyndicRoles -> "#Professioneel syndicus rollen"
+        | _ -> me.ToString' ()
     member me.StringValueOf': User -> string =
         match me with
         | EmailAddress -> (fun li -> li.EmailAddress)
         | DisplayName -> (fun li -> string li.DisplayName)
         | PreferredLanguageCode -> (fun li -> li.PreferredLanguageCode)
-        | NbBuildings -> (fun li -> li.Roles |> List.collect (fun r -> r.BuildingIds ()) |> List.distinct |> List.length |> string)
+        | IsSysAdmin -> (fun li -> if li.IsSysAdmin() then "Ja" else "Nee")
+        | NbUserRoles -> (fun li -> li.Roles |> List.collect (function | UserRole b -> b | _ -> []) |> List.length |> string)
+        | NbSyndicRoles -> (fun li -> li.Roles |> List.collect (function | SyndicRole b -> b | _ -> []) |> List.length |> string)
+        | NbProSyndicRoles -> (fun li -> li.Roles |> List.collect (function | ProfessionalSyndicRole (org, _) -> [ org ] | _ -> []) |> List.length |> string)
     member me.Compare': User -> User -> int =
-        fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
-    static member All = [ DisplayName; EmailAddress; PreferredLanguageCode; NbBuildings ]
+        match me with
+        | NbUserRoles -> 
+            fun li otherLi -> 
+                let myNbUserRoles = li.Roles |> List.collect (function | UserRole b -> b | _ -> []) |> List.length
+                let otherNbUserRoles = otherLi.Roles |> List.collect (function | UserRole b -> b | _ -> []) |> List.length
+                myNbUserRoles - otherNbUserRoles
+        | NbSyndicRoles ->
+            fun li otherLi ->
+                let myNbUserRoles = li.Roles |> List.collect (function | SyndicRole b -> b | _ -> []) |> List.length
+                let otherNbUserRoles = otherLi.Roles |> List.collect (function | SyndicRole b -> b | _ -> []) |> List.length
+                myNbUserRoles - otherNbUserRoles
+        | NbProSyndicRoles ->
+            fun li otherLi ->
+                let myNbUserRoles = li.Roles |> List.collect (function | ProfessionalSyndicRole (org, _) -> [ org ] | _ -> []) |> List.length
+                let otherNbUserRoles = otherLi.Roles |> List.collect (function | ProfessionalSyndicRole (org, _) -> [ org ] | _ -> []) |> List.length
+                myNbUserRoles - otherNbUserRoles
+        | _ ->
+            fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
+    static member All = [ DisplayName; EmailAddress; PreferredLanguageCode; IsSysAdmin; NbUserRoles; NbSyndicRoles; NbProSyndicRoles ]
     interface ISortableAttribute<User> with
         member me.ToString = me.ToString'
+        member me.ToLongString = me.ToLongString'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member me.IsFilterable = true
@@ -104,7 +137,12 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with SelectedListItems = updatedTabs; SelectedTab = List }
         , Routing.navigateToPage Routing.Page.UserList
     | SelectTab tab ->
-        { state with SelectedTab = tab }, Cmd.none
+        let cmd =
+            match tab with
+            | List -> Routing.navigateToPage (Routing.Page.UserList)
+            | Details li -> Routing.navigateToPage (Routing.Page.UserDetails li.UserId)
+            | New -> Routing.navigateToPage (Routing.Page.UserList)
+        { state with SelectedTab = tab }, cmd
     | Loaded (users, selectedUserId) ->
         let newState = { state with ListItems = users; LoadingListItems = false }
         let cmd =
@@ -146,12 +184,12 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let listItem = user
         let newListItems = listItem :: state.ListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
+        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems; SelectedTab = Details user }, Cmd.none
     | Edited user ->
         let listItem = user
         let newListItems = state.ListItems |> List.map (fun li -> if li.UserId = listItem.UserId then listItem else li)
         let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.UserId = listItem.UserId then listItem else li)
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
+        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems; SelectedTab = Details user }, Cmd.none
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =
@@ -165,6 +203,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
 
     div [ Class Bootstrap.row ] [
         let list (state: State) =
+            printf "UsersPage >> list is being re-rendered"
             SortableTable.render 
                 {|
                     ListItems = state.ListItems
@@ -194,7 +233,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle New); OnClick (fun _ -> SelectTab New |> dispatch) ] 
-                        [ str "Nieuwe professionele syndicus" ]
+                        [ str "Nieuwe gebruiker" ]
                 ]
             ]
 
@@ -220,4 +259,4 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
     ]
 
 let render (props: UsersPageProps) =
-    React.elmishComponent ("UsersPage", init props, update, view)
+    React.elmishComponent ("UsersPage", init props, update, view, string props.UserId)

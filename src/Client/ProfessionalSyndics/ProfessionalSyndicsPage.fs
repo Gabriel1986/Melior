@@ -66,6 +66,7 @@ type SortableProfessionalSyndicListItemAttribute =
     static member All = [ Name; Address; EmailAddress; TelephoneNumber ]
     interface ISortableAttribute<ProfessionalSyndicListItem> with
         member me.ToString = me.ToString'
+        member me.ToLongString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member me.IsFilterable = true

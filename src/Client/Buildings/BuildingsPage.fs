@@ -46,6 +46,7 @@ type SortableAttribute =
     static member All = [ Code; Name; OrganizationNumber; Street; ZipCode; Town ]
     interface ISortableAttribute<BuildingListItem> with
         member me.ToString = me.ToString'
+        member me.ToLongString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member _.IsFilterable = true

@@ -154,7 +154,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             match model.State with
             | Creating _ -> model.NotifyCreated result
             | _ -> ()
-            { model with State = Viewing result }, Cmd.none
+            model, Cmd.none
         | Error e ->
             processSaveUserError e
 
@@ -164,7 +164,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             match model.State with
             | Editing _ -> model.NotifyEdited result
             | _ -> ()
-            { model with State = Viewing result }, Cmd.none
+            model, Cmd.none
         | Error e ->
             processSaveUserError e
 
@@ -183,7 +183,7 @@ let view (model: Model) (dispatch: Msg -> unit) =
             div [] [
                 UserEditComponent.view editState (UserEditMsg >> dispatch)
 
-                div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+                div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.mt5 ] ] [
                     div [ Class Bootstrap.cardBody ] [
                         button [ 
                             classes [ Bootstrap.btn; Bootstrap.btnSuccess ]
@@ -196,11 +196,8 @@ let view (model: Model) (dispatch: Msg -> unit) =
             ]
     | Viewing detail ->
         div [] [
-            UserViewComponent.render 
-                {|
-                    User = detail
-                |}
-            div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+            UserViewComponent.render {| User = detail |}
+            div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.mt5 ] ] [
                 div [ Class Bootstrap.cardBody ] [
                     yield
                         button [ 
