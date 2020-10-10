@@ -106,6 +106,7 @@ type SortableInvoiceListItemAttribute =
     static member All = [ InvoiceNumber; Category; Organization; DistributionKey; Cost; VatRate; DueDate; HasBeenPaid ]
     interface ISortableAttribute<InvoiceListItem> with
         member me.ToString = me.ToString'
+        member me.ToLongString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member _.IsFilterable = true
@@ -159,7 +160,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let updatedTabs = 
             state.SelectedListItems 
             |> List.filter (fun li -> li.InvoiceId <> listItem.InvoiceId)
-        { state with SelectedListItems = updatedTabs; SelectedTab = List }, Cmd.none
+        { state with SelectedListItems = updatedTabs; SelectedTab = List }, Routing.navigateToPage (Routing.Page.Invoices { BuildingId = state.CurrentBuilding.BuildingId })
     | SelectTab tab ->
         { state with SelectedTab = tab }, Cmd.none
     | Loaded (invoices, selectedInvoiceId) ->

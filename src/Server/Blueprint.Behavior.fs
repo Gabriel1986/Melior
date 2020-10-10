@@ -37,6 +37,11 @@ module Authentication =
         abstract GetNbFailedTwoFacAttempts: userId: Guid * after: DateTimeOffset -> Async<int>
         abstract HttpHandler: HttpHandler
 
+        abstract GetUsers: Message<unit> -> Async<User list>
+        abstract CreateUser: Message<User> -> Async<Result<unit, SaveUserError>>
+        abstract UpdateUser: Message<User> -> Async<Result<unit, SaveUserError>>
+        abstract DeleteUser: Message<Guid> -> Async<Result<unit, DeleteUserError>>
+
 module Media =
     open Shared.MediaLibrary
 
@@ -64,7 +69,7 @@ module Buildings =
 
         //Queries
         abstract GetBuilding: buildingId: Message<Guid> -> Async<Building option>
-        abstract GetBuildings: Message<unit> -> Async<BuildingListItem list>
+        abstract GetBuildings: Message<Guid list option> -> Async<BuildingListItem list>
 
 module Lots =
     [<NoComparison; NoEquality>]
@@ -88,7 +93,7 @@ module ProfessionalSyndics =
 
         //Queries
         abstract GetProfessionalSyndic: orgId: Message<Guid> -> Async<ProfessionalSyndic option>
-        abstract GetProfessionalSyndics: Message<unit> -> Async<ProfessionalSyndicListItem list>
+        abstract GetProfessionalSyndics: Message<Guid list option> -> Async<ProfessionalSyndicListItem list>
 
     [<NoComparison; NoEquality>]
     type IProfessionalSyndicCache =

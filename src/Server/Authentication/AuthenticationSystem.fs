@@ -5,8 +5,8 @@ open Microsoft.IdentityModel.Tokens
 open Microsoft.Extensions.Configuration
 open Server.Blueprint.Behavior.Authentication
 open Server.AppSettings
+open Server.Library
 open Server.LibraryExtensions
-open Server.Blueprint.Behavior.ProfessionalSyndics
 
 let build (config: IConfiguration) =
     let settings = config.Get<AppSettings>()
@@ -73,4 +73,19 @@ let build (config: IConfiguration) =
 
             member me.HttpHandler =
                 HttpHandler.createAuthenticationHandler settings me
+
+            member _.GetUsers msg =
+                if msg.CurrentUser.IsSysAdmin () then
+                    Query.getUsers conn msg.ProfessionalSyndicCache msg.Payload
+                else
+                    Async.lift []
+
+            member _.CreateUser msg =
+                Workflows.createUser storage msg
+
+            member _.UpdateUser msg =
+                Workflows.updateUser storage msg
+
+            member _.DeleteUser msg =
+                Workflows.deleteUser storage msg
     }

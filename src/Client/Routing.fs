@@ -32,6 +32,8 @@
         | InvoiceDetails of BuildingSpecificDetailProps
         | Provisions of BuildingSpecificProps //Management of owner deposits
         | BankNotes of BuildingSpecificProps //Bank debit/credit
+        | UserList
+        | UserDetails of Guid
         | NotFound
         | NoticeBoard
         | MyEvents
@@ -56,6 +58,7 @@
     let [<Literal>] private InvoicesPage = "invoices"
     let [<Literal>] private ProvisionsPage = "provisions"
     let [<Literal>] private BankNotesPage = "banknotes"
+    let [<Literal>] private UsersPage = "users"
 
     let private navigateToDetailsPage (identifier: Guid) (page: string) =
         Router.navigate(page, string identifier)
@@ -124,6 +127,10 @@
             routeToSpecificPage(ProvisionsPage, specifics)
         | Page.BankNotes specifics ->
             routeToSpecificPage(BankNotesPage, specifics)
+        | Page.UserList ->
+            Router.format(UsersPage)
+        | Page.UserDetails userId ->
+            Router.format(UsersPage, string userId)
 
     let navigateToPage =
         function
@@ -175,6 +182,10 @@
             ProvisionsPage |> navigateToBuildingSpecificPage props
         | Page.BankNotes props ->
             BankNotesPage |> navigateToBuildingSpecificPage props
+        | Page.UserList ->
+            Router.navigate(UsersPage)
+        | Page.UserDetails props ->
+            UsersPage |> navigateToDetailsPage props
         | Page.NotFound ->
             //Do nothing... you're not supposed to go to the loading or notfound page from code...
             Cmd.none
@@ -228,5 +239,9 @@
             Page.MyFinancials
         | [ NoticeBoardPage ] ->
             Page.NoticeBoard
+        | [ UsersPage ] ->
+            Page.UserList
+        | [ UsersPage ; Feliz.Router.Route.Guid userId ] ->
+            Page.UserDetails userId
         | _ -> 
             Page.NotFound

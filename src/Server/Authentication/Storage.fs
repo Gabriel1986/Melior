@@ -9,6 +9,7 @@ open Shared.Read
 open Shared.ConstrainedTypes
 open Shared.Trial
 open Shared.Trial.Control
+open Shared.Write
 
 type EncryptedUpdateTwoFacAuthentication = 
     {
@@ -37,7 +38,7 @@ type ValidatedUserInput =
         PreferredLanguageCode: String16
         PasswordHash: byte []
     }
-    static member Validate (passwordPepper) (user: UserInput) =        
+    static member Validate (passwordPepper: string) (user: UserInput) =        
         trial {
             from displayName in String255.Of (nameof user.DisplayName) user.DisplayName
             also emailAddress in String255.Of (nameof user.EmailAddress) user.EmailAddress
@@ -61,6 +62,9 @@ type IAuthenticationStorage =
     abstract UpdateRecoveryCodes: userId: Guid * codes: byte[] list -> Async<int>
     abstract AddFailedTwoFacAttempt: FailedTwoFacAttempt -> Async<unit>
     abstract AddUser: ValidatedUserInput -> Async<unit>
+    abstract CreateUser: ValidatedUser -> Async<unit>
+    abstract UpdateUser: ValidatedUser -> Async<int>
+    abstract DeleteUser: Guid -> Async<int>
 
 let disableAccount conn userId =
     Sql.connect conn
@@ -125,9 +129,43 @@ let addFailedTwoFacAttempt conn (attempt: FailedTwoFacAttempt) =
     |> Sql.writeAsync
     |> Async.Ignore
 
+let private updateUserRoles (userId: Guid) (roles: Role list) = [
+    yield
+        "DELETE FROM UserRoles WHERE UserId = @UserId", [
+            "@UserId", Sql.uuid userId
+        ]
+    yield!
+        roles 
+        |> List.collect (fun role ->
+            match role with
+            | UserRole bIds ->
+                bIds |> List.map (fun bId -> nameof UserRole, Some bId, None)
+            | SyndicRole bIds ->
+                bIds |> List.map (fun bId -> nameof SyndicRole, Some bId, None)
+            | ProfessionalSyndicRole (orgId, _) ->
+                [ nameof ProfessionalSyndicRole, None, Some orgId ]
+            | SysAdminRole ->
+                [ nameof SysAdminRole, None, None ]
+        )
+        |> List.map (fun (role, buildingId, orgId) ->
+            """
+                INSERT INTO UserRoles 
+                    (UserId, Role, BuildingId, OrganizationId)
+                VALUES
+                    (@UserId, @Role, @BuildingId, @OrganizationId)
+            """, [
+                "@UserId", Sql.uuid userId
+                "@Role", Sql.string role
+                "@BuildingId", Sql.uuidOrNone buildingId
+                "@OrganizationId", Sql.uuidOrNone orgId
+            ]
+        )
+]
+
+//Used by services
 let addUser conn (user: ValidatedUserInput) =
     Sql.connect conn
-    |> Sql.writeBatchAsync [        
+    |> Sql.writeBatchAsync [
         yield
             """
                 INSERT INTO Users (
@@ -151,38 +189,65 @@ let addUser conn (user: ValidatedUserInput) =
                 "@PreferredLanguageCode", Sql.string (string user.PreferredLanguageCode)
                 "@PasswordHash", Sql.bytea user.PasswordHash
             ]
-        yield
-            "DELETE FROM UserRoles WHERE UserId = @UserId", [
-                "@UserId", Sql.uuid user.UserId
-            ]
-        yield! 
-            user.Roles 
-            |> List.collect (fun role ->
-                match role with
-                | UserRole bIds ->
-                    bIds |> List.map (fun bId -> nameof UserRole, Some bId, None)
-                | SyndicRole bIds ->
-                    bIds |> List.map (fun bId -> nameof SyndicRole, Some bId, None)
-                | ProfessionalSyndicRole (orgId, _) ->
-                    [ nameof ProfessionalSyndicRole, None, Some orgId ]
-                | SysAdminRole ->
-                    [ nameof SysAdminRole, None, None ]
-            )
-            |> List.map (fun (role, buildingId, orgId) ->
-                """
-                    INSERT INTO UserRoles 
-                        (UserId, Role, BuildingId, OrganizationId)
-                    VALUES
-                        (@UserId, @Role, @BuildingId, @OrganizationId)
-                """, [
-                    "@UserId", Sql.uuid user.UserId
-                    "@Role", Sql.string role
-                    "@BuildingId", Sql.uuidOrNone buildingId
-                    "@OrganizationId", Sql.uuidOrNone orgId
-                ]
-            )
+        yield! updateUserRoles user.UserId user.Roles
     ]
     |> Async.Ignore
+
+//Used by the client
+let createUser conn (user: ValidatedUser) =
+    Sql.connect conn
+    |> Sql.writeBatchAsync [
+        yield
+            """
+                INSERT INTO Users (
+                    UserId,
+                    DisplayName,
+                    EmailAddress,
+                    PreferredLanguageCode
+                )
+                VALUES (
+                    @UserId,
+                    @DisplayName,
+                    @EmailAddress,
+                    @PreferredLanguageCode
+                )
+            """, [
+                "@UserId", Sql.uuid user.UserId
+                "@DisplayName", Sql.string (string user.DisplayName)
+                "@EmailAddress", Sql.string (string user.EmailAddress)
+                "@PreferredLanguageCode", Sql.string (string user.PreferredLanguageCode)
+            ]
+        yield! updateUserRoles user.UserId user.Roles
+    ]
+    |> Async.Ignore
+
+let updateUser conn (user: ValidatedUser) =
+    Sql.connect conn
+    |> Sql.writeBatchAsync [
+        yield
+            """
+                UPDATE Users 
+                SET 
+                    DisplayName = @DisplayName,
+                    EmailAddress = @EmailAddress,
+                    PreferredLanguageCode = @PreferredLanguageCode
+                WHERE
+                    UserId = @UserId
+            """, [
+                "@UserId", Sql.uuid user.UserId
+                "@DisplayName", Sql.string (string user.DisplayName)
+                "@EmailAddress", Sql.string (string user.EmailAddress)
+                "@PreferredLanguageCode", Sql.string (string user.PreferredLanguageCode)
+            ]
+        yield! updateUserRoles user.UserId user.Roles
+    ]
+    |> Async.map (fun rowCounts -> rowCounts |> List.head)
+
+let deleteUser conn (userId: Guid) =
+    Sql.connect conn
+    |> Sql.query "UPDATE Users SET IsActive = FALSE WHERE @UserId = UserId"
+    |> Sql.parameters [ "@UserId", Sql.uuid userId ]
+    |> Sql.writeAsync
 
 let makeStorage (settings: AppSettings) = 
     let conn = settings.Database.Connection
@@ -196,4 +261,7 @@ let makeStorage (settings: AppSettings) =
             member _.UpdateRecoveryCodes (userId, codes) = setRecoveryCodeHashes conn (userId, codes)
             member _.AddFailedTwoFacAttempt (attempt) = addFailedTwoFacAttempt conn (attempt)
             member _.AddUser user = addUser conn user
+            member _.CreateUser user = createUser conn user
+            member _.UpdateUser user = updateUser conn user
+            member _.DeleteUser user = deleteUser conn user
     }

@@ -46,6 +46,7 @@ type SortableAttribute =
     static member All = [ Code; Name; OrganizationNumber; Street; ZipCode; Town ]
     interface ISortableAttribute<BuildingListItem> with
         member me.ToString = me.ToString'
+        member me.ToLongString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member _.IsFilterable = true
@@ -93,7 +94,7 @@ let init (props: BuildingsPageProps) =
     let cmd =
         Cmd.OfAsync.either
             (Remoting.getRemotingApi().GetBuildings)
-            ()
+            None
             (fun buildings -> Loaded (buildings, props.BuildingId))
             RemotingError
     state, cmd
@@ -111,7 +112,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let updatedTabs = 
             state.SelectedListItems 
             |> List.filter (fun li -> li.BuildingId <> listItem.BuildingId)
-        { state with SelectedListItems = updatedTabs; SelectedTab = List }, Cmd.none
+        { state with SelectedListItems = updatedTabs; SelectedTab = List }, Routing.navigateToPage Routing.Page.BuildingList
     | SelectTab tab ->
         let cmd =
             match tab with

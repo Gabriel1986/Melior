@@ -66,6 +66,7 @@ type SortableProfessionalSyndicListItemAttribute =
     static member All = [ Name; Address; EmailAddress; TelephoneNumber ]
     interface ISortableAttribute<ProfessionalSyndicListItem> with
         member me.ToString = me.ToString'
+        member me.ToLongString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member me.IsFilterable = true
@@ -82,7 +83,7 @@ let init (props: ProfessionalSyndicsPageProps) =
     let cmd =
         Cmd.OfAsync.either
             (Remoting.getRemotingApi().GetProfessionalSyndics)
-            ()
+            None
             (fun professionalSyndics -> Loaded (professionalSyndics, props.ProfessionalSyndicId))
             RemotingError
     state, cmd
@@ -103,12 +104,14 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             then state.SelectedListItems
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.Name)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }, Routing.navigateToPage (Routing.Page.ProfessionalSyndicDetails listItem.OrganizationId)
+        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }
+        , Routing.navigateToPage (Routing.Page.ProfessionalSyndicDetails listItem.OrganizationId)
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
             |> List.filter (fun li -> li.OrganizationId <> listItem.OrganizationId)
-        { state with SelectedListItems = updatedTabs; SelectedTab = List }, Cmd.none
+        { state with SelectedListItems = updatedTabs; SelectedTab = List }
+        , Routing.navigateToPage Routing.Page.ProfessionalSyndicList
     | SelectTab tab ->
         { state with SelectedTab = tab }, Cmd.none
     | Loaded (professionalSyndics, selectedProfessionalSyndicId) ->

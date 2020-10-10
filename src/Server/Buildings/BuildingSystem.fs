@@ -24,8 +24,20 @@ let build (config: IConfiguration): IBuildingSystem =
             member _.GetBuildings msg = 
                 if msg.CurrentUser.IsSysAdmin ()
                 then
-                    Query.getAllBuildings conn ()
+                    match msg.Payload with
+                    | Some buildingIds ->
+                        Query.getBuildingsByIds conn buildingIds
+                    | None ->
+                        Query.getAllBuildings conn ()
                 else
                     let accessibleBuildingIds = msg.CurrentUser.Roles |> List.collect (fun role -> role.BuildingIds ())
-                    Query.getBuildingsByIds conn accessibleBuildingIds
+                    let filteredAccessibleBuildingIds =
+                        match msg.Payload with
+                        | Some buildingIds ->
+                            (buildingIds |> Set.ofList)
+                            |> Set.intersect (accessibleBuildingIds |> Set.ofList)
+                            |> Set.toList
+                        | None ->
+                            accessibleBuildingIds
+                    Query.getBuildingsByIds conn filteredAccessibleBuildingIds
     }

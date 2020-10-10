@@ -118,7 +118,7 @@ let update onSyndicChanged onCanceled message model =
     | LoadProfessionalSyndics ->
         let cmd =
             Cmd.OfAsync.either
-                (Client.Remoting.getRemotingApi()).GetProfessionalSyndics ()
+                (Client.Remoting.getRemotingApi()).GetProfessionalSyndics None
                 ProfessionalSyndicsLoaded
                 RemotingError
         { model with State = LoadingProfessionalSyndics }, cmd

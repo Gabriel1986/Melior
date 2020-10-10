@@ -67,6 +67,7 @@ type SortableOrganizationListItemAttribute =
     static member All = [ Type; Name; VatOrOrgNumber ]
     interface ISortableAttribute<OrganizationListItem> with
         member me.ToString = me.ToString'
+        member me.ToLongString = me.ToString'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member _.IsFilterable = true
@@ -116,7 +117,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             |> List.filter (fun li -> li.OrganizationId <> listItem.OrganizationId)
         
         { state with SelectedListItems = updatedTabs; SelectedTab = List }, 
-        Cmd.none
+        Routing.navigateToPage (Routing.Page.OrganizationList { BuildingId = state.CurrentBuilding.BuildingId })
     | SelectTab tab ->
         { state with SelectedTab = tab }, Cmd.none
     | Loaded (owners, selectedOrgId) ->

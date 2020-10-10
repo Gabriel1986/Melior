@@ -190,7 +190,7 @@ let getBuildingsByIds connectionString buildingIds: Async<BuildingListItem list>
                 FROM Buildings
                 WHERE IsActive = TRUE AND BuildingId = ANY (@BuildingIds)
             """
-        |> Sql.parameters [ "@BuildingIds", Sql.uuidArray (buildingIds |> List.toArray) ]
+        |> Sql.parameters [ "@BuildingIds", Sql.uuidArray (buildingIds |> Seq.toArray) ]
         |> Sql.read readBuildingListItem
 
     return results |> List.map (fun dbModel -> {
