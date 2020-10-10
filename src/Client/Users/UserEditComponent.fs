@@ -131,7 +131,7 @@ module SubComponents =
                     legend [] [
                         span [] [
                             h4 [] [ 
-                                str "Eigenaar syndicus rollen"
+                                str "Professionele syndicus rollen"
                                 sup [] [
                                     a [
                                         classes [ "pointer"; Bootstrap.textPrimary ]
@@ -369,27 +369,33 @@ let view (state: State) (dispatch: Message -> unit) =
             |> inColomn Bootstrap.col
         ]
 
-        fieldset [] [
+        fieldset [ Class Bootstrap.mt2 ] [
             legend [] [ h3 [] [ str "Rollen" ] ]
-            SubComponents.BuildingBasedRoleViewComponent.render 
-                {| 
-                    Title = "Gebruikersrollen"
-                    Buildings = state.Buildings
-                    RoleBuildingIds = state.User.Roles |> List.collect (function | UserRole buildingIds -> buildingIds | _ -> [])
-                    OnBuildingsChanged = fun buildings -> UserBuildingsChanged buildings |> dispatch
-                |}
-            SubComponents.BuildingBasedRoleViewComponent.render
-                {|
-                    Title = "Eigenaar syndicus rollen"
-                    Buildings = state.Buildings
-                    RoleBuildingIds = state.User.Roles |> List.collect (function | SyndicRole buildingIds -> buildingIds | _ -> [])
-                    OnBuildingsChanged = fun buildings -> SyndicBuildingsChanged buildings |> dispatch
-                |}
-            SubComponents.ProfessionalSyndicRoleComponent.render
-                {|
-                    ProfessionalSyndics = state.ProfessionalSyndics
-                    RoleProfessionalSyndicIds = state.User.Roles |> List.choose (function | ProfessionalSyndicRole (orgId, _) -> Some orgId | _ -> None)
-                    OnProfessionalSyndicsChanged = fun proSyndics -> ProSyndicsChanged proSyndics |> dispatch
-                |}
+            div [ Class Bootstrap.mt2 ] [
+                SubComponents.BuildingBasedRoleViewComponent.render 
+                    {| 
+                        Title = "Gebruikersrollen"
+                        Buildings = state.Buildings
+                        RoleBuildingIds = state.User.Roles |> List.collect (function | UserRole buildingIds -> buildingIds | _ -> [])
+                        OnBuildingsChanged = fun buildings -> UserBuildingsChanged buildings |> dispatch
+                    |}
+            ]
+            div [ Class Bootstrap.mt2 ] [
+                SubComponents.BuildingBasedRoleViewComponent.render
+                    {|
+                        Title = "Eigenaar syndicus rollen"
+                        Buildings = state.Buildings
+                        RoleBuildingIds = state.User.Roles |> List.collect (function | SyndicRole buildingIds -> buildingIds | _ -> [])
+                        OnBuildingsChanged = fun buildings -> SyndicBuildingsChanged buildings |> dispatch
+                    |}
+            ]
+            div [ Class Bootstrap.mt2 ] [
+                SubComponents.ProfessionalSyndicRoleComponent.render
+                    {|
+                        ProfessionalSyndics = state.ProfessionalSyndics
+                        RoleProfessionalSyndicIds = state.User.Roles |> List.choose (function | ProfessionalSyndicRole (orgId, _) -> Some orgId | _ -> None)
+                        OnProfessionalSyndicsChanged = fun proSyndics -> ProSyndicsChanged proSyndics |> dispatch
+                    |}
+            ]
         ]
     ]

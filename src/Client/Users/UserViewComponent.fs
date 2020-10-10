@@ -2,9 +2,11 @@
 
 open System
 open Fable.React
+open Fable.React.Props
 open Fable.Core
 open Shared.Read
 open Client
+open Client.ClientStyle
 open Client.ClientStyle.Helpers
 
 module SubComponents =
@@ -93,7 +95,7 @@ module SubComponents =
             div [] [
                 fieldset [] [
                     legend [] [
-                        h4 [] [ str "Eigenaar syndicus rollen" ]
+                        h4 [] [ str "Professionele syndicus rollen" ]
                     ]
                     match componentState.current with
                     | Loading ->
@@ -119,9 +121,15 @@ let view (user: User) =
 
         yield fieldset [] [
             legend [] [ h3 [] [ str "Rollen" ] ]
-            SubComponents.BuildingBasedRoleViewComponent.render {| Title = "Gebruikersrollen"; BuildingIds = user.Roles |> List.collect (function | UserRole buildingIds -> buildingIds | _ -> []) |}
-            SubComponents.BuildingBasedRoleViewComponent.render {| Title = "Eigenaar syndicus rollen"; BuildingIds = user.Roles |> List.collect (function | SyndicRole buildingIds -> buildingIds | _ -> []) |}
-            SubComponents.ProfessionalSyndicRoleComponent.render {| OrganizationIds = user.Roles |> List.collect (function | ProfessionalSyndicRole (orgId, _) -> [ orgId ] | _ -> []) |}
+            div [ Class Bootstrap.mt2 ] [
+                SubComponents.BuildingBasedRoleViewComponent.render {| Title = "Gebruikersrollen"; BuildingIds = user.Roles |> List.collect (function | UserRole buildingIds -> buildingIds | _ -> []) |}
+            ]
+            div [ Class Bootstrap.mt2 ] [
+                SubComponents.BuildingBasedRoleViewComponent.render {| Title = "Eigenaar syndicus rollen"; BuildingIds = user.Roles |> List.collect (function | SyndicRole buildingIds -> buildingIds | _ -> []) |}
+            ]
+            div [ Class Bootstrap.mt2 ] [
+                SubComponents.ProfessionalSyndicRoleComponent.render {| OrganizationIds = user.Roles |> List.collect (function | ProfessionalSyndicRole (orgId, _) -> [ orgId ] | _ -> []) |}
+            ]
         ]
     ]
 
