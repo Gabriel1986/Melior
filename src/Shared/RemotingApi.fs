@@ -101,6 +101,15 @@ type DeleteInvoiceError =
     | AuthorizationError
     | NotFound
 
+type SaveUserError =
+    | AuthorizationError
+    | Validation of (string * string) list
+    | NotFound
+
+type DeleteUserError =
+    | AuthorizationError
+    | NotFound
+
 type OwnerId = {
     PersonId: Guid
     BuildingId: Guid
@@ -114,7 +123,7 @@ type RemotingApi = {
     UpdateBuilding: Building -> Async<Result<unit, SaveBuildingError>>
     DeleteBuilding: BuildingId -> Async<Result<unit, DeleteBuildingError>>
     GetBuilding: BuildingId -> Async<Building option>
-    GetBuildings: unit -> Async<BuildingListItem list>
+    GetBuildings: BuildingId list option -> Async<BuildingListItem list>
     UpdateBuildingSyndic: BuildingId * SyndicInput option    -> Async<Result<unit, SaveBuildingError>>
     UpdateBuildingConcierge: BuildingId * ConciergeInput option -> Async<Result<unit, SaveBuildingError>>
 
@@ -140,7 +149,7 @@ type RemotingApi = {
     CreateProfessionalSyndic: ProfessionalSyndic -> Async<Result<unit, SaveProfessionalSyndicError>>
     UpdateProfessionalSyndic: ProfessionalSyndic -> Async<Result<unit, SaveProfessionalSyndicError>>
     DeleteProfessionalSyndic: Guid -> Async<Result<unit, DeleteProfessionalSyndicError>>
-    GetProfessionalSyndics: unit -> Async<ProfessionalSyndicListItem list>
+    GetProfessionalSyndics: Guid list option -> Async<ProfessionalSyndicListItem list>
     GetProfessionalSyndic: Guid -> Async<ProfessionalSyndic option>
 
     GetOrganizationTypes: unit -> Async<OrganizationType list>
@@ -169,6 +178,11 @@ type RemotingApi = {
 
     GetFinancialYears: BuildingId -> Async<FinancialYear list>
     GetFinancialCategories: BuildingId -> Async<FinancialCategory list>
+
+    GetUsers: unit -> Async<User list>
+    CreateUser: User -> Async<Result<unit, SaveUserError>>
+    UpdateUser: User -> Async<Result<unit, SaveUserError>>
+    DeleteUser: Guid -> Async<Result<unit, DeleteUserError>>
 }
 
 let routeBuilder = sprintf "/remoting/%s/%s"

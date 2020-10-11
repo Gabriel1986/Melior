@@ -171,4 +171,17 @@
             GetFinancialCategories = fun buildingId ->
                 createMsg buildingId
                 |> environment.FinancialSystem.GetFinancialCategories
+
+            GetUsers = fun input ->
+                createMsg input
+                |> environment.AuthenticationSystem.GetUsers
+            CreateUser = fun input ->
+                createMsg input
+                |> environment.AuthenticationSystem.CreateUser
+            UpdateUser = fun input ->
+                createMsg input
+                |> environment.AuthenticationSystem.UpdateUser
+            DeleteUser = fun input ->
+                createMsg input
+                |> environment.AuthenticationSystem.DeleteUser
         }

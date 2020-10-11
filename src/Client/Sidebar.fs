@@ -88,10 +88,12 @@ let convertCurrentPageForNavigation page =
     | Some (Page.MyFinancials)                -> Some (Page.MyFinancials)
     | Some (Page.DistributionKeyList p)       -> Some (Page.DistributionKeyList p)
     | Some (Page.DistributionKeyDetails p)    -> Some (Page.DistributionKeyList { BuildingId = p.BuildingId })
-    | Some (Page.Invoices p)                 -> Some (Page.Invoices p)
+    | Some (Page.Invoices p)                  -> Some (Page.Invoices p)
     | Some (Page.InvoiceDetails p)            -> Some (Page.Invoices { BuildingId = p.BuildingId })
-    | Some (Page.BankNotes p)            -> Some (Page.BankNotes p)
-    | Some (Page.Provisions p)               -> Some (Page.Provisions p)
+    | Some (Page.BankNotes p)                 -> Some (Page.BankNotes p)
+    | Some (Page.Provisions p)                -> Some (Page.Provisions p)
+    | Some (Page.UserList)
+    | Some (Page.UserDetails _)               -> Some (Page.UserList)
     | Some (Page.NotFound)
     | None                                    -> None
 
@@ -100,6 +102,15 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
         state.CurrentUser.Roles |> List.exists (function | ProfessionalSyndicRole _ | SysAdminRole -> true | UserRole _ | SyndicRole _ -> false) 
 
     [
+        if state.CurrentUser.IsSysAdmin () then
+            yield
+                li [ Class Bootstrap.navItem ] [
+                    a [
+                        Class (determineStyle currentPage (Page.UserList))
+                        OnClick (fun _ -> NavigateToPage (Page.UserList) |> dispatch)
+                    ] [ str "Gebruikers" ]
+                ]
+
         if userHasAccessToMultipleBuildings then
             yield
                 li [ Class Bootstrap.navItem ] [

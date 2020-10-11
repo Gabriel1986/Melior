@@ -162,21 +162,6 @@ type ValidatedOwner =
         }
         |> Trial.toResult
 
-type ValidatedRole = 
-    {
-        EmailAddress: String255
-        Role: Role
-    }
-    static member Validate (emailAddress: string, role: Role) =
-        trial {
-            from emailAddress in String255.Of (nameof EmailAddress) emailAddress
-            yield {
-                EmailAddress = emailAddress
-                Role = role
-            }
-        }
-        |> Trial.toResult
-
 type SyndicInput =
     | OwnerId of ownerId: Guid
     | ProfessionalSyndicId of proSyndicId: Guid
@@ -429,6 +414,48 @@ type ValidatedDistributionKey =
             }
         }
         |> Trial.toResult
+
+type ValidatedUser =
+    {
+        UserId: Guid
+        EmailAddress: String255
+        DisplayName: String255
+        PreferredLanguageCode: String16
+        Roles: Role list
+    }
+    static member Validate (user: User) =
+        trial {
+            from emailAddress in String255.Of (nameof user.EmailAddress) user.EmailAddress
+            also displayName in String255.Of (nameof user.DisplayName) user.DisplayName
+            also languageCode in String16.Of (nameof user.PreferredLanguageCode) user.PreferredLanguageCode
+            yield {
+                UserId = user.UserId
+                EmailAddress = emailAddress
+                DisplayName = displayName
+                PreferredLanguageCode = languageCode
+                Roles = user.Roles
+            }
+        }
+        |> Trial.toResult
+
+type SimpleUserRole = {
+    UserId: Guid
+    Role: SimpleRole
+    BuildingId: Guid option
+}
+and SimpleRole =
+    | User
+    | Syndic
+
+type UserProfessionalSyndicLink = {
+    UserId: Guid
+    ProfessionalSyndicId: Guid
+}
+
+type ProfessionalSyndicBuilding = {
+    ProfessionalSyndic: Guid
+    BuildingId: Guid
+}
 
 type ValidatedInvoice = 
     {
