@@ -244,11 +244,13 @@ type ValidatedLot =
         Description: string option
         Floor: int option //Floor can be negative, it's only constrained in range
         Surface: PositiveInt option
+        Share: PositiveInt option
     }
     static member Validate (lot: Lot) = 
         trial {
             from code in String16.Of (nameof lot.Code) lot.Code
             also surface in validateOptional (PositiveInt.Of (nameof lot.Surface)) lot.Surface
+            also share in validateOptional (PositiveInt.Of (nameof lot.Share)) lot.Share
             yield {
                 LotId = lot.LotId
                 BuildingId = lot.BuildingId
@@ -258,6 +260,7 @@ type ValidatedLot =
                 Description = lot.Description
                 Floor = lot.Floor
                 Surface = surface
+                Share = share
             }
         }
         |> Trial.toResult

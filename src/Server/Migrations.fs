@@ -328,3 +328,15 @@ type AddBankAccountColumns() =
             """
         )
     override u.Down () = failwith "Not supported"
+
+[<Migration(8L, "Add 'share' column to the lot table")>]
+type AddShareColumnToLotTable() =
+    inherit Migration()
+    override u.Up () =
+        //type BankAccount = { Description: string; IBAN: string; BIC: string }
+        u.Execute(
+            """
+                ALTER TABLE Lots ADD COLUMN Share INT
+            """
+        )
+    override u.Down () = failwith "Not supported"

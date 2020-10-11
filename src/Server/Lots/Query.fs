@@ -18,6 +18,7 @@ module private Readers =
         Description: string option
         Floor: int option
         Surface: int option
+        Share: int option
     }
 
     let readLot (reader: CaseInsensitiveRowReader): LotDbModel = {
@@ -28,6 +29,7 @@ module private Readers =
         Description = reader.stringOrNone "Description"
         Floor = reader.intOrNone "Floor"
         Surface = reader.intOrNone "Surface"
+        Share = reader.intOrNone "Share"
     }
 
     type LotOwnerDbModel = {
@@ -68,6 +70,7 @@ module private Readers =
         Description = reader.stringOrNone "Description"
         Floor = reader.intOrNone "Floor"
         LegalRepresentative = readLegalRepresentative reader
+        Share = reader.intOrNone "Share"
     }
 
 let getLot (connectionString: string) (lotId: Guid): Async<Lot option> = async {
@@ -82,7 +85,8 @@ let getLot (connectionString: string) (lotId: Guid): Async<Lot option> = async {
                     LotType,
                     Description,
                     Floor,
-                    Surface
+                    Surface,
+                    Share
                 FROM Lots
                 WHERE LotId = @LotId
             """
@@ -135,6 +139,7 @@ let getLot (connectionString: string) (lotId: Guid): Async<Lot option> = async {
             Floor = dbModel.Floor
             Surface = dbModel.Surface
             Owners = ownerOrgs @ ownerPersons
+            Share = dbModel.Share
         }
     | None ->
         return None
@@ -158,7 +163,8 @@ let getLots (connectionString: string) (buildingId: Guid): Async<LotListItem lis
                     lot.Code,
                     lot.LotType,
                     lot.Description,
-                    lot.Floor
+                    lot.Floor,
+                    lot.Share
                 FROM Lots lot
                 LEFT JOIN LotOwners lotOwner on lot.LotId = lotOwner.LotId
                 LEFT JOIN Persons person on lotOwner.PersonId = person.PersonId

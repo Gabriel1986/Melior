@@ -21,6 +21,7 @@ type Message =
     | ChangeLotOwnersCanceled
     | RemoveLotOwner of LotOwner
     | SelectLegalRepresentative of LotOwner
+    | ShareChanged of string
 
 type State = {
     Lot: Lot
@@ -114,6 +115,9 @@ let update (message: Message) (state: State): State * Cmd<Message> =
                 else (o, LotOwnerRole.Other))
 
         changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
+    | ShareChanged x ->
+        changeLot (fun l -> { l with Share = parseInt x })
+        |> removeError (nameof state.Lot.Share), Cmd.none
 
 let renderEditLotOwners lotOwners dispatch =
     let ownerTypes lotOwner =
@@ -219,7 +223,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 ]
                 FormError (errorFor (nameof state.Lot.Code))
             ]
-            |> inColomn Bootstrap.col4
+            |> inColomn Bootstrap.colMd4
 
             formGroup [ 
                 Label "Type"
@@ -229,33 +233,47 @@ let view (state: State) (dispatch: Message -> unit) =
         ]
         div [ Class Bootstrap.row ] [
             div [] [
-                div [] [
-                    formGroup [
-                        Label "Verdieping"
-                        Input [
-                            Type "number"
-                            Min -20
-                            Max 50
-                            Helpers.valueOrDefault state.Lot.Floor
-                            OnChange (fun e -> FloorChanged e.Value |> dispatch)
+                div [ Class Bootstrap.row ] [
+                    div [ Class Bootstrap.colMd5; Style [ PaddingLeft "0" ] ] [
+                        formGroup [
+                            Label "Verdieping"
+                            Input [
+                                Type "number"
+                                Min -20
+                                Max 50
+                                Helpers.valueOrDefault state.Lot.Floor
+                                OnChange (fun e -> FloorChanged e.Value |> dispatch)
+                            ]
+                            FormError (errorFor (nameof state.Lot.Floor))
                         ]
-                        FormError (errorFor (nameof state.Lot.Floor))
+                    ]
+                    div [ Class Bootstrap.colMd7; Style [ PaddingLeft "0" ] ] [
+                        formGroup [
+                            Label "Oppervlakte (m²)"
+                            Input [
+                                Type "number"
+                                Min 0
+                                Helpers.valueOrDefault state.Lot.Surface
+                                OnChange (fun e -> SurfaceChanged e.Value |> dispatch)
+                            ]
+                            FormError (errorFor (nameof state.Lot.Surface))
+                        ]
                     ]
                 ]
                 div [] [
                     formGroup [
-                        Label "Oppervlakte (m²)"
+                        Label "Quotiteit (aandeel)"
                         Input [
                             Type "number"
                             Min 0
-                            Helpers.valueOrDefault state.Lot.Surface
-                            OnChange (fun e -> SurfaceChanged e.Value |> dispatch)
+                            Helpers.valueOrDefault state.Lot.Share
+                            OnChange (fun e -> ShareChanged e.Value |> dispatch)
                         ]
-                        FormError (errorFor (nameof state.Lot.Surface))
+                        FormError (errorFor (nameof state.Lot.Share))
                     ]
                 ]
             ]
-            |> inColomn Bootstrap.col4
+            |> inColomn Bootstrap.colMd4
             formGroup [ 
                 Label "Omschrijving"
                 TextArea [

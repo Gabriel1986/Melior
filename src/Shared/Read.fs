@@ -228,6 +228,8 @@ and Lot =
         Floor: int option
         //Surface in square metres, if necessary, could be calculated in square feet
         Surface: int option
+        //Nl: aandeel / quotiteit
+        Share: int option
     }
     member me.LegalRepresentative () =
         me.Owners
@@ -241,6 +243,7 @@ and Lot =
         Description = None
         Floor = None
         Surface = None
+        Share = None
     }
 and LotOwner = 
     | Owner of OwnerListItem
@@ -283,6 +286,7 @@ and LotListItem = {
     LotType: LotType
     Floor: int option
     Description: string option
+    Share: int option
 }
 and LotOwnerListItem =
     | Owner of {| PersonId: Guid; Name: string |}

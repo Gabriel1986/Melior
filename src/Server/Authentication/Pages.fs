@@ -289,11 +289,11 @@ let accessDeniedPage =
 let resetPasswordMailSent =
     [
         div [ _class "card" ] [
-            div [ _class "card-body" ] [
+            div [ _class "card-body"; _style "padding-left: 15px;" ] [
                 p [] [
                     str "Er werd een e-mail gestuurd naar het door u opgegeven e-mail adres"
                     br []
-                    str "Indien deze niet binnen 5 minuten aan komt, gelieve na te kijken of hij niet in uw spambox terecht is gekomen."
+                    str "Indien deze niet binnen 5 minuten aan komt, gelieve na te kijken of hij niet in uw spam folder terecht is gekomen."
                 ]
             ]
         ]
