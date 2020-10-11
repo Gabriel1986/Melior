@@ -25,3 +25,4 @@ SixLabors.ImageSharp
 Giraffe.Antiforgery
 BCrypt.Net-Next
 GoogleAuthenticator
+MailKit

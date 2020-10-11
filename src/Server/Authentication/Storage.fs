@@ -61,6 +61,7 @@ type IAuthenticationStorage =
     abstract UpdateRecoveryCodes: userId: Guid * codes: byte[] list -> Async<int>
     abstract AddFailedTwoFacAttempt: FailedTwoFacAttempt -> Async<unit>
     abstract AddUser: ValidatedUserInput -> Async<unit>
+    abstract UpdatePassword: Guid * byte[] -> Async<int>
 
 let disableAccount conn userId =
     Sql.connect conn
@@ -184,6 +185,15 @@ let addUser conn (user: ValidatedUserInput) =
     ]
     |> Async.Ignore
 
+let updatePassword conn (userId: Guid, passwordHash: byte[]) =
+    Sql.connect conn
+    |> Sql.query "Update Users set PasswordHash = @PasswordHash where UserId = @UserId"
+    |> Sql.parameters [
+        "@UserId", Sql.uuid userId
+        "@PasswordHash", Sql.bytea passwordHash
+    ]
+    |> Sql.writeAsync 
+
 let makeStorage (settings: AppSettings) = 
     let conn = settings.Database.Connection
 
@@ -196,4 +206,5 @@ let makeStorage (settings: AppSettings) =
             member _.UpdateRecoveryCodes (userId, codes) = setRecoveryCodeHashes conn (userId, codes)
             member _.AddFailedTwoFacAttempt (attempt) = addFailedTwoFacAttempt conn (attempt)
             member _.AddUser user = addUser conn user
+            member _.UpdatePassword (userId, passwordHash) = updatePassword conn (userId, passwordHash)
     }

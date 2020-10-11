@@ -13,6 +13,17 @@ type GoogleSettings = {
 }
 
 [<CLIMutable>]
+type MailSettings = {
+    From: string
+    FromDisplayName: string
+    ServiceUsername: string
+    ServicePassword: string
+    SmtpServer: string
+    UseTLS: bool
+    Port: int
+}
+
+[<CLIMutable>]
 type SysAdmin = {
     EmailAddress: string
     DisplayName: string
@@ -33,7 +44,9 @@ type AuthenticationSettings = {
 
 [<CLIMutable>]
 type AppSettings = {
+    BaseUrl: string
     Database: DatabaseSettings
     Google: GoogleSettings
+    Mail: MailSettings
     Authentication: AuthenticationSettings
 }

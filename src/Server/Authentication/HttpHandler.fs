@@ -14,14 +14,17 @@ open Giraffe.Antiforgery
 open Giraffe.GiraffeViewEngine
 open Google.Authenticator
 open Serilog
+open MimeKit
+open MimeKit.Text
 
 open Shared.Read
 open Server.AppSettings
 open Server.Blueprint.Behavior.Authentication
 open Server.Blueprint.Data.Authentication
+open Server.Library
 open Server.LibraryExtensions
 open Pages
-open Server.Library
+open Emails
 
 let [<Literal>] googleRecaptchaResponseExample =
     """
@@ -156,9 +159,9 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
                                 yield "Een wachtwoord mag maximaal 64 cijfers en tekens bevatten"
                             if CommonPasswords.isCommonPassword password then
                                 yield "Het door u opgegeven wachtwoord is een veel voorkomend wachtwoord, gelieve een ander wachtwoord in te geven..."
-                            if not (Regex.Match(password, @"/\d+/", RegexOptions.ECMAScript).Success) then
+                            if not (password |> String.exists(fun c -> Char.IsDigit c)) then
                                 yield "Het wachtwoord moet minstens 1 cijfer bevatten"
-                            if not (Regex.Match(password, @"/[a-zA-Z]+/", RegexOptions.ECMAScript).Success) then
+                            if not (password |> String.exists(fun c -> Char.IsLetter c)) then
                                 yield "Het wachtwoord moet minstens 1 letter bevatten"
                             if password <> password2 then
                                 yield "De wachtwoorden zijn niet gelijk"
@@ -173,7 +176,13 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
                             | None ->
                                 return! csrfHtmlView (changePasswordPage googleRecaptchSubmitButton [ "Er werd geen gebruiker gevonden voor het opgegeven e-mail adres" ]) nxt ctx
                             | Some user ->
-                                return! redirectTo false "/authentication/login" nxt ctx
+                                let! result = 
+                                    (user.UserId, password)
+                                    |> createMessage ctx
+                                    |> system.UpdatePassword
+                                match result with
+                                | Ok () -> return! redirectTo false "/authentication/login" nxt ctx
+                                | Error e -> return! htmlView somethingWentWrongPage nxt ctx
                         | errors -> 
                             return! csrfHtmlView (changePasswordPage googleRecaptchSubmitButton errors) nxt ctx                    
             })
@@ -186,9 +195,25 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
                 >=> (fun nxt ctx  -> task {
                     let! requestParams = ctx.BindFormAsync<ForgotPasswordForm>()
                     let emailAddress = requestParams.UserName
-                    let resetPasswordToken = system.GenerateChangePasswordToken ([ new Claim(JwtRegisteredClaimNames.Sub, emailAddress) ], resetPasswordTokenValidity)
-                    //TODO: send an email
-                    return! text "Sending a password reset e-mail is not implemented yet :(" nxt ctx
+                    let! user =
+                        emailAddress
+                        |> createMessage ctx
+                        |> system.FindUserByEmailAddress
+                    match user with
+                    | Some user ->
+                        let resetPasswordToken = system.GenerateChangePasswordToken ([ new Claim(JwtRegisteredClaimNames.Sub, emailAddress) ], resetPasswordTokenValidity)
+                        let sendSupportMail = Server.MailProvider.sendSupportEmail settings.Mail
+                        let receiver = new MailboxAddress(user.DisplayName, emailAddress)
+                        let body = 
+                            new TextPart(
+                                format = TextFormat.Html, 
+                                Text = renderHtmlNodes [ resetPasswordEmail (user, sprintf "%s/authentication/changePassword?Token=%s" settings.BaseUrl resetPasswordToken) ]
+                            )
+                        match! sendSupportMail [ receiver ] ("Wachtwoord opnieuw instellen", body) with
+                        | Ok () -> return! htmlView resetPasswordMailSent nxt ctx
+                        | Error e -> return! htmlView resetPasswordMailSendingFailed nxt ctx
+                    | None ->
+                        return! htmlView resetPasswordMailSendingFailed nxt ctx
                 })
         ]
         routeCi "/authentication/login" >=> choose [ 
@@ -303,7 +328,6 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
                             do! system.UpdateTwoFacAuthentication updateTwoFac
                             //TODO: send email for recoveryCodes
                             let claimsPrincipal = toClaimsPrincipal currentUser
-                            //TODO: double check if everything works properly.
                             do! ctx.SignInAsync(loginAuthSchema, claimsPrincipal)
                             return! htmlView twoFacSucceeded nxt ctx
                         | None ->
@@ -357,7 +381,6 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
                             match! system.ValidateTwoFactorPIN(currentUser.UserId, postParams.VerificationCode) with
                             | true ->
                                 let claimsPrincipal = toClaimsPrincipal currentUser
-                                //TODO: double check if everything works properly.
                                 do! ctx.SignInAsync(loginAuthSchema, claimsPrincipal)
                                 return! redirectTo false "/" nxt ctx
                             | false ->
@@ -405,7 +428,6 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
                             | true ->
                                 do! system.RemoveUsedRecoveryCode(currentUser.UserId, postParams.RecoveryCode)
                                 let claimsPrincipal = toClaimsPrincipal currentUser
-                                //TODO: double check if everything works properly.
                                 do! ctx.SignInAsync(loginAuthSchema, claimsPrincipal)
                                 return! redirectTo false "/" nxt ctx
                             | false ->
