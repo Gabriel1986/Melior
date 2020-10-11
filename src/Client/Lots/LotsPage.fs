@@ -51,14 +51,14 @@ type SortableLotListItemAttribute =
     | Code
     | LotType
     | Floor
-    | Description
+    | Share
     member me.ToString' () =
         match me with
         | OwnerName -> "Eigenaar"
         | Code -> "Code"
         | LotType -> "Type"
         | Floor -> "Verd."
-        | Description -> "Omschrijving"
+        | Share -> "Quot."
     member me.StringValueOf': LotListItem -> string =
         match me with
         | OwnerName -> (fun li ->
@@ -69,14 +69,16 @@ type SortableLotListItemAttribute =
         | Code -> (fun li -> li.Code)
         | LotType -> (fun li -> string li.LotType)
         | Floor -> (fun li -> string li.Floor)
-        | Description -> (fun li -> li.Description |> Option.defaultValue "")
+        | Share -> (fun li -> li.Share |> Option.map string |> Option.defaultValue "")
     member me.Compare': LotListItem -> LotListItem -> int =
         match me with
         | Floor -> 
             fun li otherLi -> (defaultArg li.Floor -1000) - (defaultArg otherLi.Floor -1000)
+        | Share ->
+            fun li otherLi -> (defaultArg li.Share -1000) - (defaultArg otherLi.Share -1000)
         | _     -> 
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
-    static member All = [ LotType; Floor; Description; OwnerName; Code ]
+    static member All = [ LotType; Code; Share; Floor; OwnerName ]
     interface ISortableAttribute<LotListItem> with
         member me.ToString = me.ToString'
         member me.ToLongString = me.ToString'
@@ -118,6 +120,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         LotType = lot.LotType
         Floor = lot.Floor
         Description = lot.Description
+        Share = lot.Share
     }
 
     match msg with
