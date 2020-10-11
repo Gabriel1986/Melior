@@ -12,6 +12,7 @@
     <Compile Include="AppSettings.fs" />
     <Compile Include="Migrations.fs" />
     <Compile Include="PostgreSQL.fs" />
+    <Compile Include="MailProvider.fs" />
     <Compile Include="Addresses\Library.fs" />
     <Compile Include="Addresses\Workflow.fs" />
     <Compile Include="ContactMethods\Library.fs" />
@@ -54,6 +55,7 @@
     <Compile Include="Authentication\Query.fs" />
     <Compile Include="Authentication\Workflows.fs" />
     <Compile Include="Authentication\Pages.fs" />
+    <Compile Include="Authentication\Emails.fs" />
     <Compile Include="Authentication\HttpHandler.fs" />
     <Compile Include="Authentication\AuthenticationSystem.fs" />
     <Compile Include="Contracts\Query.fs" />

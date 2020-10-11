@@ -92,11 +92,11 @@ let changePasswordPage (submitButton: string -> XmlNode) (validationErrors: stri
                     antiforgeryInput antiForgeryToken
                     div [ _class "form-group" ] [
                         label [] [ str "Wachtwoord:" ]
-                        input [ _name "NewPassword1"; _type "text"; _required; _class "form-control" ]
+                        input [ _name "NewPassword1"; _type "password"; _required; _class "form-control" ]
                     ]
                     div [ _class "form-group" ] [
                         label [] [ str "Wachtwoord herhalen:" ]
-                        input [ _name "NewPassword2"; _type "text"; _required; _class "form-control" ]
+                        input [ _name "NewPassword2"; _type "password"; _required; _class "form-control" ]
                     ]
                     div [ _class "form-group" ] [
                         submitButton "Opnieuw instellen"
@@ -283,11 +283,44 @@ let tooManyFailedTwoFacAttempts =
 
 let accessDeniedPage =
     [
+        str "U heeft geen toegang tot deze pagina..."
+    ] |> masterPage "Toegang geweigerd"
+
+let resetPasswordMailSent =
+    [
         div [ _class "card" ] [
             div [ _class "card-body" ] [
-                p [ _style "color: Red;" ] [
-                    str "U heeft geen toegang tot deze pagina..."
+                p [] [
+                    str "Er werd een e-mail gestuurd naar het door u opgegeven e-mail adres"
+                    br []
+                    str "Indien deze niet binnen 5 minuten aan komt, gelieve na te kijken of hij niet in uw spambox terecht is gekomen."
                 ]
             ]
         ]
-    ] |> masterPage "Toegang geweigerd"
+    ] |> masterPage "Mail verstuurd"
+
+let resetPasswordMailSendingFailed =
+    [
+        div [ _class "card" ] [
+            div [ _class "card-body" ] [
+                p [ _style "color: Red;" ] [
+                    str "Er is iets misgegaan bij het versturen van de mail :("
+                    br []
+                    str "Als deze fout zich voor blijft doen, gelieve contact op te nemen met support"
+                ]
+            ]
+        ]
+    ] |> masterPage "Mail niet verstuurd"
+
+let somethingWentWrongPage =
+    [
+        div [ _class "card" ] [
+            div [ _class "card-body" ] [
+                p [ _style "color: Red;" ] [
+                    str "Er is iets misgegaan..."
+                    br []
+                    str "Als deze fout zich voor blijft doen, gelieve contact op te nemen met support"
+                ]
+            ]
+        ]
+    ] |> masterPage "Foutmelding"

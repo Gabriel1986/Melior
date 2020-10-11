@@ -25,11 +25,14 @@ module Authentication =
         abstract GenerateNewRecoveryCodes: userId: Guid * email: string -> Async<string list>
         abstract AddFailedTwoFacAttempt: FailedTwoFacAttempt -> Async<unit>
 
+        abstract UpdatePassword: Message<Guid * string> -> Async<Result<unit, exn>>
+
         abstract GenerateChangePasswordToken: claims: Claim list * expiresAfter: TimeSpan -> string
         abstract ValidateChangePasswordToken: token: string -> ClaimsPrincipal option
         abstract GenerateUsernamePasswordToken: claims: Claim list * expiresAfter: TimeSpan -> string
         abstract ValidateUsernamePasswordToken: token: string -> ClaimsPrincipal option
 
+        //Queries
         abstract AuthenticateUser: Message<string * string> -> Async<Result<User, AuthenticationError>>
         abstract UserWithEmailAddressExists: string -> Async<bool>
         abstract FindUserByEmailAddress: Message<string> -> Async<User option>

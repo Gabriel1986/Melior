@@ -22,6 +22,15 @@
             return Error (CreateUserError.ValidationError errors)
     }
 
+    let updatePassword (storage: IAuthenticationStorage) (passwordPepper: string) (msg: Message<Guid * string>) = async {
+        let passwordHash = Encryption.hashPassword passwordPepper (snd msg.Payload)
+        let! nbUsersUpdated = storage.UpdatePassword (fst msg.Payload, passwordHash)
+        return
+            if nbUsersUpdated <> 1
+            then Error (exn "Something went terribly wrong while updating the user's password O_o")
+            else Ok ()
+    }
+
     let createUser (storage: IAuthenticationStorage) (msg: Message<User>) = async {
         if msg.CurrentUser.IsSysAdmin () then
             let validated = ValidatedUser.Validate msg.Payload

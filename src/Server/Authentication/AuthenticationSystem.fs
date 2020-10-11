@@ -49,6 +49,9 @@ let build (config: IConfiguration) =
             member _.AddUser user =
                 Workflows.addUser storage passwordPepper user
 
+            member _.UpdatePassword msg =
+                Workflows.updatePassword storage passwordPepper msg
+
             //Queries (interal)
             member _.AuthenticateUser msg =
                 Query.authenticateUser conn msg.ProfessionalSyndicCache passwordPepper msg.Payload
