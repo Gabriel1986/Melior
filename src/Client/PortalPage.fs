@@ -53,7 +53,7 @@ let private portalButton (btnText: string) (onClick: unit -> unit) =
     ]
 
 let view (state: State) (dispatch: Msg -> unit) =
-    div [] [
+    div [ Id "melior-portal" ] [
         div [ classes [ Bootstrap.row; Bootstrap.rowColsLg4; Bootstrap.rowCols2 ] ] [
             if state.AdminModeEnabled then yield! [
                 yield
