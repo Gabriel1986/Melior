@@ -262,7 +262,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 ]
                 div [] [
                     formGroup [
-                        Label "Quotiteit (aandeel)"
+                        Label "Quotiteit"
                         Input [
                             Type "number"
                             Min 0

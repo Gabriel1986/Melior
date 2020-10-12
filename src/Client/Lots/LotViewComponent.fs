@@ -32,7 +32,7 @@ let view (detail: Lot) =
                 yield legend [] [ h2 [] [ str "Algemeen" ] ]
                 yield readonlyFormElement "Code" detail.Code
                 yield readonlyFormElement "Type" (string detail.LotType)
-                yield readonlyFormElement "Quotiteit (aandeel)" (detail.Share |> Option.map string |> Option.defaultValue "")
+                yield readonlyFormElement "Quotiteit" (detail.Share |> Option.map string |> Option.defaultValue "")
                 yield readonlyFormElement "Verdieping" (detail.Floor |> Option.map string |> Option.defaultValue "")
                 yield readonlyFormElement "Oppervlakte" (detail.Surface |> Option.map string |> Option.defaultValue "")
 

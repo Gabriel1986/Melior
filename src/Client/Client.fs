@@ -443,9 +443,11 @@ module Client =
                         span [ classes [ FontAwesome.fas; FontAwesome.faBars ]; Id "melior-sidebar-button" ] []
                     ]
                     div [ Class "melior-brand" ] [
-                        h3 [] [ 
-                            str "Syndicus" 
-                            span [ Style [ Color "deepskyblue" ] ] [
+                        h3 [] [
+                            span [ Style [ Color "#007bff" ] ] [
+                                str "Syndicus" 
+                            ]
+                            span [ Style [ Color "#54b037" ] ] [
                                 str " Assistent"
                             ]
                         ]

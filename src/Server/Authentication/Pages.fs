@@ -28,7 +28,9 @@ let masterPage (pageTitle : string) (content : XmlNode list) =
         body [] [
             div [ _class "container-fluid" ] [
                 div [ _class "login-form" ] [
-                    h2 [ _class "text-center" ] [ str pageTitle ]
+                    div [ _class "text-center" ] [
+                        img [ _style "max-width:100%"; _src "https://i.ibb.co/0jvJnM9/Syndicus-Assistent-PNG-150dpi-kleur.png"; _alt "De afbeelding werd niet gevonden." ]
+                    ]
                     main [] content
                 ]
             ]
@@ -181,7 +183,7 @@ Hiervoor dient u een authenticator app te installeren op uw smartphone (bvb. goo
                 ]
             ]
         ]
-    ] |> masterPage ""
+    ] |> masterPage "Twee factor auth."
 
 let initializeTwoFacPage (qrCode: string) (manualEntrySetupCode: string) (validationErrors: string list) (antiForgeryToken: AntiforgeryTokenSet) = 
     [
@@ -204,7 +206,7 @@ let initializeTwoFacPage (qrCode: string) (manualEntrySetupCode: string) (valida
                 ]
             ]
         ]
-    ] |> masterPage ""
+    ] |> masterPage "Twee factor auth."
 
 let twoFacSucceeded =
     [
@@ -219,7 +221,7 @@ let twoFacSucceeded =
                 str "Naar de applicatie"
             ]
         ]
-    ] |> masterPage ""
+    ] |> masterPage "Twee factor auth."
 
 let twoFacPage (validationErrors: string list) (token: string) (antiForgeryToken: AntiforgeryTokenSet) =
     [
@@ -239,7 +241,7 @@ let twoFacPage (validationErrors: string list) (token: string) (antiForgeryToken
                 //TODO: send recovery SMS (maybe)
             ]
         ]
-    ] |> masterPage ""
+    ] |> masterPage "Twee factor auth."
 
 let twoFacRecoveryCodePage (validationErrors: string list) (token: string) (antiForgeryToken: AntiforgeryTokenSet) =
     [
