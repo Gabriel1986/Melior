@@ -31,7 +31,12 @@ module Program =
         awsConfig.Credentials <- new EnvironmentVariablesAWSCredentials()
         let awsCredentials = awsConfig.Credentials.GetCredentials()
 
-        Log.Logger <- 
+        Log.Logger <-
+            #if DEBUG
+            (new LoggerConfiguration())
+                .ReadFrom.Configuration(config)
+                .CreateLogger()
+            #else
             (new LoggerConfiguration())
                 .WriteTo
                 .AmazonS3(
@@ -43,12 +48,9 @@ module Program =
                     fileSizeLimitBytes = 1024L * 20L,
                     bucketPath = "Logs",
                     restrictedToMinimumLevel = LogEventLevel.Warning,
-                    autoUploadEvents = true)
+                    autoUploadEvents = false)
                 .CreateLogger()
-
-            //LoggerConfiguration()
-            //                .ReadFrom.Configuration(config)
-            //                .CreateLogger()
+            #endif
 
         WebHostBuilder()
             .UseConfiguration(config)
