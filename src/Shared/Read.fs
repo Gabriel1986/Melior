@@ -559,6 +559,9 @@ let MandatoryContractTypes = [|
     PredefinedContractType.FireInsurance
     PredefinedContractType.LiabilityInsurance
     PredefinedContractType.CivilLiabilityForCoOwnerCouncil
+|]
+
+let OtherPredefinedContractTypes = [|
     PredefinedContractType.ElectricitySupplier
     PredefinedContractType.WaterSupplier
 |]

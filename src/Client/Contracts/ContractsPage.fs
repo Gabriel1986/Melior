@@ -295,7 +295,7 @@ let view (state: State) (dispatch: Message -> unit) =
             ]
         ]
 
-    let rowsForPredefinedContractType (predefined: PredefinedContractType)  =
+    let rowsForPredefinedContractType (predefinedContractTypeIsMandatory: bool) (predefined: PredefinedContractType)  =
         let contracts = state.Contracts |> List.filter (fun contract -> contract.ContractType = PredefinedContractType predefined)
         match contracts with
         | [] ->
@@ -304,9 +304,13 @@ let view (state: State) (dispatch: Message -> unit) =
                     td [] [ str (translatePredefinedType predefined ) ]
                     td [] [ str "Geen bestand" ]
                     td [] []
-                    td [ Title "Wettelijk verplicht"; Class Bootstrap.textDanger ] [ 
-                        span [ classes [ FontAwesome.fas; FontAwesome.faExclamationTriangle ] ] []
-                    ]
+                    if (predefinedContractTypeIsMandatory) 
+                    then
+                        td [ Title "Wettelijk verplicht"; Class Bootstrap.textDanger ] [ 
+                            span [ classes [ FontAwesome.fas; FontAwesome.faExclamationTriangle ] ] []
+                        ]
+                    else
+                        td [] []
                     td [] [
                         a [ classes [ "pointer"; Bootstrap.textPrimary ]; OnClick (fun _ -> CreateMandatoryContract predefined |> dispatch) ] [
                             span [ classes [ FontAwesome.fas; FontAwesome.faCloudUploadAlt ] ] []
@@ -332,15 +336,20 @@ let view (state: State) (dispatch: Message -> unit) =
                 yield! 
                     MandatoryContractTypes  
                     |> Array.toList
-                    |> List.collect rowsForPredefinedContractType
+                    |> List.collect (rowsForPredefinedContractType true)
 
                 yield!
                     state.ContractTypeAnswers 
                     |> List.collect (fun answer ->
                         mandatoryContractTypesFor answer.Payload
                         |> Array.toList
-                        |> List.collect rowsForPredefinedContractType
+                        |> List.collect (rowsForPredefinedContractType true)
                     )
+
+                yield!
+                    OtherPredefinedContractTypes
+                    |> Array.toList
+                    |> List.collect (rowsForPredefinedContractType false)
 
                 yield!
                     state.Contracts
@@ -352,11 +361,13 @@ let view (state: State) (dispatch: Message -> unit) =
         ]
         div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
             div [ Class Bootstrap.cardBody ] [
-                button [ classes [ Bootstrap.btn ]; Type "button"; OnClick (fun _ -> OpenQuestionModal |> dispatch) ] [
-                    str "Instellingen gebouw aanpassen"
+                button [ classes [ Bootstrap.btn; Bootstrap.btnSecondary ]; Type "button"; OnClick (fun _ -> OpenQuestionModal |> dispatch) ] [
+                    i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []
+                    str " Instellingen gebouw aanpassen"
                 ]
                 button [ classes [ Bootstrap.btn; Bootstrap.btnSuccess ]; Style [ MarginLeft "5px" ]; Type "button"; OnClick (fun _ -> CreateNewContract |> dispatch) ] [
-                    str "Contract aanmaken"
+                    i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                    str " Contract aanmaken"
                 ]
             ]
         ]
