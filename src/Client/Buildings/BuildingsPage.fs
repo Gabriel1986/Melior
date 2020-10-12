@@ -142,7 +142,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with SelectedListItems = newSelection; ListItems = newItems }, cmd
     | ListItemRemoved result ->
         match result with
-        | Ok _ -> state, Cmd.none
+        | Ok _ -> state, showSuccessToastCmd "Het gebouw is verwijderd"
         | Error DeleteBuildingError.AuthorizationError ->
             state, showErrorToastCmd "U heeft geen toestemming om een gebouw te verwijderen"
         | Error DeleteBuildingError.NotFound ->
@@ -158,7 +158,10 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with 
             ListItems = newListItems |> List.sortBy (fun b -> b.Code)
             SelectedListItems = newSelectedListItems
-        }, (SelectTab (Tab.Details listItem)) |> Cmd.ofMsg
+        }, Cmd.batch [
+            SelectTab (Details listItem) |> Cmd.ofMsg
+            showSuccessToastCmd "Het gebouw is aangemaakt"
+        ]
     | Edited building ->
         let listItem = building.ToListItem()
         let newListItems = state.ListItems |> List.map (fun li -> if li.BuildingId = building.BuildingId then listItem else li)
@@ -166,7 +169,10 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with 
             ListItems = newListItems
             SelectedListItems = newSelectedListItems
-        }, (SelectTab (Tab.Details listItem)) |> Cmd.ofMsg
+        }, Cmd.batch [
+            SelectTab (Details listItem) |> Cmd.ofMsg
+            showSuccessToastCmd "Het gebouw is gewijzigd"
+        ]
     | CurrentBuildingChanged building ->
         { state with CurrentBuildingId = Some building.BuildingId }, Cmd.none
 

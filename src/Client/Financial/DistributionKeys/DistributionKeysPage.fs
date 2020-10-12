@@ -166,7 +166,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         | Error DeleteDistributionKeyError.NotFound ->
             //Do nothing... something might have gone wrong, maybe?
             printf "The building that's being deleted was not found O_o?"
-            state, Cmd.none
+            state, showErrorToastCmd "Het gebouw werd niet gevonden in de databank"
     | Created distributionKey ->
         let newListItems = distributionKey :: state.ListItems
         let newSelectedListItems = [ distributionKey ] |> List.append state.SelectedListItems

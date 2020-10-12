@@ -204,7 +204,7 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
 
         { state with Contracts = newContracts; ContractModalIsOpenOn = None }, cmd
     | ContractSaved (Ok ()) ->
-        state, showSuccessToastCmd "Uw contract werd bewaard"
+        state, showSuccessToastCmd "Uw contract is bewaard"
     | ContractSaved (Error e) ->
         match e with
         | SaveContractError.AuthorizationError ->

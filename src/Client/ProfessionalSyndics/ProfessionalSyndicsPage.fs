@@ -113,7 +113,12 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with SelectedListItems = updatedTabs; SelectedTab = List }
         , Routing.navigateToPage Routing.Page.ProfessionalSyndicList
     | SelectTab tab ->
-        { state with SelectedTab = tab }, Cmd.none
+        let cmd =
+            match tab with
+            | List -> Routing.navigateToPage (Routing.Page.ProfessionalSyndicList)
+            | Details li -> Routing.navigateToPage (Routing.Page.ProfessionalSyndicDetails li.OrganizationId)
+            | New -> Routing.navigateToPage (Routing.Page.ProfessionalSyndicList)
+        { state with SelectedTab = tab }, cmd
     | Loaded (professionalSyndics, selectedProfessionalSyndicId) ->
         let newState = { state with ListItems = professionalSyndics; LoadingListItems = false }
         let cmd =
@@ -143,7 +148,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | ListItemRemoved result ->
         match result with
         | Ok _ -> 
-            state, Cmd.none
+            state, showSuccessToastCmd "De professionele syndicus is verwijderd"
         | Error DeleteProfessionalSyndicError.AuthorizationError ->
             state, showErrorToastCmd "U heeft geen toestemming om deze professionele syndicus te verwijderen"
         | Error DeleteProfessionalSyndicError.NotFound ->
@@ -155,12 +160,26 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let listItem = toListItem professionalSyndic
         let newListItems = listItem :: state.ListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
+        { state with 
+            ListItems = newListItems
+            SelectedListItems = newSelectedListItems
+        }
+        , Cmd.batch [
+            SelectTab (Details listItem) |> Cmd.ofMsg
+            showSuccessToastCmd "De professionele syndicus is aangemaakt"
+        ]
     | Edited professionalSyndic ->
         let listItem = toListItem professionalSyndic
         let newListItems = state.ListItems |> List.map (fun li -> if li.OrganizationId = listItem.OrganizationId then listItem else li)
         let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.OrganizationId = listItem.OrganizationId then listItem else li)
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
+        { state with 
+            ListItems = newListItems
+            SelectedListItems = newSelectedListItems 
+        }
+        , Cmd.batch [
+            SelectTab (Details listItem) |> Cmd.ofMsg
+            showSuccessToastCmd "De professionele syndicus is gewijzigd"
+        ]
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =

@@ -119,7 +119,13 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with SelectedListItems = updatedTabs; SelectedTab = List }, 
         Routing.navigateToPage (Routing.Page.OrganizationList { BuildingId = state.CurrentBuilding.BuildingId })
     | SelectTab tab ->
-        { state with SelectedTab = tab }, Cmd.none
+        let buildingId = state.CurrentBuilding.BuildingId
+        let cmd =
+            match tab with
+            | List -> Routing.navigateToPage (Routing.Page.OrganizationList { BuildingId = buildingId })
+            | Details li -> Routing.navigateToPage (Routing.Page.OrganizationDetails { BuildingId = buildingId; DetailId = li.OrganizationId })
+            | New -> Routing.navigateToPage (Routing.Page.OrganizationList { BuildingId = buildingId })
+        { state with SelectedTab = tab }, cmd
     | Loaded (owners, selectedOrgId) ->
         let newState = { state with ListItems = owners; LoadingListItems = false }
         let cmd =
@@ -150,7 +156,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | ListItemRemoved result ->
         match result with
         | Ok _ -> 
-            state, Cmd.none
+            state, showSuccessToastCmd "De leverancier is verwijderd"
         | Error DeleteOrganizationError.AuthorizationError ->
             state, showErrorToastCmd "U heeft geen toestemming om een leverancier te verwijderen"
         | Error DeleteOrganizationError.NotFound ->
@@ -163,15 +169,29 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let newListItems = listItem :: state.ListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
         
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems },
-        Cmd.none
+        { state with
+            ListItems = newListItems
+            SelectedListItems = newSelectedListItems
+            SelectedTab = Details listItem
+        }
+        , Cmd.batch [
+            SelectTab (Details listItem) |> Cmd.ofMsg
+            showSuccessToastCmd "De organisatie is aangemaakt"
+        ]
     | Edited organization ->
         let listItem = toListItem organization
         let newListItems = state.ListItems |> List.map (fun li -> if li.OrganizationId = organization.OrganizationId then listItem else li)
         let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.OrganizationId = organization.OrganizationId then listItem else li)
         
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, 
-        Cmd.none
+        { state with 
+            ListItems = newListItems
+            SelectedListItems = newSelectedListItems
+            SelectedTab = Details listItem
+        }
+        , Cmd.batch [
+            SelectTab (Details listItem) |> Cmd.ofMsg
+            showSuccessToastCmd "De leverancier is gewijzigd"
+        ]
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =

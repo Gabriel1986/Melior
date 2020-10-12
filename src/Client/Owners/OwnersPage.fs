@@ -123,7 +123,13 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with SelectedListItems = updatedTabs; SelectedTab = List }
         , Routing.navigateToPage (Routing.Page.OwnerList { BuildingId = state.CurrentBuilding.BuildingId })
     | SelectTab tab ->
-        { state with SelectedTab = tab }, Cmd.none
+        let buildingId = state.CurrentBuilding.BuildingId
+        let cmd =
+            match tab with
+            | List -> Routing.navigateToPage (Routing.Page.OwnerList { BuildingId = buildingId })
+            | Details li -> Routing.navigateToPage (Routing.Page.OwnerDetails { BuildingId = buildingId; DetailId = li.PersonId })
+            | New -> Routing.navigateToPage (Routing.Page.OwnerList { BuildingId = buildingId })
+        { state with SelectedTab = tab }, cmd
     | Loaded (owners, selectedOwnerId) ->
         let newState = { state with ListItems = owners; LoadingListItems = false }
         let cmd =
@@ -152,7 +158,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with SelectedListItems = newSelection; ListItems = newItems }, cmd
     | ListItemRemoved result ->
         match result with
-        | Ok _ -> state, Cmd.none
+        | Ok _ -> state, showSuccessToastCmd "De eigenaar is verwijderd"
         | Error DeleteOwnerError.AuthorizationError ->
             state, showErrorToastCmd "U heeft geen toestemming om een eigenaar te verwijderen"
         | Error DeleteOwnerError.NotFound ->
@@ -166,14 +172,26 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let listItem = toListItem owner
         let newListItems = listItem :: state.ListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
-        let toast = ToastAlert("De eigenaar werd bewaard").Timeout(3000)
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, SweetAlert.Run(toast)
+        { state with 
+            ListItems = newListItems
+            SelectedListItems = newSelectedListItems 
+        }
+        , Cmd.batch [
+            SelectTab (Details listItem) |> Cmd.ofMsg
+            showSuccessToastCmd "De eigenaar is aangemaakt"
+        ]
     | Edited owner ->
         let listItem = toListItem owner
         let newListItems = state.ListItems |> List.map (fun li -> if li.PersonId = listItem.PersonId then listItem else li)
         let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.PersonId = listItem.PersonId then listItem else li)
-        let toast = ToastAlert("De eigenaar werd bewaard").Timeout(3000)
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, SweetAlert.Run(toast)
+        { state with 
+            ListItems = newListItems
+            SelectedListItems = newSelectedListItems 
+        }
+        , Cmd.batch [
+            SelectTab (Details listItem) |> Cmd.ofMsg
+            showSuccessToastCmd "De eigenaar is gewijzigd"
+        ]
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =

@@ -154,7 +154,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             match model.State with
             | Creating _ -> model.NotifyCreated result
             | _ -> ()
-            { model with State = Viewing result }, Cmd.none
+            model, Cmd.none
         | Error e ->
             processSaveOrganizationError e
 
@@ -164,7 +164,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             match model.State with
             | Editing _ -> model.NotifyEdited result
             | _ -> ()
-            { model with State = Viewing result }, Cmd.none
+            model, Cmd.none
         | Error e ->
             processSaveOrganizationError e
 

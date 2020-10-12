@@ -172,7 +172,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | ListItemRemoved result ->
         match result with
         | Ok _ -> 
-            state, Cmd.none
+            state, showSuccessToastCmd "De gebruiker is verwijderd"
         | Error DeleteUserError.AuthorizationError ->
             state, showErrorToastCmd "U heeft geen toestemming om deze professionele syndicus te verwijderen"
         | Error DeleteUserError.NotFound ->
@@ -184,12 +184,26 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let listItem = user
         let newListItems = listItem :: state.ListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems; SelectedTab = Details user }, Cmd.none
+        { state with 
+            ListItems = newListItems
+            SelectedListItems = newSelectedListItems
+        }
+        , Cmd.batch [
+            SelectTab (Details listItem) |> Cmd.ofMsg
+            showSuccessToastCmd "De gebruiker is aangemaakt"
+        ]
     | Edited user ->
         let listItem = user
         let newListItems = state.ListItems |> List.map (fun li -> if li.UserId = listItem.UserId then listItem else li)
         let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.UserId = listItem.UserId then listItem else li)
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems; SelectedTab = Details user }, Cmd.none
+        { state with 
+            ListItems = newListItems
+            SelectedListItems = newSelectedListItems
+        }
+        , Cmd.batch [
+            SelectTab (Details listItem) |> Cmd.ofMsg
+            showSuccessToastCmd "De gebruiker is gewijzigd"
+        ]
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =

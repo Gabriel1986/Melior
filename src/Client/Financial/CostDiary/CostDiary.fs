@@ -196,7 +196,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             state, showErrorToastCmd "U heeft niet genoeg rechten om een factuur te verwijderen"
         | Error DeleteInvoiceError.NotFound ->
             printf "The invoice that was being deleted was not found in the DB... Somehow..."
-            state, Cmd.none
+            state, showErrorToastCmd "De factuur werd niet gevonden in de databank"
     | RemotingError e ->
         state, showGenericErrorModalCmd e
     | Created invoice ->

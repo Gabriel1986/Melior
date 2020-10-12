@@ -138,7 +138,13 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             |> List.filter (fun li -> li.LotId <> listItem.LotId)
         { state with SelectedListItems = updatedTabs; SelectedTab = List }, Routing.navigateToPage (Routing.Page.LotList { BuildingId = state.CurrentBuilding.BuildingId })
     | SelectTab tab ->
-        { state with SelectedTab = tab }, Cmd.none
+        let buildingId = state.CurrentBuilding.BuildingId
+        let cmd =
+            match tab with
+            | List -> Routing.navigateToPage (Routing.Page.LotList { BuildingId = buildingId })
+            | Details li -> Routing.navigateToPage (Routing.Page.LotDetails { BuildingId = buildingId; DetailId = li.LotId })
+            | New -> Routing.navigateToPage (Routing.Page.LotList { BuildingId = buildingId })
+        { state with SelectedTab = tab }, cmd
     | Loaded (lots, selectedLotId) ->
         let newState = { state with ListItems = lots; LoadingListItems = false }
         let cmd =
@@ -167,7 +173,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with SelectedListItems = newSelection; ListItems = newItems }, cmd
     | ListItemRemoved result ->
         match result with
-        | Ok _ -> state, Cmd.none
+        | Ok _ -> state, showSuccessToastCmd "Het kavel is verwijderd"
         | Error DeleteLotError.AuthorizationError ->
             state, showErrorToastCmd "U heeft niet genoeg rechten om een kavel te verwijderen"
         | Error DeleteLotError.NotFound ->
@@ -179,12 +185,26 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let listItem = toListItem lot
         let newListItems = listItem :: state.ListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
+        { state with 
+            ListItems = newListItems
+            SelectedListItems = newSelectedListItems
+        }
+        , Cmd.batch [
+            SelectTab (Details listItem) |> Cmd.ofMsg
+            showSuccessToastCmd "Het kavel is aangemaakt"
+        ]
     | Edited lot ->
         let listItem = toListItem lot
         let newListItems = state.ListItems |> List.map (fun li -> if li.LotId = lot.LotId then listItem else li)
         let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.LotId = lot.LotId then listItem else li)
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
+        { state with 
+            ListItems = newListItems
+            SelectedListItems = newSelectedListItems
+        }
+        , Cmd.batch [
+            SelectTab (Details listItem) |> Cmd.ofMsg
+            showSuccessToastCmd "Het kavel is gewijzigd"
+        ]
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =
