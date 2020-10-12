@@ -17,7 +17,12 @@ type ContractDbType = {
 let getContracts conn (buildingId: BuildingId) = async {
     let! contracts = 
         Sql.connect conn
-        |> Sql.query "SELECT ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType FROM Contracts WHERE BuildingId = @BuildingId"
+        |> Sql.query 
+            """
+                SELECT ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType 
+                FROM Contracts 
+                WHERE BuildingId = @BuildingId AND IsActive = TRUE
+            """
         |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
         |> Sql.read (fun reader -> {
             ContractId = reader.uuid "ContractId"

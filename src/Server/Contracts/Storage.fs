@@ -76,11 +76,10 @@ let deleteContract conn (msg: Message<BuildingId * Guid>) =
         """
             INSERT INTO Contracts_History
                 (ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType, LastUpdatedBy, LastUpdatedAt)
-            VALUES 
-                (SELECT 
-                    ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType, LastUpdatedBy, LastUpdatedAt
-                    FROM Contracts
-                    WHERE ContractId = @ContractId AND BuildingId = @BuildingId)
+            SELECT 
+                ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType, LastUpdatedBy, LastUpdatedAt
+                FROM Contracts
+                WHERE ContractId = @ContractId AND BuildingId = @BuildingId
         """, [ "@ContractId", Sql.uuid (snd msg.Payload); "@BuildingId", Sql.uuid (fst msg.Payload) ]
 
         """

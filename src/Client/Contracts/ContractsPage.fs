@@ -168,12 +168,13 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
     | EditContract contract ->
         { state with ContractModalIsOpenOn = Some (contract, false) }, Cmd.none
     | DeleteContract contract ->
+        let newContracts = state.Contracts |> List.filter (fun c -> c.ContractId <> contract.ContractId)
         let cmd =
             Cmd.OfAsync.either
                 (Client.Remoting.getRemotingApi()).DeleteContract (state.CurrentBuildingId, contract.ContractId)
                 ContractDeleted
                 RemotingException
-        state, cmd
+        { state with Contracts = newContracts }, cmd
     | ContractDeleted (Ok ()) ->
         state, showSuccessToastCmd "Contract verwijderd"
     | ContractDeleted (Error e) ->
@@ -201,7 +202,7 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
                 ContractSaved
                 RemotingException
 
-        { state with Contracts = newContracts }, cmd
+        { state with Contracts = newContracts; ContractModalIsOpenOn = None }, cmd
     | ContractSaved (Ok ()) ->
         state, showSuccessToastCmd "Uw contract werd bewaard"
     | ContractSaved (Error e) ->

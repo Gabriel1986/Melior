@@ -88,7 +88,8 @@ let update (onOk: Contract * bool -> unit) (onCanceled: unit -> unit) (msg: Mess
     | ContractFileUploaded mediaFile ->
         withContractDo (fun c -> { c with ContractFile = Some mediaFile }), Cmd.none
     | SelectOrganization organization ->
-        withContractDo (fun c -> { c with ContractOrganization = Some organization }), Cmd.none
+        let newState = withContractDo (fun c -> { c with ContractOrganization = Some organization })
+        { newState with State = State.EditingContract }, Cmd.none
     | ChangeContractName newName ->
         withContractDo (fun c -> 
             match c.ContractType with
