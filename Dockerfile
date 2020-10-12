@@ -12,6 +12,8 @@ WORKDIR /app
 
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/core/sdk:3.1
+RUN apt-get update -y
+RUN apt-get install libgdiplus -yq
 COPY --from=build-env /app/deploy /app
 WORKDIR /app/Server
 RUN cd /app/Server

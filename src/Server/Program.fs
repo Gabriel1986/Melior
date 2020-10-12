@@ -42,6 +42,7 @@ module Program =
                     awsSecretAccessKey = awsCredentials.SecretKey,                    
                     fileSizeLimitBytes = 1024L * 20L,
                     bucketPath = "Logs",
+                    restrictedToMinimumLevel = LogEventLevel.Warning,
                     autoUploadEvents = true)
                 .CreateLogger()
 
