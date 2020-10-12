@@ -51,6 +51,7 @@ module Program =
 
         WebHostBuilder()
             .UseConfiguration(config)
+            .UseSerilog()
             .UseKestrel(fun _ options -> options.Configure(config.GetSection("Kestrel")) |> ignore)
             .UseWebRoot(contentPath)
             .UseContentRoot(contentPath)
