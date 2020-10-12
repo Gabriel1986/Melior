@@ -70,6 +70,7 @@ let parseAddress (httpClient: HttpClient) (settings: AppSettings) (address: stri
 
             let streetNumber = tryFindAddressComponent "street_number"
             let street = tryFindAddressComponent "route"
+            let mailboxNumber = tryFindAddressComponent "post_box"
             let town = tryFindAddressComponent "locality"
             let zipCode = tryFindAddressComponent "postal_code"
             let country = tryFindAddressComponent "country"
@@ -79,6 +80,7 @@ let parseAddress (httpClient: HttpClient) (settings: AppSettings) (address: stri
                     match [ street; streetNumber ] |> List.choose id with
                     | [] -> None 
                     | xs -> xs |> String.JoinWith " " |> Some
+                MailboxNumber = mailboxNumber
                 Town = town
                 ZipCode = zipCode
             }

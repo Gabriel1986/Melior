@@ -20,30 +20,24 @@ type SortableAttribute =
     | Code
     | Name
     | OrganizationNumber
-    | Street
-    | ZipCode
-    | Town
+    | Address
     member me.ToString' () =
         match me with
         | Code -> "Code"
         | Name -> "Naam"
         | OrganizationNumber -> "Ond. nr."
-        | Street -> "Straat"
-        | ZipCode -> "Postcode"
-        | Town -> "Plaats"
+        | Address -> "Adres"
     member me.StringValueOf': BuildingListItem -> string =
         match me with
         | Name -> (fun li -> li.Name)
         | Code -> (fun li -> li.Code)
         | OrganizationNumber -> (fun li -> defaultArg li.OrganizationNumber "")
-        | Street -> (fun li -> defaultArg li.Address.Street "")
-        | ZipCode -> (fun li -> defaultArg li.Address.ZipCode "")
-        | Town -> (fun li -> defaultArg li.Address.Town "")
+        | Address -> (fun li -> string li.Address)
     member me.Compare': BuildingListItem -> BuildingListItem -> int =
         fun li otherLi ->
             let result = me.StringValueOf'(li).CompareTo(me.StringValueOf'(otherLi))
             result
-    static member All = [ Code; Name; OrganizationNumber; Street; ZipCode; Town ]
+    static member All = [ Code; Name; OrganizationNumber; Address ]
     interface ISortableAttribute<BuildingListItem> with
         member me.ToString = me.ToString'
         member me.ToLongString = me.ToString'

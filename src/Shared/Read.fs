@@ -140,25 +140,35 @@ type Building =
 and Address =
     {
         Street: string option
+        MailboxNumber: string option
         ZipCode: string option
         Town: string option
         Country: string option
     }
     static member Init () = { 
         Street = None
+        MailboxNumber = None
         ZipCode = None
         Town = None
         Country = Some "België" 
     }
     static member Copy (otherAddress: Address) = {
         Street = otherAddress.Street
+        MailboxNumber = otherAddress.MailboxNumber
         ZipCode = otherAddress.ZipCode
         Town = otherAddress.Town
         Country = otherAddress.Country
     }
     override me.ToString () =
+        let houseNumber =
+            [
+                if me.Street.IsSome then yield me.Street.Value
+                if me.MailboxNumber.IsSome then yield (sprintf "bus %s" me.MailboxNumber.Value)
+            ]
+            |> String.JoinWith " "
+
         [
-            if me.Street.IsSome then yield me.Street.Value
+            if (not (String.IsNullOrWhiteSpace houseNumber)) then yield houseNumber
             if me.ZipCode.IsSome || me.Town.IsSome then yield ([me.ZipCode; me.Town] |> String.JoinOptionsWith " ")
             if me.Country.IsSome then yield me.Country.Value
         ]

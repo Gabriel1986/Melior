@@ -31,6 +31,20 @@ let render (address: Address) (onChange: (Address -> unit) option) (basePath: st
         ]
         div [ Class Bootstrap.col ] [
             formGroup [ 
+                Label "Bus"
+                Input [ 
+                    Type "text"
+                    MaxLength 16.0 
+                    Helpers.valueOrDefault address.MailboxNumber
+                    match onChange with
+                    | Some onChange -> OnChange (fun e -> { address with MailboxNumber = e.Value |> String.toOption } |> onChange)
+                    | None -> Disabled true
+                ] 
+                FormError (findError (nameof address.MailboxNumber))
+            ]
+        ]
+        div [ Class Bootstrap.col ] [
+            formGroup [ 
                 Label "Postcode"
                 Input [ 
                     Type "text"

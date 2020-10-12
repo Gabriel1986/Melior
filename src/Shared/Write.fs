@@ -10,6 +10,7 @@ open Trial
 type ValidatedAddress = 
     {
         Street: String255 option
+        MailboxNumber: String16 option
         ZipCode: String16 option
         Town: String64 option
         Country: String64 option
@@ -18,11 +19,13 @@ type ValidatedAddress =
         let onBasePath subPath = sprintf "%s.%s" basePath subPath
         trial {
             from street in validateOptional (String255.Of (onBasePath (nameof address.Street))) address.Street
+            also mailboxNumber in validateOptional (String16.Of (onBasePath (nameof address.MailboxNumber))) address.MailboxNumber
             also zipCode in validateOptional (String16.Of (onBasePath (nameof address.ZipCode))) address.ZipCode
             also town in validateOptional (String64.Of (onBasePath (nameof address.Town))) address.Town
             also country in validateOptional (String64.Of (onBasePath (nameof address.Country))) address.Country
             yield {
                 Street = street
+                MailboxNumber = mailboxNumber
                 ZipCode = zipCode
                 Town = town
                 Country = country

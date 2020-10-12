@@ -9,6 +9,7 @@ open Server.Addresses.Library
 module ValidatedAddress =
     let toAddress (validated: ValidatedAddress): Address = { 
         Street = validated.Street |> Option.map string
+        MailboxNumber = validated.MailboxNumber |> Option.map string
         ZipCode = validated.ZipCode |> Option.map string
         Town = validated.Town  |> Option.map string
         Country = validated.Country |> Option.map string
