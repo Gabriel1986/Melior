@@ -34,7 +34,6 @@ let view (detail: Lot) =
                 yield readonlyFormElement "Type" (string detail.LotType)
                 yield readonlyFormElement "Quotiteit" (detail.Share |> Option.map string |> Option.defaultValue "")
                 yield readonlyFormElement "Verdieping" (detail.Floor |> Option.map string |> Option.defaultValue "")
-                yield readonlyFormElement "Oppervlakte" (detail.Surface |> Option.map string |> Option.defaultValue "")
 
                 match detail.Description with
                 | Some description ->

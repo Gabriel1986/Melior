@@ -332,11 +332,11 @@ type AddBankAccountColumns() =
 [<Migration(8L, "Add 'share' column to the lot table")>]
 type AddShareColumnToLotTable() =
     inherit Migration()
-    override u.Up () =
-        //type BankAccount = { Description: string; IBAN: string; BIC: string }
-        u.Execute(
-            """
-                ALTER TABLE Lots ADD COLUMN Share INT
-            """
-        )
+    override u.Up () = u.Execute("ALTER TABLE Lots ADD COLUMN Share INT")
+    override u.Down () = failwith "Not supported"
+
+[<Migration(9L, "Remove 'surface' column from the lot table")>]
+type RemoveSurfaceFromLotTable() =
+    inherit Migration()
+    override u.Up () = u.Execute("ALTER TABLE Lots DROP COLUMN Surface")
     override u.Down () = failwith "Not supported"

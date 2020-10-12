@@ -20,7 +20,6 @@ let private paramsFor (validated: ValidatedLot) =
         "@LotType"                   , Sql.string (string validated.LotType)
         "@Description"               , Sql.stringOrNone validated.Description
         "@Floor"                     , Sql.intOrNone validated.Floor
-        "@Surface"                   , Sql.intOrNone (validated.Surface |> Option.map (fun s -> s.Value ()))
         "@Share"                     , Sql.intOrNone (validated.Share |> Option.map (fun s -> s.Value ()))
     ]
 
@@ -58,7 +57,6 @@ let createLot (connectionString: string) (validated: ValidatedLot) =
                     LotType,
                     Description,
                     Floor,
-                    Surface,
                     Share
                 ) VALUES (
                     @LotId,
@@ -67,7 +65,6 @@ let createLot (connectionString: string) (validated: ValidatedLot) =
                     @LotType,
                     @Description,
                     @Floor,
-                    @Surface,
                     @Share
                 )
             """, paramsFor validated
@@ -86,7 +83,6 @@ let updateLot (connectionString: string) (validated: ValidatedLot) =
                     LotType = @LotType,
                     Description = @Description,
                     Floor = @Floor,
-                    Surface = @Surface,
                     Share = @Share
                 WHERE LotId = @LotId
             """, (paramsFor validated)

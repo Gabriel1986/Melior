@@ -15,7 +15,6 @@ type Message =
     | LotTypeChanged of LotType
     | DescriptionChanged of string
     | FloorChanged of string
-    | SurfaceChanged of string
     | ChangeLotOwners
     | LotOwnersChanged of LotOwner list
     | ChangeLotOwnersCanceled
@@ -73,9 +72,6 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | FloorChanged x ->
         changeLot (fun l -> { l with Floor = parseInt x })
         |> removeError (nameof state.Lot.Floor), Cmd.none
-    | SurfaceChanged x ->
-        changeLot (fun l -> { l with Surface = parseInt x })
-        |> removeError (nameof state.Lot.Surface), Cmd.none
     | ChangeLotOwners ->
         { state with ShowingLotOwnerModal = true }, Cmd.none
     | ChangeLotOwnersCanceled ->
@@ -234,7 +230,7 @@ let view (state: State) (dispatch: Message -> unit) =
         div [ Class Bootstrap.row ] [
             div [] [
                 div [ Class Bootstrap.row ] [
-                    div [ Class Bootstrap.colMd5; Style [ PaddingLeft "0" ] ] [
+                    div [ Class Bootstrap.col; Style [ PaddingLeft "0" ] ] [
                         formGroup [
                             Label "Verdieping"
                             Input [
@@ -245,18 +241,6 @@ let view (state: State) (dispatch: Message -> unit) =
                                 OnChange (fun e -> FloorChanged e.Value |> dispatch)
                             ]
                             FormError (errorFor (nameof state.Lot.Floor))
-                        ]
-                    ]
-                    div [ Class Bootstrap.colMd7; Style [ PaddingLeft "0" ] ] [
-                        formGroup [
-                            Label "Oppervlakte (m²)"
-                            Input [
-                                Type "number"
-                                Min 0
-                                Helpers.valueOrDefault state.Lot.Surface
-                                OnChange (fun e -> SurfaceChanged e.Value |> dispatch)
-                            ]
-                            FormError (errorFor (nameof state.Lot.Surface))
                         ]
                     ]
                 ]

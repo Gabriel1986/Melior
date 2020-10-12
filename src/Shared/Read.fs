@@ -236,8 +236,6 @@ and Lot =
         Description: string option
         //Which floor this lot is on
         Floor: int option
-        //Surface in square metres, if necessary, could be calculated in square feet
-        Surface: int option
         //Nl: aandeel / quotiteit
         Share: int option
     }
@@ -252,7 +250,6 @@ and Lot =
         LotType = LotType.Appartment
         Description = None
         Floor = None
-        Surface = None
         Share = None
     }
 and LotOwner = 

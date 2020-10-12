@@ -17,7 +17,6 @@ module private Readers =
         LotType: string
         Description: string option
         Floor: int option
-        Surface: int option
         Share: int option
     }
 
@@ -28,7 +27,6 @@ module private Readers =
         LotType = reader.string "LotType"
         Description = reader.stringOrNone "Description"
         Floor = reader.intOrNone "Floor"
-        Surface = reader.intOrNone "Surface"
         Share = reader.intOrNone "Share"
     }
 
@@ -85,7 +83,6 @@ let getLot (connectionString: string) (lotId: Guid): Async<Lot option> = async {
                     LotType,
                     Description,
                     Floor,
-                    Surface,
                     Share
                 FROM Lots
                 WHERE LotId = @LotId
@@ -137,7 +134,6 @@ let getLot (connectionString: string) (lotId: Guid): Async<Lot option> = async {
             LotType = LotType.OfString dbModel.LotType
             Description = dbModel.Description
             Floor = dbModel.Floor
-            Surface = dbModel.Surface
             Owners = ownerOrgs @ ownerPersons
             Share = dbModel.Share
         }
