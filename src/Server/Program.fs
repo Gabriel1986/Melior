@@ -39,10 +39,9 @@ module Program =
                     bucketName = "meliordigital",
                     endpoint = Amazon.RegionEndpoint.EUCentral1,
                     awsAccessKeyId = awsCredentials.AccessKey,
-                    awsSecretAccessKey = awsCredentials.SecretKey,
+                    awsSecretAccessKey = awsCredentials.SecretKey,                    
                     fileSizeLimitBytes = 1024L * 20L,
                     bucketPath = "Logs",
-                    restrictedToMinimumLevel = LogEventLevel.Warning,
                     autoUploadEvents = true)
                 .CreateLogger()
 
