@@ -5,6 +5,8 @@ open Serilog
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.Configuration
 open System
+open Amazon.Runtime
+open Serilog.Events
 
 module Program =
     let exitCode = 0
@@ -25,9 +27,28 @@ module Program =
                 .AddCommandLine(args)
                 .Build()
 
-        Log.Logger <- LoggerConfiguration()
-                            .ReadFrom.Configuration(config)
-                            .CreateLogger()
+        let awsConfig = config.GetAWSOptions()
+        awsConfig.Credentials <- new EnvironmentVariablesAWSCredentials()
+        let awsCredentials = awsConfig.Credentials.GetCredentials()
+
+        Log.Logger <- 
+            (new LoggerConfiguration())
+                .WriteTo
+                .AmazonS3(
+                    path = "SyndicusAssistent.txt", 
+                    bucketName = "meliordigital",
+                    endpoint = Amazon.RegionEndpoint.EUCentral1,
+                    awsAccessKeyId = awsCredentials.AccessKey,
+                    awsSecretAccessKey = awsCredentials.SecretKey,
+                    fileSizeLimitBytes = 1024L * 20L,
+                    bucketPath = "Logs",
+                    restrictedToMinimumLevel = LogEventLevel.Warning,
+                    autoUploadEvents = true)
+                .CreateLogger()
+
+            //LoggerConfiguration()
+            //                .ReadFrom.Configuration(config)
+            //                .CreateLogger()
 
         WebHostBuilder()
             .UseConfiguration(config)

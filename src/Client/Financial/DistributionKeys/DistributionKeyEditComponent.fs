@@ -93,12 +93,12 @@ let view (state: State) (dispatch: Message -> unit) =
                     Options = [
                         {
                             Key = string DistributionType.Shares
-                            Label = "Volgens gelijke delen"
+                            Label = "Volgens aandelen"
                             IsSelected = state.DistributionKey.DistributionType = DistributionType.Shares
                         }
                         {
                             Key = string DistributionType.EqualParts
-                            Label = "Volgens aandelen"
+                            Label = "Volgens gelijke delen"
                             IsSelected = state.DistributionKey.DistributionType = DistributionType.EqualParts
                         }
                     ]

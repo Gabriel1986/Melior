@@ -352,7 +352,10 @@ let view (state: State) (dispatch: Message -> unit) =
         ]
         div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
             div [ Class Bootstrap.cardBody ] [
-                button [ classes [ Bootstrap.btn; Bootstrap.btnSuccess ]; Type "button"; OnClick (fun _ -> CreateNewContract |> dispatch) ] [
+                button [ classes [ Bootstrap.btn ]; Type "button"; OnClick (fun _ -> OpenQuestionModal |> dispatch) ] [
+                    str "Instellingen gebouw aanpassen"
+                ]
+                button [ classes [ Bootstrap.btn; Bootstrap.btnSuccess ]; Style [ MarginLeft "5px" ]; Type "button"; OnClick (fun _ -> CreateNewContract |> dispatch) ] [
                     str "Contract aanmaken"
                 ]
             ]

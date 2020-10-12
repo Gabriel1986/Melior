@@ -26,3 +26,4 @@ Giraffe.Antiforgery
 BCrypt.Net-Next
 GoogleAuthenticator
 MailKit
+HaemmerElectronics.SeppPenner.Serilog.Sinks.AmazonS3
