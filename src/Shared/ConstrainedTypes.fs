@@ -103,14 +103,14 @@ module OrganizationNumber =
 type VatNumber = 
     private | VatNumber of countryCode: string * vatNumber: string
     member me.CountryCode () = match me with | VatNumber (c, _) -> c
-    member me.Value () = match me with | VatNumber (_, v) -> v
-    override me.ToString () = 
-        match me with 
-        | VatNumber (c, v) -> 
-            if c = "BE" then
-                sprintf "%s %s.%s.%s" c v.[0..3] v.[4..6] v.[7..9]
-            else
-                sprintf "%s %s" c v
+    member me.Value () = match me with | VatNumber (_, v) -> v.PadLeft(10, '0')
+    override me.ToString () =
+        let countryCode = me.CountryCode()
+        let value = me.Value ()
+        if countryCode = "BE" then
+            sprintf "%s %s.%s.%s" countryCode value.[0..3] value.[4..6] value.[7..9] 
+        else
+            sprintf "%s %s" countryCode value
 
 module VatNumber =
     let private parseInt (s: string) = 
@@ -119,9 +119,19 @@ module VatNumber =
         | false, _      -> 0
 
     let Of path (countryCode: string) (vatNumber: string) =
-        let isValid =
+        let vatNumberDigits = vatNumber |> String.filter Char.IsDigit
+        let lengthError =
+            if String.IsNullOrWhiteSpace (countryCode) || String.IsNullOrWhiteSpace (vatNumber) 
+            then
+                None
+            elif countryCode = "BE" && (vatNumberDigits.Length < 9 || vatNumberDigits.Length > 10)
+            then
+                Some "Het btw nummer is verkeerd geformatteerd, verwacht BE (0)XXX.XXX.XXX of BE(0)XXXXXXXXX"
+            else
+                None
+        let validationError =
             if String.IsNullOrWhiteSpace (countryCode) || String.IsNullOrWhiteSpace (vatNumber) then
-                false
+                None
             elif countryCode = "BE" then
                 let digits = vatNumber |> String.filter Char.IsDigit
                 let validateBelgianCheckNumber (str: string) =
@@ -129,17 +139,27 @@ module VatNumber =
                     let number = parseInt (digits.[0..7])
                     let checkNumber = parseInt (digits.[8..])
                     (number + checkNumber) % 97 = 0
-                digits.Length >= 9 && digits.Length <= 10 && validateBelgianCheckNumber digits
+                if (digits.Length >= 9 && digits.Length <= 10 && validateBelgianCheckNumber digits)
+                then
+                    None
+                else
+                    Some "U heeft een ongeldig BTW nummer ingevoerd"
             else
                 //Let Vies worry about the actual validity... 
                 //There are too many ways to validate VAT numbers which differ for every EU member
                 //I don't want to update this file whenever a memberstate decides to use different rules
-                true
+                None
 
-        if isValid then
+        let errors =
+            [
+                lengthError
+                validationError
+            ]
+            |> List.choose id
+        if errors.Length = 0 then
             Trial.Pass (VatNumber (countryCode, vatNumber |> String.filter (fun character -> Char.IsDigit character)))
         else
-            Trial.ofError (path, "Het btw nummer is verkeerd geformatteerd, verwacht bvb. (BE XXX.XXX.XXX) of (BE0123456789)")
+            Trial.Fail (errors |> List.map (fun e -> path, e))
 
     let OfString path (x: string) =
         if x.Length < 2 then
@@ -150,3 +170,4 @@ module VatNumber =
     let TryParse (x: string) =
         OfString "" x
         |> Trial.toResult
+        |> Result.mapError (fun errors -> errors |> List.map snd |> fun errorStrings -> String.Join("\n", errorStrings))

@@ -165,9 +165,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             printf "Could not delete the owner, it was not found in the DB... Somehow..."
             state, Cmd.none
     | RemotingError e ->
-        printf "Error: %A" e
-        let alert = SimpleAlert("Er is iets misgegaan bij de communicatie met de server.").Type(AlertType.Error)
-        state, SweetAlert.Run(alert)
+        state, showGenericErrorModalCmd e
     | Created owner ->
         let listItem = toListItem owner
         let newListItems = listItem :: state.ListItems

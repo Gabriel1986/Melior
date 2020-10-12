@@ -12,6 +12,7 @@ open Client.ClientStyle.Helpers
 open Shared.Read
 open Shared.Library
 open Shared.ConstrainedTypes
+open Client.Library
 open Client.Components
 open Client.Components.BasicModal
 
@@ -198,7 +199,8 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         let newState = changeOrganization (fun org -> { org with OrganizationTypes = organizationTypes })
         { newState with OrganizationTypeModalState = Closed }, Cmd.none
     | VatNumberChanged vatNumber ->
-        changeOrganization (fun org -> { org with VatNumber = (if String.IsNullOrEmpty vatNumber then None else Some vatNumber); VatNumberVerifiedOn = None }), Cmd.none
+        let newState = changeOrganization (fun org -> { org with VatNumber = (if String.IsNullOrEmpty vatNumber then None else Some vatNumber); VatNumberVerifiedOn = None })
+        { newState with VatNumberCheckingState = None }, Cmd.none
     | BankAccountAdded ->
         changeOrganization (fun org -> { org with BankAccounts = org.BankAccounts @ [ BankAccount.Init () ] }), Cmd.none
     | BankAccountChanged (index, updatedBankAccount) ->
@@ -225,8 +227,10 @@ let update (message: Message) (state: State): State * Cmd<Message> =
                     VatNumberVerified
                     RemotingError
             { state with VatNumberCheckingState = Some CheckingVatNumber }, cmd
-        | Error _ ->
-            { state with VatNumberCheckingState = None }, Cmd.none
+        | Error e ->
+            printf "%A" e
+            { state with VatNumberCheckingState = Some VatNumberCheckingFailed }
+            , showErrorToastCmd e
     | VatNumberVerified r ->
         match r with
         | Ok verification ->
@@ -244,14 +248,13 @@ let update (message: Message) (state: State): State * Cmd<Message> =
                 })
                 { newState with VatNumberCheckingState = None }, SweetAlert.Run(alert)
             else
-                let alert = SimpleAlert("Het opgegeven BTW nummer is niet geldig").Type(AlertType.Error)
-                { state with VatNumberCheckingState = Some VatNumberCheckingFailed }, SweetAlert.Run(alert)
+                { state with VatNumberCheckingState = Some VatNumberCheckingFailed }
+                , showErrorToastCmd "Het opgegeven BTW nummer is niet geldig"
         | Error e ->
-            state, Cmd.ofMsg (RemotingError (exn e))
+            { state with VatNumberCheckingState = Some VatNumberCheckingFailed }
+            , showErrorToastCmd e
     | RemotingError e ->
-        printf "Error: %A" e
-        let alert = SimpleAlert("Er is iets misgegaan bij de communicatie met de server").Type(AlertType.Error)
-        state, SweetAlert.Run(alert)
+        state, showGenericErrorModalCmd e
 
 let private contactMethodTypeOptions (currentlySelected: ContactMethodType): FormSelectOption list =
     [

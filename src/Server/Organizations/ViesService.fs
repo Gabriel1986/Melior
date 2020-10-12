@@ -29,15 +29,24 @@ let private mapViesResponse (appSettings: AppSettings) (viesResponse: ViesCheckV
 
 let verifyVatNumber (settings: AppSettings) (vatNumber: VatNumber) =
     use manager = new ViesManager(httpClient)
-    try
-        manager.IsActive(vatNumber.CountryCode (), vatNumber.Value ())
-        |> Async.AwaitTask
-        |> Async.bind (mapViesResponse settings)
-        |> Async.map Ok
-    with ex ->
-        match ex with
-        | :? ViesServiceException -> 
-            Log.Logger.Error(ex, "Er is iets misgelopen bij het opvragen van de BTW gegevens bij VIES")
-            Async.lift (Error ("Er is iets misgelopen bij het opvragen van de BTW gegevens bij de webservice van de EU. Gelieve het later nog eens te proberen."))
-        | someOtherException ->
-            raise someOtherException
+    async {
+        try
+            let! result =
+                manager.IsActive(vatNumber.CountryCode (), vatNumber.Value ())
+                |> Async.AwaitTask
+                |> Async.bind (mapViesResponse settings)
+            return Ok result
+        with ex ->
+            match ex with
+            | :? System.AggregateException as ex ->
+                match ex.InnerException with
+                | :? ViesServiceException ->
+                    Log.Logger.Error(ex, "Er is iets misgelopen bij het opvragen van de BTW gegevens bij VIES")
+                    return Error "Er is iets misgelopen bij het opvragen van de BTW gegevens bij de webservice van de EU. Gelieve het later nog eens te proberen."
+                | :? ViesValidationException ->
+                    return Error "U heeft een ongeldig BTW nummer ingevoerd"
+                | someOtherException ->
+                    return raise someOtherException
+            | someOtherException ->
+                return raise someOtherException
+    }
