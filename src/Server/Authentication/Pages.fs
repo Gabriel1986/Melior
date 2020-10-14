@@ -201,7 +201,16 @@ let initializeTwoFacPage (qrCode: string) (manualEntrySetupCode: string) (valida
                     ]
                     div [ _class "form-group" ] [
                         label [] [ str "De code die uw app u toont (deze wijzigt elke 30 seconden):" ]
-                        input [ _name "VerificationCode"; _type "text"; _required; _autofocus; _maxlength "6"; _class "form-control" ]
+                        input [ _name "VerificationCode"; _type "text"; _autofocus; _maxlength "6"; _class "form-control" ]
+                    ]
+                    div [] [
+                        button [ _class "btn btn-primary"; _type "submit"; _name "SubmitButton"; _value "Submit"] [
+                            str "Instellen"
+                        ]
+                        str " "
+                        button [ _class "btn btn-danger"; _type "submit"; _name "SubmitButton"; _value "Cancel" ] [
+                            str "Annuleren"
+                        ]
                     ]
                 ]
             ]

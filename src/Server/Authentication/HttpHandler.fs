@@ -74,6 +74,7 @@ type RecommendTwoFactorAuthenticationForm = {
 [<CLIMutable>]
 type TwoFacLoginForm = {
     VerificationCode: string
+    SubmitButton: string
 }
 
 [<CLIMutable>]
@@ -96,7 +97,7 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
     }
 
     let googleRecaptchSubmitButton btnText =
-        div [] [
+        div [ _style "display:inline-block;" ] [
             script [ _type "application/javascript" ] [
                 rawText
                     """
@@ -251,7 +252,9 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
                 | None ->
                     htmlView usernamePasswordTokenExpiredPage nxt ctx
             )
-            POST >=> (fun nxt ctx -> task {
+            POST 
+                >=> requiresCsrfToken (text "CSRF token validation failed...")
+                >=> (fun nxt ctx -> task {
                 let! postParams = ctx.BindFormAsync<RecommendTwoFactorAuthenticationForm>()
                 let requestParams = ctx.BindQueryString<TokenRequestParams>()
                 match system.ValidateUsernamePasswordToken requestParams.Token with
@@ -295,7 +298,7 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
                     do sharedSecretCache.Set(requestParams.Token, (secret, recoveryCodes))
 
                     let tfa = new TwoFactorAuthenticator()
-                    let setupInfo = tfa.GenerateSetupCode("Melior Digital", userEmailAddress, secret, false, 4)
+                    let setupInfo = tfa.GenerateSetupCode("SyndicusAssistent", userEmailAddress, secret, false, 4)
                     let qrCodeImageUrl = setupInfo.QrCodeSetupImageUrl; //  assigning the Qr code information + URL to a base64 encoded string
                     let manualEntrySetupCode = setupInfo.ManualEntryKey; // show the Manual Entry Key for the users that don't have app or phone
 
@@ -303,15 +306,15 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
                 | None ->
                     return! htmlView usernamePasswordTokenExpiredPage nxt ctx
             })
-            POST >=> (fun nxt ctx -> task {
+            POST
+                >=> requiresCsrfToken (text "CSRF token validation failed...")
+                >=> (fun nxt ctx -> task {
                 let! postParams = ctx.BindFormAsync<TwoFacLoginForm>()
                 let requestParams = ctx.BindQueryString<TokenRequestParams>()
                 match system.ValidateUsernamePasswordToken requestParams.Token with 
                 | Some identity ->
-                    let tfa = new TwoFactorAuthenticator();
-                    let (secret, recoveryCodes): string * string list = defaultArg (sharedSecretCache.TryRetrieve(requestParams.Token)) ("", [])
-                    match tfa.ValidateTwoFactorPIN(secret, postParams.VerificationCode, TimeSpan.FromMinutes(3.0)) with
-                    | true ->
+                    match postParams.SubmitButton with
+                    | "Cancel" ->
                         let! user =
                             identity.FindFirstValue (JwtRegisteredClaimNames.Sub) 
                             |> Guid.Parse
@@ -319,30 +322,48 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
                             |> system.GetUser
                         match user with
                         | Some currentUser ->
-                            let updateTwoFac = {
-                                UserId = currentUser.UserId
-                                UseTwoFac = true
-                                TwoFacSecret = secret
-                                RecoveryCodes = recoveryCodes
-                            }
-                            do! system.UpdateTwoFacAuthentication updateTwoFac
-                            //TODO: send email for recoveryCodes
                             let claimsPrincipal = toClaimsPrincipal currentUser
                             do! ctx.SignInAsync(loginAuthSchema, claimsPrincipal)
-                            return! htmlView twoFacSucceeded nxt ctx
+                            return! redirectTo false "/" nxt ctx
                         | None ->
                             //This should never occur really... But meh :)
                             return! htmlView usernamePasswordTokenExpiredPage nxt ctx
-                    | false ->
-                        let userEmailAddress = identity.FindFirstValue(JwtRegisteredClaimNames.Email)
-                        do sharedSecretCache.Set(requestParams.Token, (secret, recoveryCodes))
+                    | _ ->
+                        let tfa = new TwoFactorAuthenticator();
+                        let (secret, recoveryCodes): string * string list = defaultArg (sharedSecretCache.TryRetrieve(requestParams.Token)) ("", [])
+                        match tfa.ValidateTwoFactorPIN(secret, postParams.VerificationCode, TimeSpan.FromMinutes(3.0)) with
+                        | true ->
+                            let! user =
+                                identity.FindFirstValue (JwtRegisteredClaimNames.Sub) 
+                                |> Guid.Parse
+                                |> createMessage ctx
+                                |> system.GetUser
+                            match user with
+                            | Some currentUser ->
+                                let updateTwoFac = {
+                                    UserId = currentUser.UserId
+                                    UseTwoFac = true
+                                    TwoFacSecret = secret
+                                    RecoveryCodes = recoveryCodes
+                                }
+                                do! system.UpdateTwoFacAuthentication updateTwoFac
+                                //TODO: send email for recoveryCodes
+                                let claimsPrincipal = toClaimsPrincipal currentUser
+                                do! ctx.SignInAsync(loginAuthSchema, claimsPrincipal)
+                                return! htmlView twoFacSucceeded nxt ctx
+                            | None ->
+                                //This should never occur really... But meh :)
+                                return! htmlView usernamePasswordTokenExpiredPage nxt ctx
+                        | false ->
+                            let userEmailAddress = identity.FindFirstValue(JwtRegisteredClaimNames.Email)
+                            do sharedSecretCache.Set(requestParams.Token, (secret, recoveryCodes))
 
-                        let tfa = new TwoFactorAuthenticator()
-                        let setupInfo = tfa.GenerateSetupCode("Melior app", userEmailAddress, secret, false, 4)
-                        let qrCodeImageUrl = setupInfo.QrCodeSetupImageUrl; //  assigning the Qr code information + URL to a base64 encoded string
-                        let manualEntrySetupCode = setupInfo.ManualEntryKey; // show the Manual Entry Key for the users that don't have app or phone
+                            let tfa = new TwoFactorAuthenticator()
+                            let setupInfo = tfa.GenerateSetupCode("SyndicusAssistent", userEmailAddress, secret, false, 4)
+                            let qrCodeImageUrl = setupInfo.QrCodeSetupImageUrl; //  assigning the Qr code information + URL to a base64 encoded string
+                            let manualEntrySetupCode = setupInfo.ManualEntryKey; // show the Manual Entry Key for the users that don't have app or phone
 
-                        return! csrfHtmlView (initializeTwoFacPage qrCodeImageUrl manualEntrySetupCode [ "De ingegeven code was niet geldig. Gelieve opnieuw te proberen." ]) nxt ctx
+                            return! csrfHtmlView (initializeTwoFacPage qrCodeImageUrl manualEntrySetupCode [ "De ingegeven code was niet geldig. Gelieve opnieuw te proberen." ]) nxt ctx
                 | None ->
                     return! htmlView usernamePasswordTokenExpiredPage nxt ctx                
             })
