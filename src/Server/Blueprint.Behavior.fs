@@ -161,13 +161,22 @@ module Financial =
         abstract CreateInvoice: Message<Invoice> -> Async<Result<unit, SaveInvoiceError>>
         abstract UpdateInvoice: Message<Invoice> -> Async<Result<unit, SaveInvoiceError>>
         abstract DeleteInvoice: Message<BuildingId * Guid> -> Async<Result<unit, DeleteInvoiceError>>
+
+        abstract CreateFinancialYear: Message<FinancialYear> -> Async<Result<unit, SaveFinancialYearError>>
+        abstract UpdateFinancialYear: Message<FinancialYear> -> Async<Result<unit, SaveFinancialYearError>>
+        abstract DeleteFinancialYear: Message<BuildingId * Guid> -> Async<Result<unit, DeleteFinancialYearError>>
+
+        abstract CreateFinancialCategory: Message<FinancialCategory> -> Async<Result<unit, SaveFinancialCategoryError>>
+        abstract UpdateFinancialCategory: Message<FinancialCategory> -> Async<Result<unit, SaveFinancialCategoryError>>
+        abstract DeleteFinancialCategory: Message<BuildingId * Guid> -> Async<Result<unit, DeleteFinancialCategoryError>>
+
         //Queries
         abstract GetDistributionKeys: Message<BuildingId> -> Async<DistributionKey list>
         abstract GetDistributionKeyListItems: Message<BuildingId> -> Async<DistributionKeyListItem list>
         abstract GetInvoices: Message<InvoiceFilter> -> Async<InvoiceListItem list>
         abstract GetInvoice: Message<Guid> -> Async<Invoice option>
         abstract GetFinancialYears: Message<BuildingId> -> Async<FinancialYear list>
-        abstract GetFinancialCategories: Message<BuildingId> -> Async<FinancialCategory list>
+        abstract GetFinancialCategoryTree: Message<BuildingId> -> Async<FinancialCategory list>
 
 [<NoComparison; NoEquality>]
 type IEnv =

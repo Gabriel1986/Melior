@@ -1,13 +1,14 @@
 ﻿module Server.Buildings.Storage
 
 open System
+open NodaTime
 open Npgsql.FSharp
 open Server.Addresses.Workflow
 open Server.PostgreSQL
 open Server.Library
 open Shared.Read
 open Shared.Write
-open NodaTime
+open FSharp.Data
 
 type IBuildingStorage =
     abstract CreateBuilding: ValidatedBuilding -> Async<unit>
@@ -148,39 +149,57 @@ let updateBuildingConcierge (connectionString: string) (buildingId: BuildingId, 
         ]
         |> Sql.writeAsync
 
-let createBuilding (connectionString: string) (validated: ValidatedBuilding) =
-    Sql.connect connectionString
-    |> Sql.query
-        """
-            INSERT INTO Buildings (
-                BuildingId,
-                Code,
-                Name,
-                Address,
-                OrganizationNumber,
-                Remarks,
-                GeneralMeetingFrom,
-                GeneralMeetingUntil,
-                YearOfConstruction,
-                YearOfDelivery,
-                BankAccounts
-            ) VALUES (
-                @BuildingId,
-                @Code,
-                @Name,
-                @Address,
-                @OrganizationNumber,
-                @Remarks,
-                @GeneralMeetingFrom,
-                @GeneralMeetingUntil,
-                @YearOfConstruction,
-                @YearOfDelivery,
-                @BankAccounts
+let private seedFinancialCategoriesForBuilding (conn: string) (buildingId: BuildingId) = async {
+    let! csvFile = CsvFile.AsyncLoad("FinancialCategories.csv", ";", encoding = Text.Encoding.UTF8)
+    do!
+        Sql.connect conn
+        |> Sql.writeBatchAsync 
+            (csvFile.Rows 
+            |> Seq.map (fun row ->
+                """
+                """, [ "@Code", Sql.string (row.GetColumn "Code"); "@Description", Sql.string (row.GetColumn "Description") ]
             )
-        """
-    |> Sql.parameters (paramsFor validated)
-    |> Sql.writeAsync
-    |> Async.Ignore
+            |> List.ofSeq)
+        |> Async.Ignore
+}
+
+let createBuilding (connectionString: string) (validated: ValidatedBuilding) = async {
+    do!
+        Sql.connect connectionString
+        |> Sql.query
+            """
+                INSERT INTO Buildings (
+                    BuildingId,
+                    Code,
+                    Name,
+                    Address,
+                    OrganizationNumber,
+                    Remarks,
+                    GeneralMeetingFrom,
+                    GeneralMeetingUntil,
+                    YearOfConstruction,
+                    YearOfDelivery,
+                    BankAccounts
+                ) VALUES (
+                    @BuildingId,
+                    @Code,
+                    @Name,
+                    @Address,
+                    @OrganizationNumber,
+                    @Remarks,
+                    @GeneralMeetingFrom,
+                    @GeneralMeetingUntil,
+                    @YearOfConstruction,
+                    @YearOfDelivery,
+                    @BankAccounts
+                )
+            """
+        |> Sql.parameters (paramsFor validated)
+        |> Sql.writeAsync
+        |> Async.Ignore
+
+    do! seedFinancialCategoriesForBuilding connectionString validated.BuildingId
+}
 
 let updateBuilding (connectionString: string) (validated: ValidatedBuilding) =
     Sql.connect connectionString

@@ -2,10 +2,12 @@
 
 open System
 open Fable.React
+open Fable.React.Props
 open Shared.Read
-open Client.ClientStyle.Helpers
-open Client.Upload
 open Shared.MediaLibrary
+open Client.Upload
+open Client.ClientStyle
+open Client.ClientStyle.Helpers
 
 type Props = {|
     Invoice: Invoice
@@ -18,13 +20,14 @@ let view (props: Props) =
             legend [] [ h2 [] [ str "Algemeen" ] ]
             readonlyFormElement "BoekingsNummer" detail.LocalInvoiceNumber
             readonlyFormElement "Boekingsdatum" (detail.BookingDate.ToString("dd/MM/yyyy"))
-            readonlyFormElement "Rubriek" (sprintf "%s - %s" detail.CategoryCode detail.CategoryDescription)
+            readonlyFormElement "Rubriek" (sprintf "%s - %s" detail.FinancialCategory.Code detail.FinancialCategory.Description)
             readonlyFormElement "Omschrijving" (detail.Description |> Option.defaultValue "")
+            readonlyFormElement "Met verdeelsleutel" detail.DistributionKey.Name
         ]
         fieldset [] [            
             legend [] [ h2 [] [ str "Leverancier" ] ]
-            readonlyFormElement "Naam" detail.OrganizationName
-            match detail.OrganizationNumber, detail.OrganizationVatNumber with
+            readonlyFormElement "Naam" detail.Organization.Name
+            match detail.Organization.OrganizationNumber, detail.Organization.VatNumber with
             | Some orgNr, _ ->
                 readonlyFormElement "Ondernemingsnr" orgNr
             | _, Some vatNr ->
@@ -34,22 +37,31 @@ let view (props: Props) =
         ]
         fieldset [] [
             legend [] [ h2 [] [ str "Factuur" ] ]
-            readonlyFormElement "Nr." (detail.ExternalInvoiceNumber |> Option.defaultValue "")
+            readonlyFormElement "Nr." (detail.OrganizationInvoiceNumber |> Option.defaultValue "")
             readonlyFormElement "OpmaakDatum" (detail.InvoiceDate.ToString("dd/MM/yyyy"))
-            readonlyFormElement "Einddatum betaling" (detail.DueDate.ToString("dd/MM/yyyy"))
+            readonlyFormElement "Einddatum betaling" (detail.DueDate |> Option.map (fun d -> d.ToString("dd/MM/yyyy")) |> Option.defaultValue "")
             readonlyFormElement "Bedrag" (String.Format("{0:0.00}", detail.Cost).Replace('.', ','))
-            readonlyFormElement "Naar rekening" (string detail.ToBankAccount)
+            readonlyFormElement "Naar rekening" (string detail.OrganizationBankAccount)
         ]
-        fieldset [] [
-            legend [] [ h2 [] [ str "Betaling" ] ]
-            readonlyFormElement "Van rekening" (string detail.FromBankAccount)
-            readonlyFormElement "Met verdeelsleutel" detail.DistributionKey.Name
-            readonlyFormElement "Reeds betaald?" (if detail.PaymentIds.IsEmpty then "Nee" else "Ja")
-        ]
-        fieldset [] [
-            legend [] [ h2 [] [ str "Gekoppelde documenten" ] ]
-            div [] [ str "TODO." ]
-        ]
+        match detail.MediaFiles with
+        | [] ->
+            null
+        | mediaFiles ->
+            fieldset [] [
+                yield legend [] [ h2 [] [ str "Gekoppelde documenten" ] ]
+                yield!
+                    mediaFiles
+                    |> List.map (fun mediaFile -> 
+                        div [ Class Bootstrap.formGroup ] [
+                            label [] [ str "Document" ]
+                            div [ Class Bootstrap.inputGroup ] [
+                                a [ Href (downloadUri Partitions.Contracts mediaFile.FileId); Target "_blank"; Class Bootstrap.formControl ] [
+                                    str (sprintf "%s (%s)" mediaFile.FileName (mediaFile.FileSizeString ()))
+                                ]
+                            ]
+                        ]
+                    )
+            ]
     ]
 
 let render =

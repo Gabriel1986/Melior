@@ -340,3 +340,98 @@ type RemoveSurfaceFromLotTable() =
     inherit Migration()
     override u.Up () = u.Execute("ALTER TABLE Lots DROP COLUMN Surface")
     override u.Down () = failwith "Not supported"
+
+[<Migration(10L, "Add Financial tables")>]
+type AddFinancialTables() =
+    inherit Migration ()
+    override u.Up () = 
+        u.Execute
+            """
+                CREATE TABLE Invoices (
+                    InvoiceId UUID PRIMARY KEY,
+                    BuildingId UUID REFERENCES Buildings(BuildingId) NOT NULL,
+                    FinancialYearId UUID REFERENCES FinancialYears(FinancialYearId) NOT NULL,
+                    InvoiceNumber INT,
+                    Description VARCHAR,
+                    Cost DECIMAL,
+                    VatRate INT,
+                    FinancialCategoryId UUID REFERENCES FinancialCategories(FinancialCategoryId) NOT NULL,
+                    DistributionKeyId UUID REFERENCES DistributionKey(DistributionKeyId) NOT NULL,
+                    OrganizationId UUID REFERENCES Organizations(OrganizationId) NOT NULL,
+                    OrganizationBankAccount JSONB,
+                    OrganizationInvoiceNumber VARCHAR(64),
+                    BookingDate TIMESTAMP,
+                    InvoiceDate TIMESTAMP,
+                    DueDate TIMESTAMP,
+                    CreatedBy VARCHAR(255) NOT NULL,
+                    CreatedAt TIMESTAMP NOT NULL,
+                    LastUpdatedBy VARCHAR(255) NOT NULL,
+                    LastUpdatedAt TIMESTAMP NOT NULL,
+                    IsDeleted BOOLEAN DEFAULT FALSE
+                );
+                CREATE Index idx_Invoices_BuildingId ON Invoices(BuildingId);
+                CREATE UNIQUE INDEX uq_Invoices_FinancialYearId_InvoiceNumber ON Invoices(FinancialYearId, InvoiceNumber);
+
+                CREATE TABLE Invoices_History (
+                    InvoiceId UUID PRIMARY KEY,
+                    BuildingId UUID REFERENCES Buildings(BuildingId) NOT NULL,
+                    FinancialYearId UUID REFERENCES FinancialYears(FinancialYearId) NOT NULL,
+                    InvoiceNumber INT NOT NULL,
+                    Description VARCHAR,
+                    Cost DECIMAL NOT NULL,
+                    VatRate INT NOT NULL,
+                    FinancialCategoryId UUID REFERENCES FinancialCategories(FinancialCategoryId) NOT NULL,
+                    DistributionKeyId UUID REFERENCES DistributionKey(DistributionKeyId) NOT NULL,
+                    OrganizationId UUID REFERENCES Organizations(OrganizationId) NOT NULL,
+                    OrganizationBankAccount JSONB NOT NULL,
+                    OrganizationInvoiceNumber VARCHAR(64),
+                    BookingDate TIMESTAMP NOT NULL,
+                    InvoiceDate TIMESTAMP NOT NULL,
+                    DueDate TIMESTAMP,
+                    LastUpdatedBy VARCHAR(255) NOT NULL,
+                    LastUpdatedAt TIMESTAMP NOT NULL
+                );
+
+                CREATE TABLE FinancialYears (
+                    FinancialYearId UUID PRIMARY KEY,
+                    BuildingId UUID REFERENCES Buildings(BuildingId) NOT NULL,
+                    Code VARCHAR(32) NOT NULL,
+                    StartDate TIMESTAMP,
+                    EndDate TIMESTAMP,
+                    IsClosed BOOLEAN,
+                    IsDeleted BOOLEAN DEFAULT FALSE
+                );
+
+                CREATE TABLE FinancialCategories (
+                    FinancialCategoryId UUID PRIMARY KEY,
+                    BuildingId UUID REFERENCES Buildings(BuildingId) NOT NULL,
+                    Code VARCHAR(32) NOT NULL,
+                    Description VARCHAR(255) NOT NULL,
+                    IsDeleted BOOLEAN DEFAULT FALSE
+                );
+            """
+    override u.Down () = failwith "Not supported"
+
+[<Migration(11L, "Add StartDate and EndDate to LotOwners, remove IsActive")>]
+type AddStartDateAndEndDateToLotOwners() =
+    inherit Migration ()
+    override u.Up () = 
+        u.Execute
+            """
+                ALTER TABLE LotOwners
+                ADD COLUMN StartDate DATE,
+                ADD COLUMN EndDate DATE,
+                ADD COLUMN IsActive BOOLEAN;
+            """
+
+        u.Execute
+            """
+                Update LotOwners SET StartDate = '2020-10-01';
+            """
+
+        u.Execute
+            """
+                ALTER TABLE LotOwners ALTER COLUMN StartDate SET NOT NULL;
+            """
+    override u.Down () = failwith "Not supported"
+

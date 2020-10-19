@@ -70,19 +70,15 @@ type SortableInvoiceListItemAttribute =
     | Organization
     | DistributionKey
     | Cost
-    | VatRate
     | DueDate
-    | HasBeenPaid
     member me.ToString' () =
         match me with
         | InvoiceNumber -> "Nr."
         | Category -> "Rubriek"
         | Organization -> "Leverancier"
-        | DistributionKey -> "Verdeelsleutel"
+        | DistributionKey -> "Sleutel"
         | Cost -> "Totaal"
-        | VatRate -> "%BTW"
         | DueDate -> "Betaaldag"
-        | HasBeenPaid -> "Betaald"
     member me.StringValueOf': InvoiceListItem -> string =
         match me with
         | InvoiceNumber -> (fun li -> li.LocalInvoiceNumber)
@@ -90,20 +86,23 @@ type SortableInvoiceListItemAttribute =
         | Organization -> (fun li -> li.OrganizationName)
         | DistributionKey -> (fun li -> li.DistributionKeyName)
         | Cost -> (fun li -> string li.Cost)
-        | VatRate -> (fun li -> string li.VatRate)
-        | DueDate -> (fun li -> sprintf "%02i-%02i-%i" li.DueDate.Day li.DueDate.Month li.DueDate.Year)
-        | HasBeenPaid -> (fun li -> if li.HasBeenPaid then "Ja" else "Nee")
+        | DueDate -> (fun li ->
+            match li.DueDate with
+            | Some dueDate -> sprintf "%02i-%02i-%i" dueDate.Day dueDate.Month dueDate.Year
+            | None -> "")
     member me.Compare': InvoiceListItem -> InvoiceListItem -> int =
         match me with
         | DueDate -> 
-            fun li otherLi -> li.DueDate.CompareTo(otherLi.DueDate)
+            fun li otherLi -> 
+                match li.DueDate, otherLi.DueDate with
+                | Some dueDate, Some otherDueDate -> dueDate.CompareTo(otherDueDate)
+                | Some _, _ -> 1
+                | _ -> -1
         | Cost ->
             fun li otherLi -> int li.Cost - int otherLi.Cost
-        | VatRate ->
-            fun li otherLi -> int li.VatRate - int otherLi.VatRate
         | _     -> 
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
-    static member All = [ InvoiceNumber; Category; Organization; DistributionKey; Cost; VatRate; DueDate; HasBeenPaid ]
+    static member All = [ InvoiceNumber; Category; Organization; DistributionKey; Cost; DueDate ]
     interface ISortableAttribute<InvoiceListItem> with
         member me.ToString = me.ToString'
         member me.ToLongString = me.ToString'
@@ -139,13 +138,13 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         FinancialYearCode = invoice.FinancialYear.Code
         FinancialYearIsClosed = invoice.FinancialYear.IsClosed
         InvoiceNumber = invoice.InvoiceNumber
+        InvoiceDate = invoice.InvoiceDate
         Cost = invoice.Cost
-        VatRate = invoice.VatRate
         DistributionKeyName = invoice.DistributionKey.Name
-        OrganizationName = invoice.OrganizationName
-        CategoryCode = invoice.CategoryCode
+        OrganizationName = invoice.Organization.Name
+        CategoryCode = invoice.FinancialCategory.Code
+        CategoryDescription = invoice.FinancialCategory.Description
         DueDate = invoice.DueDate
-        HasBeenPaid = not invoice.PaymentIds.IsEmpty
     }
 
     match msg with

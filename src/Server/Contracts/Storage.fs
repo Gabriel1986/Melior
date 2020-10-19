@@ -44,17 +44,21 @@ let createContract conn (msg: Message<ValidatedContract>) =
     |> Sql.writeAsync
     |> Async.Ignore
 
+let private writeHistoricalContractEntryQuery (contractId: Guid, buildingId: BuildingId) =
+    """
+        INSERT INTO Contracts_History
+            (ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType, LastUpdatedBy, LastUpdatedAt)
+        SELECT
+            ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType, LastUpdatedBy, LastUpdatedAt
+            FROM Contracts
+            WHERE ContractId = @ContractId AND BuildingId = @BuildingId
+    """, [ "@ContractId", Sql.uuid contractId; "@BuildingId", Sql.uuid buildingId ]
+    
+
 let updateContract conn (msg: Message<ValidatedContract>) =
     Sql.connect conn
     |> Sql.writeBatchAsync [
-        """
-            INSERT INTO Contracts_History
-                (ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType, LastUpdatedBy, LastUpdatedAt)
-            SELECT 
-                ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType, LastUpdatedBy, LastUpdatedAt
-                FROM Contracts
-                WHERE ContractId = @ContractId AND BuildingId = @BuildingId
-        """, [ "@ContractId", Sql.uuid msg.Payload.ContractId; "@BuildingId", Sql.uuid msg.Payload.BuildingId ]
+        writeHistoricalContractEntryQuery (msg.Payload.ContractId, msg.Payload.BuildingId)
 
         """
             UPDATE Contracts
@@ -71,16 +75,10 @@ let updateContract conn (msg: Message<ValidatedContract>) =
     |> Async.map (List.skip 1 >> List.head)
 
 let deleteContract conn (msg: Message<BuildingId * Guid>) =
+    let buildingId, contractId = msg.Payload
     Sql.connect conn
     |> Sql.writeBatchAsync [
-        """
-            INSERT INTO Contracts_History
-                (ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType, LastUpdatedBy, LastUpdatedAt)
-            SELECT 
-                ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType, LastUpdatedBy, LastUpdatedAt
-                FROM Contracts
-                WHERE ContractId = @ContractId AND BuildingId = @BuildingId
-        """, [ "@ContractId", Sql.uuid (snd msg.Payload); "@BuildingId", Sql.uuid (fst msg.Payload) ]
+        writeHistoricalContractEntryQuery (contractId, buildingId)
 
         """
             UPDATE Contracts
@@ -89,8 +87,8 @@ let deleteContract conn (msg: Message<BuildingId * Guid>) =
                 WHERE
                     ContractId = @ContractId AND BuildingId = @BuildingId;
         """, [ 
-            "@ContractId", Sql.uuid (snd msg.Payload)
-            "@BuildingId", Sql.uuid (fst msg.Payload)
+            "@ContractId", Sql.uuid contractId
+            "@BuildingId", Sql.uuid buildingId
             "@LastUpdatedBy", Sql.string (msg.CurrentUser.Principal ())
             "@LastUpdatedAt", Sql.timestamp DateTime.UtcNow
         ]    

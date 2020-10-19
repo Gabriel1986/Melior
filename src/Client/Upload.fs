@@ -80,6 +80,7 @@ type FilePondOptions =
     | LabelIdle of string
     | InitialFiles of Guid list
     | Files of InitialFile array
+    | KeepFilesAfterProcessing of bool
 
 let private htmlBasePath = document.baseURI.TrimEnd [| '/' |]
 
@@ -147,6 +148,11 @@ let renderFilePond (props: {| Partition: string; BuildingId: System.Guid option;
         | None -> defaultServerOptions partition buildingId entityId
         | Some options -> options
 
+    let keepFilesAfterProcessing =
+        match options |> List.tryPick (function | KeepFilesAfterProcessing keepFiles -> Some keepFiles | _ -> None) with
+        | None -> true
+        | Some keepFiles -> keepFiles
+
     let otherFilePondOptions =
         options
         |> List.filter (
@@ -155,6 +161,7 @@ let renderFilePond (props: {| Partition: string; BuildingId: System.Guid option;
             | ServerOptions _ -> false 
             | ChunkSize _ -> false 
             | InitialFiles _ -> false
+            | KeepFilesAfterProcessing _ -> false
             | _ -> true)
 
     [
@@ -162,6 +169,7 @@ let renderFilePond (props: {| Partition: string; BuildingId: System.Guid option;
         yield LabelIdle idleLabel
         yield ChunkSize chunkSize
         yield Files initialFiles
+        yield KeepFilesAfterProcessing keepFilesAfterProcessing
         yield! otherFilePondOptions
     ]
     |> keyValueList CaseRules.LowerFirst

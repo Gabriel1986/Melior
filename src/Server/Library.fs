@@ -67,14 +67,19 @@ module Library =
         let private bankAccountListEncoder = Encode.Auto.generateEncoderCached<BankAccount list>()
         let private bankAccountListDecoder = Decode.Auto.generateDecoderCached<BankAccount list>()
     
-        let toJson (address: BankAccount) =
-            Encode.toString 0 (bankAccountEncoder address)
+        let toJson (bankAccount: BankAccount) =
+            Encode.toString 0 (bankAccountEncoder bankAccount)
     
         let fromJson (str: string) =
-            Decode.fromString bankAccountDecoder str
+            match Decode.fromString bankAccountDecoder str with
+            | Ok result -> 
+                result
+            | Error e -> 
+                Log.Logger.Error (e)
+                failwithf "Decoding bank account has failed."
     
-        let listToJson (addresses: BankAccount list) =
-            Encode.toString 0 (bankAccountListEncoder addresses)
+        let listToJson (bankAccounts: BankAccount list) =
+            Encode.toString 0 (bankAccountListEncoder bankAccounts)
     
         let listFromJson (str: string) =
             match Decode.fromString bankAccountListDecoder str with
@@ -91,6 +96,9 @@ module Library =
             IBAN = match validated.IBAN with | Some iban -> string iban | None -> ""
             BIC = match validated.BIC with | Some bic -> string bic | None -> ""
         }
+
+        let toJson (validated: ValidatedBankAccount): string =
+            validated |> toBankAccount |> BankAccount.toJson
 
         let listToJson (validated: ValidatedBankAccount list): string =
             validated |> List.map toBankAccount |> BankAccount.listToJson

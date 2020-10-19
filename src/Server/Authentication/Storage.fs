@@ -38,7 +38,7 @@ type ValidatedUserInput =
         PreferredLanguageCode: String16
         PasswordHash: byte []
     }
-    static member Validate (passwordPepper: string) (user: UserInput) =        
+    static member Validate (passwordPepper: string) (user: UserInput) =
         trial {
             from displayName in String255.Of (nameof user.DisplayName) user.DisplayName
             also emailAddress in String255.Of (nameof user.EmailAddress) user.EmailAddress

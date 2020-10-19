@@ -1,6 +1,7 @@
 ﻿module Client.Financial.CostDiary.InvoiceEditComponent
 
 open System
+open Client.Upload
 open Fable.React
 open Fable.React.Props
 open Elmish
@@ -15,8 +16,9 @@ open Shared.Read
 open Shared.Library
 open Shared.Trial
 open Shared.Trial.Control
+open Shared.MediaLibrary
 
-let possibleTaxRates = [ 0.0; 6.0; 12.0; 21.0 ]
+let possibleTaxRates = [ 0; 6; 12; 21 ]
 
 let validateDateTimeOffset (path: string) (s: string option): Trial<DateTime option, string * string> =
     let s' = s |> Option.defaultValue ""
@@ -47,44 +49,34 @@ type InvoiceInputModel =
         InvoiceNumber: int option
         Description: string option
         Cost: string option
-        VatRate: float
-        CategoryCode: string option
-        CategoryDescription: string option
-        FromAccount: BankAccount option
-        ToAccount: BankAccount option
+        VatRate: int
+        FinancialCategory: FinancialCategory option
         BookingDate: string option //Date when booked
         DistributionKey: DistributionKeyListItem option
-        OrganizationId: Guid option
-        OrganizationName: string option
-        OrganizationNumber: string option
-        OrganizationVatNumber: string option        
-        ExternalInvoiceNumber: string option //Number @ supplier
         InvoiceDate: string option //Date on the invoice
         DueDate: string option //Due date of the invoice
-        PaymentIds: Guid list
+        Organization: OrganizationListItem option
+        OrganizationBankAccount: BankAccount option
+        OrganizationInvoiceNumber: string option //Number @ supplier
+        MediaFiles: MediaFile list
     }
     static member init (buildingId: BuildingId): InvoiceInputModel = {
         InvoiceId = Guid.NewGuid()
         BuildingId = buildingId
+        BookingDate = Some (DateTimeOffset.Now.ToString("yyyy-MM-dd"))
         FinancialYear = None
         InvoiceNumber = None
         Description = None
         Cost = None
-        VatRate = 21.0
-        CategoryCode = None
-        CategoryDescription = None
-        BookingDate = Some (DateTimeOffset.Now.ToString("yyyy-MM-dd"))
+        VatRate = 21
+        FinancialCategory = None
         DistributionKey = None
-        OrganizationId = None
-        OrganizationName = None
-        OrganizationNumber = None
-        OrganizationVatNumber = None
-        ExternalInvoiceNumber = None
         InvoiceDate = Some (DateTimeOffset.Now.ToString("yyyy-MM-dd"))
         DueDate = None
-        PaymentIds = []
-        FromAccount = None
-        ToAccount = None
+        Organization = None
+        OrganizationInvoiceNumber = None
+        OrganizationBankAccount = None
+        MediaFiles = []
     } 
     static member fromInvoice (invoice: Invoice): InvoiceInputModel = {
         InvoiceId = invoice.InvoiceId
@@ -94,20 +86,15 @@ type InvoiceInputModel =
         Description = invoice.Description
         Cost = Some (invoice.Cost.ToString().Replace(".", ","))
         VatRate = invoice.VatRate
-        CategoryCode = Some invoice.CategoryCode
-        CategoryDescription = Some invoice.CategoryDescription
+        FinancialCategory = Some invoice.FinancialCategory
         BookingDate = Some (invoice.BookingDate.ToString("yyyy-MM-dd"))
         DistributionKey = Some invoice.DistributionKey
-        OrganizationId = Some invoice.OrganizationId
-        OrganizationName = Some invoice.OrganizationName
-        OrganizationNumber = invoice.OrganizationNumber
-        OrganizationVatNumber = invoice.OrganizationVatNumber
-        ExternalInvoiceNumber = invoice.ExternalInvoiceNumber
         InvoiceDate = Some (invoice.InvoiceDate.ToString("yyyy-MM-dd"))
-        DueDate = Some (invoice.DueDate.ToString("yyyy-MM-dd"))
-        PaymentIds = invoice.PaymentIds
-        FromAccount = Some invoice.FromBankAccount
-        ToAccount = Some invoice.ToBankAccount
+        DueDate = invoice.DueDate |> Option.map (fun d -> d.ToString("yyyy-MM-dd"))
+        Organization = Some invoice.Organization
+        OrganizationInvoiceNumber = invoice.OrganizationInvoiceNumber
+        OrganizationBankAccount = Some invoice.OrganizationBankAccount
+        MediaFiles = invoice.MediaFiles
     }
 
     member me.Validate (): Result<Invoice, (string * string) list> = 
@@ -120,45 +107,36 @@ type InvoiceInputModel =
             match cost |> Option.defaultValue "" with
             | x when String.IsNullOrWhiteSpace(x) -> Trial.ofError (nameof me.Cost, "Verplicht veld")
             | x ->
-                match Double.TryParse(x.Replace(',', '.')) with
+                match Decimal.TryParse(x.Replace(',', '.')) with
                 | true, parsed -> Trial.Pass parsed
                 | false, _ -> Trial.ofError (nameof me.Cost, "Foutieve formattering")
 
         trial {
             from financialYear in mandatoryToTrial (nameof me.FinancialYear) me.FinancialYear
-            also categoryCode in mandatoryToTrial (nameof me.CategoryCode) me.CategoryCode
-            also categoryDescription in mandatoryToTrial (nameof me.CategoryDescription) me.CategoryDescription
-            also fromAccount in mandatoryToTrial (nameof me.FromAccount) me.FromAccount
-            also toAccount in mandatoryToTrial (nameof me.ToAccount) me.ToAccount
+            also financialCategory in mandatoryToTrial (nameof me.FinancialCategory) me.FinancialCategory
+            also organizationBankAccount in mandatoryToTrial (nameof me.OrganizationBankAccount) me.OrganizationBankAccount
             also bookingDate in validateMandatoryDateTimeOffset (nameof me.BookingDate) me.BookingDate
             also distributionKey in mandatoryToTrial (nameof me.DistributionKey) me.DistributionKey
-            also organizationId in mandatoryToTrial (nameof me.OrganizationId) me.OrganizationId
-            also organizationName in mandatoryToTrial (nameof me.OrganizationName) me.OrganizationName
+            also organization in mandatoryToTrial (nameof me.Organization) me.Organization
             also invoiceDate in validateMandatoryDateTimeOffset (nameof me.InvoiceDate) me.InvoiceDate
-            also dueDate in validateMandatoryDateTimeOffset (nameof me.DueDate) me.DueDate
+            also dueDate in validateDateTimeOffset (nameof me.DueDate) me.DueDate
             also cost in validateCost me.Cost
             yield {
-                InvoiceId = me.InvoiceId
+                Invoice.InvoiceId = me.InvoiceId
                 BuildingId = me.BuildingId
                 FinancialYear = financialYear
                 InvoiceNumber = me.InvoiceNumber |> Option.defaultValue -1
                 Description = me.Description
                 Cost = cost
                 VatRate = me.VatRate
-                CategoryCode = categoryCode
-                CategoryDescription = categoryDescription
-                FromBankAccount = fromAccount
-                ToBankAccount = toAccount
+                FinancialCategory = financialCategory
+                Organization = organization
+                OrganizationBankAccount = organizationBankAccount
                 BookingDate = bookingDate
                 DistributionKey = distributionKey
-                OrganizationId = organizationId
-                OrganizationName = organizationName
-                OrganizationNumber = me.OrganizationNumber
-                OrganizationVatNumber = me.OrganizationVatNumber
-                ExternalInvoiceNumber = me.ExternalInvoiceNumber
+                OrganizationInvoiceNumber = me.OrganizationInvoiceNumber
                 InvoiceDate = invoiceDate
                 DueDate = dueDate
-                PaymentIds = me.PaymentIds
                 MediaFiles = []
             }
         }
@@ -166,7 +144,7 @@ type InvoiceInputModel =
 
 type Message =
     | CostChanged of string
-    | VatRateChanged of float
+    | VatRateChanged of int
     | FinancialYearChanged of FinancialYear
     | ChangeCategory
     | CategoryChanged of FinancialCategory option
@@ -182,16 +160,21 @@ type Message =
     | InvoiceDateChanged of string
     | DueDateChanged of string
     | ExternalInvoiceNumberChanged of string
-    | FromAccountChanged of BankAccount option
-    | ToAccountChanged of BankAccount option
-    | ToAccountBICChanged of string
-    | ToAccountIBANChanged of string
+    | OrganizationBankAccountChanged of BankAccount option
+    | OrganizationAccountBICChanged of string
+    | OrganizationAccountIBANChanged of string
 
     | FinancialYearsLoaded of FinancialYear list
     | FinancialCategoriesLoaded of FinancialCategory list
     | DistributionKeysLoaded of DistributionKeyListItem list
     | OrganizationsLoaded of OrganizationListItem list
     | RemotingException of exn
+
+    | MediaFileAdded of MediaFile
+    | MediaFileRemoved of MediaFile
+
+    | AddPayment
+    | CancelPayment
 
 type State = {
     Invoice: InvoiceInputModel
@@ -209,6 +192,7 @@ type State = {
     CurrentBuilding: BuildingListItem
     Errors: (string * string) list
     SelectedOrganization: OrganizationListItem option
+    ShowingPaymentModal: bool
 }
 
 let init (invoice: Invoice option, currentBuilding: BuildingListItem) =
@@ -236,6 +220,7 @@ let init (invoice: Invoice option, currentBuilding: BuildingListItem) =
         Errors = []
         CurrentBuilding = currentBuilding
         SelectedOrganization = None
+        ShowingPaymentModal = false
     }
     , Cmd.batch [
         Cmd.OfAsync.either remotingApi.GetFinancialYears inputModel.BuildingId FinancialYearsLoaded RemotingException
@@ -270,7 +255,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         |> removeError (nameof state.Invoice.Description)
         , Cmd.none
     | VatRateChanged vatRate ->
-        printf "New vat rate: %f" vatRate
+        printf "New vat rate: %i" vatRate
         state
         |> changeInvoice (fun invoice -> { invoice with VatRate = vatRate })
         |> removeError (nameof state.Invoice.VatRate)
@@ -279,12 +264,8 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         { state with ShowingFinancialCategoryModal = true }, Cmd.none
     | CategoryChanged financialCategory ->
         { state with ShowingFinancialCategoryModal = false }
-        |> changeInvoice (fun invoice -> { 
-            invoice with 
-                CategoryCode = financialCategory |> Option.map (fun cat -> cat.Code) 
-                CategoryDescription = financialCategory |> Option.map (fun cat -> cat.Description)
-        })
-        |> removeError (nameof state.Invoice.CategoryCode)
+        |> changeInvoice (fun invoice -> { invoice with FinancialCategory = financialCategory })
+        |> removeError (nameof state.Invoice.FinancialCategory)
         , Cmd.none
     | CancelChangeFinancialCategory ->
         { state with ShowingFinancialCategoryModal = false }, Cmd.none
@@ -305,16 +286,15 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | ChangeOrganization ->
         { state with ShowingOrganizationModal = true }, Cmd.none
     | OrganizationChanged organization ->
-        { state with ShowingOrganizationModal = false; SelectedOrganization = organization }
-        |> changeInvoice (fun invoice -> 
-            {
-                invoice with 
-                    OrganizationId = organization |> Option.map (fun o -> o.OrganizationId)
-                    OrganizationName = organization |> Option.map (fun o -> o.Name)
-                    OrganizationNumber = organization |> Option.bind (fun o -> o.OrganizationNumber)
-                    OrganizationVatNumber = organization |> Option.bind (fun o -> o.VatNumber)
-            })
-        |> removeError (nameof state.Invoice.OrganizationId)
+        { state with 
+            ShowingOrganizationModal = false
+            SelectedOrganization = organization }
+        |> changeInvoice (fun invoice -> { 
+            invoice with 
+                Organization = organization
+                OrganizationBankAccount = organization |> Option.bind (fun o -> o.BankAccounts |> List.tryHead) 
+        })
+        |> removeError (nameof state.Invoice.Organization)
         , Cmd.none
     | CancelChangeOrganization ->
         { state with ShowingOrganizationModal = false }, Cmd.none
@@ -335,30 +315,29 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             if String.IsNullOrEmpty(invoiceNumber) 
             then None
             else Some invoiceNumber
-        state |> changeInvoice (fun invoice -> { invoice with ExternalInvoiceNumber = newInvoiceNumber }), Cmd.none
-    | FromAccountChanged fromAccount ->
+        state |> changeInvoice (fun invoice -> { invoice with OrganizationInvoiceNumber = newInvoiceNumber }), Cmd.none
+    | OrganizationBankAccountChanged account ->
         state 
-        |> changeInvoice (fun invoice -> { invoice with FromAccount = fromAccount })        
-        |> removeError (nameof state.Invoice.FromAccount)
+        |> changeInvoice (fun invoice -> { invoice with OrganizationBankAccount = account })
+        |> removeError (nameof state.Invoice.OrganizationBankAccount)
         , Cmd.none
-    | ToAccountChanged toAccount ->
-        state 
-        |> changeInvoice (fun invoice -> { invoice with ToAccount = toAccount })
-        |> removeError (nameof state.Invoice.ToAccount)
-        , Cmd.none
-    | ToAccountBICChanged newBic ->
-        let toAccount = state.Invoice.ToAccount |> Option.defaultValue { Description = ""; BIC = ""; IBAN = "" }
+    | OrganizationAccountBICChanged newBic ->
+        let account = 
+            state.Invoice.OrganizationBankAccount 
+            |> Option.defaultValue { BankAccount.Init () with Description = "Ander" }
         let newBic' = if String.IsNullOrEmpty(newBic) then "" else newBic
 
         state
-        |> changeInvoice (fun invoice -> { invoice with ToAccount = Some { toAccount with BIC = newBic' } })
+        |> changeInvoice (fun invoice -> { invoice with OrganizationBankAccount = Some { account with BIC = newBic' } })
         , Cmd.none
-    | ToAccountIBANChanged newIban ->
-        let toAccount = state.Invoice.ToAccount |> Option.defaultValue { Description = ""; BIC = ""; IBAN = "" }
+    | OrganizationAccountIBANChanged newIban ->
+        let account = 
+            state.Invoice.OrganizationBankAccount 
+            |> Option.defaultValue { BankAccount.Init () with Description = "Ander" }
         let newIban' = if String.IsNullOrEmpty(newIban) then "" else newIban
 
         state
-        |> changeInvoice (fun invoice -> { invoice with ToAccount = Some { toAccount with IBAN = newIban' } })
+        |> changeInvoice (fun invoice -> { invoice with OrganizationBankAccount = Some { account with IBAN = newIban' } })
         , Cmd.none        
     | FinancialYearsLoaded financialYears ->
         { state with LoadingFinancialYears = false; FinancialYears = financialYears }, Cmd.none
@@ -367,16 +346,24 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | DistributionKeysLoaded distributionKeys ->
         { state with LoadingDistributionKeys = false; DistributionKeys = distributionKeys }, Cmd.none
     | OrganizationsLoaded organizations ->
-        { state with 
-            LoadingOrganizations = false
-            Organizations = organizations
-            SelectedOrganization = 
-                match state.Invoice.OrganizationId with
-                | Some organizationId -> organizations |> List.tryFind (fun org -> org.OrganizationId = organizationId) 
-                | None -> None
+        { 
+            state with 
+                LoadingOrganizations = false
+                Organizations = organizations
+                SelectedOrganization = state.Invoice.Organization
         }, Cmd.none
     | RemotingException error ->
         state, showGenericErrorModalCmd error
+    | AddPayment ->
+        { state with ShowingPaymentModal = true }, Cmd.none
+    | CancelPayment ->
+        { state with ShowingPaymentModal = false }, Cmd.none
+    | MediaFileAdded mediaFile ->
+        state |> changeInvoice (fun i -> { i with MediaFiles = mediaFile::i.MediaFiles })
+        , Cmd.none
+    | MediaFileRemoved mediaFile ->
+        state |> changeInvoice (fun i -> { i with MediaFiles = i.MediaFiles |> List.filter (fun m -> m.FileId = mediaFile.FileId) })
+        , Cmd.none
 
 let inColumn x = div [ Class Bootstrap.col ] [ x ]
 
@@ -384,7 +371,7 @@ let view (state: State) (dispatch: Message -> unit) =
     let errorFor (path: string) =
         state.Errors |> List.tryPick (fun (p, error) -> if p = path then Some error else None)
 
-    let vatRateToOption (vatRate: float): FormSelectOption = {
+    let vatRateToOption (vatRate: int): FormSelectOption = {
         Key = sprintf "%i%%" (int vatRate)
         Label = sprintf "%i%%" (int vatRate)
         IsSelected = state.Invoice.VatRate = vatRate
@@ -396,21 +383,21 @@ let view (state: State) (dispatch: Message -> unit) =
         IsSelected = state.Invoice.FinancialYear = Some financialYear
     }
 
-    let fromAccountToOption (account: BankAccount): FormSelectOption = {
-        Key = account.IBAN
-        Label = sprintf "%s - %s" account.Description account.IBAN
-        IsSelected = state.Invoice.FromAccount = Some account
-    }
-
-    let toAccountToOption (account: BankAccount): FormSelectOption = {
-        Key = account.IBAN
-        Label = sprintf "%s - %s" account.Description account.IBAN
-        IsSelected = state.Invoice.ToAccount = Some account
+    let organizationBankAccountToOption (account: BankAccount): FormSelectOption = {
+        Key = account.Description
+        Label =
+            [ 
+                account.Description
+                account.IBAN 
+            ] 
+            |> List.filter (String.IsNullOrEmpty >> not) 
+            |> String.JoinWith " - "
+        IsSelected = state.Invoice.OrganizationBankAccount = Some account
     }
 
     let vatRateSelection: FormSelect = {
         Identifier = "vatRate"
-        OnChanged = (fun e -> VatRateChanged (float (e.TrimEnd('%'))) |> dispatch)
+        OnChanged = (fun e -> VatRateChanged (int (e.TrimEnd('%'))) |> dispatch)
         Options = possibleTaxRates |> List.map vatRateToOption
     }
 
@@ -426,13 +413,7 @@ let view (state: State) (dispatch: Message -> unit) =
         accounts
         |> List.tryFind (fun account -> account.BIC = s)
 
-    let fromAccountSelection: FormSelect = {
-        Identifier = "fromAccount"
-        OnChanged = (fun e -> FromAccountChanged (parseAccount (e, state.CurrentBuilding.BankAccounts)) |> dispatch)
-        Options = state.CurrentBuilding.BankAccounts |> List.map fromAccountToOption
-    }
-
-    let toAccountSelection: FormSelect = 
+    let organizationBankAccountSelection: FormSelect = 
         let possibleBankAccounts = 
             match state.SelectedOrganization with
             | Some org ->
@@ -442,21 +423,21 @@ let view (state: State) (dispatch: Message -> unit) =
 
         {
             Identifier = "toAccount"
-            OnChanged = (fun e -> ToAccountChanged (parseAccount (e, possibleBankAccounts)) |> dispatch)
-            Options = possibleBankAccounts |> List.map toAccountToOption
+            OnChanged = (fun e -> OrganizationBankAccountChanged (parseAccount (e, possibleBankAccounts)) |> dispatch)
+            Options = possibleBankAccounts |> List.map organizationBankAccountToOption
         }
 
-    let calculateVat (cost: string option) (vatRate: float) = 
+    let calculateVat (cost: string option) (vatRate: int) = 
         match cost with
         | Some x ->
-            match Double.TryParse(x) with
-            | true, parsed -> Math.Round(parsed * vatRate / 100.0, 2)
-            | false, _ -> 0.0
+            match Decimal.TryParse(x) with
+            | true, parsed -> Math.Round(parsed * (vatRate |> decimal) / (100.0 |> decimal), 2)
+            | false, _ -> 0 |> decimal
         | None ->
-            0.0
+            0 |> decimal
 
     let renderFinancialCategoryModal =
-        FunctionComponent.Of((fun (props: {| SelectedCategoryCode: string option; AllCategories: FinancialCategory list; Showing: bool |}) ->
+        FunctionComponent.Of((fun (props: {| SelectedCategoryCode: string option; FinancialCategories: FinancialCategory list; Showing: bool |}) ->
             BasicModal.render 
                 {| 
                     ModalProps = [
@@ -468,10 +449,10 @@ let view (state: State) (dispatch: Message -> unit) =
                             SelectionList.render (
                                 {|
                                     SelectionMode = SelectionMode.SingleSelect
-                                    AllItems = props.AllCategories |> List.sortBy (fun cat -> cat.Code)
+                                    AllItems = props.FinancialCategories |> List.sortBy (fun cat -> cat.Code)
                                     SelectedItems = 
                                         match props.SelectedCategoryCode with
-                                        | Some selected -> props.AllCategories |> List.filter (fun cat -> cat.Code = selected)
+                                        | Some selected -> props.FinancialCategories |> List.filter (fun cat -> cat.Code = selected)
                                         | None -> []
                                     OnSelectionChanged = fun selection -> Message.CategoryChanged (selection |> List.tryHead) |> dispatch
                                     DisplayListItem = 
@@ -543,6 +524,25 @@ let view (state: State) (dispatch: Message -> unit) =
                     ]
                 |}), "OrganizationModal", equalsButFunctions)
 
+    let renderPaymentModal (isOpen: {| Showing: bool |}) =
+        BasicModal.render 
+            {|
+                ModalProps = [
+                    ModalProp.IsOpen isOpen.Showing
+                    OnDismiss (fun _ -> CancelPayment |> dispatch)
+                    ModalProp.Header [
+                        HeaderProp.HasDismissButton true
+                        HeaderProp.Title "Betaling"
+                    ]
+                    ModalProp.Body [
+                        div [] [ str "Deze pagina is nog niet beschikbaar" ]
+                    ]
+                    ModalProp.Footer [
+                        FooterProp.ShowDismissButton (Some "Annuleren")
+                    ]
+                ]
+            |}
+
     div [] [
         div [ Class Bootstrap.row ] [
             formGroup [ 
@@ -567,8 +567,8 @@ let view (state: State) (dispatch: Message -> unit) =
                 Label "Rubriek"
 
                 let shown =
-                    match state.Invoice.CategoryCode, state.Invoice.CategoryDescription with
-                    | Some catCode, Some catDescription -> sprintf "%s - %s" catCode catDescription
+                    match state.Invoice.FinancialCategory with
+                    | Some category -> sprintf "%s - %s" category.Code category.Description
                     | _ -> ""
                 Input [
                     Type "text"
@@ -588,13 +588,13 @@ let view (state: State) (dispatch: Message -> unit) =
                     Style [ Cursor "pointer"; BackgroundColor "unset" ]
                     ReadOnly true
                     OnClick (fun _ -> ChangeOrganization |> dispatch)
-                    valueOrDefault state.Invoice.OrganizationName
+                    valueOrDefault (state.Invoice.Organization |> Option.map (fun o -> o.Name))
                 ]
-                FormError (errorFor (nameof state.Invoice.OrganizationName))
+                FormError (errorFor (nameof state.Invoice.Organization))
             ]
             |> inColumn
 
-            match state.Invoice.OrganizationVatNumber, state.Invoice.OrganizationNumber with
+            match state.Invoice.Organization |> Option.map (fun o -> o.VatNumber), state.Invoice.Organization |> Option.map (fun o -> o.OrganizationNumber) with
             | Some vatNumber, _ ->               
                 formGroup [
                     Label "Leverancier BTW nr."
@@ -631,7 +631,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 Input [
                     Type "text"
                     OnChange (fun e -> ExternalInvoiceNumberChanged e.Value |> dispatch)
-                    valueOrDefault (state.Invoice.ExternalInvoiceNumber)
+                    valueOrDefault (state.Invoice.OrganizationInvoiceNumber)
                 ]
                 FormError (errorFor (nameof state.Invoice.InvoiceNumber))
             ]
@@ -702,54 +702,31 @@ let view (state: State) (dispatch: Message -> unit) =
 
         div [ Class Bootstrap.row ] [
             formGroup [
-                Label "Van rekening"
-                Select fromAccountSelection
-                FormError (errorFor (nameof state.Invoice.FromAccount))
-            ]
-            |> inColumn
-
-            formGroup [
-                Label "IBAN"
-                Input [
-                    Type "text"
-                    Disabled true
-                    valueOrDefault (state.Invoice.FromAccount |> Option.map (fun f -> f.IBAN))
-                ]
-            ]
-            |> inColumn
-
-            formGroup [
-                Label "BIC"
-                Input [
-                    Type "text"
-                    Disabled true
-                    valueOrDefault (state.Invoice.FromAccount |> Option.map (fun f -> f.BIC))
-                ]
-            ]
-            |> inColumn
-        ]
-
-        div [ Class Bootstrap.row ] [
-            formGroup [
                 Label "Naar rekening"
-                match state.Invoice.OrganizationId with
+                match state.Invoice.Organization with
                 | Some _ ->
-                    Select toAccountSelection
+                    Select organizationBankAccountSelection
                 | None ->
                     OtherChildren [ div [] [ span [ Class Bootstrap.formControl ] [ str "Gelieve eerst een leverancier te selecteren" ] ] ]
-                FormError (errorFor (nameof state.Invoice.ToAccount))
+                FormError (errorFor (nameof state.Invoice.OrganizationBankAccount))
             ]
             |> inColumn
+
+            let noOrgFound = state.Invoice.Organization.IsNone
+            let orgBankAccountSelected = 
+                match state.Invoice.OrganizationBankAccount, state.Invoice.Organization |> Option.map (fun o -> o.BankAccounts) with
+                | Some bankAccount, Some bankAccounts -> bankAccounts |> List.contains bankAccount
+                | _ -> false
 
             formGroup [
                 Label "IBAN"
                 Input [
                     Type "text"
                     MaxLength 64.0
-                    Disabled state.Invoice.OrganizationId.IsNone
-                    valueOrDefault (state.Invoice.ToAccount |> Option.map (fun f -> f.IBAN))
+                    Disabled (noOrgFound || orgBankAccountSelected)
+                    valueOrDefault (state.Invoice.OrganizationBankAccount |> Option.map (fun account -> account.IBAN))
                 ]
-                FormError (errorFor (nameof state.Invoice.ToAccount))
+                FormError (errorFor (nameof state.Invoice.OrganizationBankAccount))
             ]
             |> inColumn
 
@@ -758,18 +735,54 @@ let view (state: State) (dispatch: Message -> unit) =
                 Input [
                     Type "text"
                     MaxLength 11.0
-                    Disabled state.Invoice.OrganizationId.IsNone
-                    valueOrDefault (state.Invoice.ToAccount |> Option.map (fun f -> f.BIC))
+                    Disabled (noOrgFound || orgBankAccountSelected)
+                    valueOrDefault (state.Invoice.OrganizationBankAccount |> Option.map (fun account -> account.BIC))
                 ]
-                FormError (errorFor (nameof state.Invoice.ToAccount))
+                FormError (errorFor (nameof state.Invoice.OrganizationBankAccount))
             ]
             |> inColumn
         ]
 
+        div [ Class Bootstrap.row ] [
+            filePond 
+                {|
+                    BuildingId = Some state.CurrentBuilding.BuildingId
+                    EntityId = state.Invoice.InvoiceId
+                    Partition = Partitions.Invoices
+                    Options = [
+                        FilePondOptions.AllowMultiple true
+                        FilePondOptions.InitialFiles []
+                        FilePondOptions.KeepFilesAfterProcessing false
+                        FilePondOptions.OnProcessFile (fun _ filePondFile -> 
+                            filePondFile 
+                            |> FilePondFile.toMediaFile Partitions.Invoices (Some state.CurrentBuilding.BuildingId) state.Invoice.InvoiceId
+                            |> MediaFileAdded
+                            |> dispatch)
+                        FilePondOptions.OnRemoveFile (fun _ filePondFile ->
+                            filePondFile
+                            |> FilePondFile.toMediaFile Partitions.Invoices (Some state.CurrentBuilding.BuildingId) state.Invoice.InvoiceId
+                            |> MediaFileRemoved
+                            |> dispatch)
+                    ]
+                |}
+        ]
+
+        div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+            div [ Class Bootstrap.cardBody ] [
+                button [ 
+                    classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
+                    OnClick (fun _ -> AddPayment |> dispatch)
+                ][
+                    str "Betaling toevoegen"
+                ]
+            ]
+        ]
+
+
         renderFinancialCategoryModal 
-            {| 
-                SelectedCategoryCode = state.Invoice.CategoryCode
-                AllCategories = state.FinancialCategories 
+            {|
+                SelectedCategoryCode = state.Invoice.FinancialCategory |> Option.map (fun cat -> cat.Code)
+                FinancialCategories = state.FinancialCategories 
                 Showing = state.ShowingFinancialCategoryModal
             |}
         renderDistributionKeyModal 
@@ -780,8 +793,12 @@ let view (state: State) (dispatch: Message -> unit) =
             |}
         renderOrganizationModal 
             {|
-                SelectedOrganizationId = state.Invoice.OrganizationId
+                SelectedOrganizationId = state.Invoice.Organization |> Option.map (fun org -> org.OrganizationId)
                 AllOrganizations = state.Organizations 
                 Showing = state.ShowingOrganizationModal
+            |}
+        renderPaymentModal 
+            {|
+                Showing = state.ShowingPaymentModal
             |}
     ]
