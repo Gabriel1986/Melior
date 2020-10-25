@@ -443,7 +443,7 @@ let view (state: State) (dispatch: Msg -> unit) =
 
         div [ Class Bootstrap.row ] [
             fieldset [ Class Bootstrap.col ] [
-                legend [] [ h4 [] [ str "Boekhoudkundige rekeningen (voorlopig niet wijzigbaar)" ] ]
+                legend [] [ h4 [] [ str "Rekeningstelsel (voorlopig niet wijzigbaar)" ] ]
                 let allCategories = state.FinancialCategories |> List.sortBy (fun fc -> fc.Code)
                 let parents = allCategories |> List.filter (fun fc -> fc.Code.Length = 3 || fc.Code = "400000")
                 let rec renderChildren parentCode level =
