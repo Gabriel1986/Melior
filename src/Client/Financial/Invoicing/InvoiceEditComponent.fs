@@ -479,7 +479,10 @@ let view (state: State) (dispatch: Message -> unit) =
                         IsOpen props.Showing
                         DisableBackgroundClick false
                         OnDismiss (fun _ -> dispatch CancelChangeOrganization)
-                        Header [ HeaderProp.HasDismissButton true ]
+                        Header [ 
+                            HeaderProp.HasDismissButton true
+                            HeaderProp.Title "Boekhoudkundige rekening selecteren"
+                        ]
                         Body [
                             SelectionList.render (
                                 {|
