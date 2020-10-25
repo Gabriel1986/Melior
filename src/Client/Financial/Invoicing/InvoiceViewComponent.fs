@@ -20,7 +20,7 @@ let view (props: Props) =
             legend [] [ h2 [] [ str "Algemeen" ] ]
             readonlyFormElement "BoekingsNummer" detail.LocalInvoiceNumber
             readonlyFormElement "Boekingsdatum" (detail.BookingDate.ToString("dd/MM/yyyy"))
-            readonlyFormElement "Rubriek" (sprintf "%s - %s" detail.FinancialCategory.Code detail.FinancialCategory.Description)
+            readonlyFormElement "Boekhoudkundige rekening" (sprintf "%s - %s" detail.FinancialCategory.Code detail.FinancialCategory.Description)
             readonlyFormElement "Omschrijving" (detail.Description |> Option.defaultValue "")
             readonlyFormElement "Met verdeelsleutel" detail.DistributionKey.Name
         ]

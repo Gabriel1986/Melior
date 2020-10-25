@@ -418,12 +418,16 @@ let view (state: State) (dispatch: Message -> unit) =
                         IsOpen props.Showing
                         DisableBackgroundClick false
                         OnDismiss (fun _ -> dispatch CancelChangeFinancialCategory)
-                        Header [ HeaderProp.HasDismissButton true ]
+                        Header [
+                            HeaderProp.Title "Boekhoudkundige rekening selecteren"
+                            HeaderProp.HasDismissButton true
+                        ]
                         Body [
                             SelectionList.render (
                                 {|
                                     SelectionMode = SelectionMode.SingleSelect
-                                    AllItems = props.FinancialCategories |> List.sortBy (fun cat -> cat.Code)
+                                    //Only financial categories starting with 6 should be shown.
+                                    AllItems = props.FinancialCategories |> List.filter (fun cat -> cat.Code.StartsWith("6")) |> List.sortBy (fun cat -> cat.Code)
                                     SelectedItems = 
                                         match props.SelectedCategoryCode with
                                         | Some selected -> props.FinancialCategories |> List.filter (fun cat -> cat.Code = selected)
@@ -453,7 +457,10 @@ let view (state: State) (dispatch: Message -> unit) =
                         IsOpen props.Showing
                         DisableBackgroundClick false
                         OnDismiss (fun _ -> dispatch CancelChangeDistributionKey)
-                        Header [ HeaderProp.HasDismissButton true ]
+                        Header [
+                            HeaderProp.Title "Verdeelsleutel selecteren"
+                            HeaderProp.HasDismissButton true
+                        ]
                         Body [
                             SelectionList.render (
                                 {|
@@ -478,7 +485,10 @@ let view (state: State) (dispatch: Message -> unit) =
                         IsOpen props.Showing
                         DisableBackgroundClick false
                         OnDismiss (fun _ -> dispatch CancelChangeOrganization)
-                        Header [ HeaderProp.HasDismissButton true ]
+                        Header [
+                            HeaderProp.Title "Leverancier selecteren"
+                            HeaderProp.HasDismissButton true
+                        ]
                         Body [
                             SelectionList.render (
                                 {|
@@ -539,7 +549,7 @@ let view (state: State) (dispatch: Message -> unit) =
             |> inColumn
 
             formGroup [
-                Label "Rubriek"
+                Label "Boekhoudkundige rekening"
 
                 let shown =
                     match state.Invoice.FinancialCategory with

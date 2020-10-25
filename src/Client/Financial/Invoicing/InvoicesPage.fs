@@ -59,14 +59,13 @@ type InvoicesPageProps = {|
 //VatRate: int
 //DistributionKeyName: string
 //OrganizationName: string
-//CategoryCode: string //Rubriek
+//CategoryCode: string //Boekhoudkundige rekening
 //DueDate: DateTimeOffset
 //HasLinkedDocuments: bool
 //HasBeenPaid: bool
 
 type SortableInvoiceListItemAttribute =
     | InvoiceNumber
-    | Category
     | Organization
     | DistributionKey
     | Cost
@@ -74,7 +73,6 @@ type SortableInvoiceListItemAttribute =
     member me.ToString' () =
         match me with
         | InvoiceNumber -> "Nr."
-        | Category -> "Rubriek"
         | Organization -> "Leverancier"
         | DistributionKey -> "Sleutel"
         | Cost -> "Totaal"
@@ -82,7 +80,6 @@ type SortableInvoiceListItemAttribute =
     member me.StringValueOf': InvoiceListItem -> string =
         match me with
         | InvoiceNumber -> (fun li -> li.LocalInvoiceNumber)
-        | Category -> (fun li -> li.CategoryCode)
         | Organization -> (fun li -> li.OrganizationName)
         | DistributionKey -> (fun li -> li.DistributionKeyName)
         | Cost -> (fun li -> string li.Cost)
@@ -95,7 +92,7 @@ type SortableInvoiceListItemAttribute =
             fun li otherLi -> int li.Cost - int otherLi.Cost
         | _     -> 
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
-    static member All = [ InvoiceNumber; Category; Organization; DistributionKey; Cost; DueDate ]
+    static member All = [ InvoiceNumber; Organization; DistributionKey; Cost; DueDate ]
     interface ISortableAttribute<InvoiceListItem> with
         member me.ToString = me.ToString'
         member me.ToLongString = me.ToString'

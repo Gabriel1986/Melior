@@ -29,7 +29,7 @@ let view (detail: Lot) =
     div [] [
         yield
             fieldset [] [
-                yield legend [] [ h2 [] [ str "Algemeen" ] ]
+                yield legend [] [ h3 [] [ str "Algemeen" ] ]
                 yield readonlyFormElement "Code" detail.Code
                 yield readonlyFormElement "Type" (string detail.LotType)
                 yield readonlyFormElement "Quotiteit" (detail.Share |> Option.map string |> Option.defaultValue "")
@@ -49,7 +49,7 @@ let view (detail: Lot) =
             yield
                 fieldset [] [
                     yield
-                        legend [] [ h2 [] [ str "Eigenaar(s)" ] ]
+                        legend [] [ h3 [] [ str "Eigenaar(s)" ] ]
 
                     yield
                         table [ classes [ Bootstrap.table; Bootstrap.tableStriped; Bootstrap.tableHover ] ] [
