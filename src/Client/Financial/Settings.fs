@@ -224,7 +224,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         |> updateFinancialYearModalState (fun _ -> None)
         , showSuccessToastCmd "Het boekjaar is gewijzigd"
     | CloseFinancialYearEditor ->
-        state |> updateFinancialCategoryModalState (fun _ -> None)
+        state |> updateFinancialYearModalState (fun _ -> None)
         , Cmd.none
     | OpenCreateFinancialCategory ->
         let newCategory = FinancialCategory.Init state.CurrentBuildingId
