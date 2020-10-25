@@ -418,7 +418,10 @@ let view (state: State) (dispatch: Message -> unit) =
                         IsOpen props.Showing
                         DisableBackgroundClick false
                         OnDismiss (fun _ -> dispatch CancelChangeFinancialCategory)
-                        Header [ HeaderProp.HasDismissButton true ]
+                        Header [
+                            HeaderProp.Title "Boekhoudkundige rekening selecteren"
+                            HeaderProp.HasDismissButton true
+                        ]
                         Body [
                             SelectionList.render (
                                 {|
@@ -454,7 +457,10 @@ let view (state: State) (dispatch: Message -> unit) =
                         IsOpen props.Showing
                         DisableBackgroundClick false
                         OnDismiss (fun _ -> dispatch CancelChangeDistributionKey)
-                        Header [ HeaderProp.HasDismissButton true ]
+                        Header [
+                            HeaderProp.Title "Verdeelsleutel selecteren"
+                            HeaderProp.HasDismissButton true
+                        ]
                         Body [
                             SelectionList.render (
                                 {|
@@ -479,9 +485,9 @@ let view (state: State) (dispatch: Message -> unit) =
                         IsOpen props.Showing
                         DisableBackgroundClick false
                         OnDismiss (fun _ -> dispatch CancelChangeOrganization)
-                        Header [ 
+                        Header [
+                            HeaderProp.Title "Leverancier selecteren"
                             HeaderProp.HasDismissButton true
-                            HeaderProp.Title "Boekhoudkundige rekening selecteren"
                         ]
                         Body [
                             SelectionList.render (
