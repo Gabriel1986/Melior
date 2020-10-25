@@ -237,7 +237,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let updatedCategories = category::state.FinancialCategories
         { state with FinancialCategories = updatedCategories }
         |> updateFinancialCategoryModalState (fun _ -> None)
-        , showSuccessToastCmd "De rubriek is aangemaakt"
+        , showSuccessToastCmd "De boekhoudkundige rekening is aangemaakt"
     | OpenUpdateFinancialCategory category ->
         state
         |> updateFinancialCategoryModalState (fun _ -> Some (FinancialCategoryModalState.Init (Update' category)))
@@ -252,11 +252,11 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             |> List.map (fun fc -> if fc.FinancialCategoryId = category.FinancialCategoryId then category else fc)
         { state with FinancialCategories = updatedCategories }
         |> updateFinancialCategoryModalState (fun _ -> None)
-        , showSuccessToastCmd "De rubriek is gewijzigd"
+        , showSuccessToastCmd "De boekhoudkundige rekening is gewijzigd"
     | DeleteFinancialCategory category ->
         state, 
         showConfirmationModal (
-            (sprintf "Rubriek %s verwijderen?" category.Code), 
+            (sprintf "Boekhoudkundige rekening %s verwijderen?" category.Code), 
             "",
             (fun () -> ConfirmDeleteFinancialCategory category), 
             (fun () -> CancelDeleteFinancialCategory))
@@ -285,18 +285,18 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | FinancialCategoryUpdated (Error e) ->
         match e with
         | SaveFinancialCategoryError.AuthorizationError ->
-            state, showErrorToastCmd "U heeft geen toestemming om deze rubriek te bewaren"
+            state, showErrorToastCmd "U heeft geen toestemming om deze boekhoudkundige rekening te bewaren"
         | SaveFinancialCategoryError.NotFound ->
-            state, showErrorToastCmd "De rubriek werd niet gevonden in de databank"
+            state, showErrorToastCmd "De boekhoudkundige rekening werd niet gevonden in de databank"
         | SaveFinancialCategoryError.Validation errors ->
             state |> updateFinancialCategoryModalState (Option.map (fun s -> { s with IsSaving = false; Errors = errors }))
             , Cmd.none
     | FinancialCategoryDeleted (Error(errors)) ->
         match errors with
         | DeleteFinancialCategoryError.AuthorizationError ->
-            state, showErrorToastCmd "U heeft geen toestemming om deze rubriek te verwijderen"
+            state, showErrorToastCmd "U heeft geen toestemming om deze boekhoudkundige rekening te verwijderen"
         | DeleteFinancialCategoryError.NotFound ->
-            state, showErrorToastCmd "De rubriek werd niet gevonden in de databank"
+            state, showErrorToastCmd "De boekhoudkundige rekening werd niet gevonden in de databank"
     | RemotingError error ->
         state, showGenericErrorModalCmd error
 
@@ -443,7 +443,7 @@ let view (state: State) (dispatch: Msg -> unit) =
 
         div [ Class Bootstrap.row ] [
             fieldset [ Class Bootstrap.col ] [
-                legend [] [ h4 [] [ str "Rubrieken (voorlopig niet wijzigbaar)" ] ]
+                legend [] [ h4 [] [ str "Boekhoudkundige rekeningen (voorlopig niet wijzigbaar)" ] ]
                 let allCategories = state.FinancialCategories |> List.sortBy (fun fc -> fc.Code)
                 let parents = allCategories |> List.filter (fun fc -> fc.Code.Length = 3 || fc.Code = "400000")
                 let rec renderChildren parentCode level =
@@ -488,7 +488,7 @@ let view (state: State) (dispatch: Msg -> unit) =
                 //        ] [
                 //            i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
                 //            str " "
-                //            str "Nieuwe rubriek aanmaken"
+                //            str "Nieuwe boekhoudkundige rekening aanmaken"
                 //        ]
                 //    ]
                 //]

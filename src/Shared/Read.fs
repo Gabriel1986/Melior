@@ -644,7 +644,7 @@ type InvoiceListItem =
         Cost: decimal
         DistributionKeyName: string
         OrganizationName: string
-        CategoryCode: string //Rubriek
+        CategoryCode: string //Boekhoudkundige rekening
         CategoryDescription: string
         InvoiceDate: DateTime
         DueDate: DateTime

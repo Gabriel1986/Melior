@@ -539,7 +539,7 @@ let view (state: State) (dispatch: Message -> unit) =
             |> inColumn
 
             formGroup [
-                Label "Rubriek"
+                Label "Boekhoudkundige rekening"
 
                 let shown =
                     match state.Invoice.FinancialCategory with
