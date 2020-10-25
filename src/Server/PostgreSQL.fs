@@ -15,6 +15,9 @@ type CaseInsensitiveRowReader (rowReader: RowReader) =
     member me.dateTime (s: string)       = me.RowReader.dateTime (s.ToLower())
     member me.dateTimeOrNone (s: string) = me.RowReader.dateTimeOrNone (s.ToLower())
     member me.bytea (s: string)          = me.RowReader.bytea (s.ToLower())
+    member me.byteaOrNone (s: string)    = me.RowReader.byteaOrNone (s.ToLower())
+    member me.decimal (s: string)        = me.RowReader.decimal (s.ToLower())
+    member me.decimalOrNone (s: string)  = me.RowReader.decimalOrNone (s.ToLower())
 
 let readSingle<'T> (read: CaseInsensitiveRowReader -> 'T) props =
     Sql.executeRowAsync (fun rowReader -> new CaseInsensitiveRowReader(rowReader) |> read) props

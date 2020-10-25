@@ -110,6 +110,24 @@ type DeleteUserError =
     | AuthorizationError
     | NotFound
 
+type SaveFinancialYearError =
+    | AuthorizationError
+    | Validation of (string * string) list
+    | NotFound
+
+type DeleteFinancialYearError =
+    | AuthorizationError
+    | NotFound
+
+type SaveFinancialCategoryError =
+    | AuthorizationError
+    | Validation of (string * string) list
+    | NotFound
+
+type DeleteFinancialCategoryError =
+    | AuthorizationError
+    | NotFound
+
 type OwnerId = {
     PersonId: Guid
     BuildingId: Guid
@@ -177,7 +195,14 @@ type RemotingApi = {
     DeleteInvoice: BuildingId * Guid -> Async<Result<unit, DeleteInvoiceError>>
 
     GetFinancialYears: BuildingId -> Async<FinancialYear list>
+    CloseFinancialYear: BuildingId * Guid -> Async<Result<unit, SaveFinancialYearError>>
+    CreateFinancialYear: FinancialYear -> Async<Result<unit, SaveFinancialYearError>>
+    UpdateFinancialYear: FinancialYear -> Async<Result<unit, SaveFinancialYearError>>
+
     GetFinancialCategories: BuildingId -> Async<FinancialCategory list>
+    CreateFinancialCategory: FinancialCategory -> Async<Result<unit, SaveFinancialCategoryError>>
+    UpdateFinancialCategory: FinancialCategory -> Async<Result<unit, SaveFinancialCategoryError>>
+    DeleteFinancialCategory: BuildingId * Guid -> Async<Result<unit, DeleteFinancialCategoryError>>
 
     GetUsers: unit -> Async<User list>
     CreateUser: User -> Async<Result<unit, SaveUserError>>

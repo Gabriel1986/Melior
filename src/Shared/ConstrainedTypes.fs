@@ -66,6 +66,10 @@ type PositiveFloat =
     private | PositiveFloat of float
     member me.Value () = match me with | PositiveFloat x -> x
 
+type PositiveDecimal =
+    private | PositiveDecimal of Decimal
+    member me.Value () = match me with | PositiveDecimal x -> x
+
 let validatePositiveInt path x =
     if x < 0 then Trial.ofError (path, "De waarde moet groter zijn dan, of gelijk zijn aan 0...") else Trial.Pass (PositiveInt x)
 

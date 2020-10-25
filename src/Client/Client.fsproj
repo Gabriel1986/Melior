@@ -64,7 +64,7 @@
     <Compile Include="Owners\OwnerEditComponent.fs" />
     <Compile Include="Owners\OwnerDetails.fs" />
     <Compile Include="Owners\OwnersPage.fs" />
-    <Compile Include="Lots\LotOwnerModal.fs" />
+    <Compile Include="Lots\LotOwnerTypeModal.fs" />
     <Compile Include="Lots\LotViewComponent.fs" />
     <Compile Include="Lots\LotEditComponent.fs" />
     <Compile Include="Lots\LotDetails.fs" />
@@ -83,18 +83,18 @@
     <Compile Include="Users\UserDetails.fs" />
     <Compile Include="Users\UsersPage.fs" />
     <Compile Include="Users\MyAccount.fs" />
-    <Compile Include="Financial\CostDiary\InvoiceEditComponent.fs" />
-    <Compile Include="Financial\CostDiary\InvoiceViewComponent.fs" />
-    <Compile Include="Financial\CostDiary\InvoiceDetails.fs" />
-    <Compile Include="Financial\CostDiary\CostDiary.fs" />
+    <Compile Include="Financial\Invoicing\InvoiceEditComponent.fs" />
+    <Compile Include="Financial\Invoicing\InvoiceViewComponent.fs" />
+    <Compile Include="Financial\Invoicing\InvoiceDetails.fs" />
+    <Compile Include="Financial\Invoicing\InvoicesPage.fs" />
     <Compile Include="Financial\DistributionKeys\Types.fs" />
     <Compile Include="Financial\DistributionKeys\DistributionKeyEditComponent.fs" />
     <Compile Include="Financial\DistributionKeys\DistributionKeyViewComponent.fs" />
     <Compile Include="Financial\DistributionKeys\DistributionKeyDetails.fs" />
     <Compile Include="Financial\DistributionKeys\DistributionKeysPage.fs" />
+    <Compile Include="Financial\FinancialYearEditComponent.fs" />
+    <Compile Include="Financial\FinancialCategoryEditComponent.fs" />
     <Compile Include="Financial\Settings.fs" />
-    <Compile Include="Financial\IncomeDiary.fs" />
-    <Compile Include="Financial\FinancialDiary.fs" />
     <Compile Include="PortalPage.fs" />
     <Compile Include="Sidebar.fs" />
     <Compile Include="Client.fs" />
@@ -105,7 +105,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Files\" />
-    <Folder Include="Financial\FinancialCategories\" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -33,6 +33,7 @@ export class FilePondComponent extends React.Component {
                 labelIdle={this.props.labelIdle}
                 files={this.state.files}
                 onupdatefiles={(fileItems) => {
+                    console.error("wewd?");
                     this.setState({
                         files: fileItems.map(fileItem => fileItem.file)
                     });

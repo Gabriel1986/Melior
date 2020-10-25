@@ -19,17 +19,13 @@ let build (config: IConfiguration) =
 
             member _.GetContracts msg = async {
                 if msg.CurrentUser.HasAccessToBuilding msg.Payload
-                then
-                    return! Query.getContracts conn msg.Payload
-                else
-                    return []
+                then return! Query.getContracts conn msg.Payload
+                else return []
             }
 
             member _.GetContractTypeAnswers msg = async {
                 if msg.CurrentUser.HasAccessToBuilding msg.Payload
-                then
-                    return! Query.getContractTypeAnswers conn msg.Payload
-                else
-                    return []
+                then return! Query.getContractTypeAnswers conn msg.Payload
+                else return []
             }
     }

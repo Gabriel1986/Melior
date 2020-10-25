@@ -168,9 +168,28 @@
             GetFinancialYears = fun buildingId ->
                 createMsg buildingId
                 |> environment.FinancialSystem.GetFinancialYears
+            CloseFinancialYear = fun (buildingId, financialYearId) ->
+                createMsg (buildingId, financialYearId)
+                |> environment.FinancialSystem.CloseFinancialYear
+            CreateFinancialYear = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.CreateFinancialYear
+            UpdateFinancialYear = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.UpdateFinancialYear
+
             GetFinancialCategories = fun buildingId ->
                 createMsg buildingId
                 |> environment.FinancialSystem.GetFinancialCategories
+            CreateFinancialCategory = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.CreateFinancialCategory
+            UpdateFinancialCategory = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.UpdateFinancialCategory
+            DeleteFinancialCategory = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.DeleteFinancialCategory
 
             GetUsers = fun input ->
                 createMsg input

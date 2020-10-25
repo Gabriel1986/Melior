@@ -1,0 +1,279 @@
+Code;Description
+170;Achtergestelde leningen
+171;Niet-achtergestelde obligatieleningen
+172;Leasingschulden
+173;Kredietinstellingen
+1730;Schulden op rekening
+1731;Promessen
+1732;Acceptkredieten
+174;Overige leningen
+175;Handelsschulden
+179;Overige schulden
+211;Concessies, octrooien, licenties, know-how, merken en soortgelijke rechten
+213;Vooruitbetalingen
+251;Installaties, machines en uitrusting
+252;Meubilair en rollend materieel
+400000;Klanten
+410;Opgevraagd, niet-gestort kapitaal
+4100;Opgevraagd, niet-gestort voorschot reservekapitaal
+4101;Opgevraagd, niet-gestort voorschot werkkapitaal
+416;Diverse vorderingen
+417;Dubieuze debiteuren
+419;Geboekte waardeverminderingen (-)
+420;Achtergestelde leningen
+421;Niet-achtergestelde obligatieleningen
+422;Leasingschulden en soortgelijke
+423;Kredietinstellingen
+4230;Schulden op rekening
+4231;Promessen
+4232;Acceptkredieten
+424;Overige leningen
+425;Handelsschulden
+429;Overige schulden
+430;Kredietinstellingen - Leningen op rekening met vaste termijn
+431;Kredietinstellingen - Promessen
+432;Kredietinstellingen - Acceptkredieten
+433;Kredietinstellingen - Schulden op rekening-courant (3)
+439;Overige leningen
+440;Leveranciers
+444;Te ontvangen facturen
+450;Geraamd bedrag der belastingschulden
+452;Te betalen belastingen en taksen
+453;Ingehouden voorheffingen
+454;Rijksdienst voor sociale zekerheid
+455;Bezoldigingen
+456;Vakantiegeld
+459;Andere sociale schulden
+489;Schulden : Overgedragen middelen
+490;Over te dragen kosten
+491;Verkregen opbrengsten
+492;Toe te rekenen kosten
+493;Over te dragen opbrengsten
+499;Wachtrekeningen
+4990;Afrondingen
+499999;Openingstoestand
+530;Op meer dan één jaar
+531;Op meer dan één maand en ten hoogste één jaar
+532;Op ten hoogste één maand
+539;Geboekte waardeverminderingen (-)
+550;Reservekapitaal
+551;Werkkapitaal
+552;Overige rekeningen
+5521;Zichtrekening
+5522;Spaarrekening
+5523;Bank 3
+5524;Bank 4
+5525;Bank 5
+5526;Bank 6
+5527;Bank 7
+5528;Bank 8
+5529;Bank 9
+570;Kassen
+580;Interne overboekingen
+610;Onderhoud en kleine herstellingen gebouw, tuin en omgeving
+6100;Brandbeveiliging
+61000;Onderhoudscontracten
+61001;Brandblustoestellen
+61002;Brandblusleidingen
+61003;Brandbestrijding overige
+61004;Brandmelding en branddetectie
+61005;Brandpreventie
+61006;Onderhoud noodtrappen/evacuatiewegen/rookkoepels
+61007;Veiligheidssignalisatie/Noodverlichting
+61008;Bliksembeveiliging
+61009;Andere
+6101;Liften
+61010;Keuring liften
+61011;Onderhoudscontract liften
+61012;Onderhoud en herstellingen liften niet begrepen in onderhoudscontract
+61013;Noodtelefoon liften
+61014;Aanpassingswerken liften
+61015;Andere kosten liften
+6102;Elektrische installaties
+61020;Keuring elektrische installaties
+61021;Onderhoudscontracten
+61022;Overige onderhoud elektrische installaties
+61023;Onderhoud bel- en parlofoon/videofooninstallatie
+61024;Renovatie elektrische installaties
+61025;Noodgroepen
+61026;Airco - luchtbehandeling
+61027;Lucht- en rookafzuigingsinstallaties
+61028;Camerabewaking
+61029;Andere
+6103;Sanitair en verwarming
+61030;Keuringen van de installaties
+61031;Onderhoudscontracten
+61032;Overig onderhoud stookinstallaties
+61033;Overig onderhoud drukverhoging water
+61034;Overig onderhoud waterverzachter en waterbehandeling
+61035;Overig onderhoud verwarmingsleidingen
+61036;Overig onderhoud waterleidingen
+61037;Overig onderhoud afvoeren, riolering en pompinstallaties
+61038;Meters en meteropname
+61039;Andere
+6104;Schrijnwerken
+61040;Onderhoudscontracten
+61041;Onderhoud garagepoort
+61042;Onderhoud buitenschrijnwerk
+61043;Onderhoud binnenschrijnwerk
+61044;Borstweringen en terrasscheidingen
+61045;Andere
+6105;Schoonmaak en huisvuilverwerking
+61050;Schoonmaak gebouw volgens contract
+61051;Schoonmaak gebouw andere
+61052;Onderhoudsproducten schoonmaak
+61053;Materieel schoonmaak
+61054;Huisvuil/PMD/papier en glas volgens contract
+61055;Huisvuil/PMD/papier en glas volgens andere
+61056;Producten huisvuil/PMD/papier en glas
+61057;Keuringen
+61058;Andere
+6106;Tuinen, parkings en wegen
+61060;Onderhoud tuinen en directe omgeving volgens contract
+61061;Overig onderhoud tuinen en directe omgeving
+61062;Aanleg tuinen en directe omgeving
+61063;Onderhoud parkings, wegen en directe omgeving volgens contract
+61064;Overig onderhoud parkings, wegen en directe omgeving
+61065;Renovatiewerken parkings, wegen en directe omgeving
+61066;Diverse werken
+6107;Onderhoud bouwwerken
+61070;Onderhoud funderingen
+61071;Onderhoud gevels
+61072;Onderhoud terrassen
+61073;Onderhoud daken
+61074;Onderhoud schoorstenen en ventilatiekanalen
+61075;Onderhoud kelders
+61076;Onderhoudswerken hal, trapzalen, gangen
+6108;Zwembad
+61080;Keuringen en controles
+61081;Onderhoudscontract
+61082;Overig onderhoud zwembad/ technische installaties
+61083;Levering producten
+61084;Toezicht
+61085;Herstellingen zwembad/ technische installaties
+61086;Andere
+6109;Diversen
+61090;Onderhoudscontracten
+61091;Kosten wasserij
+61092;Kosten recreatie (speelpleinen, tennis, fitness, biljart,...)
+61093;Toezicht en bewaking
+611;Renovatiewerken en andere uitzonderlijke werken
+6110;Studiekosten en toezicht
+6111;Renovatie
+6112;Verbouwingswerken
+6113;Uitbreidingswerken
+612;Leveringen aan de vereniging
+6120;Water
+61200;Vast recht en verbruik
+61201;Water algemene delen
+61202;Zout voor waterverzachter
+61203;Andere leveringen voor waterverzachter
+61204;Leveringen voor waterbehandeling
+61205;Andere
+6121;Elektriciteit
+61210;Elektriciteit algemene delen
+61211;Elektriciteit liften
+61212;Elektriciteit verwarming en sanitair
+61213;Andere
+6122;Gas
+61220;Vast recht en verbruik
+61221;Andere
+6123;Stookolie
+61230;Keuringen tanks
+61231;Onderhoud tanks
+61232;Leveringen stookolie
+6124;Andere nutsvoorzieningen
+61240;Kabeldistributie
+6125;Andere leveringen
+613;Erelonen, kosten raadsleden en kosten interne commissaris van de rekeningen
+6130;Erelonen
+61300;Erelonen syndici
+61301;Erelonen advocaten
+61302;Erelonen architecten/ingenieurs
+61303;Erelonen deskundigen
+61304;Erelonen externe commissaris van de rekeningen
+61305;Andere erelonen
+6131;Kosten raadsleden (raad van mede-eigendom) en interne commissaris rekeningen
+61310;Kostenvergoeding interne raadsleden en interne commissaris van de rekeningen
+61311;Verplaatsingskosten interne raadsleden en interne commissaris van de rekeningen
+61312;Andere kosten raad van mede-eigendom
+614;Verzekeringen
+6140;Brandverzekering
+6141;Burgerlijke aansprakelijkheid
+6142;Arbeidsongevallenverzekering
+6143;Verzekering vrijwilligers
+6144;Verzekering raadsleden en commissaris van de rekeningen
+6145;Beroepsaansprakelijkheid niet-professionele syndicus
+6146;Rechtsbijstand
+6147;Franchise
+6148;Andere
+615;Conciërgewoning
+6150;Telefoon - internet - gsm
+6151;Elektriciteit
+6152;Water
+6153;Gas
+6154;Verwarming
+6155;Televisiedistributie
+6156;Kosten
+6157;Onderhoud
+6158;Andere
+616;Administratie- en beheerskosten
+6160;Administratiekosten syndicus
+61600;Kantoor en kantoorbenodigdheden
+61601;Postzegels
+61602;Telefoon
+61603;Andere
+6161;Kosten vergaderingen
+61610;Gebruik vergaderzalen
+61611;Consumpties vergaderingen
+61612;Andere
+6162;Vertalingen
+61620;Simultaanvertaling vergaderingen
+61621;Vertaling documenten
+6163;Procedurekosten
+61630;Procedurekosten inning achterstallen mede-eigenaars
+61631;Andere procedurekosten
+6164;Publicaties en wijziging van de statuten
+61640;Publicatie benoeming syndicus
+61641;Wijziging van de statuten
+6165;Kosten eigendomsoverdracht
+61650;Attesten artikel 577-11 Burgerlijk Wetboek
+61651;Andere
+6166;Diverse kosten beheer
+61660;Informatieverstrekking op het internet
+61661;Kosten eigendomsverwerving
+61662;Kosten archief
+61663;Overige kosten beheer
+619;Privatieve kosten
+620;Bezoldigingen en rechtstreekse sociale voordelen
+621;Werkgeversbijdragen voor sociale verzekeringen
+622;Werkgeverspremies voor bovenwettelijke verzekeringen
+623;Andere personeelskosten
+624;Ouderdoms- en overlevingspensioenen
+630;Afschrijvingen op vaste activa toevoeging
+6301;Afschrijvingen op immateriële vaste activa
+6302;Afschrijvingen op materiële vaste activa
+634;Waardeverminderingen op vorderingen op ten hoogste één jaar
+6340;Toevoeging
+6341;Terugneming (-)
+640;Belastingen en retributies
+641;Minderwaarden op de realisatie van schuldvorderingen
+642;Diverse kosten
+650;Bankkosten en kosten van schulden
+657;Diverse financiële kosten
+693;Over te dragen middelen
+700;Voorschotten reservekapitaal
+701;Voorschotten werkkapitaal
+702;Aangevraagde provisies
+703;Eénmalig werkkapitaal
+749;Diverse opbrengsten
+7491;Opbrengsten rappelkosten
+751;Opbrengsten uit vlottende activa
+7510;Ontvangen verwijlintresten
+7514;Bankintresten
+75140;Intresten zichtrekening
+75141;Intresten spaarrekening
+75142;Intresten reservefonds
+759;Diverse financiële opbrengsten
+769;Andere uitzonderlijke opbrengsten
+790;Resultaatverwerking

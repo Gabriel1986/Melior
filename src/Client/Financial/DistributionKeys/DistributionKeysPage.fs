@@ -22,8 +22,8 @@ type SortableAttribute =
     member me.ToString' () =
         match me with
         | Name -> "Naam"
-        | DistributionType -> "Type"
-        | NbMatchingLots -> "Lots"
+        | DistributionType -> "Verdeling"
+        | NbMatchingLots -> "# Kavels"
     member me.StringValueOf': DistributionKeyModel -> string =
         match me with
         | Name -> (fun li -> li.Name)
@@ -102,7 +102,7 @@ let private createModel (lots: LotListItem list) (key: DistributionKey): Distrib
     MatchingLots =
         match key.LotsOrLotTypes with
         | LotsOrLotTypes.Lots lotIds -> lots |> List.filter (fun lot -> lotIds |> List.contains(lot.LotId))
-        | LotsOrLotTypes.LotTypes types -> lots |> List.filter (fun lot -> types |> List.contains(lot.LotType))
+        | LotsOrLotTypes.LotTypes types -> lots |> List.filter (fun lot -> (if not key.IncludeGroundFloor then lot.Floor.IsNone || lot.Floor.Value <> 0 else true) && types |> List.contains(lot.LotType))
 }
 
 let private evolve (state: State) =
@@ -160,20 +160,24 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with SelectedListItems = newSelection; ListItems = newItems }, cmd
     | ListItemRemoved result ->
         match result with
-        | Ok _ -> state, Cmd.none
+        | Ok _ -> 
+            state, showSuccessToastCmd "De verdeeldsleutel werd verwijderd"
         | Error DeleteDistributionKeyError.AuthorizationError ->
-            state, showErrorToastCmd "U heeft geen toestemming om een gebouw te verwijderen"
+            state, showErrorToastCmd "U heeft geen toestemming om een verdeelsleutel te verwijderen"
         | Error DeleteDistributionKeyError.NotFound ->
             //Do nothing... something might have gone wrong, maybe?
             printf "The building that's being deleted was not found O_o?"
-            state, showErrorToastCmd "Het gebouw werd niet gevonden in de databank"
+            state, showErrorToastCmd "De verdeelsleutel werd niet gevonden in de databank"
     | Created distributionKey ->
         let newListItems = distributionKey :: state.ListItems
         let newSelectedListItems = [ distributionKey ] |> List.append state.SelectedListItems
         { state with 
             ListItems = newListItems |> List.sortBy (fun b -> b.Name)
             SelectedListItems = newSelectedListItems
-        }, (SelectTab (Tab.Details distributionKey)) |> Cmd.ofMsg
+        }, Cmd.batch [
+            showSuccessToastCmd "De verdeelsleutel is aangemaakt"
+            (SelectTab (Tab.Details distributionKey)) |> Cmd.ofMsg
+        ]
     | Edited distributionKey ->
         let listItem = distributionKey
         let newListItems = state.ListItems |> List.map (fun li -> if li.DistributionKeyId = distributionKey.DistributionKeyId then listItem else li)
@@ -181,7 +185,10 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with 
             ListItems = newListItems
             SelectedListItems = newSelectedListItems
-        }, (SelectTab (Tab.Details listItem)) |> Cmd.ofMsg
+        }, Cmd.batch [
+            showSuccessToastCmd "De verdeelsleutel is gewijzigd"
+            (SelectTab (Tab.Details listItem)) |> Cmd.ofMsg
+        ]
     | CurrentDistributionKeyChanged distributionKey ->
         { state with SelectedDistributionKeyId = Some distributionKey.DistributionKeyId }, Cmd.none
 
@@ -203,9 +210,9 @@ let view (state: State) (dispatch: Msg -> unit) =
                     DisplayAttributes = SortableAttribute.All
                     IsSelected = None
                     OnSelect = None
-                    IsEditable = None
+                    IsEditable = Some (fun li -> li.CanBeEdited)
                     OnEdit = Some (AddDetailTab >> dispatch)
-                    IsDeletable = None
+                    IsDeletable = Some (fun li -> li.CanBeEdited)
                     OnDelete = Some (RemoveListItem >> dispatch)
                     Key = "DistributionKeysPageTable"
                 |}

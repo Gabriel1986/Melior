@@ -170,25 +170,31 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
                             ]
                         ]
                     ]
-            if state.OnEdit.IsSome && (not state.IsEditable.IsSome || state.IsEditable.Value(li)) then
+            if state.OnEdit.IsSome then
                 yield
-                    td [] [ 
-                        a [ 
-                            classes [ Bootstrap.textPrimary; "pointer" ]
-                            OnClick (fun e -> e.preventDefault(); e.stopPropagation(); state.OnEdit.Value (li))
-                        ] [
-                            i [ classes [ FontAwesome.fa; FontAwesome.faExternalLinkAlt] ] []
-                        ] 
+                    td [] [
+                        if not state.IsEditable.IsSome || state.IsEditable.Value(li) then
+                            a [ 
+                                classes [ Bootstrap.textPrimary; "pointer" ]
+                                OnClick (fun e -> e.preventDefault(); e.stopPropagation(); state.OnEdit.Value (li))
+                            ] [
+                                i [ classes [ FontAwesome.fa; FontAwesome.faExternalLinkAlt] ] []
+                            ]
+                        else
+                            null
                     ]
-            if state.OnDelete.IsSome && (not state.IsDeletable.IsSome || state.IsDeletable.Value(li)) then
+            if state.OnDelete.IsSome then
                 yield
-                    td [] [ 
-                        a [
-                            classes [ Bootstrap.textDanger; "pointer" ]
-                            OnClick (fun e -> e.preventDefault(); e.stopPropagation(); state.OnDelete.Value (li)) 
-                        ] [
-                            i [ classes [ FontAwesome.far; FontAwesome.faTrashAlt ] ] []
-                        ] 
+                    td [] [
+                        if (not state.IsDeletable.IsSome || state.IsDeletable.Value(li)) then
+                            a [
+                                classes [ Bootstrap.textDanger; "pointer" ]
+                                OnClick (fun e -> e.preventDefault(); e.stopPropagation(); state.OnDelete.Value (li)) 
+                            ] [
+                                i [ classes [ FontAwesome.far; FontAwesome.faTrashAlt ] ] []
+                            ]
+                        else
+                            null
                     ]
         }
 

@@ -104,11 +104,11 @@ let init (props: LotsPageProps) =
             RemotingError
     state, cmd
 
-let private mapCurrentOwner =
-    function
-    | LotOwner.Owner owner -> 
+let private mapCurrentOwner (owner: LotOwner): LotOwnerListItem =
+    match owner.LotOwnerType with
+    | LotOwnerType.Owner owner -> 
         LotOwnerListItem.Owner {| PersonId = owner.PersonId; Name = owner.FullName () |}
-    | LotOwner.Organization organization -> 
+    | LotOwnerType.Organization organization -> 
         LotOwnerListItem.Organization {| OrganizationId = organization.OrganizationId; Name = organization.Name |}
 
 let update (msg: Msg) (state: State): State * Cmd<Msg> =

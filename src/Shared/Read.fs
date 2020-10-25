@@ -223,14 +223,11 @@ and BuildingListItem = {
     OrganizationNumber: string option
     BankAccounts: BankAccount list
 }
-
-//Gemeenschappelijke ruimte
-and CommonSpace = string list
 and Lot = 
     {
         LotId: Guid
         BuildingId: BuildingId
-        Owners: (LotOwner * LotOwnerRole) list
+        Owners: LotOwner list
         Code: string
         LotType: LotType
         Description: string option
@@ -241,7 +238,7 @@ and Lot =
     }
     member me.LegalRepresentative () =
         me.Owners
-        |> List.tryPick (fun (owner, role) -> if role = LegalRepresentative then Some owner else None)
+        |> List.tryPick (fun owner -> if owner.LotOwnerRole = LegalRepresentative then Some owner else None)
     static member Init (buildingId: BuildingId) = {
         LotId = Guid.NewGuid()
         BuildingId = buildingId
@@ -252,7 +249,14 @@ and Lot =
         Floor = None
         Share = None
     }
-and LotOwner = 
+and LotOwner = {
+    LotId: Guid
+    LotOwnerType: LotOwnerType
+    LotOwnerRole: LotOwnerRole
+    StartDate: DateTime
+    EndDate: DateTime option
+}
+and LotOwnerType =
     | Owner of OwnerListItem
     | Organization of OrganizationListItem
 and LotOwnerRole =
@@ -266,6 +270,8 @@ and LotType =
     | Garage
     | Storage
     | Other
+    static member AllValues () =
+        [ Appartment; Studio; ParkingSpace; CommercialProperty; Garage; Storage; Other ]
     override me.ToString() =
         match me with
         | Appartment -> "Appartement"
@@ -566,37 +572,13 @@ let OtherPredefinedContractTypes = [|
     PredefinedContractType.WaterSupplier
 |]
 
-//TODO: place the distribution keys in the DB
-//type PredefinedDistributionKey =
-//    | ``Total according to shares``
-//    | ``Appartments according to shares``
-//    | ``Appartments without ground floor according to shares``
-//    | ``Garages and parking spaces according to shares``
-//    | ``Storage and basements according to shares``
-//    | ``Total according to equal parts``
-//    | ``Appartments according to equal parts``
-//    | ``Appartments without ground floor according to equal parts``
-//    | ``Garages and parking spaces according to equal parts``
-//    | ``Storage and basements according to equal parts``
-//    override me.ToString () =
-//        match me with
-//        | ``Total according to shares`` -> "Totaal – volgens aandelen"
-//        | ``Appartments according to shares`` -> "Appartementen - volgens aandelen"
-//        | ``Appartments without ground floor according to shares`` -> "Appartementen zonder gelijkvloer - volgens aandelen"
-//        | ``Garages and parking spaces according to shares`` -> "Staanplaatsen / garages - volgens aandelen"
-//        | ``Storage and basements according to shares`` -> "Bergingen / kelders - volgens aandelen"
-//        | ``Total according to equal parts`` -> "Totaal – volgens gelijke delen"
-//        | ``Appartments according to equal parts`` -> "Appartementen - volgens gelijke delen"
-//        | ``Appartments without ground floor according to equal parts`` -> "Appartementen zonder gelijkvloer - volgens gelijke delen"
-//        | ``Garages and parking spaces according to equal parts`` -> "Staanplaatsen / garages - volgens gelijke delen"
-//        | ``Storage and basements according to equal parts`` -> "Bergingen / kelders - volgens gelijke delen"
-
 type DistributionKey = {
     DistributionKeyId: Guid
     BuildingId: Guid option
     Name: string
     DistributionType: DistributionType
     LotsOrLotTypes: LotsOrLotTypes
+    IncludeGroundFloor: bool
 }
 and DistributionType =
     | EqualParts
@@ -616,19 +598,37 @@ type DistributionKeyListItem = {
     DistributionType: DistributionType
 }
 
-type FinancialYear = {
-    FinancialYearId: Guid
-    Code: string
-    StartDate: DateTimeOffset
-    EndDate: DateTimeOffset
-    IsClosed: bool
-}
+type FinancialYear = 
+    {
+        FinancialYearId: Guid
+        BuildingId: Guid
+        Code: string
+        StartDate: DateTime
+        EndDate: DateTime
+        IsClosed: bool
+    }
+    static member Init (buildingId: Guid) = {
+        FinancialYearId = Guid.NewGuid()
+        BuildingId = buildingId
+        Code = ""
+        StartDate = DateTime.Today
+        EndDate = DateTime.Today.AddYears(1)
+        IsClosed = false
+    }
 
-type FinancialCategory = {
-    FinancialCategoryId: Guid
-    Code: string
-    Description: string
-}
+type FinancialCategory = 
+    {
+        FinancialCategoryId: Guid
+        BuildingId: Guid option
+        Code: string
+        Description: string
+    }
+    static member Init (buildingId: Guid) = {
+        FinancialCategoryId = Guid.NewGuid()
+        BuildingId = Some buildingId
+        Code = ""
+        Description = ""
+    }
 
 module Invoice =
     let calculateLocalInvoiceNumber (financialYearCode: string, invoiceNumber: int) =
@@ -641,21 +641,21 @@ type InvoiceListItem =
         FinancialYearCode: string
         FinancialYearIsClosed: bool
         InvoiceNumber: int
-        Cost: float
-        VatRate: float
+        Cost: decimal
         DistributionKeyName: string
         OrganizationName: string
         CategoryCode: string //Rubriek
+        CategoryDescription: string
+        InvoiceDate: DateTime
         DueDate: DateTime
-        HasBeenPaid: bool
+        //HasBeenPaid: bool TODO
     }
     member me.LocalInvoiceNumber = Invoice.calculateLocalInvoiceNumber (me.FinancialYearCode, me.InvoiceNumber)
 
 type InvoiceFilterPeriod =
     | FinancialYear of financialYearId: Guid
-    | Year of int
-    | Quarter of int
-    | Month of int
+    | Month of month: int * year: int
+    | Year of year: int
 
 type InvoiceFilter = {
     BuildingId: Guid
@@ -669,22 +669,17 @@ type Invoice =
         FinancialYear: FinancialYear
         InvoiceNumber: int
         Description: string option
-        Cost: float
-        VatRate: float
-        CategoryCode: string
-        CategoryDescription: string
-        FromBankAccount: BankAccount
-        ToBankAccount: BankAccount
+        Cost: Decimal
+        VatRate: int
+        FinancialCategory: FinancialCategory
         BookingDate: DateTime //Date when booked
         DistributionKey: DistributionKeyListItem
-        OrganizationId: Guid
-        OrganizationName: string
-        OrganizationNumber: string option
-        OrganizationVatNumber: string option
-        ExternalInvoiceNumber: string option //Number @ supplier
+        Organization: OrganizationListItem
+        OrganizationBankAccount: BankAccount
+        OrganizationInvoiceNumber: string option //Number @ supplier
         InvoiceDate: DateTime //Date on the invoice
         DueDate: DateTime //Due date of the invoice
-        PaymentIds: Guid list
+        //PaymentIds: Guid list
         MediaFiles: MediaFile list
     }
     member me.LocalInvoiceNumber = Invoice.calculateLocalInvoiceNumber (me.FinancialYear.Code, me.InvoiceNumber)

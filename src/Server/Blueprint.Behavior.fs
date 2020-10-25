@@ -2,12 +2,13 @@
 
 open Giraffe
 open System
-open Shared.Read
 open System.Security.Claims
-open Server.Library
+open Shared.Read
 open Shared.Write
 open Shared.Remoting
 open Shared.ConstrainedTypes
+open Server.Library
+open Server.Blueprint.Data.SeedData
 
 module Authentication =
     open Server.Blueprint.Data.Authentication
@@ -161,6 +162,16 @@ module Financial =
         abstract CreateInvoice: Message<Invoice> -> Async<Result<unit, SaveInvoiceError>>
         abstract UpdateInvoice: Message<Invoice> -> Async<Result<unit, SaveInvoiceError>>
         abstract DeleteInvoice: Message<BuildingId * Guid> -> Async<Result<unit, DeleteInvoiceError>>
+
+        abstract CreateFinancialYear: Message<FinancialYear> -> Async<Result<unit, SaveFinancialYearError>>
+        abstract UpdateFinancialYear: Message<FinancialYear> -> Async<Result<unit, SaveFinancialYearError>>
+        abstract CloseFinancialYear: Message<BuildingId * Guid> -> Async<Result<unit, SaveFinancialYearError>>
+        abstract DeleteFinancialYear: Message<BuildingId * Guid> -> Async<Result<unit, DeleteFinancialYearError>>
+
+        abstract CreateFinancialCategory: Message<FinancialCategory> -> Async<Result<unit, SaveFinancialCategoryError>>
+        abstract UpdateFinancialCategory: Message<FinancialCategory> -> Async<Result<unit, SaveFinancialCategoryError>>
+        abstract DeleteFinancialCategory: Message<BuildingId * Guid> -> Async<Result<unit, DeleteFinancialCategoryError>>
+
         //Queries
         abstract GetDistributionKeys: Message<BuildingId> -> Async<DistributionKey list>
         abstract GetDistributionKeyListItems: Message<BuildingId> -> Async<DistributionKeyListItem list>
@@ -168,6 +179,10 @@ module Financial =
         abstract GetInvoice: Message<Guid> -> Async<Invoice option>
         abstract GetFinancialYears: Message<BuildingId> -> Async<FinancialYear list>
         abstract GetFinancialCategories: Message<BuildingId> -> Async<FinancialCategory list>
+
+        //Seeding
+        abstract SeedFinancialCategories: FinancialCategorySeedRow seq -> Async<unit>
+        abstract SeedDistributionKeys: DistributionKeySeedRow seq -> Async<unit>
 
 [<NoComparison; NoEquality>]
 type IEnv =

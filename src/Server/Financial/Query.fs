@@ -6,7 +6,7 @@ open Shared.Read
 open Npgsql.FSharp
 open Server.PostgreSQL
 open Server.PostgreSQL.Sql
-open Shared.Write
+open Shared.MediaLibrary
 
 type DistributionKeyRow = {
     DistributionKeyId: Guid
@@ -15,6 +15,7 @@ type DistributionKeyRow = {
     DistributionType: DistributionType
     LotId: Guid option
     LotType: LotType option
+    IncludeGroundFloor: bool
 }
 
 let mapToLotsOrLotTypes (rows: DistributionKeyRow list): LotsOrLotTypes =
@@ -38,6 +39,7 @@ let readDistributionKey (reader: CaseInsensitiveRowReader): DistributionKeyRow =
     DistributionType = readDistributionType reader "DistributionType"
     LotId = reader.uuidOrNone "LotId"
     LotType = (reader.stringOrNone "LotType" |> Option.map LotType.OfString)
+    IncludeGroundFloor = reader.bool "IncludeGroundFloor"
 }
 
 let readDistributionKeyListItem (reader: CaseInsensitiveRowReader): DistributionKeyListItem = {
@@ -45,6 +47,73 @@ let readDistributionKeyListItem (reader: CaseInsensitiveRowReader): Distribution
     BuildingId = reader.uuidOrNone "BuildingId"
     Name = reader.string "Name"
     DistributionType = readDistributionType reader "DistributionType"
+}
+
+type InvoiceDbRow = {
+    InvoiceId: Guid
+    BuildingId: Guid
+    FinancialYearId: Guid
+    InvoiceNumber: int
+    Description: string option
+    Cost: Decimal
+    VatRate: int
+    FinancialCategoryId: Guid
+    BookingDate: DateTime //Date when booked
+    DistributionKeyId: Guid
+    OrganizationId: Guid
+    OrganizationBankAccount: BankAccount
+    OrganizationInvoiceNumber: string option //Number @ supplier
+    InvoiceDate: DateTime //Date on the invoice
+    DueDate: DateTime //Due date of the invoice
+}
+
+let readInvoice (reader: CaseInsensitiveRowReader): InvoiceDbRow = {
+    InvoiceId = reader.uuid "InvoiceId"
+    BuildingId = reader.uuid "BuildingId"
+    FinancialYearId = reader.uuid "FinancialYearId"
+    InvoiceNumber = reader.int "InvoiceNumber"
+    Description = reader.stringOrNone "Description"
+    Cost = reader.decimal "Cost"
+    VatRate = reader.int "VatRate"
+    FinancialCategoryId = reader.uuid "FinancialCategoryId"
+    BookingDate = reader.dateTime "BookingDate"
+    DistributionKeyId = reader.uuid "DistributionKeyId"
+    OrganizationId = reader.uuid "OrganizationId"
+    OrganizationBankAccount = (reader.string "OrganizationBankAccount") |> BankAccount.fromJson
+    OrganizationInvoiceNumber = reader.stringOrNone "OrganizationInvoiceNumber"
+    InvoiceDate = reader.dateTime "InvoiceDate"
+    DueDate = reader.dateTime "DueDate"
+}
+
+let readInvoiceListItem (reader: CaseInsensitiveRowReader): InvoiceListItem = {
+    InvoiceId = reader.uuid "InvoiceId"
+    BuildingId = reader.uuid "BuildingId"
+    FinancialYearCode = reader.string "FinancialYearCode"
+    FinancialYearIsClosed = reader.bool "FinancialYearIsClosed"
+    InvoiceNumber = reader.int "InvoiceNumber"
+    Cost = reader.decimal "Cost"
+    DistributionKeyName = reader.string "DistributionKeyName"
+    OrganizationName = reader.string "OrganizationName"
+    CategoryCode = reader.string "CategoryCode"
+    CategoryDescription = reader.string "CategoryDescription"
+    InvoiceDate = reader.dateTime "InvoiceDate"
+    DueDate = reader.dateTime "DueDate"
+}
+
+let readFinancialYear (reader: CaseInsensitiveRowReader): FinancialYear = {
+    FinancialYearId = reader.uuid "FinancialYearId"
+    BuildingId = reader.uuid "BuildingId"
+    Code = reader.string "Code"
+    StartDate = reader.dateTime "StartDate"
+    EndDate = reader.dateTime "EndDate"
+    IsClosed = reader.bool "IsClosed"
+}
+
+let readFinancialCategory (reader: CaseInsensitiveRowReader): FinancialCategory = {
+    FinancialCategoryId = reader.uuid "FinancialCategoryId"
+    BuildingId = reader.uuidOrNone "BuildingId"
+    Code = reader.string "Code"
+    Description = reader.string "Description"
 }
 
 let getDistributionKeyListItems (conn: string) (buildingId: BuildingId): Async<DistributionKeyListItem list> =
@@ -71,11 +140,12 @@ let getDistributionKeys (conn: string) (buildingId: BuildingId): Async<Distribut
                     dKey.DistributionKeyId,
                     dKey.BuildingId,
                     dKey.Name,
-                    dKey.DistributionType
+                    dKey.DistributionType,
+                    dKey.IncludeGroundFloor,
                     link.LotId, 
                     link.LotType
                 FROM DistributionKeys dKey
-                LEFT JOIN DistributionKeyLotsOrLotTypes links WHERE link.DistributionKeyId = @DistributionKeyId
+                LEFT JOIN DistributionKeyLotsOrLotTypes link ON link.DistributionKeyId = dKey.DistributionKeyId
                 WHERE (dKey.BuildingId = @BuildingId OR dKey.BuildingId IS NULL) AND dKey.IsActive = TRUE
             """
         |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
@@ -92,117 +162,189 @@ let getDistributionKeys (conn: string) (buildingId: BuildingId): Async<Distribut
                 Name = first.Name
                 DistributionType = first.DistributionType
                 LotsOrLotTypes = distributionKeys |> mapToLotsOrLotTypes
+                IncludeGroundFloor = first.IncludeGroundFloor
             }    
         )
 }
 
-let toInvoiceListItem (invoiceNumber: int, validated: ValidatedInvoice): InvoiceListItem = {
-    InvoiceId = validated.InvoiceId
-    BuildingId = validated.BuildingId
-    FinancialYearCode = validated.FinancialYear.Code
-    FinancialYearIsClosed = validated.FinancialYear.IsClosed
-    InvoiceNumber = invoiceNumber
-    Cost = validated.Cost
-    VatRate = validated.VatRate.Value ()
-    DistributionKeyName = validated.DistributionKey.Name
-    OrganizationName = validated.OrganizationName
-    CategoryCode = string validated.CategoryCode
-    DueDate = validated.DueDate
-    HasBeenPaid = not validated.PaymentIds.IsEmpty
+let getDistributionKeysByIds (conn: string) (buildingId: BuildingId, distributionKeyIds: Guid list): Async<DistributionKeyListItem list> =
+    Sql.connect conn
+    |> Sql.query
+        """
+            SELECT
+                DistributionKeyId,
+                BuildingId,
+                Name,
+                DistributionKeyType
+            FROM DistributionKeys WHERE BuildingId = @BuildingId AND DistributionKeyId = ANY (@DistributionKeyIds) AND IsDeleted = FALSE
+        """
+    |> Sql.parameters [ 
+        "@DistributionKeyIds", Sql.uuidArray (distributionKeyIds |> List.toArray)
+        "@BuildingId", Sql.uuid buildingId
+    ]
+    |> Sql.read readDistributionKeyListItem
+
+let getInvoices (conn: string) (filter: InvoiceFilter): Async<InvoiceListItem list> =
+    let whereFilter, whereParameters =
+        match filter.Period with
+        | InvoiceFilterPeriod.FinancialYear financialYearId -> 
+            "FinancialYearId = @FinancialYearId", [ "@FinancialYearId", Sql.uuid financialYearId ]
+        | InvoiceFilterPeriod.Month (month, year) ->
+            let date = new DateTime(year, month, 1, 0, 0, 0)
+            "InvoiceDate >= @FilterStartDate AND InvoiceDate < @FilterEndDate", [
+                "@FilterStartDate", Sql.timestamp date 
+                "@FilterEndDate", Sql.timestamp (date.AddMonths(1))
+            ]
+        | InvoiceFilterPeriod.Year year ->
+            let date = new DateTime(year, 1, 1)
+            "InvoiceDate >= @FilterStartDate AND InvoiceDate < @FilterEndDate", [
+                "@FilterStartDate", Sql.timestamp date
+                "@FilterEndDate", Sql.timestamp (date.AddYears(1))
+            ]
+
+    Sql.connect conn
+    |> Sql.query
+        (sprintf
+            """
+                SELECT
+                    invoice.InvoiceId,
+                    invoice.BuildingId,
+                    (SELECT year.IsClosed AS FinancialYearIsClosed, year.Code AS FinancialYearCode FROM FinancialYears year WHERE year.FinancialYearId = invoice.FinancialYearId),
+                    invoice.InvoiceNumber,
+                    invoice.Cost,
+                    (SELECT dKey.Name AS DistributionKeyName FROM DistributionKeys dKey WHERE dKey.DistributionKeyId = invoice.DistributionKeyId),
+                    invoice.OrganizationName,
+                    (SELECT cat.Code AS CategoryCode, cat.Description AS CategoryDescription FROM FinancialCategories cat WHERE cat.FinancialCategoryId = invoice.FinancialCategoryId),
+                    invoice.InvoiceDate,
+                    invoice.DueDate
+                FROM Invoices
+                WHERE BuildingId = @BuildingId AND %s
+            """
+            whereFilter)
+    |> Sql.parameters ([ "@BuildingId", Sql.uuid filter.BuildingId ] @ whereParameters)
+    |> Sql.read readInvoiceListItem
+
+let getAllFinancialYears (conn: string) (buildingId: BuildingId): Async<FinancialYear list> =
+    Sql.connect conn
+    |> Sql.query 
+        """
+            SELECT
+                FinancialYearId,
+                BuildingId,
+                Code,
+                StartDate,
+                EndDate,
+                IsClosed
+            FROM FinancialYears WHERE BuildingId = @BuildingId AND IsDeleted = FALSE
+        """
+    |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
+    |> Sql.read readFinancialYear
+
+
+let getFinancialYearsByIds (conn: string) (buildingId: BuildingId, financialYearIds: Guid list): Async<FinancialYear list> =
+    Sql.connect conn
+    |> Sql.query 
+        """
+            SELECT
+                FinancialYearId,
+                BuildingId,
+                Code,
+                StartDate,
+                EndDate,
+                IsClosed
+            FROM FinancialYears WHERE BuildingId = @BuildingId AND FincialYearId = ANY (@FinancialYearIds) AND IsDeleted = FALSE
+        """
+    |> Sql.parameters [
+        "@BuildingId", Sql.uuid buildingId
+        "@FinancialYearIds", Sql.uuidArray (financialYearIds |> List.toArray)
+    ]
+    |> Sql.read readFinancialYear
+
+let getAllFinancialCategories (conn: string) (buildingId: BuildingId) =
+    Sql.connect conn
+    |> Sql.query 
+        """
+            SELECT
+                FinancialCategoryId,
+                BuildingId,
+                Code,
+                Description
+            FROM FinancialCategories WHERE BuildingId = @BuildingId AND IsDeleted = FALSE
+        """
+    |> Sql.parameters [
+        "@BuildingId", Sql.uuid buildingId
+    ]
+    |> Sql.read readFinancialCategory
+
+let getFinancialCategoriesByIds (conn: string) (buildingId: BuildingId, financialCategoryIds: Guid list): Async<FinancialCategory list> =
+    Sql.connect conn
+    |> Sql.query 
+        """
+            SELECT
+                FinancialCategoryId,
+                BuildingId,
+                Code,
+                Description
+            FROM FinancialCategories WHERE BuildingId = @BuildingId AND FincialCategoryId = ANY (@FinancialCategoryIds) AND IsDeleted = FALSE
+        """
+    |> Sql.parameters [
+        "@BuildingId", Sql.uuid buildingId
+        "@FinancialCategoryIds", Sql.uuidArray (financialCategoryIds |> List.toArray)
+    ]
+    |> Sql.read readFinancialCategory
+
+let getInvoice (conn: string) (invoiceId: Guid): Async<Invoice option> = async {
+    let! dbRowOption =
+        Sql.connect conn
+        |> Sql.query
+            """
+                SELECT
+                    InvoiceId,
+                    BuildingId,
+                    FinancialYearId,
+                    InvoiceNumber,
+                    Description,
+                    Cost,
+                    VatRate,
+                    FinancialCategoryId,
+                    BookingDate,
+                    DistributionKeyId,
+                    OrganizationId,
+                    OrganizationBankAccount,
+                    OrganizationInvoiceNumber,
+                    InvoiceDate,
+                    DueDate
+                FROM Invoices
+                WHERE InvoiceId = @InvoiceId
+            """
+        |> Sql.parameters [ "@InvoiceId", Sql.uuid invoiceId ]
+        |> Sql.readSingle readInvoice
+
+    match dbRowOption with
+    | Some dbRow ->
+        let! financialYear = getFinancialYearsByIds conn (dbRow.BuildingId, [ dbRow.FinancialYearId ]) |> Async.map List.head
+        let! financialCategory = getFinancialCategoriesByIds conn (dbRow.BuildingId, [ dbRow.FinancialCategoryId ]) |> Async.map List.head
+        let! distributionKey = getDistributionKeysByIds conn (dbRow.BuildingId, [ dbRow.DistributionKeyId ]) |> Async.map List.head
+        let! mediaFiles = Server.Media.Query.getMediaFilesForEntities conn (Partitions.Invoices) [ dbRow.InvoiceId ]
+        let! organization = Server.Organizations.Query.getOrganizationsByIds conn [ dbRow.OrganizationId ] |> Async.map List.head
+        return Some {
+            InvoiceId = dbRow.InvoiceId
+            BuildingId = dbRow.BuildingId
+            FinancialYear = financialYear
+            InvoiceNumber = dbRow.InvoiceNumber
+            Description = dbRow.Description
+            Cost = dbRow.Cost
+            VatRate = dbRow.VatRate
+            FinancialCategory = financialCategory
+            BookingDate = dbRow.BookingDate
+            DistributionKey = distributionKey
+            Organization = organization
+            OrganizationBankAccount = dbRow.OrganizationBankAccount
+            OrganizationInvoiceNumber = dbRow.OrganizationInvoiceNumber
+            InvoiceDate = dbRow.InvoiceDate
+            DueDate = dbRow.DueDate
+            MediaFiles = mediaFiles
+        }
+    | None ->
+        return None
 }
-
-let toBankAccount (bankAccount: ValidatedBankAccount): BankAccount = {
-    Description = string bankAccount.Description
-    IBAN = string bankAccount.IBAN
-    BIC = string bankAccount.BIC
-}
-
-let toInvoice (invoice: ValidatedInvoice): Invoice = {
-    InvoiceId = invoice.InvoiceId
-    BuildingId = invoice.BuildingId
-    FinancialYear = invoice.FinancialYear
-    InvoiceNumber = 0
-    Description = invoice.Description
-    Cost = invoice.Cost
-    VatRate = invoice.VatRate.Value ()
-    CategoryCode = string invoice.CategoryCode
-    CategoryDescription = string invoice.CategoryDescription
-    FromBankAccount = invoice.FromBankAccount |> toBankAccount
-    ToBankAccount = invoice.ToBankAccount |> toBankAccount
-    BookingDate = invoice.BookingDate
-    DistributionKey = invoice.DistributionKey
-    OrganizationId = invoice.OrganizationId
-    OrganizationName = invoice.OrganizationName
-    OrganizationNumber = invoice.OrganizationNumber
-    OrganizationVatNumber = invoice.OrganizationVatNumber
-    ExternalInvoiceNumber = invoice.ExternalInvoiceNumber
-    InvoiceDate = invoice.InvoiceDate
-    DueDate = invoice.DueDate
-    PaymentIds = invoice.PaymentIds
-    MediaFiles = []
-}
-
-let getInvoices (conn: string) (filter: InvoiceFilter) =
-    Server.Financial.Storage.invoices 
-    |> List.filter (fun invoice -> invoice.BuildingId = filter.BuildingId)
-    |> List.mapi (fun index invoice -> toInvoiceListItem (index, invoice))
-    |> Async.lift
-
-let getInvoice (conn: string) (invoiceId: Guid) =
-    Server.Financial.Storage.invoices
-    |> List.tryFind (fun invoice -> invoice.InvoiceId = invoiceId)
-    |> Option.map (fun invoice -> toInvoice invoice)
-    |> Async.lift
-
-let dummyFinancialYears: FinancialYear list = [
-    {
-        FinancialYearId = Guid.NewGuid()
-        Code = "2020/Q1"
-        StartDate = DateTimeOffset.Now
-        EndDate = DateTimeOffset.Now.AddDays(5.0)
-        IsClosed = true
-    }
-    {
-        FinancialYearId = Guid.NewGuid()
-        Code = "2020/Q2"
-        StartDate = DateTimeOffset.Now
-        EndDate = DateTimeOffset.Now.AddDays(5.0)
-        IsClosed = true
-    }
-    {
-        FinancialYearId = Guid.NewGuid()
-        Code = "2020/Q3"
-        StartDate = DateTimeOffset.Now
-        EndDate = DateTimeOffset.Now.AddDays(5.0)
-        IsClosed = true
-    }
-]
-let getFinancialYears (conn: string) (buildingId: BuildingId) =
-    dummyFinancialYears
-    |> Async.lift
-
-let dummyFinancialCategories: FinancialCategory list = [
-    {
-        FinancialCategoryId = Guid.NewGuid()
-        Code = "45"
-        Description = "Algemene kosten"
-    }
-    {
-        FinancialCategoryId = Guid.NewGuid()
-        Code = "450"
-        Description = "Waterkosten"
-    }
-    {
-        FinancialCategoryId = Guid.NewGuid()
-        Code = "451"
-        Description = "Gaskosten"
-    }
-    {
-        FinancialCategoryId = Guid.NewGuid()
-        Code = "452"
-        Description = "Electriciteitskosten"
-    }
-]
-let getFinancialCategories (conn: string) (buildingId: BuildingId) =
-    dummyFinancialCategories
-    |> Async.lift

@@ -232,16 +232,39 @@ type LotOwnerId =
     | OwnerId of Guid
     | OrganizationId of Guid
 
-let private mapLotOwner =
+let private mapLotOwnerTypeToId =
     function
-    | LotOwner.Owner owner -> OwnerId owner.PersonId
-    | LotOwner.Organization organization -> OrganizationId organization.OrganizationId
+    | LotOwnerType.Owner owner -> OwnerId owner.PersonId
+    | LotOwnerType.Organization organization -> OrganizationId organization.OrganizationId
+
+type ValidatedLotOwner = 
+    {
+        LotId: Guid
+        LotOwnerId: LotOwnerId
+        LotOwnerRole: LotOwnerRole
+        StartDate: DateTime
+        EndDate: DateTime option
+    }
+    static member BasicValidate (basePath: string) (lotOwner: LotOwner): Trial<ValidatedLotOwner, string * string> =
+        //TODO: validate enddate > startdate
+        trial {
+            yield {
+                LotId = lotOwner.LotId
+                LotOwnerId = mapLotOwnerTypeToId lotOwner.LotOwnerType
+                LotOwnerRole = lotOwner.LotOwnerRole
+                StartDate = lotOwner.StartDate
+                EndDate = lotOwner.EndDate
+            }
+        }
+    static member Validate (lotOwner: LotOwner): Result<ValidatedLotOwner, (string * string) list> =
+        ValidatedLotOwner.BasicValidate "" lotOwner
+        |> Trial.toResult
 
 type ValidatedLot = 
     {
         LotId: Guid
         BuildingId: Guid
-        Owners: (LotOwnerId * LotOwnerRole) list
+        Owners: ValidatedLotOwner list
         Code: String16
         LotType: LotType
         Description: string option
@@ -249,13 +272,19 @@ type ValidatedLot =
         Share: PositiveInt option
     }
     static member Validate (lot: Lot) = 
+        let validateLotOwners (path: string) (owners: LotOwner list) =
+            owners 
+            |> List.mapi (fun index owner -> ValidatedLotOwner.BasicValidate (sprintf "%s.[%i]" path index) owner) 
+            |> Trial.sequence
+
         trial {
             from code in String16.Of (nameof lot.Code) lot.Code
             also share in validateOptional (PositiveInt.Of (nameof lot.Share)) lot.Share
+            also owners in validateLotOwners (nameof lot.Owners) lot.Owners
             yield {
                 LotId = lot.LotId
                 BuildingId = lot.BuildingId
-                Owners = (lot.Owners |> List.map (fun (owner, role) -> mapLotOwner owner, role))
+                Owners = owners |> List.ofSeq
                 Code = code
                 LotType = lot.LotType
                 Description = lot.Description
@@ -464,53 +493,89 @@ type ValidatedInvoice =
     {
         InvoiceId: Guid
         BuildingId: Guid
-        FinancialYear: FinancialYear
+        FinancialYearId: Guid
         Description: string option
-        Cost: float
-        VatRate: PositiveFloat
-        CategoryCode: String16
-        CategoryDescription: String64
-        FromBankAccount: ValidatedBankAccount
-        ToBankAccount: ValidatedBankAccount
+        Cost: Decimal
+        VatRate: PositiveInt
+        FinancialCategoryId: Guid
         BookingDate: DateTime //Date when booked
-        DistributionKey: DistributionKeyListItem
+        DistributionKeyId: Guid
         OrganizationId: Guid
-        OrganizationName: string
-        OrganizationNumber: string option
-        OrganizationVatNumber: string option
-        ExternalInvoiceNumber: string option //Number @ supplier
+        OrganizationBankAccount: ValidatedBankAccount
+        OrganizationInvoiceNumber: String64 option //Number @ supplier
         InvoiceDate: DateTime //Date on the invoice
         DueDate: DateTime //Due date of the invoice
-        PaymentIds: Guid list
     }
     static member Validate (invoice: Invoice) =
         trial {
-            from vatRate in validatePositiveFloat (nameof invoice.VatRate) invoice.VatRate
-            also categoryCode in String16.Of (nameof invoice.CategoryCode) invoice.CategoryCode
-            also categoryDescription in String64.Of (nameof invoice.CategoryDescription) invoice.CategoryDescription
-            also fromBankAccount in ValidatedBankAccount.BasicValidate (nameof invoice.FromBankAccount) invoice.FromBankAccount
-            also toBankAccount in ValidatedBankAccount.BasicValidate (nameof invoice.ToBankAccount) invoice.ToBankAccount
+            from vatRate in validatePositiveInt (nameof invoice.VatRate) invoice.VatRate
+            also organizationBankAccount in ValidatedBankAccount.BasicValidate (nameof invoice.OrganizationBankAccount) invoice.OrganizationBankAccount
+            also organizationInvoiceNumber in validateOptional (String64.Of (nameof invoice.OrganizationInvoiceNumber)) invoice.OrganizationInvoiceNumber
             yield {
                 InvoiceId = invoice.InvoiceId
                 BuildingId = invoice.BuildingId
-                FinancialYear = invoice.FinancialYear
+                FinancialYearId = invoice.FinancialYear.FinancialYearId
                 Description = invoice.Description
                 Cost = invoice.Cost
                 VatRate = vatRate
-                CategoryCode = categoryCode
-                CategoryDescription = categoryDescription
-                FromBankAccount = fromBankAccount
-                ToBankAccount = toBankAccount
+                FinancialCategoryId = invoice.FinancialCategory.FinancialCategoryId
                 BookingDate = invoice.BookingDate
-                DistributionKey = invoice.DistributionKey
+                DistributionKeyId = invoice.DistributionKey.DistributionKeyId
+                OrganizationId = invoice.Organization.OrganizationId
+                OrganizationInvoiceNumber = organizationInvoiceNumber
+                OrganizationBankAccount = organizationBankAccount
                 InvoiceDate = invoice.InvoiceDate
                 DueDate = invoice.DueDate
-                ExternalInvoiceNumber = invoice.ExternalInvoiceNumber
-                OrganizationId = invoice.OrganizationId
-                OrganizationName = invoice.OrganizationName
-                OrganizationNumber = invoice.OrganizationNumber
-                OrganizationVatNumber = invoice.OrganizationVatNumber
-                PaymentIds = invoice.PaymentIds
             }
         }        
+        |> Trial.toResult
+
+type ValidatedFinancialYear =
+    {
+        FinancialYearId: Guid
+        BuildingId: Guid
+        Code: String32
+        StartDate: DateTime
+        EndDate: DateTime
+        IsClosed: bool
+    }
+    static member Validate (year: FinancialYear): Result<ValidatedFinancialYear, (string * string) list> =
+        let validateDatePeriod (startDate: DateTime, endDate: DateTime) =
+            if endDate.Date < startDate.Date then
+                Trial.ofError (nameof year.EndDate, "De einddatum mag niet vóór de begindatum liggen...")
+            else
+                Trial.Pass endDate
+
+        trial {
+            from code in String32.Of (nameof year.Code) year.Code
+            also endDate in validateDatePeriod (year.StartDate, year.EndDate)
+            yield {
+                FinancialYearId = year.FinancialYearId
+                BuildingId = year.BuildingId
+                Code = code
+                StartDate = year.StartDate
+                EndDate = year.EndDate
+                IsClosed = year.IsClosed
+            }
+        }
+        |> Trial.toResult
+
+type ValidatedFinancialCategory =
+    {
+        FinancialCategoryId: Guid
+        BuildingId: Guid option
+        Code: String32
+        Description: String255
+    }
+    static member Validate (category: FinancialCategory): Result<ValidatedFinancialCategory, (string * string) list> =
+        trial {
+            from code in String32.Of (nameof category.Code) category.Code
+            also description in String255.Of (nameof category.Description) category.Description
+            yield {
+                FinancialCategoryId = category.FinancialCategoryId
+                BuildingId = category.BuildingId
+                Code = code
+                Description = description
+            }
+        }
         |> Trial.toResult

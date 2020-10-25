@@ -1,4 +1,4 @@
-﻿module Client.Financial.CostDiary.CostDiaryPage
+﻿module Client.Financial.Invoicing.InvoicesPage
 
 open System
 open Elmish
@@ -44,7 +44,7 @@ type Msg =
     | Created of Invoice
     | Edited of Invoice
 
-type CostDiaryProps = {|
+type InvoicesPageProps = {|
     CurrentUser: User
     CurrentBuilding: BuildingListItem
     InvoiceId: Guid option
@@ -70,19 +70,15 @@ type SortableInvoiceListItemAttribute =
     | Organization
     | DistributionKey
     | Cost
-    | VatRate
     | DueDate
-    | HasBeenPaid
     member me.ToString' () =
         match me with
         | InvoiceNumber -> "Nr."
         | Category -> "Rubriek"
         | Organization -> "Leverancier"
-        | DistributionKey -> "Verdeelsleutel"
+        | DistributionKey -> "Sleutel"
         | Cost -> "Totaal"
-        | VatRate -> "%BTW"
         | DueDate -> "Betaaldag"
-        | HasBeenPaid -> "Betaald"
     member me.StringValueOf': InvoiceListItem -> string =
         match me with
         | InvoiceNumber -> (fun li -> li.LocalInvoiceNumber)
@@ -90,20 +86,16 @@ type SortableInvoiceListItemAttribute =
         | Organization -> (fun li -> li.OrganizationName)
         | DistributionKey -> (fun li -> li.DistributionKeyName)
         | Cost -> (fun li -> string li.Cost)
-        | VatRate -> (fun li -> string li.VatRate)
         | DueDate -> (fun li -> sprintf "%02i-%02i-%i" li.DueDate.Day li.DueDate.Month li.DueDate.Year)
-        | HasBeenPaid -> (fun li -> if li.HasBeenPaid then "Ja" else "Nee")
     member me.Compare': InvoiceListItem -> InvoiceListItem -> int =
         match me with
         | DueDate -> 
             fun li otherLi -> li.DueDate.CompareTo(otherLi.DueDate)
         | Cost ->
             fun li otherLi -> int li.Cost - int otherLi.Cost
-        | VatRate ->
-            fun li otherLi -> int li.VatRate - int otherLi.VatRate
         | _     -> 
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
-    static member All = [ InvoiceNumber; Category; Organization; DistributionKey; Cost; VatRate; DueDate; HasBeenPaid ]
+    static member All = [ InvoiceNumber; Category; Organization; DistributionKey; Cost; DueDate ]
     interface ISortableAttribute<InvoiceListItem> with
         member me.ToString = me.ToString'
         member me.ToLongString = me.ToString'
@@ -111,7 +103,7 @@ type SortableInvoiceListItemAttribute =
         member me.Compare li otherLi = me.Compare' li otherLi
         member _.IsFilterable = true
 
-let init (props: CostDiaryProps) =
+let init (props: InvoicesPageProps) =
     let state = { 
         CurrentUser = props.CurrentUser
         CurrentBuilding = props.CurrentBuilding
@@ -139,13 +131,13 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         FinancialYearCode = invoice.FinancialYear.Code
         FinancialYearIsClosed = invoice.FinancialYear.IsClosed
         InvoiceNumber = invoice.InvoiceNumber
+        InvoiceDate = invoice.InvoiceDate
         Cost = invoice.Cost
-        VatRate = invoice.VatRate
         DistributionKeyName = invoice.DistributionKey.Name
-        OrganizationName = invoice.OrganizationName
-        CategoryCode = invoice.CategoryCode
+        OrganizationName = invoice.Organization.Name
+        CategoryCode = invoice.FinancialCategory.Code
+        CategoryDescription = invoice.FinancialCategory.Description
         DueDate = invoice.DueDate
-        HasBeenPaid = not invoice.PaymentIds.IsEmpty
     }
 
     match msg with
@@ -203,12 +195,12 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let listItem = toListItem invoice
         let newListItems = listItem :: state.ListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
+        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, showSuccessToastCmd "De factuur is aangemaakt"
     | Edited invoice ->
         let listItem = toListItem invoice
         let newListItems = state.ListItems |> List.map (fun li -> if li.InvoiceId = invoice.InvoiceId then listItem else li)
         let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.InvoiceId = invoice.InvoiceId then listItem else li)
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, Cmd.none
+        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, showSuccessToastCmd "De factuur is gewijzigd"
     | FinancialYearsLoaded financialYears ->
         { state with FinancialYears = financialYears }, Cmd.none
 
@@ -282,5 +274,5 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
         ]
     ]
 
-let render (props: CostDiaryProps) =
-    React.elmishComponent ("CostDiaryPage", init props, update, view)
+let render (props: InvoicesPageProps) =
+    React.elmishComponent ("InvoicesPage", init props, update, view)

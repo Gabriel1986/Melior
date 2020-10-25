@@ -256,7 +256,8 @@ let view (state: State) (dispatch: Message -> unit) =
                     OnClick (fun _ -> CreateOrganizationType |> dispatch) 
                 ] [
                     i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
-                    str " Type aanmaken"
+                    str " "
+                    str "Type aanmaken"
                 ]
             ]
         ]

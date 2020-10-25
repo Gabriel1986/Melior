@@ -14,36 +14,84 @@ type ILotStorage =
 
 let private paramsFor (validated: ValidatedLot) =
     [
-        "@LotId"                     , Sql.uuid validated.LotId
-        "@BuildingId"                , Sql.uuid validated.BuildingId
-        "@Code"                      , Sql.string (string validated.Code)
-        "@LotType"                   , Sql.string (string validated.LotType)
-        "@Description"               , Sql.stringOrNone validated.Description
-        "@Floor"                     , Sql.intOrNone validated.Floor
-        "@Share"                     , Sql.intOrNone (validated.Share |> Option.map (fun s -> s.Value ()))
+        "@LotId", Sql.uuid validated.LotId
+        "@BuildingId", Sql.uuid validated.BuildingId
+        "@Code", Sql.string (string validated.Code)
+        "@LotType", Sql.string (string validated.LotType)
+        "@Description", Sql.stringOrNone validated.Description
+        "@Floor", Sql.intOrNone validated.Floor
+        "@Share", Sql.intOrNone (validated.Share |> Option.map (fun s -> s.Value ()))
     ]
 
-let private generateSqlForOwners (lotId: Guid, owners: (LotOwnerId * LotOwnerRole) list) =
+let private generateInsertSqlForOwners (owners: ValidatedLotOwner list) =
     owners 
-    |> List.map (fun (ownerId, role) ->
+    |> List.map (fun owner ->
         let personId, orgId =
-            match ownerId with
+            match owner.LotOwnerId with
             | (LotOwnerId.OwnerId ownerId) ->
                 Some ownerId, None
             | (LotOwnerId.OrganizationId orgId) ->
                 None, Some orgId
         """
             INSERT INTO LotOwners
-                (LotId, Role, PersonId, OrganizationId) 
+                (LotId, Role, PersonId, OrganizationId, StartDate, EndDate)
             VALUES 
-                (@LotId, @Role, @PersonId, @OrganizationId)
+                (@LotId, @Role, @PersonId, @OrganizationId, @StartDate, @EndDate)
         """, [
-            "@LotId", Sql.uuid lotId
-            "@Role", Sql.string (string role)
+            "@LotId", Sql.uuid owner.LotId
+            "@Role", Sql.string (string owner.LotOwnerRole)
             "@PersonId", Sql.uuidOrNone personId
             "@OrganizationId", Sql.uuidOrNone orgId
+            "@StartDate", Sql.timestamp owner.StartDate
+            "@EndDate", Sql.timestampOrNone owner.EndDate
         ]
     )
+
+let private generateDeleteSqlForOwners (lotId: Guid, deletedOwners: LotOwnerId list) = [
+    yield!
+        deletedOwners
+        |> List.ofSeq
+        |> List.map (fun deleted ->
+            match deleted with
+            | LotOwnerId.OrganizationId orgId ->
+                "DELETE FROM LotOwners WHERE LotId = @LotId AND OrganizationId = @OrganizationId", [
+                    "@LotId", Sql.uuid lotId
+                    "@OrganizationId", Sql.uuid orgId
+                ]
+            | LotOwnerId.OwnerId personId ->
+                "DELETE FROM LotOwners WHERE LotId = @LotId AND PersonId = @PersonId", [
+                    "@LotId", Sql.uuid lotId
+                    "@PersonId", Sql.uuid personId
+                ]
+        )
+]
+
+let private generateUpdateSqlForOwners (owners: ValidatedLotOwner list) =
+    owners
+    |> List.map (fun owner ->
+        let query, queryParameters =
+            match owner.LotOwnerId with
+            | LotOwnerId.OwnerId ownerId ->
+                "PersonId = @PersonId", [ "@PersonId", Sql.uuid ownerId ]
+            | LotOwnerId.OrganizationId orgId ->
+                "OrganizationId = @OrganizationId", [ "@OrganizationId", Sql.uuid orgId ]
+
+        sprintf
+            """
+                UPDATE LotOwners SET Role = @Role, StartDate = @StartDate, EndDate = @EndDate 
+                WHERE LotId = @LotId 
+                AND %s
+            """
+            query
+        , [ 
+            yield "@Role", Sql.string (string owner.LotOwnerRole)
+            yield "@LotId", Sql.uuid owner.LotId
+            yield "@StartDate", Sql.timestamp owner.StartDate
+            yield "@EndDate", Sql.timestampOrNone owner.EndDate
+            yield! queryParameters
+        ]
+    )
+
 
 let createLot (connectionString: string) (validated: ValidatedLot) =
     Sql.connect connectionString
@@ -69,30 +117,59 @@ let createLot (connectionString: string) (validated: ValidatedLot) =
                 )
             """, paramsFor validated
         yield!
-            generateSqlForOwners (validated.LotId, validated.Owners)
+            generateInsertSqlForOwners validated.Owners
     ]
     |> Async.Ignore
 
-let updateLot (connectionString: string) (validated: ValidatedLot) =
-    Sql.connect connectionString
-    |> Sql.writeBatchAsync [
-        yield
-            """
-                UPDATE Lots SET
-                    Code = @Code,
-                    LotType = @LotType,
-                    Description = @Description,
-                    Floor = @Floor,
-                    Share = @Share
-                WHERE LotId = @LotId
-            """, (paramsFor validated)
-        yield
-            "DELETE FROM LotOwners WHERE LotId = @LotId", [ "@LotId", Sql.uuid validated.LotId ]
-        yield!
-            generateSqlForOwners (validated.LotId, validated.Owners)
+let updateLot (connectionString: string) (validated: ValidatedLot) = async {
+    let! currentLotOwners = 
+        Sql.connect connectionString
+        |> Sql.query "SELECT PersonId, OrganizationId FROM LotOwners WHERE LotId = @LotId"
+        |> Sql.parameters [ "@LotId", Sql.uuid validated.LotId ]
+        |> Sql.read (fun reader ->
+            match (reader.uuidOrNone "PersonId", reader.uuidOrNone "OrganizationId") with
+            | Some personId, _ -> LotOwnerId.OwnerId personId
+            | _, Some organizationId -> LotOwnerId.OrganizationId organizationId
+            | _ -> failwithf "Precondition failed... PersonId or OrganizationId should be filled in.")
 
-    ]
-    |> Async.map (List.tryHead >> Option.defaultValue 0)
+    let newOwners = 
+        validated.Owners 
+        |> List.filter (fun updated -> 
+            currentLotOwners |> List.contains(updated.LotOwnerId) |> not
+        )
+    let updatedOwners = 
+        validated.Owners 
+        |> List.filter (fun updated -> 
+            currentLotOwners |> List.contains(updated.LotOwnerId)
+        )
+    let deletedOwners =
+        currentLotOwners
+        |> List.filter (fun current ->
+            validated.Owners |> List.exists (fun o -> o.LotOwnerId = current) |> not
+        )
+
+    return!
+        Sql.connect connectionString
+        |> Sql.writeBatchAsync [
+            yield
+                """
+                    UPDATE Lots SET
+                        Code = @Code,
+                        LotType = @LotType,
+                        Description = @Description,
+                        Floor = @Floor,
+                        Share = @Share
+                    WHERE LotId = @LotId
+                """, (paramsFor validated)
+            yield!
+                generateDeleteSqlForOwners (validated.LotId, deletedOwners)
+            yield!
+                generateUpdateSqlForOwners updatedOwners
+            yield!
+                generateInsertSqlForOwners newOwners
+        ]
+        |> Async.map (List.tryHead >> Option.defaultValue 0)
+}
 
 let deleteLot connectionString (buildingId, lotId) =
     Sql.connect connectionString

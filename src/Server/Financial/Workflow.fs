@@ -2,11 +2,12 @@
 
 open System
 open Storage
-open Server.Library
-open Server.LibraryExtensions
 open Shared.Read
 open Shared.Write
 open Shared.Remoting
+open Server.Library
+open Server.LibraryExtensions
+open Server.Blueprint.Data.SeedData
 
 let (|Authorized|Unauthorized|) (currentUser: User, buildingId: BuildingId option) =
     match buildingId with
@@ -83,3 +84,90 @@ let deleteInvoice (store: IFinancialStorage) (msg: Message<BuildingId * Guid>) =
     | Unauthorized ->
         return Error DeleteInvoiceError.AuthorizationError
 }
+
+let createFinancialYear (store: IFinancialStorage) (msg: Message<FinancialYear>) = async {
+    match (msg.CurrentUser, Some msg.Payload.BuildingId) with
+    | Authorized ->
+        match ValidatedFinancialYear.Validate (msg.Payload) with
+        | Ok validated -> 
+            do! store.CreateFinancialYear (msg |> Message.map validated)
+            return Ok ()
+        | Error validationErrors ->
+            return Error (SaveFinancialYearError.Validation validationErrors)
+    | Unauthorized ->
+        return Error SaveFinancialYearError.AuthorizationError
+}
+
+let updateFinancialYear (store: IFinancialStorage) (msg: Message<FinancialYear>) = async {
+    match (msg.CurrentUser, Some msg.Payload.BuildingId) with
+    | Authorized ->
+        match ValidatedFinancialYear.Validate (msg.Payload) with
+        | Ok validated ->
+            let! nbUpdated = store.UpdateFinancialYear (msg |> Message.map validated)
+            return if nbUpdated > 0 then Ok () else Error (SaveFinancialYearError.NotFound)
+        | Error validationErrors ->
+            return Error (SaveFinancialYearError.Validation validationErrors)
+    | Unauthorized ->
+        return Error SaveFinancialYearError.AuthorizationError
+}
+
+let closeFinancialYear (store: IFinancialStorage) (msg: Message<BuildingId * Guid>) = async {
+    match (msg.CurrentUser, Some (fst msg.Payload)) with
+    | Authorized ->
+        let! nbRows = store.CloseFinancialYear msg
+        return if nbRows > 0 then Ok () else Error SaveFinancialYearError.NotFound
+    | Unauthorized ->
+        return Error SaveFinancialYearError.AuthorizationError
+}
+
+let deleteFinancialYear (store: IFinancialStorage) (msg: Message<BuildingId * Guid>) = async {
+    match (msg.CurrentUser, Some (fst msg.Payload)) with
+    | Authorized ->
+        let! nbRows = store.DeleteFinancialYear msg
+        return if nbRows > 0 then Ok () else Error DeleteFinancialYearError.NotFound
+    | Unauthorized ->
+        return Error DeleteFinancialYearError.AuthorizationError
+}
+
+let createFinancialCategory (store: IFinancialStorage) (msg: Message<FinancialCategory>) = async {
+    match (msg.CurrentUser, msg.Payload.BuildingId) with
+    | Authorized ->
+        match ValidatedFinancialCategory.Validate (msg.Payload) with
+        | Ok validated -> 
+            do! store.CreateFinancialCategory (msg |> Message.map validated)
+            return Ok ()
+        | Error validationErrors ->
+            return Error (SaveFinancialCategoryError.Validation validationErrors)
+    | Unauthorized ->
+        return Error SaveFinancialCategoryError.AuthorizationError
+}
+
+let updateFinancialCategory (store: IFinancialStorage) (msg: Message<FinancialCategory>) = async {
+    match (msg.CurrentUser, msg.Payload.BuildingId) with
+    | Authorized ->
+        match ValidatedFinancialCategory.Validate (msg.Payload) with
+        | Ok validated ->
+            let! nbUpdated = store.UpdateFinancialCategory (msg |> Message.map validated)
+            return if nbUpdated > 0 then Ok () else Error (SaveFinancialCategoryError.NotFound)
+        | Error validationErrors ->
+            return Error (SaveFinancialCategoryError.Validation validationErrors)
+    | Unauthorized ->
+        return Error SaveFinancialCategoryError.AuthorizationError
+}
+
+let deleteFinancialCategory (store: IFinancialStorage) (msg: Message<BuildingId * Guid>) = async {
+    match (msg.CurrentUser, Some (fst msg.Payload)) with
+    | Authorized ->
+        let! nbRows = store.DeleteFinancialCategory msg
+        return if nbRows > 0 then Ok () else Error DeleteFinancialCategoryError.NotFound
+    | Unauthorized ->
+        return Error DeleteFinancialCategoryError.AuthorizationError
+}
+
+let seedFinancialCategories (store: IFinancialStorage) (cats: FinancialCategorySeedRow seq) =
+    store.SeedFinancialCategories cats
+    |> Async.Ignore
+
+let seedDistributionKeys (store: IFinancialStorage) (keys: DistributionKeySeedRow seq) =
+    store.SeedDistributionKeys keys
+    |> Async.Ignore

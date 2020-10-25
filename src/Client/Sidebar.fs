@@ -90,6 +90,7 @@ let convertCurrentPageForNavigation page =
     | Some (Page.DistributionKeyDetails p)    -> Some (Page.DistributionKeyList { BuildingId = p.BuildingId })
     | Some (Page.Invoices p)                  -> Some (Page.Invoices p)
     | Some (Page.InvoiceDetails p)            -> Some (Page.Invoices { BuildingId = p.BuildingId })
+    | Some (Page.FinancialSettings p)         -> Some (Page.FinancialSettings { BuildingId = p.BuildingId })
     | Some (Page.BankNotes p)                 -> Some (Page.BankNotes p)
     | Some (Page.Provisions p)                -> Some (Page.Provisions p)
     | Some (Page.UserList)
@@ -163,6 +164,7 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
 
                 let currentPageIsFinancialPage =
                     match currentPage with 
+                    | Some(Page.FinancialSettings _)
                     | Some(Page.DistributionKeyList _)
                     | Some(Page.Provisions _) 
                     | Some(Page.Invoices _) 
@@ -170,6 +172,12 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
 
                 if state.FinancialSubmenuIsOpen || currentPageIsFinancialPage then
                     ul [ classes [ Bootstrap.navbarNav; Bootstrap.flexColumn; Bootstrap.px4 ] ] [
+                        li [ Class Bootstrap.navItem ] [
+                            a [
+                                Class (determineStyle currentPage (Page.FinancialSettings buildingSpecificProps))
+                                OnClick (fun _ -> NavigateToPage (Page.FinancialSettings buildingSpecificProps) |> dispatch)
+                            ] [ str "Instellingen" ]
+                        ]
                         li [ Class Bootstrap.navItem ] [
                             a [
                                 Class (determineStyle currentPage (Page.DistributionKeyList buildingSpecificProps))

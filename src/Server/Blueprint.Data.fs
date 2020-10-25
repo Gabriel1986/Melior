@@ -3,6 +3,22 @@
 open System
 open Shared.Read
 
+module SeedData =
+    type FinancialCategorySeedRow = {
+        Code: string
+        Description: string
+    }
+
+    type DistributionKeySeedRow = {
+        DistributionKeyId: Guid
+        BuildingId: Guid option
+        Name: string
+        DistributionType: DistributionType
+        LotsOrLotTypes: LotsOrLotTypes
+        IncludeGroundFloor: bool
+    }
+
+
 module Authentication =
     type UpdateTwoFacAuthentication = {
         UserId: Guid

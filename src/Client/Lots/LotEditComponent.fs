@@ -7,6 +7,7 @@ open Elmish
 open Elmish.React
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
+open Client.Library
 open Shared.Read
 open Shared.Library
 
@@ -16,11 +17,15 @@ type Message =
     | DescriptionChanged of string
     | FloorChanged of string
     | ChangeLotOwners
-    | LotOwnersChanged of LotOwner list
+    | AddLotOwnerOfType of LotOwnerType
     | ChangeLotOwnersCanceled
     | RemoveLotOwner of LotOwner
+    | ConfirmRemoveLotOwner of LotOwner
     | SelectLegalRepresentative of LotOwner
     | ShareChanged of string
+    | StartDateChanged of LotOwner * DateTime
+    | EndDateChanged of LotOwner * DateTime option
+    | NoOp
 
 type State = {
     Lot: Lot
@@ -30,7 +35,7 @@ type State = {
 
 let init (lot: Lot) =
     {
-        Lot = lot
+        Lot = { lot with Owners = lot.Owners |> List.sortBy (fun owner -> owner.EndDate, owner.StartDate) }
         ShowingLotOwnerModal = false
         Errors = []
     }, Cmd.none
@@ -54,8 +59,8 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         match lotOwners with
         | [] -> []
         | xs ->
-            if not (xs |> List.exists (fun (_, role) -> role = LegalRepresentative)) then
-                (fst xs.[0], LegalRepresentative)::xs.[1..]
+            if not (xs |> List.exists (fun o -> o.LotOwnerRole = LegalRepresentative)) then
+                { xs.[0] with LotOwnerRole = LegalRepresentative }::xs.[1..]
             else
                 xs
 
@@ -76,66 +81,106 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         { state with ShowingLotOwnerModal = true }, Cmd.none
     | ChangeLotOwnersCanceled ->
         { state with ShowingLotOwnerModal = false }, Cmd.none
-    | LotOwnersChanged lotOwners ->
-        let newLotOwners =
-            match lotOwners with
-            | [] -> []
-            | lotOwners ->
-                let mapLotOwnerToLotOwnerAndRole lotOwner = 
-                    state.Lot.Owners 
-                    |> List.tryPick (fun ownerWithRole -> 
-                        if fst ownerWithRole = lotOwner 
-                        then Some ownerWithRole 
-                        else None)
-                    |> Option.defaultWith (fun () -> lotOwner, LotOwnerRole.Other)
-
-                lotOwners 
-                |> List.map mapLotOwnerToLotOwnerAndRole
-                |> ensureLegalRepresentative 
-                
-        let newState = changeLot (fun l -> { l with Owners = newLotOwners })
+    | AddLotOwnerOfType lotOwnerType ->
+        let newLotOwner: LotOwner = {
+            LotId = state.Lot.LotId
+            LotOwnerType = lotOwnerType
+            LotOwnerRole = LotOwnerRole.Other
+            StartDate = DateTime.Today
+            EndDate = None
+        }
+        let newState = changeLot (fun l -> { l with Owners = (newLotOwner::l.Owners) |> ensureLegalRepresentative })
         { newState with ShowingLotOwnerModal = false }, Cmd.none
-    | RemoveLotOwner lotOwner ->
-        let newLotOwners = 
-            state.Lot.Owners 
-            |> List.filter (fun (o, _) -> o <> lotOwner)
-            |> ensureLegalRepresentative
-
+    | RemoveLotOwner toRemove ->
+        state, 
+            showConfirmationModal ( 
+                "Eigenaar verwijderen", 
+                "Bent u er zeker van dat u de koppeling tussen de eigenaar en het kavel wilt verbreken?",
+                (fun () -> ConfirmRemoveLotOwner toRemove),
+                (fun () -> NoOp)
+            )
+    | ConfirmRemoveLotOwner toRemove ->
+        let newLotOwners = state.Lot.Owners |> List.filter (fun o -> o <> toRemove) |> ensureLegalRepresentative
         changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
     | SelectLegalRepresentative lotOwner ->
         let newLotOwners = 
             state.Lot.Owners 
-            |> List.map (fun (o, _) -> 
-                if o = lotOwner 
-                then (o, LotOwnerRole.LegalRepresentative) 
-                else (o, LotOwnerRole.Other))
+            |> List.map (fun o ->
+                if o = lotOwner
+                then { o with LotOwnerRole = LotOwnerRole.LegalRepresentative }
+                else { o with LotOwnerRole = LotOwnerRole.Other })
 
         changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
     | ShareChanged x ->
         changeLot (fun l -> { l with Share = parseInt x })
         |> removeError (nameof state.Lot.Share), Cmd.none
+    | NoOp ->
+        state, Cmd.none
+    | StartDateChanged (lotOwner, newStartDate) ->
+        let newLotOwners = state.Lot.Owners |> List.map (fun o -> if o = lotOwner then { o with StartDate = newStartDate } else o)
+        changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
+    | EndDateChanged (lotOwner, newEndDate) ->
+        let newLotOwners = state.Lot.Owners |> List.map (fun o -> if o = lotOwner then { o with EndDate = newEndDate |> Option.map (fun ed -> ed.ToUniversalTime()) } else o)
+        changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
 
-let renderEditLotOwners lotOwners dispatch =
-    let ownerTypes lotOwner =
-        match lotOwner with
-        | LotOwner.Owner _ -> str "Persoon"
-        | LotOwner.Organization o -> str ("Leverancier: " + (o.OrganizationTypeNames |> String.JoinWith ", "))
+let renderEditLotOwners (lotOwners: LotOwner list) (dispatch: Message -> unit) =
+    let ownerTypes (lotOwner: LotOwner) =
+        match lotOwner.LotOwnerType with
+        | LotOwnerType.Owner _ -> str "Persoon"
+        | LotOwnerType.Organization o -> str ("Leverancier: " + (o.OrganizationTypeNames |> String.JoinWith ", "))
 
-    let ownerName lotOwner =
-        match lotOwner with
-        | LotOwner.Owner o        -> str (o.FullName ())
-        | LotOwner.Organization o -> str o.Name
+    let ownerName (lotOwner: LotOwner) =
+        match lotOwner.LotOwnerType with
+        | LotOwnerType.Owner o        -> str (o.FullName ())
+        | LotOwnerType.Organization o -> str o.Name
 
-    let isResident lotOwner =
-        match lotOwner with
-        | LotOwner.Owner o        -> str (if o.IsResident then "Ja" else "Nee")
-        | LotOwner.Organization _ -> str ""
+    let isResident (lotOwner: LotOwner) =
+        match lotOwner.LotOwnerType with
+        | LotOwnerType.Owner o        -> str (if o.IsResident then "Ja" else "Nee")
+        | LotOwnerType.Organization _ -> str ""
 
-    let isLegalRepresentative (lotOwner: LotOwner, lotOwnerRole: LotOwnerRole) =
-        if lotOwnerRole = LegalRepresentative then
+    let isLegalRepresentative (lotOwner: LotOwner) =
+        if lotOwner.LotOwnerRole = LegalRepresentative then
             button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary; Bootstrap.btnSm ] ] [ str "Ja" ]
         else
-            button [ classes [ Bootstrap.btn; Bootstrap.btnLight; Bootstrap.btnSm ]; OnClick (fun _ -> SelectLegalRepresentative lotOwner |> dispatch) ] [ str "Nee" ]
+            button [ 
+                classes [ Bootstrap.btn; Bootstrap.btnLight; Bootstrap.btnSm ]
+                OnClick (fun _ -> SelectLegalRepresentative lotOwner |> dispatch)
+                Disabled (lotOwner.EndDate.IsSome && lotOwner.EndDate.Value < DateTime.Today)
+            ] [
+                str "Nee"
+            ]
+
+    let startDateEditorFor (lotOwner: LotOwner) =
+        Flatpickr.flatpickr  [
+            Flatpickr.OnChange (fun e -> StartDateChanged (lotOwner, e) |> dispatch)
+            Flatpickr.Value lotOwner.StartDate
+            Flatpickr.SelectionMode Flatpickr.Mode.Single
+            Flatpickr.EnableTimePicker false
+        ]
+
+    let endDateEditorFor (owner: LotOwner) =
+        form [ Id (sprintf "%A" owner.LotOwnerType) ] [
+            div [ Class Bootstrap.inputGroup ] [
+                Flatpickr.flatpickr [                    
+                    yield Flatpickr.OnChange (fun e -> EndDateChanged (owner, Some e) |> dispatch)
+                    match owner.EndDate with
+                    | Some endDate -> yield Flatpickr.Value endDate
+                    | None -> yield Flatpickr.custom "key" owner.EndDate false
+                    yield Flatpickr.SelectionMode Flatpickr.Mode.Single
+                    yield Flatpickr.EnableTimePicker false
+                ]
+                div [ Class Bootstrap.inputGroupAppend ] [
+                    button [
+                        Type "reset"
+                        classes [ Bootstrap.btn; Bootstrap.btnDanger; Bootstrap.btnSm ] 
+                        OnClick (fun _ -> EndDateChanged (owner, None) |> dispatch)
+                    ] [
+                        str "×"
+                    ]
+                ]
+            ]
+        ]
 
     div [ Class Bootstrap.col12 ] [
         yield
@@ -150,28 +195,31 @@ let renderEditLotOwners lotOwners dispatch =
                             tr [] [
                                 th [] [ str "Type(s)" ]
                                 th [] [ str "Naam" ]
-                                th [] [ str "Inwoner" ]
+                                th [] [ str "Bewoner" ]
+                                th [] [ str "Begindatum" ]
+                                th [] [ str "Einddatum" ]
                                 th [] [ str "Stemhouder" ]
                                 th [] []
                             ]
                         ]
                         tbody [] [
-                            yield! owners |> List.map (fun owner ->
+                            yield! owners |> List.map (fun owner -> 
                                 tr [] [
-                                    td [] [ ownerTypes (fst owner) ]
-                                    td [] [ ownerName (fst owner) ]
-                                    td [] [ isResident (fst owner) ]
+                                    td [] [ ownerTypes owner ]
+                                    td [] [ ownerName owner ]
+                                    td [] [ isResident owner ]
+                                    td [] [ startDateEditorFor owner ]
+                                    td [] [ endDateEditorFor owner ]
                                     td [] [ isLegalRepresentative owner ]
                                     td [] [ 
                                         a [
                                             Class "pointer"
-                                            OnClick (fun _ -> RemoveLotOwner (fst owner) |> dispatch)
+                                            OnClick (fun _ -> RemoveLotOwner owner |> dispatch)
                                         ] [
                                             i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
                                         ]
                                     ]
-                                ]
-                            )
+                                ])
                         ]
                     ]
                 ]
@@ -272,12 +320,12 @@ let view (state: State) (dispatch: Message -> unit) =
         renderEditLotOwners state.Lot.Owners dispatch
         |> inColomn Bootstrap.row
 
-        LotOwnerModal.render 
+        LotOwnerTypeModal.render 
             {|
                 IsOpen = state.ShowingLotOwnerModal
                 BuildingId = state.Lot.BuildingId
-                LotOwners = state.Lot.Owners |> List.map fst
-                OnOk = (fun owners -> LotOwnersChanged owners |> dispatch)
+                LotOwnerTypes = state.Lot.Owners |> List.map (fun ownerType -> ownerType.LotOwnerType)
+                OnSelected = (fun owners -> AddLotOwnerOfType owners |> dispatch)
                 OnCanceled = (fun _ -> ChangeLotOwnersCanceled |> dispatch) 
             |}
     ]

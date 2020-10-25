@@ -98,10 +98,10 @@ let inline filePondComponent (props : obj): ReactElement =
     ofImport "FilePondComponent" "./public/FilePond/FilePond.js" props []
 
 let private defaultServerOptions (partition: string) (buildingId: System.Guid option) (entityId: Guid): ServerOptions = 
-    let uploadPath = sprintf "/upload/%s/%A" partition entityId
-    let downloadPath = sprintf "/download/%s" partition
+    let uploadPath = sprintf "%s/media/upload/%s/%A" htmlBasePath partition entityId
+    let downloadPath = sprintf "%s/media/download/%s" htmlBasePath partition
     {|
-        url = sprintf "%s/media" htmlBasePath
+        url = ""
         ``process`` = uploadPath
         revert = uploadPath
         patch = uploadPath + "/"
