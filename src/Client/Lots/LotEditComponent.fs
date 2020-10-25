@@ -188,8 +188,9 @@ let renderEditLotOwners (lotOwners: LotOwner list) (dispatch: Message -> unit) =
             | [] ->
                 null
             | owners ->
-                div [ Class Bootstrap.formGroup ] [
-                    label [] [ str "Eigenaar(s)" ]
+                div [ Class Bootstrap.formGroup ] [                    
+                    h3 [] [ str "Eigenaar(s)" ]
+                    p [] [ str "Bij een overdracht moet de einddatum van de vorige eigenaar(s) gezet worden op de dag vóór het verlijden van de akte en de begindatum van de nieuwe eigenaar(s) op de dag van het verlijden van de akte." ]
                     table [ classes [ Bootstrap.table; Bootstrap.tableStriped; Bootstrap.tableHover ] ] [
                         thead [] [
                             tr [] [
@@ -256,6 +257,9 @@ let view (state: State) (dispatch: Message -> unit) =
     }
 
     div [] [
+        div [ Class Bootstrap.row ] [
+            h3 [] [ str "Algemeen" ]
+        ]
         div [ Class Bootstrap.row ] [
             formGroup [ 
                 Label "Code"
