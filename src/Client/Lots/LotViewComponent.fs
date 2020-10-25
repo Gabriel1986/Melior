@@ -64,7 +64,7 @@ let view (detail: Lot) =
                                 ]
                             ]
                             tbody [] [
-                                yield! owners |> List.map (fun owner ->
+                                yield! owners |> List.sortBy (fun owner -> owner.EndDate, owner.StartDate) |> List.map (fun owner ->
                                     tr [] [
                                         td [] [ ownerTypes owner ]
                                         td [] [ ownerName owner ]

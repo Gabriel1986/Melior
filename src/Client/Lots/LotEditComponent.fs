@@ -35,7 +35,7 @@ type State = {
 
 let init (lot: Lot) =
     {
-        Lot = lot
+        Lot = { lot with Owners = lot.Owners |> List.sortBy (fun owner -> owner.EndDate, owner.StartDate) }
         ShowingLotOwnerModal = false
         Errors = []
     }, Cmd.none
@@ -85,11 +85,11 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         let newLotOwner: LotOwner = {
             LotId = state.Lot.LotId
             LotOwnerType = lotOwnerType
-            LotOwnerRole = LotOwnerRole.LegalRepresentative
+            LotOwnerRole = LotOwnerRole.Other
             StartDate = DateTime.Today
             EndDate = None
         }
-        let newState = changeLot (fun l -> { l with Owners = newLotOwner::l.Owners })
+        let newState = changeLot (fun l -> { l with Owners = (newLotOwner::l.Owners) |> ensureLegalRepresentative })
         { newState with ShowingLotOwnerModal = false }, Cmd.none
     | RemoveLotOwner toRemove ->
         state, 
@@ -105,8 +105,8 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | SelectLegalRepresentative lotOwner ->
         let newLotOwners = 
             state.Lot.Owners 
-            |> List.map (fun o -> 
-                if o = lotOwner 
+            |> List.map (fun o ->
+                if o = lotOwner
                 then { o with LotOwnerRole = LotOwnerRole.LegalRepresentative }
                 else { o with LotOwnerRole = LotOwnerRole.Other })
 
@@ -120,10 +120,10 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         let newLotOwners = state.Lot.Owners |> List.map (fun o -> if o = lotOwner then { o with StartDate = newStartDate } else o)
         changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
     | EndDateChanged (lotOwner, newEndDate) ->
-        let newLotOwners = state.Lot.Owners |> List.map (fun o -> if o = lotOwner then { o with EndDate = newEndDate } else o)
+        let newLotOwners = state.Lot.Owners |> List.map (fun o -> if o = lotOwner then { o with EndDate = newEndDate |> Option.map (fun ed -> ed.ToUniversalTime()) } else o)
         changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
 
-let renderEditLotOwners lotOwners dispatch =
+let renderEditLotOwners (lotOwners: LotOwner list) (dispatch: Message -> unit) =
     let ownerTypes (lotOwner: LotOwner) =
         match lotOwner.LotOwnerType with
         | LotOwnerType.Owner _ -> str "Persoon"
@@ -152,31 +152,32 @@ let renderEditLotOwners lotOwners dispatch =
             ]
 
     let startDateEditorFor (lotOwner: LotOwner) =
-        formGroup [
-            Date [
-                Flatpickr.OnChange (fun e -> StartDateChanged (lotOwner, e) |> dispatch)
-                Flatpickr.Value lotOwner.StartDate
-                Flatpickr.SelectionMode Flatpickr.Mode.Single
-                Flatpickr.EnableTimePicker false
-            ]
+        Flatpickr.flatpickr  [
+            Flatpickr.OnChange (fun e -> StartDateChanged (lotOwner, e) |> dispatch)
+            Flatpickr.Value lotOwner.StartDate
+            Flatpickr.SelectionMode Flatpickr.Mode.Single
+            Flatpickr.EnableTimePicker false
         ]
 
     let endDateEditorFor (owner: LotOwner) =
-        formGroup [
-            Date [
-                yield Flatpickr.OnChange (fun e -> EndDateChanged (owner, Some e) |> dispatch)
-                match owner.EndDate with
-                | Some endDate -> yield Flatpickr.Value endDate
-                | None -> ()
-                yield Flatpickr.SelectionMode Flatpickr.Mode.Single
-                yield Flatpickr.EnableTimePicker false
-            ]
-            OtherChildren [
-                button [ 
-                    classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ] 
-                    OnClick (fun _ -> EndDateChanged (owner, None) |> dispatch)
-                ] [
-                    i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
+        form [ Id (sprintf "%A" owner.LotOwnerType) ] [
+            div [ Class Bootstrap.inputGroup ] [
+                Flatpickr.flatpickr [                    
+                    yield Flatpickr.OnChange (fun e -> EndDateChanged (owner, Some e) |> dispatch)
+                    match owner.EndDate with
+                    | Some endDate -> yield Flatpickr.Value endDate
+                    | None -> yield Flatpickr.custom "key" owner.EndDate false
+                    yield Flatpickr.SelectionMode Flatpickr.Mode.Single
+                    yield Flatpickr.EnableTimePicker false
+                ]
+                div [ Class Bootstrap.inputGroupAppend ] [
+                    button [
+                        Type "reset"
+                        classes [ Bootstrap.btn; Bootstrap.btnDanger; Bootstrap.btnSm ] 
+                        OnClick (fun _ -> EndDateChanged (owner, None) |> dispatch)
+                    ] [
+                        str "×"
+                    ]
                 ]
             ]
         ]

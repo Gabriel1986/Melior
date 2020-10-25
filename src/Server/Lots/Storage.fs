@@ -52,35 +52,44 @@ let private generateDeleteSqlForOwners (lotId: Guid, deletedOwners: LotOwnerId l
         deletedOwners
         |> List.ofSeq
         |> List.map (fun deleted ->
-            "UPDATE LotOwners SET IsActive = FALSE WHERE LotId = @LotId AND OrganizationId = @OrganizationId AND PersonId = @PersonId", [
-                "@LotId", Sql.uuid lotId
-                "@OrganizationId", Sql.uuidOrNone (match deleted with LotOwnerId.OrganizationId orgId -> Some orgId | _ -> None)
-                "@PersonId", Sql.uuidOrNone (match deleted with LotOwnerId.OwnerId personId -> Some personId | _ -> None)
-            ]
+            match deleted with
+            | LotOwnerId.OrganizationId orgId ->
+                "DELETE FROM LotOwners WHERE LotId = @LotId AND OrganizationId = @OrganizationId", [
+                    "@LotId", Sql.uuid lotId
+                    "@OrganizationId", Sql.uuid orgId
+                ]
+            | LotOwnerId.OwnerId personId ->
+                "DELETE FROM LotOwners WHERE LotId = @LotId AND PersonId = @PersonId", [
+                    "@LotId", Sql.uuid lotId
+                    "@PersonId", Sql.uuid personId
+                ]
         )
 ]
 
 let private generateUpdateSqlForOwners (owners: ValidatedLotOwner list) =
     owners
     |> List.map (fun owner ->
-        let personId, orgId =
+        let query, queryParameters =
             match owner.LotOwnerId with
-            | (LotOwnerId.OwnerId ownerId) ->
-                Some ownerId, None
-            | (LotOwnerId.OrganizationId orgId) ->
-                None, Some orgId
+            | LotOwnerId.OwnerId ownerId ->
+                "PersonId = @PersonId", [ "@PersonId", Sql.uuid ownerId ]
+            | LotOwnerId.OrganizationId orgId ->
+                "OrganizationId = @OrganizationId", [ "@OrganizationId", Sql.uuid orgId ]
 
-        "UPDATE LotOwners SET Role = @Role, StartDate = @StartDate, EndDate = @EndDate 
-        WHERE LotId = @LotId 
-        AND PersonId = @PersonId 
-        AND OrganizationId = @OrganizationId", [ 
-            "@Role", Sql.string (string owner.LotOwnerRole)
-            "@LotId", Sql.uuid owner.LotId
-            "@PersonId", Sql.uuidOrNone personId
-            "@OrganizationId", Sql.uuidOrNone orgId
-            "@StartDate", Sql.timestamp owner.StartDate
-            "@EndDate", Sql.timestampOrNone owner.EndDate
-       ]
+        sprintf
+            """
+                UPDATE LotOwners SET Role = @Role, StartDate = @StartDate, EndDate = @EndDate 
+                WHERE LotId = @LotId 
+                AND %s
+            """
+            query
+        , [ 
+            yield "@Role", Sql.string (string owner.LotOwnerRole)
+            yield "@LotId", Sql.uuid owner.LotId
+            yield "@StartDate", Sql.timestamp owner.StartDate
+            yield "@EndDate", Sql.timestampOrNone owner.EndDate
+            yield! queryParameters
+        ]
     )
 
 
@@ -115,7 +124,7 @@ let createLot (connectionString: string) (validated: ValidatedLot) =
 let updateLot (connectionString: string) (validated: ValidatedLot) = async {
     let! currentLotOwners = 
         Sql.connect connectionString
-        |> Sql.query "SELECT PersonId, OrganizationId FROM LotOwners WHERE LotId = @LotId AND EndDate IS NULL"
+        |> Sql.query "SELECT PersonId, OrganizationId FROM LotOwners WHERE LotId = @LotId"
         |> Sql.parameters [ "@LotId", Sql.uuid validated.LotId ]
         |> Sql.read (fun reader ->
             match (reader.uuidOrNone "PersonId", reader.uuidOrNone "OrganizationId") with

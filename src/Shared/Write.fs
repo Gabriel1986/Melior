@@ -246,6 +246,7 @@ type ValidatedLotOwner =
         EndDate: DateTime option
     }
     static member BasicValidate (basePath: string) (lotOwner: LotOwner): Trial<ValidatedLotOwner, string * string> =
+        //TODO: validate enddate > startdate
         trial {
             yield {
                 LotId = lotOwner.LotId
@@ -553,7 +554,7 @@ type ValidatedFinancialYear =
                 BuildingId = year.BuildingId
                 Code = code
                 StartDate = year.StartDate
-                EndDate = endDate
+                EndDate = year.EndDate
                 IsClosed = year.IsClosed
             }
         }
