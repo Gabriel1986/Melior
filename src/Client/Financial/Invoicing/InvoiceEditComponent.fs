@@ -423,7 +423,8 @@ let view (state: State) (dispatch: Message -> unit) =
                             SelectionList.render (
                                 {|
                                     SelectionMode = SelectionMode.SingleSelect
-                                    AllItems = props.FinancialCategories |> List.sortBy (fun cat -> cat.Code)
+                                    //Only financial categories starting with 6 should be shown.
+                                    AllItems = props.FinancialCategories |> List.filter (fun cat -> cat.Code.StartsWith("6")) |> List.sortBy (fun cat -> cat.Code)
                                     SelectedItems = 
                                         match props.SelectedCategoryCode with
                                         | Some selected -> props.FinancialCategories |> List.filter (fun cat -> cat.Code = selected)
