@@ -364,11 +364,13 @@ let view (state: State) (dispatch: Message -> unit) =
             div [ Class Bootstrap.cardBody ] [
                 button [ classes [ Bootstrap.btn; Bootstrap.btnSecondary ]; Type "button"; OnClick (fun _ -> OpenQuestionModal |> dispatch) ] [
                     i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []
-                    str " Instellingen gebouw aanpassen"
+                    str " "
+                    str "Instellingen gebouw aanpassen"
                 ]
                 button [ classes [ Bootstrap.btn; Bootstrap.btnSuccess ]; Style [ MarginLeft "5px" ]; Type "button"; OnClick (fun _ -> CreateNewContract |> dispatch) ] [
                     i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
-                    str " Contract aanmaken"
+                    str " "
+                    str "Contract aanmaken"
                 ]
             ]
         ]

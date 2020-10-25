@@ -35,11 +35,15 @@ let build (config: IConfiguration): IFinancialSystem =
 
             member _.CreateFinancialYear msg = Workflow.createFinancialYear store msg
             member _.UpdateFinancialYear msg = Workflow.updateFinancialYear store msg
+            member _.CloseFinancialYear msg = Workflow.closeFinancialYear store msg
             member _.DeleteFinancialYear msg = Workflow.deleteFinancialYear store msg
             member _.GetFinancialYears msg = Query.getAllFinancialYears conn msg.Payload
 
             member _.CreateFinancialCategory msg = Workflow.createFinancialCategory store msg
             member _.UpdateFinancialCategory msg = Workflow.updateFinancialCategory store msg
             member _.DeleteFinancialCategory msg = Workflow.deleteFinancialCategory store msg
-            member _.GetFinancialCategoryTree msg = Query.getAllFinancialCategories conn msg.Payload
+            member _.GetFinancialCategories msg = Query.getAllFinancialCategories conn msg.Payload
+
+            member _.SeedFinancialCategories cats = Workflow.seedFinancialCategories store cats
+            member _.SeedDistributionKeys keys = Workflow.seedDistributionKeys store keys
     }

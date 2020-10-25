@@ -9,6 +9,7 @@ open Server.Library
 open Shared.Read
 open Shared.Write
 open FSharp.Data
+open Server.SeedData
 
 type IBuildingStorage =
     abstract CreateBuilding: ValidatedBuilding -> Async<unit>
@@ -149,24 +150,33 @@ let updateBuildingConcierge (connectionString: string) (buildingId: BuildingId, 
         ]
         |> Sql.writeAsync
 
-let private seedFinancialCategoriesForBuilding (conn: string) (buildingId: BuildingId) = async {
-    let! csvFile = CsvFile.AsyncLoad("FinancialCategories.csv", ";", encoding = Text.Encoding.UTF8)
-    do!
-        Sql.connect conn
-        |> Sql.writeBatchAsync 
-            (csvFile.Rows 
-            |> Seq.map (fun row ->
-                """
-                """, [ "@Code", Sql.string (row.GetColumn "Code"); "@Description", Sql.string (row.GetColumn "Description") ]
-            )
-            |> List.ofSeq)
-        |> Async.Ignore
+let private seedFinancialCategoriesForBuildingSql (buildingId: BuildingId) = async {
+    let! financialCategories = FinancialCategories.readPredefined ()
+    return
+        financialCategories
+        |> Seq.map (fun row ->
+            """
+                INSERT INTO FinancialCategories (
+                    FinancialCategoryId,
+                    BuildingId,
+                    Code,
+                    Description
+                ) VALUES (
+                    uuid_generate_v4(), @BuildingId, @Code, @Description
+                )
+            """, [
+                "@BuildingId", Sql.uuid buildingId
+                "@Code", Sql.string row.Code
+                "@Description", Sql.string row.Description
+            ])
 }
 
 let createBuilding (connectionString: string) (validated: ValidatedBuilding) = async {
+    let! seedFinancialCategoriesSql = seedFinancialCategoriesForBuildingSql validated.BuildingId
+
     do!
         Sql.connect connectionString
-        |> Sql.query
+        |> Sql.writeBatchAsync [
             """
                 INSERT INTO Buildings (
                     BuildingId,
@@ -193,12 +203,11 @@ let createBuilding (connectionString: string) (validated: ValidatedBuilding) = a
                     @YearOfDelivery,
                     @BankAccounts
                 )
-            """
-        |> Sql.parameters (paramsFor validated)
-        |> Sql.writeAsync
-        |> Async.Ignore
+            """, (paramsFor validated)
 
-    do! seedFinancialCategoriesForBuilding connectionString validated.BuildingId
+            yield! seedFinancialCategoriesSql
+        ]
+        |> Async.Ignore
 }
 
 let updateBuilding (connectionString: string) (validated: ValidatedBuilding) =

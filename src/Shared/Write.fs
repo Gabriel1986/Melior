@@ -503,7 +503,7 @@ type ValidatedInvoice =
         OrganizationBankAccount: ValidatedBankAccount
         OrganizationInvoiceNumber: String64 option //Number @ supplier
         InvoiceDate: DateTime //Date on the invoice
-        DueDate: DateTime option //Due date of the invoice
+        DueDate: DateTime //Due date of the invoice
     }
     static member Validate (invoice: Invoice) =
         trial {
@@ -534,19 +534,26 @@ type ValidatedFinancialYear =
         FinancialYearId: Guid
         BuildingId: Guid
         Code: String32
-        StartDate: DateTime option
-        EndDate: DateTime option
+        StartDate: DateTime
+        EndDate: DateTime
         IsClosed: bool
     }
     static member Validate (year: FinancialYear): Result<ValidatedFinancialYear, (string * string) list> =
+        let validateDatePeriod (startDate: DateTime, endDate: DateTime) =
+            if endDate.Date < startDate.Date then
+                Trial.ofError (nameof year.EndDate, "De einddatum mag niet vóór de begindatum liggen...")
+            else
+                Trial.Pass endDate
+
         trial {
             from code in String32.Of (nameof year.Code) year.Code
+            also endDate in validateDatePeriod (year.StartDate, year.EndDate)
             yield {
                 FinancialYearId = year.FinancialYearId
                 BuildingId = year.BuildingId
                 Code = code
                 StartDate = year.StartDate
-                EndDate = year.EndDate
+                EndDate = endDate
                 IsClosed = year.IsClosed
             }
         }
@@ -555,7 +562,7 @@ type ValidatedFinancialYear =
 type ValidatedFinancialCategory =
     {
         FinancialCategoryId: Guid
-        BuildingId: Guid
+        BuildingId: Guid option
         Code: String32
         Description: String255
     }

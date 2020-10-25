@@ -8,23 +8,23 @@ open Client.ClientStyle
 open Client.ClientStyle.Helpers
 
 let view (detail: Lot) =
-    let ownerTypes lotOwner =
-        match lotOwner with
-        | LotOwner.Owner _ -> str "Persoon"
-        | LotOwner.Organization o -> str ("Leverancier: " + (o.OrganizationTypeNames |> String.JoinWith ", "))
+    let ownerTypes (lotOwner: LotOwner) =
+        match lotOwner.LotOwnerType with
+        | LotOwnerType.Owner _ -> str "Persoon"
+        | LotOwnerType.Organization o -> str ("Leverancier: " + (o.OrganizationTypeNames |> String.JoinWith ", "))
 
-    let ownerName lotOwner =
-        match lotOwner with
-        | LotOwner.Owner o        -> str (o.FullName ())
-        | LotOwner.Organization o -> str o.Name
+    let ownerName (lotOwner: LotOwner) =
+        match lotOwner.LotOwnerType with
+        | LotOwnerType.Owner o        -> str (o.FullName ())
+        | LotOwnerType.Organization o -> str o.Name
 
-    let isResident lotOwner =
-        match lotOwner with
-        | LotOwner.Owner o        -> str (if o.IsResident then "Ja" else "Nee")
-        | LotOwner.Organization _ -> str ""
+    let isResident (lotOwner: LotOwner) =
+        match lotOwner.LotOwnerType with
+        | LotOwnerType.Owner o        -> str (if o.IsResident then "Ja" else "Nee")
+        | LotOwnerType.Organization _ -> str ""
 
-    let isLegalRepresentative (_, lotOwnerRole: LotOwnerRole) =
-        if lotOwnerRole = LegalRepresentative then str "Ja" else str "Nee"
+    let isLegalRepresentative (lotOwner: LotOwner) =
+        if lotOwner.LotOwnerRole = LegalRepresentative then str "Ja" else str "Nee"
 
     div [] [
         yield
@@ -58,15 +58,19 @@ let view (detail: Lot) =
                                     th [] [ str "Type(s)" ]
                                     th [] [ str "Naam" ]
                                     th [] [ str "Inwoner" ]
+                                    th [] [ str "Begindatum" ]
+                                    th [] [ str "Einddatum" ]
                                     th [] [ str "Stemhouder" ]
                                 ]
                             ]
                             tbody [] [
                                 yield! owners |> List.map (fun owner ->
                                     tr [] [
-                                        td [] [ ownerTypes (fst owner) ]
-                                        td [] [ ownerName (fst owner) ]
-                                        td [] [ isResident (fst owner) ]
+                                        td [] [ ownerTypes owner ]
+                                        td [] [ ownerName owner ]
+                                        td [] [ isResident owner ]
+                                        td [] [ str (owner.StartDate.ToString("dd/MM/yyyy")) ]
+                                        td [] [ str (owner.EndDate |> Option.either (fun ed -> ed.ToString("dd/MM/yyyy")) "") ]
                                         td [] [ isLegalRepresentative owner ]
                                     ]
                                 )

@@ -5,7 +5,7 @@ open Npgsql
 open SimpleMigrations
 open SimpleMigrations.DatabaseProvider
 
-let run (logger: Serilog.ILogger) (connectionString: string) : unit =
+let run (logger: Serilog.ILogger) (connectionString: string) : int64 * int64 =
     using (new NpgsqlConnection(connectionString)) (fun connection ->
         try
             let migrationsAssembly = Assembly.GetAssembly(typeof<CreateInitialTables>)
@@ -15,15 +15,18 @@ let run (logger: Serilog.ILogger) (connectionString: string) : unit =
             logger.Information "Migrating DB"
 
             migrator.Load()
+            let currentVersion = migrator.CurrentMigration.Version
             migrator.MigrateToLatest()
-
             logger.Information  "Finished migrating db"
+            currentVersion, migrator.LatestMigration.Version
 
         with exn ->
             let exceptionType = exn.GetType().Name
             let exceptionMessage = exn.Message
 
-            logger.Error(exn, sprintf "An '%s' exception with message '%s' happened during migration" exceptionType exceptionMessage)
+            let errorMessage = sprintf "An '%s' exception with message '%s' happened during migration" exceptionType exceptionMessage
+            logger.Error(exn, errorMessage)
+            failwithf "%A" errorMessage
     )
 
 [<Migration(1L, "Create initial tables")>]
@@ -347,7 +350,29 @@ type AddFinancialTables() =
     override u.Up () = 
         u.Execute
             """
-                CREATE TABLE Invoices (
+                CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+                ALTER TABLE DistributionKeys ADD COLUMN IF NOT EXISTS IncludeGroundFloor BOOLEAN DEFAULT TRUE;
+
+                CREATE TABLE IF NOT EXISTS FinancialYears (
+                    FinancialYearId UUID PRIMARY KEY,
+                    BuildingId UUID REFERENCES Buildings(BuildingId) NOT NULL,
+                    Code VARCHAR(32) NOT NULL,
+                    StartDate TIMESTAMP NOT NULL,
+                    EndDate TIMESTAMP NOT NULL,
+                    IsClosed BOOLEAN DEFAULT FALSE,
+                    IsDeleted BOOLEAN DEFAULT FALSE
+                );
+
+                CREATE TABLE IF NOT EXISTS FinancialCategories (
+                    FinancialCategoryId UUID PRIMARY KEY,
+                    BuildingId UUID REFERENCES Buildings(BuildingId) NOT NULL,
+                    Code VARCHAR(32) NOT NULL,
+                    Description VARCHAR(255) NOT NULL,
+                    IsDeleted BOOLEAN DEFAULT FALSE
+                );
+
+                CREATE TABLE IF NOT EXISTS Invoices (
                     InvoiceId UUID PRIMARY KEY,
                     BuildingId UUID REFERENCES Buildings(BuildingId) NOT NULL,
                     FinancialYearId UUID REFERENCES FinancialYears(FinancialYearId) NOT NULL,
@@ -356,7 +381,7 @@ type AddFinancialTables() =
                     Cost DECIMAL,
                     VatRate INT,
                     FinancialCategoryId UUID REFERENCES FinancialCategories(FinancialCategoryId) NOT NULL,
-                    DistributionKeyId UUID REFERENCES DistributionKey(DistributionKeyId) NOT NULL,
+                    DistributionKeyId UUID REFERENCES DistributionKeys(DistributionKeyId) NOT NULL,
                     OrganizationId UUID REFERENCES Organizations(OrganizationId) NOT NULL,
                     OrganizationBankAccount JSONB,
                     OrganizationInvoiceNumber VARCHAR(64),
@@ -369,10 +394,10 @@ type AddFinancialTables() =
                     LastUpdatedAt TIMESTAMP NOT NULL,
                     IsDeleted BOOLEAN DEFAULT FALSE
                 );
-                CREATE Index idx_Invoices_BuildingId ON Invoices(BuildingId);
-                CREATE UNIQUE INDEX uq_Invoices_FinancialYearId_InvoiceNumber ON Invoices(FinancialYearId, InvoiceNumber);
+                CREATE Index IF NOT EXISTS idx_Invoices_BuildingId ON Invoices(BuildingId);
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_Invoices_FinancialYearId_InvoiceNumber ON Invoices(FinancialYearId, InvoiceNumber);
 
-                CREATE TABLE Invoices_History (
+                CREATE TABLE IF NOT EXISTS Invoices_History (
                     InvoiceId UUID PRIMARY KEY,
                     BuildingId UUID REFERENCES Buildings(BuildingId) NOT NULL,
                     FinancialYearId UUID REFERENCES FinancialYears(FinancialYearId) NOT NULL,
@@ -381,7 +406,7 @@ type AddFinancialTables() =
                     Cost DECIMAL NOT NULL,
                     VatRate INT NOT NULL,
                     FinancialCategoryId UUID REFERENCES FinancialCategories(FinancialCategoryId) NOT NULL,
-                    DistributionKeyId UUID REFERENCES DistributionKey(DistributionKeyId) NOT NULL,
+                    DistributionKeyId UUID REFERENCES DistributionKeys(DistributionKeyId) NOT NULL,
                     OrganizationId UUID REFERENCES Organizations(OrganizationId) NOT NULL,
                     OrganizationBankAccount JSONB NOT NULL,
                     OrganizationInvoiceNumber VARCHAR(64),
@@ -390,24 +415,6 @@ type AddFinancialTables() =
                     DueDate TIMESTAMP,
                     LastUpdatedBy VARCHAR(255) NOT NULL,
                     LastUpdatedAt TIMESTAMP NOT NULL
-                );
-
-                CREATE TABLE FinancialYears (
-                    FinancialYearId UUID PRIMARY KEY,
-                    BuildingId UUID REFERENCES Buildings(BuildingId) NOT NULL,
-                    Code VARCHAR(32) NOT NULL,
-                    StartDate TIMESTAMP,
-                    EndDate TIMESTAMP,
-                    IsClosed BOOLEAN,
-                    IsDeleted BOOLEAN DEFAULT FALSE
-                );
-
-                CREATE TABLE FinancialCategories (
-                    FinancialCategoryId UUID PRIMARY KEY,
-                    BuildingId UUID REFERENCES Buildings(BuildingId) NOT NULL,
-                    Code VARCHAR(32) NOT NULL,
-                    Description VARCHAR(255) NOT NULL,
-                    IsDeleted BOOLEAN DEFAULT FALSE
                 );
             """
     override u.Down () = failwith "Not supported"
@@ -419,9 +426,9 @@ type AddStartDateAndEndDateToLotOwners() =
         u.Execute
             """
                 ALTER TABLE LotOwners
-                ADD COLUMN StartDate DATE,
-                ADD COLUMN EndDate DATE,
-                ADD COLUMN IsActive BOOLEAN;
+                ADD COLUMN IF NOT EXISTS StartDate DATE,
+                ADD COLUMN IF NOT EXISTS EndDate DATE,
+                ADD COLUMN IF NOT EXISTS IsActive BOOLEAN;
             """
 
         u.Execute

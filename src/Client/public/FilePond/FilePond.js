@@ -13,8 +13,7 @@ export class FilePondComponent extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            keepFilesAfterProcessing: props.keepFilesAfterProcessing,
-            files: props.keepFilesAfterProcessing ? props.files : []
+            files: props.files
         };
     }
 
@@ -34,11 +33,10 @@ export class FilePondComponent extends React.Component {
                 labelIdle={this.props.labelIdle}
                 files={this.state.files}
                 onupdatefiles={(fileItems) => {
-                    if (this.state.keepFilesAfterProcessing) {
-                        this.setState({
-                            files: fileItems.map(fileItem => fileItem.file)
-                        });
-                    }
+                    console.error("wewd?");
+                    this.setState({
+                        files: fileItems.map(fileItem => fileItem.file)
+                    });
                 }}
                 ref={ref => this.pond = ref} />
         )

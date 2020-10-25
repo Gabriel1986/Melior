@@ -270,6 +270,8 @@ and LotType =
     | Garage
     | Storage
     | Other
+    static member AllValues () =
+        [ Appartment; Studio; ParkingSpace; CommercialProperty; Garage; Storage; Other ]
     override me.ToString() =
         match me with
         | Appartment -> "Appartement"
@@ -570,37 +572,13 @@ let OtherPredefinedContractTypes = [|
     PredefinedContractType.WaterSupplier
 |]
 
-//TODO: place the distribution keys in the DB
-//type PredefinedDistributionKey =
-//    | ``Total according to shares``
-//    | ``Appartments according to shares``
-//    | ``Appartments without ground floor according to shares``
-//    | ``Garages and parking spaces according to shares``
-//    | ``Storage and basements according to shares``
-//    | ``Total according to equal parts``
-//    | ``Appartments according to equal parts``
-//    | ``Appartments without ground floor according to equal parts``
-//    | ``Garages and parking spaces according to equal parts``
-//    | ``Storage and basements according to equal parts``
-//    override me.ToString () =
-//        match me with
-//        | ``Total according to shares`` -> "Totaal – volgens aandelen"
-//        | ``Appartments according to shares`` -> "Appartementen - volgens aandelen"
-//        | ``Appartments without ground floor according to shares`` -> "Appartementen zonder gelijkvloer - volgens aandelen"
-//        | ``Garages and parking spaces according to shares`` -> "Staanplaatsen / garages - volgens aandelen"
-//        | ``Storage and basements according to shares`` -> "Bergingen / kelders - volgens aandelen"
-//        | ``Total according to equal parts`` -> "Totaal – volgens gelijke delen"
-//        | ``Appartments according to equal parts`` -> "Appartementen - volgens gelijke delen"
-//        | ``Appartments without ground floor according to equal parts`` -> "Appartementen zonder gelijkvloer - volgens gelijke delen"
-//        | ``Garages and parking spaces according to equal parts`` -> "Staanplaatsen / garages - volgens gelijke delen"
-//        | ``Storage and basements according to equal parts`` -> "Bergingen / kelders - volgens gelijke delen"
-
 type DistributionKey = {
     DistributionKeyId: Guid
     BuildingId: Guid option
     Name: string
     DistributionType: DistributionType
     LotsOrLotTypes: LotsOrLotTypes
+    IncludeGroundFloor: bool
 }
 and DistributionType =
     | EqualParts
@@ -620,21 +598,37 @@ type DistributionKeyListItem = {
     DistributionType: DistributionType
 }
 
-type FinancialYear = {
-    FinancialYearId: Guid
-    BuildingId: Guid
-    Code: string
-    StartDate: DateTime option
-    EndDate: DateTime option
-    IsClosed: bool
-}
+type FinancialYear = 
+    {
+        FinancialYearId: Guid
+        BuildingId: Guid
+        Code: string
+        StartDate: DateTime
+        EndDate: DateTime
+        IsClosed: bool
+    }
+    static member Init (buildingId: Guid) = {
+        FinancialYearId = Guid.NewGuid()
+        BuildingId = buildingId
+        Code = ""
+        StartDate = DateTime.Today
+        EndDate = DateTime.Today.AddYears(1)
+        IsClosed = false
+    }
 
-type FinancialCategory = {
-    FinancialCategoryId: Guid
-    BuildingId: Guid
-    Code: string
-    Description: string
-}
+type FinancialCategory = 
+    {
+        FinancialCategoryId: Guid
+        BuildingId: Guid option
+        Code: string
+        Description: string
+    }
+    static member Init (buildingId: Guid) = {
+        FinancialCategoryId = Guid.NewGuid()
+        BuildingId = Some buildingId
+        Code = ""
+        Description = ""
+    }
 
 module Invoice =
     let calculateLocalInvoiceNumber (financialYearCode: string, invoiceNumber: int) =
@@ -653,7 +647,7 @@ type InvoiceListItem =
         CategoryCode: string //Rubriek
         CategoryDescription: string
         InvoiceDate: DateTime
-        DueDate: DateTime option
+        DueDate: DateTime
         //HasBeenPaid: bool TODO
     }
     member me.LocalInvoiceNumber = Invoice.calculateLocalInvoiceNumber (me.FinancialYearCode, me.InvoiceNumber)
@@ -684,7 +678,7 @@ type Invoice =
         OrganizationBankAccount: BankAccount
         OrganizationInvoiceNumber: string option //Number @ supplier
         InvoiceDate: DateTime //Date on the invoice
-        DueDate: DateTime option //Due date of the invoice
+        DueDate: DateTime //Due date of the invoice
         //PaymentIds: Guid list
         MediaFiles: MediaFile list
     }

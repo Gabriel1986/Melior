@@ -24,7 +24,7 @@ open Client.Lots
 open Client.ProfessionalSyndics
 open Client.Contracts
 open Client.Financial.DistributionKeys
-open Client.Financial.CostDiary
+open Client.Financial.Invoicing
 open Client.Users
 
 module Client =
@@ -383,6 +383,12 @@ module Client =
                             CurrentUser = runningState.CurrentUser
                             CurrentBuildingId = building.BuildingId
                         |}
+                | Page.FinancialSettings _, _, Some building ->
+                    Financial.Settings.render
+                        {|
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuildingId = building.BuildingId
+                        |}
                 | Page.DistributionKeyList _, _, Some building ->
                     DistributionKeysPage.render
                         {|
@@ -398,14 +404,14 @@ module Client =
                             DistributionKeyId = Some props.DetailId
                         |}
                 | Page.Invoices _, _, Some building ->
-                    CostDiaryPage.render
+                    InvoicesPage.render
                         {|
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
                             InvoiceId = None
                         |}
                 | Page.InvoiceDetails props, _, Some building ->
-                    CostDiaryPage.render
+                    InvoicesPage.render
                         {|
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building

@@ -26,6 +26,7 @@
         | ProfessionalSyndicList
         | ProfessionalSyndicDetails of Guid
         | OrganizationTypeList
+        | FinancialSettings of BuildingSpecificProps
         | DistributionKeyList of BuildingSpecificProps
         | DistributionKeyDetails of BuildingSpecificDetailProps
         | Invoices of BuildingSpecificProps //Invoices
@@ -55,6 +56,7 @@
     let [<Literal>] private MyFinancialsPage = "myFinancials"
     let [<Literal>] private NoticeBoardPage = "noticeboard"
     let [<Literal>] private DistributionKeysPage = "distributionKeys"
+    let [<Literal>] private FinancialSettingsPage = "financialsettings"
     let [<Literal>] private InvoicesPage = "invoices"
     let [<Literal>] private ProvisionsPage = "provisions"
     let [<Literal>] private BankNotesPage = "banknotes"
@@ -115,6 +117,8 @@
             Router.format(NoticeBoardPage)
         | Page.NotFound ->
             Router.format(PortalPage)
+        | Page.FinancialSettings specifics ->
+            routeToSpecificPage(FinancialSettingsPage, specifics)
         | Page.DistributionKeyList specifics ->
             routeToSpecificPage(DistributionKeysPage, specifics)
         | Page.DistributionKeyDetails specifics ->
@@ -170,6 +174,8 @@
             Router.navigate(MyFinancialsPage)
         | Page.NoticeBoard ->
             Router.navigate(NoticeBoardPage)
+        | Page.FinancialSettings props ->
+            FinancialSettingsPage |> navigateToBuildingSpecificPage props
         | Page.DistributionKeyList props ->
             DistributionKeysPage |> navigateToBuildingSpecificPage props
         | Page.DistributionKeyDetails props ->
@@ -217,10 +223,12 @@
             Page.OrganizationTypeList
         | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; ContractsPage ] ->
             Page.Contracts { BuildingId = buildingId }
+        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; FinancialSettingsPage ] ->
+            Page.FinancialSettings { BuildingId = buildingId }
         | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; DistributionKeysPage ] ->
             Page.DistributionKeyList { BuildingId = buildingId }
         | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; DistributionKeysPage ; Feliz.Router.Route.Guid distributionKeyId ] -> 
-            Page.LotDetails { BuildingId = buildingId; DetailId = distributionKeyId }
+            Page.DistributionKeyDetails { BuildingId = buildingId; DetailId = distributionKeyId }
         | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; InvoicesPage ] ->
             Page.Invoices { BuildingId = buildingId }
         | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; InvoicesPage ; Feliz.Router.Route.Guid invoiceId ] ->

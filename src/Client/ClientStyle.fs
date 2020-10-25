@@ -1,6 +1,7 @@
 ﻿module Client.ClientStyle
 
 open Zanaptak.TypedCssClasses
+open Fable.Core
 
 type Bootstrap = CssClasses<"public/styles/bootstrap.min.css", Naming.CamelCase, resolutionFolder=__SOURCE_DIRECTORY__>
 type FontAwesome = CssClasses<"public/styles/fontawesome.all.min.css", Naming.CamelCase, resolutionFolder=__SOURCE_DIRECTORY__>
@@ -112,8 +113,10 @@ module Helpers =
             if dateProps.IsSome then
                 yield
                     Flatpickr.flatpickr (dateProps.Value @ [ 
-                        Flatpickr.ClassName Bootstrap.formControl
+                        Flatpickr.DateFormat "j F, Y"
+                        Flatpickr.ClassName (sprintf "%s %s %s" Bootstrap.formControl (if error.IsSome then Bootstrap.isInvalid else "") "flatpickr-input")
                         Flatpickr.Locale Flatpickr.Locales.dutch 
+                        Flatpickr.TimeTwentyFour true
                     ])
             if otherChildren.IsSome then
                 yield! otherChildren.Value

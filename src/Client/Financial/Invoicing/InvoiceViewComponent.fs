@@ -1,4 +1,4 @@
-﻿module Client.Financial.CostDiary.InvoiceViewComponent
+﻿module Client.Financial.Invoicing.InvoiceViewComponent
 
 open System
 open Fable.React
@@ -39,7 +39,7 @@ let view (props: Props) =
             legend [] [ h2 [] [ str "Factuur" ] ]
             readonlyFormElement "Nr." (detail.OrganizationInvoiceNumber |> Option.defaultValue "")
             readonlyFormElement "OpmaakDatum" (detail.InvoiceDate.ToString("dd/MM/yyyy"))
-            readonlyFormElement "Einddatum betaling" (detail.DueDate |> Option.map (fun d -> d.ToString("dd/MM/yyyy")) |> Option.defaultValue "")
+            readonlyFormElement "Einddatum betaling" (detail.DueDate.ToString("dd/MM/yyyy"))
             readonlyFormElement "Bedrag" (String.Format("{0:0.00}", detail.Cost).Replace('.', ','))
             readonlyFormElement "Naar rekening" (string detail.OrganizationBankAccount)
         ]

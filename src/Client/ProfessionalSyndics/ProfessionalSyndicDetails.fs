@@ -186,6 +186,8 @@ let view (model: Model) (dispatch: Msg -> unit) =
                             classes [ Bootstrap.btn; Bootstrap.btnSuccess ]
                             OnClick (fun _ -> Save |> dispatch) 
                         ] [
+                            i [ classes [ FontAwesome.fa; FontAwesome.faSave ] ] []
+                            str " "
                             str "Bewaren"
                         ]
                     ]
@@ -200,6 +202,8 @@ let view (model: Model) (dispatch: Msg -> unit) =
                         classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
                         OnClick (fun _ -> Edit detail |> dispatch) 
                     ] [
+                        i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []
+                        str " "
                         str "Aanpassen"
                     ]
                 ]

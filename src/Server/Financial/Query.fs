@@ -15,6 +15,7 @@ type DistributionKeyRow = {
     DistributionType: DistributionType
     LotId: Guid option
     LotType: LotType option
+    IncludeGroundFloor: bool
 }
 
 let mapToLotsOrLotTypes (rows: DistributionKeyRow list): LotsOrLotTypes =
@@ -38,6 +39,7 @@ let readDistributionKey (reader: CaseInsensitiveRowReader): DistributionKeyRow =
     DistributionType = readDistributionType reader "DistributionType"
     LotId = reader.uuidOrNone "LotId"
     LotType = (reader.stringOrNone "LotType" |> Option.map LotType.OfString)
+    IncludeGroundFloor = reader.bool "IncludeGroundFloor"
 }
 
 let readDistributionKeyListItem (reader: CaseInsensitiveRowReader): DistributionKeyListItem = {
@@ -62,7 +64,7 @@ type InvoiceDbRow = {
     OrganizationBankAccount: BankAccount
     OrganizationInvoiceNumber: string option //Number @ supplier
     InvoiceDate: DateTime //Date on the invoice
-    DueDate: DateTime option //Due date of the invoice
+    DueDate: DateTime //Due date of the invoice
 }
 
 let readInvoice (reader: CaseInsensitiveRowReader): InvoiceDbRow = {
@@ -80,7 +82,7 @@ let readInvoice (reader: CaseInsensitiveRowReader): InvoiceDbRow = {
     OrganizationBankAccount = (reader.string "OrganizationBankAccount") |> BankAccount.fromJson
     OrganizationInvoiceNumber = reader.stringOrNone "OrganizationInvoiceNumber"
     InvoiceDate = reader.dateTime "InvoiceDate"
-    DueDate = reader.dateTimeOrNone "DueDate"
+    DueDate = reader.dateTime "DueDate"
 }
 
 let readInvoiceListItem (reader: CaseInsensitiveRowReader): InvoiceListItem = {
@@ -95,21 +97,21 @@ let readInvoiceListItem (reader: CaseInsensitiveRowReader): InvoiceListItem = {
     CategoryCode = reader.string "CategoryCode"
     CategoryDescription = reader.string "CategoryDescription"
     InvoiceDate = reader.dateTime "InvoiceDate"
-    DueDate = reader.dateTimeOrNone "DueDate"
+    DueDate = reader.dateTime "DueDate"
 }
 
 let readFinancialYear (reader: CaseInsensitiveRowReader): FinancialYear = {
     FinancialYearId = reader.uuid "FinancialYearId"
     BuildingId = reader.uuid "BuildingId"
     Code = reader.string "Code"
-    StartDate = reader.dateTimeOrNone "StartDate"
-    EndDate = reader.dateTimeOrNone "EndDate"
+    StartDate = reader.dateTime "StartDate"
+    EndDate = reader.dateTime "EndDate"
     IsClosed = reader.bool "IsClosed"
 }
 
 let readFinancialCategory (reader: CaseInsensitiveRowReader): FinancialCategory = {
     FinancialCategoryId = reader.uuid "FinancialCategoryId"
-    BuildingId = reader.uuid "BuildingId"
+    BuildingId = reader.uuidOrNone "BuildingId"
     Code = reader.string "Code"
     Description = reader.string "Description"
 }
@@ -138,11 +140,12 @@ let getDistributionKeys (conn: string) (buildingId: BuildingId): Async<Distribut
                     dKey.DistributionKeyId,
                     dKey.BuildingId,
                     dKey.Name,
-                    dKey.DistributionType
+                    dKey.DistributionType,
+                    dKey.IncludeGroundFloor,
                     link.LotId, 
                     link.LotType
                 FROM DistributionKeys dKey
-                LEFT JOIN DistributionKeyLotsOrLotTypes links WHERE link.DistributionKeyId = @DistributionKeyId
+                LEFT JOIN DistributionKeyLotsOrLotTypes link ON link.DistributionKeyId = dKey.DistributionKeyId
                 WHERE (dKey.BuildingId = @BuildingId OR dKey.BuildingId IS NULL) AND dKey.IsActive = TRUE
             """
         |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
@@ -159,6 +162,7 @@ let getDistributionKeys (conn: string) (buildingId: BuildingId): Async<Distribut
                 Name = first.Name
                 DistributionType = first.DistributionType
                 LotsOrLotTypes = distributionKeys |> mapToLotsOrLotTypes
+                IncludeGroundFloor = first.IncludeGroundFloor
             }    
         )
 }
@@ -183,8 +187,8 @@ let getDistributionKeysByIds (conn: string) (buildingId: BuildingId, distributio
 let getInvoices (conn: string) (filter: InvoiceFilter): Async<InvoiceListItem list> =
     let whereFilter, whereParameters =
         match filter.Period with
-        | InvoiceFilterPeriod.FinancialYear code -> 
-            "FinancialYearCode = @FinancialYearCode", [ "@FinancialYearCode", Sql.string code ]
+        | InvoiceFilterPeriod.FinancialYear financialYearId -> 
+            "FinancialYearId = @FinancialYearId", [ "@FinancialYearId", Sql.uuid financialYearId ]
         | InvoiceFilterPeriod.Month (month, year) ->
             let date = new DateTime(year, month, 1, 0, 0, 0)
             "InvoiceDate >= @FilterStartDate AND InvoiceDate < @FilterEndDate", [
@@ -205,12 +209,12 @@ let getInvoices (conn: string) (filter: InvoiceFilter): Async<InvoiceListItem li
                 SELECT
                     invoice.InvoiceId,
                     invoice.BuildingId,
-                    (SELECT IsClosed AS FinancialYearIsClosed, Code AS FinancialYearCode FROM FinancialYears fYear WHERE fYear.Code = invoice.FinancialYearCode) AS FinancialYearIsClosed,
+                    (SELECT year.IsClosed AS FinancialYearIsClosed, year.Code AS FinancialYearCode FROM FinancialYears year WHERE year.FinancialYearId = invoice.FinancialYearId),
                     invoice.InvoiceNumber,
                     invoice.Cost,
-                    (SELECT Name AS DistributionKeyName FROM DistributionKeys dKey WHERE dKey.DistributionKeyId = invoice.DistributionKeyId),
+                    (SELECT dKey.Name AS DistributionKeyName FROM DistributionKeys dKey WHERE dKey.DistributionKeyId = invoice.DistributionKeyId),
                     invoice.OrganizationName,
-                    (SELECT Code AS CategoryCode, Description AS CategoryDescription FROM FinancialCategories cat WHERE cat.FinancialCategoryId = invoice.FinancialCategoryId),
+                    (SELECT cat.Code AS CategoryCode, cat.Description AS CategoryDescription FROM FinancialCategories cat WHERE cat.FinancialCategoryId = invoice.FinancialCategoryId),
                     invoice.InvoiceDate,
                     invoice.DueDate
                 FROM Invoices
@@ -262,7 +266,6 @@ let getAllFinancialCategories (conn: string) (buildingId: BuildingId) =
         """
             SELECT
                 FinancialCategoryId,
-                ParentFinancialCategoryId,
                 BuildingId,
                 Code,
                 Description

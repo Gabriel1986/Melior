@@ -28,4 +28,5 @@ module DistributionKeyModel =
         Name = model.Name
         DistributionType = model.DistributionType
         LotsOrLotTypes = LotsOrLotTypes.Lots (model.MatchingLots |> List.map (fun lot -> lot.LotId))
+        IncludeGroundFloor = true
     }

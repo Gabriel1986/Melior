@@ -13,6 +13,9 @@
     <Compile Include="Migrations.fs" />
     <Compile Include="PostgreSQL.fs" />
     <Compile Include="MailProvider.fs" />
+    <Compile Include="SeedData\DistributionKeys.fs" />
+    <None Include="SeedData\FinancialCategories.csv" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="SeedData\FinancialCategories.fs" />
     <Compile Include="Addresses\Library.fs" />
     <Compile Include="Addresses\Workflow.fs" />
     <Compile Include="ContactMethods\Library.fs" />
@@ -71,9 +74,6 @@
     <Compile Include="Seedings.fs" />
     <Compile Include="Startup.fs" />
     <Compile Include="Program.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="FinancialCategories.csv" CopyToOutputDirectory="Always" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.fsproj" />

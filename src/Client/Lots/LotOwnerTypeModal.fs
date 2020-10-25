@@ -1,4 +1,4 @@
-﻿module Client.Lots.LotOwnerModal
+﻿module Client.Lots.LotOwnerTypeModal
 
 open System
 open Elmish
@@ -21,10 +21,8 @@ open Client.ClientStyle.Helpers
 type Model = {
     IsOpen: bool
     BuildingId: Guid
-    LotOwnerType: LotOwnerType option
-    SelectedOwners: OwnerListItem list
+    LotOwnerTypeKind: LotOwnerKind option
     AllOwners: OwnerListItem list
-    SelectedOrganizations: OrganizationListItem list
     AllOrganizations: OrganizationListItem list
     State: State
 }
@@ -35,7 +33,7 @@ and State =
     | SelectingOwners
     | SelectingOrganizations
     | RemotingError of exn
-and LotOwnerType =
+and LotOwnerKind =
     | Owner
     | Organization
     override me.ToString() =
@@ -44,59 +42,56 @@ and LotOwnerType =
         | Organization -> "Leverancier"
 
 type Message =
-    | LotOwnerTypeSelected of LotOwnerType
+    | LotOwnerKindSelected of LotOwnerKind
     | LoadOwners
     | OwnersLoaded of OwnerListItem list
-    | SetSelectedOwners of OwnerListItem list
+    | SetSelectedOwner of OwnerListItem option
     | LoadOrganizations
     | OrganizationsLoaded of OrganizationListItem list
-    | SetSelectedOrganizations of OrganizationListItem list
+    | SetSelectedOrganization of OrganizationListItem option
     | Dismiss
-    | Save
     | RemotingError of exn
     | OpenLotOwnerTypeSelection
 
-type LotOwnerModalProps = {|
+type LotOwnerTypeModalProps = {|
     IsOpen: bool
     BuildingId: Guid
-    LotOwners: LotOwner list
-    OnOk: LotOwner list -> unit
+    LotOwnerTypes: LotOwnerType list
+    OnSelected: LotOwnerType -> unit
     OnCanceled: unit -> unit
 |}
 
-let init (props: LotOwnerModalProps) =
+let init (props: LotOwnerTypeModalProps) =
     let state, cmd, lotOwnerType =
-        match props.LotOwners with
+        match props.LotOwnerTypes with
         | [] -> 
             SelectingLotOwnerType, Cmd.none, None
-        | x when props.LotOwners |> List.forall (fun o -> match o with | LotOwner.Organization _ -> true | LotOwner.Owner _ -> false) ->
+        | x when props.LotOwnerTypes |> List.forall (function | LotOwnerType.Organization _ -> true | LotOwnerType.Owner _ -> false) ->
             LoadingOrganizations, Cmd.ofMsg LoadOrganizations, Some Organization
         | _ ->
             LoadingOwners, Cmd.ofMsg LoadOwners, Some Owner
     { 
         IsOpen = props.IsOpen
         BuildingId = props.BuildingId
-        LotOwnerType = lotOwnerType
+        LotOwnerTypeKind = lotOwnerType
         AllOwners = []
         AllOrganizations = []
-        SelectedOwners = props.LotOwners |> List.choose (function | LotOwner.Owner o -> Some o | _ -> None)
-        SelectedOrganizations = props.LotOwners |> List.choose (function | LotOwner.Organization o -> Some o | _ -> None)
         State = state 
     }, cmd
 
-let update onOk onCanceled message model =
+let update onSelected onCanceled message model =
     match message with
     | OpenLotOwnerTypeSelection ->
-        { model with LotOwnerType = None; State = SelectingLotOwnerType }, Cmd.none
-    | LotOwnerTypeSelected lotOwnerType ->
+        { model with LotOwnerTypeKind = None; State = SelectingLotOwnerType }, Cmd.none
+    | LotOwnerKindSelected lotOwnerKind ->
         let newState, newCmd =
-            match lotOwnerType with
-            | LotOwnerType.Organization ->
+            match lotOwnerKind with
+            | LotOwnerKind.Organization ->
                 model.State, Cmd.ofMsg LoadOrganizations
-            | LotOwnerType.Owner ->
+            | LotOwnerKind.Owner ->
                 model.State, Cmd.ofMsg LoadOwners
 
-        { model with LotOwnerType = Some lotOwnerType; State = newState }, newCmd
+        { model with LotOwnerTypeKind = Some lotOwnerKind; State = newState }, newCmd
     | LoadOwners ->
         let cmd =
             match model.AllOwners with
@@ -110,8 +105,11 @@ let update onOk onCanceled message model =
         { model with State = LoadingOwners }, cmd
     | OwnersLoaded list ->
         { model with AllOwners = list; State = SelectingOwners }, Cmd.none
-    | SetSelectedOwners owners ->
-        { model with SelectedOwners = owners }, Cmd.none
+    | SetSelectedOwner owner ->
+        match owner with
+        | Some owner -> onSelected(LotOwnerType.Owner owner)
+        | None -> onCanceled ()
+        model, Cmd.none
     | LoadOrganizations ->
         let cmd =
             match model.AllOrganizations with
@@ -125,12 +123,10 @@ let update onOk onCanceled message model =
         { model with State = LoadingOrganizations }, cmd
     | OrganizationsLoaded list ->
         { model with AllOrganizations = list; State = SelectingOrganizations }, Cmd.none
-    | SetSelectedOrganizations organizations ->
-        { model with SelectedOrganizations = organizations }, Cmd.none
-    | Save ->
-        let ownerLotOwners = model.SelectedOwners |> List.map LotOwner.Owner
-        let orgLotOwners = model.SelectedOrganizations |> List.map LotOwner.Organization
-        onOk (ownerLotOwners @ orgLotOwners)
+    | SetSelectedOrganization organization ->
+        match organization with
+        | Some organization -> onSelected (LotOwnerType.Organization organization)
+        | None -> onCanceled ()
         model, Cmd.none
     | Dismiss ->
         onCanceled()
@@ -145,23 +141,23 @@ let renderLotOwnerTypeSelection dispatch =
             div [ Class Bootstrap.btnGroup ] [
                 button [ 
                     classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
-                    OnClick (fun _ -> LotOwnerTypeSelected Owner |> dispatch)
+                    OnClick (fun _ -> LotOwnerKindSelected Owner |> dispatch)
                 ] [ str (string Owner) ]
                 button [ 
                     classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
-                    OnClick (fun _ -> LotOwnerTypeSelected Organization |> dispatch)
+                    OnClick (fun _ -> LotOwnerKindSelected Organization |> dispatch)
                 ] [ str (string Organization) ]
             ]
         ]
     ]
 
-let renderOwnerSelectionList (list: OwnerListItem list) (selected: OwnerListItem list) dispatch =
+let renderOwnerSelectionList (list: OwnerListItem list) dispatch =
     SelectionList.render (
         {|
-            SelectionMode = SelectionMode.MultiSelect
+            SelectionMode = SelectionMode.SingleSelect
             AllItems = list |> List.sortBy (fun o -> o.FirstName)
-            SelectedItems = selected
-            OnSelectionChanged = fun selection -> SetSelectedOwners selection |> dispatch
+            SelectedItems = []
+            OnSelectionChanged = fun selection -> SetSelectedOwner (selection |> List.tryHead) |> dispatch
             DisplayListItem = (fun ownerListItem -> 
                 [ownerListItem.FirstName; ownerListItem.LastName] 
                 |> List.choose id 
@@ -169,13 +165,13 @@ let renderOwnerSelectionList (list: OwnerListItem list) (selected: OwnerListItem
                 |> str)
         |}, "OwnerSelectionList")
 
-let renderOrganizationSelectionList (list: OrganizationListItem list) (selected: OrganizationListItem list) dispatch =
+let renderOrganizationSelectionList (list: OrganizationListItem list) dispatch =
     SelectionList.render (
         {|
-            SelectionMode = SelectionMode.MultiSelect
+            SelectionMode = SelectionMode.SingleSelect
             AllItems = list |> List.sortBy (fun o -> o.Name)
-            SelectedItems = selected
-            OnSelectionChanged = fun selection -> SetSelectedOrganizations selection |> dispatch
+            SelectedItems = []
+            OnSelectionChanged = fun selection -> SetSelectedOrganization (selection |> List.tryHead) |> dispatch
             DisplayListItem = (fun org -> str org.Name)
         |}, "OrganizationSelectionList")
 
@@ -190,12 +186,10 @@ let modalContent model dispatch =
     | SelectingOwners ->
         renderOwnerSelectionList 
             model.AllOwners 
-            model.SelectedOwners
             dispatch
     | SelectingOrganizations ->
         renderOrganizationSelectionList 
             model.AllOrganizations 
-            model.SelectedOrganizations
             dispatch
     | State.RemotingError _ ->
         div [] [ str "Er is iets misgelopen bij het ophalen van de gegevens. Gelieve de pagine te verversen en opnieuw te proberen." ]
@@ -211,15 +205,10 @@ let renderModalButtons model dispatch =
             [ classes [ Bootstrap.btn; Bootstrap.btnDanger ]; OnClick (fun _ -> Dismiss |> dispatch) ]
             [ str "Annuleren" ]
 
-    let saveButton =
-        button
-            [ classes [ Bootstrap.btn; Bootstrap.btnSuccess ]; OnClick (fun _ -> Save |> dispatch) ]
-            [ str "Ok" ]
-
     match model.State with
     | SelectingOrganizations
     | SelectingOwners ->
-        [ toTypeSelectionButton; cancelButton; saveButton ]
+        [ toTypeSelectionButton; cancelButton ]
     | _ -> 
         [ cancelButton ]
 
@@ -243,5 +232,5 @@ let view (model: Model) dispatch =
             ]           
         |}
 
-let render (props: LotOwnerModalProps) =
-    React.elmishComponent ("LotOwnerModal", init props, update props.OnOk props.OnCanceled, view)
+let render (props: LotOwnerTypeModalProps) =
+    React.elmishComponent ("LotOwnerModal", init props, update props.OnSelected props.OnCanceled, view)

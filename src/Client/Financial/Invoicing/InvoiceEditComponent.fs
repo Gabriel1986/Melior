@@ -1,4 +1,4 @@
-﻿module Client.Financial.CostDiary.InvoiceEditComponent
+﻿module Client.Financial.Invoicing.InvoiceEditComponent
 
 open System
 open Client.Upload
@@ -20,27 +20,6 @@ open Shared.MediaLibrary
 
 let possibleTaxRates = [ 0; 6; 12; 21 ]
 
-let validateDateTimeOffset (path: string) (s: string option): Trial<DateTime option, string * string> =
-    let s' = s |> Option.defaultValue ""
-    match s' with
-    | x when String.IsNullOrEmpty(x) -> Trial.Pass None
-    | x ->
-        match x.Split('/') with
-        | [| dayStr; monthStr; yearStr |] -> 
-            match Int32.TryParse(dayStr), Int32.TryParse(monthStr), Int32.TryParse(yearStr) with
-            | (true, day), (true, month), (true, year) ->
-                Trial.Pass (Some (new DateTime(year, month, day)))
-            | _ ->
-                Trial.ofError (path, "Ongeldige dag, maand of jaar ingegeven")
-        | _ -> Trial.ofError (path, "Verwacht formaat: dd/MM/yyyy")
-
-let validateMandatoryDateTimeOffset (path: string) (s: string option) =
-    let validated = validateDateTimeOffset path s
-    match validated with
-    | Trial.Pass None -> Trial.ofError (path, "Verplicht veld")
-    | Trial.Pass (Some x) -> Trial.Pass x
-    | Trial.Fail errors -> Trial.Fail errors
-
 type InvoiceInputModel = 
     {
         InvoiceId: Guid
@@ -51,10 +30,10 @@ type InvoiceInputModel =
         Cost: string option
         VatRate: int
         FinancialCategory: FinancialCategory option
-        BookingDate: string option //Date when booked
+        BookingDate: DateTime
         DistributionKey: DistributionKeyListItem option
-        InvoiceDate: string option //Date on the invoice
-        DueDate: string option //Due date of the invoice
+        InvoiceDate: DateTime
+        DueDate: DateTime
         Organization: OrganizationListItem option
         OrganizationBankAccount: BankAccount option
         OrganizationInvoiceNumber: string option //Number @ supplier
@@ -63,7 +42,7 @@ type InvoiceInputModel =
     static member init (buildingId: BuildingId): InvoiceInputModel = {
         InvoiceId = Guid.NewGuid()
         BuildingId = buildingId
-        BookingDate = Some (DateTimeOffset.Now.ToString("yyyy-MM-dd"))
+        BookingDate = DateTime.Today
         FinancialYear = None
         InvoiceNumber = None
         Description = None
@@ -71,8 +50,8 @@ type InvoiceInputModel =
         VatRate = 21
         FinancialCategory = None
         DistributionKey = None
-        InvoiceDate = Some (DateTimeOffset.Now.ToString("yyyy-MM-dd"))
-        DueDate = None
+        InvoiceDate = DateTime.Today
+        DueDate = DateTime.Today
         Organization = None
         OrganizationInvoiceNumber = None
         OrganizationBankAccount = None
@@ -87,10 +66,10 @@ type InvoiceInputModel =
         Cost = Some (invoice.Cost.ToString().Replace(".", ","))
         VatRate = invoice.VatRate
         FinancialCategory = Some invoice.FinancialCategory
-        BookingDate = Some (invoice.BookingDate.ToString("yyyy-MM-dd"))
+        BookingDate = invoice.BookingDate
         DistributionKey = Some invoice.DistributionKey
-        InvoiceDate = Some (invoice.InvoiceDate.ToString("yyyy-MM-dd"))
-        DueDate = invoice.DueDate |> Option.map (fun d -> d.ToString("yyyy-MM-dd"))
+        InvoiceDate = invoice.InvoiceDate
+        DueDate = invoice.DueDate
         Organization = Some invoice.Organization
         OrganizationInvoiceNumber = invoice.OrganizationInvoiceNumber
         OrganizationBankAccount = Some invoice.OrganizationBankAccount
@@ -115,11 +94,8 @@ type InvoiceInputModel =
             from financialYear in mandatoryToTrial (nameof me.FinancialYear) me.FinancialYear
             also financialCategory in mandatoryToTrial (nameof me.FinancialCategory) me.FinancialCategory
             also organizationBankAccount in mandatoryToTrial (nameof me.OrganizationBankAccount) me.OrganizationBankAccount
-            also bookingDate in validateMandatoryDateTimeOffset (nameof me.BookingDate) me.BookingDate
             also distributionKey in mandatoryToTrial (nameof me.DistributionKey) me.DistributionKey
             also organization in mandatoryToTrial (nameof me.Organization) me.Organization
-            also invoiceDate in validateMandatoryDateTimeOffset (nameof me.InvoiceDate) me.InvoiceDate
-            also dueDate in validateDateTimeOffset (nameof me.DueDate) me.DueDate
             also cost in validateCost me.Cost
             yield {
                 Invoice.InvoiceId = me.InvoiceId
@@ -132,11 +108,11 @@ type InvoiceInputModel =
                 FinancialCategory = financialCategory
                 Organization = organization
                 OrganizationBankAccount = organizationBankAccount
-                BookingDate = bookingDate
+                BookingDate = me.BookingDate
                 DistributionKey = distributionKey
                 OrganizationInvoiceNumber = me.OrganizationInvoiceNumber
-                InvoiceDate = invoiceDate
-                DueDate = dueDate
+                InvoiceDate = me.InvoiceDate
+                DueDate = me.DueDate
                 MediaFiles = []
             }
         }
@@ -150,15 +126,15 @@ type Message =
     | CategoryChanged of FinancialCategory option
     | CancelChangeFinancialCategory
     | DescriptionChanged of string
-    | BookingDateChanged of string
+    | BookingDateChanged of DateTime
     | ChangeDistributionKey
     | DistributionKeyChanged of DistributionKeyListItem option
     | CancelChangeDistributionKey
     | ChangeOrganization
     | OrganizationChanged of OrganizationListItem option
     | CancelChangeOrganization
-    | InvoiceDateChanged of string
-    | DueDateChanged of string
+    | InvoiceDateChanged of DateTime
+    | DueDateChanged of DateTime
     | ExternalInvoiceNumberChanged of string
     | OrganizationBankAccountChanged of BankAccount option
     | OrganizationAccountBICChanged of string
@@ -271,7 +247,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         { state with ShowingFinancialCategoryModal = false }, Cmd.none
     | BookingDateChanged bookingDate ->
         state
-        |> changeInvoice (fun invoice -> { invoice with BookingDate = Some bookingDate })
+        |> changeInvoice (fun invoice -> { invoice with BookingDate = bookingDate })
         |> removeError (nameof state.Invoice.BookingDate)
         , Cmd.none
     | ChangeDistributionKey ->
@@ -299,15 +275,13 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | CancelChangeOrganization ->
         { state with ShowingOrganizationModal = false }, Cmd.none
     | InvoiceDateChanged invoiceDate ->
-        let newInvoiceDate = if String.IsNullOrWhiteSpace(invoiceDate) then None else Some invoiceDate
         state
-        |> changeInvoice (fun invoice -> { invoice with InvoiceDate = newInvoiceDate })
+        |> changeInvoice (fun invoice -> { invoice with InvoiceDate = invoiceDate })
         |> removeError (nameof state.Invoice.InvoiceDate)
         , Cmd.none
     | DueDateChanged dueDate ->
-        let newDueDate = if String.IsNullOrWhiteSpace(dueDate) then None else Some dueDate
         state
-        |> changeInvoice (fun invoice -> { invoice with DueDate = newDueDate })
+        |> changeInvoice (fun invoice -> { invoice with DueDate = dueDate })
         |> removeError (nameof state.Invoice.DueDate)
         , Cmd.none
     | ExternalInvoiceNumberChanged invoiceNumber ->
@@ -554,10 +528,11 @@ let view (state: State) (dispatch: Message -> unit) =
 
             formGroup [
                 Label "Boekingsdatum"
-                Input [
-                    Type "date"
-                    OnChange (fun e -> BookingDateChanged e.Value |> dispatch)
-                    valueOrDefault (state.Invoice.BookingDate)
+                Date [
+                    Flatpickr.OnChange (fun e -> BookingDateChanged e |> dispatch)
+                    Flatpickr.Value (state.Invoice.BookingDate)
+                    Flatpickr.SelectionMode Flatpickr.Mode.Single
+                    Flatpickr.EnableTimePicker false
                 ]
                 FormError (errorFor (nameof state.Invoice.BookingDate))
             ]
@@ -639,10 +614,11 @@ let view (state: State) (dispatch: Message -> unit) =
 
             formGroup [
                 Label "Factuurdatum"
-                Input [
-                    Type "date"
-                    OnChange (fun e -> InvoiceDateChanged e.Value |> dispatch)
-                    valueOrDefault (state.Invoice.InvoiceDate)
+                Date [
+                    Flatpickr.OnChange (fun e -> InvoiceDateChanged e |> dispatch)
+                    Flatpickr.Value (state.Invoice.InvoiceDate)
+                    Flatpickr.SelectionMode Flatpickr.Mode.Single
+                    Flatpickr.EnableTimePicker false
                 ]
                 FormError (errorFor (nameof state.Invoice.InvoiceDate))
             ]
@@ -650,10 +626,11 @@ let view (state: State) (dispatch: Message -> unit) =
 
             formGroup [
                 Label "Uiterste betaaldatum"
-                Input [
-                    Type "date"
-                    OnChange (fun e -> DueDateChanged e.Value |> dispatch)
-                    valueOrDefault (state.Invoice.DueDate)
+                Date [
+                    Flatpickr.OnChange (fun e -> DueDateChanged e |> dispatch)
+                    Flatpickr.Value (state.Invoice.DueDate)
+                    Flatpickr.SelectionMode Flatpickr.Mode.Single
+                    Flatpickr.EnableTimePicker false
                 ]
             ]
             |> inColumn
@@ -743,7 +720,7 @@ let view (state: State) (dispatch: Message -> unit) =
             |> inColumn
         ]
 
-        div [ Class Bootstrap.row ] [
+        div [] [
             filePond 
                 {|
                     BuildingId = Some state.CurrentBuilding.BuildingId
@@ -751,14 +728,16 @@ let view (state: State) (dispatch: Message -> unit) =
                     Partition = Partitions.Invoices
                     Options = [
                         FilePondOptions.AllowMultiple true
-                        FilePondOptions.InitialFiles []
-                        FilePondOptions.KeepFilesAfterProcessing false
-                        FilePondOptions.OnProcessFile (fun _ filePondFile -> 
+                        FilePondOptions.MaxFiles 10
+                        FilePondOptions.InitialFiles (state.Invoice.MediaFiles |> List.map (fun m -> m.FileId))
+                        FilePondOptions.OnProcessFile (fun error filePondFile ->
+                            printf "%A" error
                             filePondFile 
                             |> FilePondFile.toMediaFile Partitions.Invoices (Some state.CurrentBuilding.BuildingId) state.Invoice.InvoiceId
                             |> MediaFileAdded
                             |> dispatch)
-                        FilePondOptions.OnRemoveFile (fun _ filePondFile ->
+                        FilePondOptions.OnRemoveFile (fun error filePondFile ->
+                            printf "%A" error
                             filePondFile
                             |> FilePondFile.toMediaFile Partitions.Invoices (Some state.CurrentBuilding.BuildingId) state.Invoice.InvoiceId
                             |> MediaFileRemoved
@@ -773,6 +752,8 @@ let view (state: State) (dispatch: Message -> unit) =
                     classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
                     OnClick (fun _ -> AddPayment |> dispatch)
                 ][
+                    i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                    str " "
                     str "Betaling toevoegen"
                 ]
             ]

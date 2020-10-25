@@ -195,11 +195,11 @@ type RemotingApi = {
     DeleteInvoice: BuildingId * Guid -> Async<Result<unit, DeleteInvoiceError>>
 
     GetFinancialYears: BuildingId -> Async<FinancialYear list>
-    ActivateFinancialYear: FinancialYear -> Async<Result<unit, SaveFinancialYearError>>
-    CloseFinancialYear: FinancialYear -> Async<Result<unit, SaveFinancialYearError>>
+    CloseFinancialYear: BuildingId * Guid -> Async<Result<unit, SaveFinancialYearError>>
+    CreateFinancialYear: FinancialYear -> Async<Result<unit, SaveFinancialYearError>>
+    UpdateFinancialYear: FinancialYear -> Async<Result<unit, SaveFinancialYearError>>
 
     GetFinancialCategories: BuildingId -> Async<FinancialCategory list>
-    GetFinancialCategoriesWithCode: BuildingId * string -> Async<FinancialCategory list>
     CreateFinancialCategory: FinancialCategory -> Async<Result<unit, SaveFinancialCategoryError>>
     UpdateFinancialCategory: FinancialCategory -> Async<Result<unit, SaveFinancialCategoryError>>
     DeleteFinancialCategory: BuildingId * Guid -> Async<Result<unit, DeleteFinancialCategoryError>>

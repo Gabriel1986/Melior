@@ -2,11 +2,12 @@
 
 open System
 open Storage
-open Server.Library
-open Server.LibraryExtensions
 open Shared.Read
 open Shared.Write
 open Shared.Remoting
+open Server.Library
+open Server.LibraryExtensions
+open Server.Blueprint.Data.SeedData
 
 let (|Authorized|Unauthorized|) (currentUser: User, buildingId: BuildingId option) =
     match buildingId with
@@ -110,6 +111,15 @@ let updateFinancialYear (store: IFinancialStorage) (msg: Message<FinancialYear>)
         return Error SaveFinancialYearError.AuthorizationError
 }
 
+let closeFinancialYear (store: IFinancialStorage) (msg: Message<BuildingId * Guid>) = async {
+    match (msg.CurrentUser, Some (fst msg.Payload)) with
+    | Authorized ->
+        let! nbRows = store.CloseFinancialYear msg
+        return if nbRows > 0 then Ok () else Error SaveFinancialYearError.NotFound
+    | Unauthorized ->
+        return Error SaveFinancialYearError.AuthorizationError
+}
+
 let deleteFinancialYear (store: IFinancialStorage) (msg: Message<BuildingId * Guid>) = async {
     match (msg.CurrentUser, Some (fst msg.Payload)) with
     | Authorized ->
@@ -120,7 +130,7 @@ let deleteFinancialYear (store: IFinancialStorage) (msg: Message<BuildingId * Gu
 }
 
 let createFinancialCategory (store: IFinancialStorage) (msg: Message<FinancialCategory>) = async {
-    match (msg.CurrentUser, Some msg.Payload.BuildingId) with
+    match (msg.CurrentUser, msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedFinancialCategory.Validate (msg.Payload) with
         | Ok validated -> 
@@ -133,7 +143,7 @@ let createFinancialCategory (store: IFinancialStorage) (msg: Message<FinancialCa
 }
 
 let updateFinancialCategory (store: IFinancialStorage) (msg: Message<FinancialCategory>) = async {
-    match (msg.CurrentUser, Some msg.Payload.BuildingId) with
+    match (msg.CurrentUser, msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedFinancialCategory.Validate (msg.Payload) with
         | Ok validated ->
@@ -153,3 +163,11 @@ let deleteFinancialCategory (store: IFinancialStorage) (msg: Message<BuildingId 
     | Unauthorized ->
         return Error DeleteFinancialCategoryError.AuthorizationError
 }
+
+let seedFinancialCategories (store: IFinancialStorage) (cats: FinancialCategorySeedRow seq) =
+    store.SeedFinancialCategories cats
+    |> Async.Ignore
+
+let seedDistributionKeys (store: IFinancialStorage) (keys: DistributionKeySeedRow seq) =
+    store.SeedDistributionKeys keys
+    |> Async.Ignore

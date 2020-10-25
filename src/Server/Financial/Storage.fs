@@ -7,11 +7,13 @@ open Npgsql.FSharp
 open Server.PostgreSQL
 open Server.Library
 open Server.LibraryExtensions
+open Server.Blueprint.Data.SeedData
 
 type IFinancialStorage =
     abstract CreateDistributionKey: Message<ValidatedDistributionKey> -> Async<unit>
     abstract UpdateDistributionKey: Message<ValidatedDistributionKey> -> Async<int>
     abstract DeleteDistributionKey: Message<BuildingId * Guid> -> Async<int>
+    abstract SeedDistributionKeys: DistributionKeySeedRow seq -> Async<int list>
 
     abstract CreateInvoice: Message<ValidatedInvoice> -> Async<unit>
     abstract UpdateInvoice: Message<ValidatedInvoice> -> Async<int>
@@ -19,11 +21,13 @@ type IFinancialStorage =
 
     abstract CreateFinancialYear: Message<ValidatedFinancialYear> -> Async<unit>
     abstract UpdateFinancialYear: Message<ValidatedFinancialYear> -> Async<int>
+    abstract CloseFinancialYear: Message<BuildingId * Guid> -> Async<int>
     abstract DeleteFinancialYear: Message<BuildingId * Guid> -> Async<int>
 
     abstract CreateFinancialCategory: Message<ValidatedFinancialCategory> -> Async<unit>
     abstract UpdateFinancialCategory: Message<ValidatedFinancialCategory> -> Async<int>
     abstract DeleteFinancialCategory: Message<BuildingId * Guid> -> Async<int>
+    abstract SeedFinancialCategories: FinancialCategorySeedRow seq -> Async<int list>
 
 let private generateSqlForLotsOrLotTypes (distributionKeyId: Guid, lotsOrLotTypes: LotsOrLotTypes) =
     match lotsOrLotTypes with
@@ -55,8 +59,8 @@ let private paramsForDistributionKey (msg: Message<ValidatedDistributionKey>) =
         "@DistributionType", Sql.string (string validated.DistributionType)
         "@CreatedBy", Sql.string (msg.CurrentUser.Principal ())
         "@CreatedAt", Sql.timestamp DateTime.UtcNow
-        "@UpdatedBy", Sql.string (msg.CurrentUser.Principal ())
-        "@UpdatedAt", Sql.timestamp DateTime.UtcNow
+        "@LastUpdatedBy", Sql.string (msg.CurrentUser.Principal ())
+        "@LastUpdatedAt", Sql.timestamp DateTime.UtcNow
     ]
 
 let private paramsForInvoice (msg: Message<ValidatedInvoice>) =
@@ -75,7 +79,7 @@ let private paramsForInvoice (msg: Message<ValidatedInvoice>) =
            "@OrganizationBankAccount", Sql.jsonb (ValidatedBankAccount.toJson invoice.OrganizationBankAccount)
            "@OrganizationInvoiceNumber", Sql.stringOrNone (invoice.OrganizationInvoiceNumber |> Option.map string)
            "@InvoiceDate", Sql.timestamp invoice.InvoiceDate
-           "@DueDate", Sql.timestampOrNone invoice.DueDate
+           "@DueDate", Sql.timestamp invoice.DueDate
            "@CreatedBy", Sql.string (msg.CurrentUser.Principal ())
            "@CreatedAt", Sql.timestamp DateTime.UtcNow
            "@LastUpdatedBy", Sql.string (msg.CurrentUser.Principal ())
@@ -157,6 +161,65 @@ let deleteDistributionKey (conn) (msg: Message<BuildingId * Guid>) =
         "@BuildingId", Sql.uuid buildingId
     ]
     |> Sql.writeAsync
+
+let seedDistributionKeys (conn: string) (keys: DistributionKeySeedRow seq) =
+    Sql.connect conn
+    |> Sql.writeBatchAsync [
+        yield! 
+            keys 
+            |> Seq.collect (fun key -> [
+                yield """
+                    INSERT INTO DistributionKeys (
+                        DistributionKeyId,
+                        BuildingId,
+                        Name,
+                        DistributionType,
+                        CreatedBy,
+                        CreatedAt,
+                        LastUpdatedBy,
+                        LastUpdatedAt
+                    ) VALUES (
+                        @DistributionKeyId,
+                        NULL,
+                        @Name,
+                        @DistributionType,
+                        @CreatedBy,
+                        @CreatedAt,
+                        @LastUpdatedBy,
+                        @LastUpdatedAt
+                    )
+                """, [
+                    "@DistributionKeyId", Sql.uuid key.DistributionKeyId
+                    "@Name", Sql.string key.Name
+                    "@DistributionType", Sql.string (string key.DistributionType)
+                    "@CreatedBy", Sql.string "system@syndicusassistent.be"
+                    "@CreatedAt", Sql.timestamp DateTime.UtcNow
+                    "@LastUpdatedBy", Sql.string "system@syndicusassistent.be"
+                    "@LastUpdatedAt", Sql.timestamp DateTime.UtcNow
+                ]
+
+                yield! 
+                    match key.LotsOrLotTypes with
+                    | LotsOrLotTypes.Lots _ ->
+                        []
+                    | LotsOrLotTypes.LotTypes lotTypes ->
+                        lotTypes
+                        |> List.map (fun lotType ->
+                            """
+                                INSERT INTO DistributionKeyLotsOrLotTypes (
+                                    DistributionKeyId,
+                                    LotType
+                                ) VALUES (
+                                    @DistributionKeyId,
+                                    @LotType
+                                )
+                            """, [
+                                "DistributionKeyId", Sql.uuid key.DistributionKeyId
+                                "LotType", Sql.string (string lotType)
+                            ]
+                        )
+            ])
+    ]
 
 let createInvoice (conn: string) (msg: Message<ValidatedInvoice>) =
     Sql.connect conn
@@ -304,14 +367,13 @@ let private paramsForFinancialYear (year: ValidatedFinancialYear) = [
     "@FinancialYearId", Sql.uuid year.FinancialYearId
     "@BuildingId", Sql.uuid year.BuildingId
     "@Code", Sql.string (string year.Code)
-    "@StartDate", Sql.timestampOrNone year.StartDate
-    "@EndDate", Sql.timestampOrNone year.EndDate
-    "@IsClosed", Sql.bool year.IsClosed
+    "@StartDate", Sql.timestamp year.StartDate
+    "@EndDate", Sql.timestamp year.EndDate
 ]
 
 let private paramsForFinancialCategory (category: ValidatedFinancialCategory) = [
     "@FinancialCategoryId", Sql.uuid category.FinancialCategoryId
-    "@BuildingId", Sql.uuid category.BuildingId
+    "@BuildingId", Sql.uuidOrNone category.BuildingId
     "@Code", Sql.string (string category.Code)
     "@Description", Sql.string (string category.Description)
 ]
@@ -326,15 +388,13 @@ let createFinancialYear (conn: string) (msg: Message<ValidatedFinancialYear>): A
                 BuildingId,
                 Code,
                 StartDate,
-                EndDate,
-                IsClosed
+                EndDate
             ) VALUES (
                 @FinancialYearId,
                 @BuildingId,
                 @Code,
                 @StartDate,
-                @EndDate,
-                @IsClosed
+                @EndDate
             )
         """
     |> Sql.parameters (paramsForFinancialYear year)
@@ -350,11 +410,23 @@ let updateFinancialYear (conn: string) (msg: Message<ValidatedFinancialYear>): A
             SET
                 Code = @Code,
                 StartDate = @StartDate,
-                EndDate = @EndDate,
-                IsClosed = @IsClosed
+                EndDate = @EndDate
             WHERE FinancialYearId = @FinancialYearId AND BuildingId = @BuildingId
         """
     |> Sql.parameters (paramsForFinancialYear year)
+    |> Sql.writeAsync
+
+//TODO: when the financial year is closed -> flatten and copy all related financial details to a separate "read-only" table
+let closeFinancialYear (conn: string) (msg: Message<BuildingId * Guid>): Async<int> =
+    let buildingId, financialYearId = msg.Payload
+    Sql.connect conn
+    |> Sql.query
+        """
+            UPDATE FinancialYears
+            SET IsClosed = TRUE
+            WHERE FinancialYearId = @FinancialYearId AND BuildingId = @BuildingId
+        """
+    |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId; "FinancialYearId", Sql.uuid financialYearId ]
     |> Sql.writeAsync
 
 let deleteFinancialYear (conn: string) (msg: Message<BuildingId * Guid>): Async<int> =
@@ -420,11 +492,32 @@ let deleteFinancialCategory (conn: string) (msg: Message<BuildingId * Guid>): As
     ]
     |> Sql.writeAsync
 
+let seedFinancialCategories (conn: string) (cats: FinancialCategorySeedRow seq) =
+    Sql.connect conn
+    |> Sql.writeBatchAsync [
+        yield!
+            cats
+            |> Seq.map (fun row ->
+                """
+                    INSERT INTO FinancialCategories (
+                        FinancialCategoryId,
+                        BuildingId,
+                        Code,
+                        Description
+                    )
+                    SELECT uuid_generate_v4(), BuildingId, @Code, @Description FROM Buildings
+                """, [ 
+                    "@Code", Sql.string row.Code
+                    "@Description", Sql.string row.Description
+                ])
+    ]
+
 let makeStorage conn = {
     new IFinancialStorage with
         member _.CreateDistributionKey msg = createDistributionKey conn msg
         member _.UpdateDistributionKey msg = updateDistributionKey conn msg
         member _.DeleteDistributionKey msg = deleteDistributionKey conn msg
+        member _.SeedDistributionKeys keys = seedDistributionKeys conn keys
 
         member _.CreateInvoice msg = createInvoice conn msg
         member _.UpdateInvoice msg = updateInvoice conn msg
@@ -432,9 +525,11 @@ let makeStorage conn = {
 
         member _.CreateFinancialYear msg = createFinancialYear conn msg
         member _.UpdateFinancialYear msg = updateFinancialYear conn msg
+        member _.CloseFinancialYear msg = closeFinancialYear conn msg
         member _.DeleteFinancialYear msg = deleteFinancialYear conn msg
 
         member _.CreateFinancialCategory msg = createFinancialCategory conn msg
         member _.UpdateFinancialCategory msg = updateFinancialCategory conn msg
         member _.DeleteFinancialCategory msg = deleteFinancialCategory conn msg
+        member _.SeedFinancialCategories cats = seedFinancialCategories conn cats
 }

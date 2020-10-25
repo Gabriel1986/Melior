@@ -35,6 +35,8 @@ module private Readers =
         PersonId: Guid option
         OrganizationId: Guid option
         Role: LotOwnerRole
+        StartDate: DateTime
+        EndDate: DateTime option
     }
 
     let readLotOwner (reader: CaseInsensitiveRowReader): LotOwnerDbModel = {
@@ -45,6 +47,8 @@ module private Readers =
             match reader.string "Role" with
             | x when x = string LotOwnerRole.LegalRepresentative -> LotOwnerRole.LegalRepresentative
             | _                                                  -> LotOwnerRole.Other
+        StartDate = reader.dateTime "StartDate"
+        EndDate = reader.dateTimeOrNone "EndDate"
     }
 
     let readLegalRepresentative (reader: CaseInsensitiveRowReader): LotOwnerListItem option =
@@ -92,40 +96,39 @@ let getLot (connectionString: string) (lotId: Guid): Async<Lot option> = async {
 
     match lotDbModel with
     | Some dbModel ->
-        let! ownerRoles =
+        let! lotOwnerDbRows =
             Sql.connect connectionString
-            |> Sql.query "SELECT lotOwner.LotId, lotOwner.OrganizationId, lotOwner.PersonId, lotOwner.Role FROM LotOwners lotOwner WHERE lotId = @LotId"
+            |> Sql.query "SELECT lotOwner.LotId, lotOwner.OrganizationId, lotOwner.PersonId, lotOwner.Role, lotOwner.StartDate, lotOwner.EndDate FROM LotOwners lotOwner WHERE lotId = @LotId"
             |> Sql.parameters [ "@LotId", Sql.uuid lotId ]
             |> Sql.read readLotOwner
 
-        let personOwnerRoles, orgOwnerRoles = 
-            ownerRoles
-            |> List.partition (fun lotOwnerId -> lotOwnerId.PersonId.IsSome)
-            |> (fun (personOwnerRoles, orgOwnerRoles) -> 
-                personOwnerRoles |> List.map (fun ownerAndRole -> (ownerAndRole.PersonId.Value, ownerAndRole.Role)) |> dict,
-                orgOwnerRoles    |> List.map (fun ownerAndRole -> (ownerAndRole.OrganizationId.Value, ownerAndRole.Role)) |> dict
+        let ownerDbRowDictionary, orgDbRowDictionary = 
+            lotOwnerDbRows
+            |> List.partition (fun dbRow -> dbRow.PersonId.IsSome)
+            |> (fun (ownerDbRows, orgDbRows) -> 
+                ownerDbRows |> List.map (fun ownerDbRow -> (ownerDbRow.PersonId.Value, ownerDbRow)) |> dict,
+                orgDbRows    |> List.map (fun orgDbRow -> (orgDbRow.OrganizationId.Value, orgDbRow)) |> dict
             )
 
+        let mapLotOwnerDbRowAndRoleToLotOwner (lotOwnerType: LotOwnerType, dbRow: LotOwnerDbModel) = { 
+            LotId = dbRow.LotId
+            LotOwnerType = lotOwnerType
+            LotOwnerRole = dbRow.Role
+            StartDate = dbRow.StartDate
+            EndDate = dbRow.EndDate
+        }
 
-        let getRoleForLotOwnerPerson (lotOwner: OwnerListItem) =
-            personOwnerRoles.TryFind lotOwner.PersonId
-            |> Option.defaultValue LotOwnerRole.Other
-
-        let getRoleForLotOwnerOrganization (lotOwner: OrganizationListItem) =
-            orgOwnerRoles.TryFind lotOwner.OrganizationId
-            |> Option.defaultValue LotOwnerRole.Other
-
-        let! ownerPersons =
-            personOwnerRoles.Keys
+        let! lotOwnersWithOwnerType =
+            ownerDbRowDictionary.Keys
             |> List.ofSeq
             |> Server.Owners.Query.getOwnersByIds connectionString
-            |> Async.map (fun list -> list |> List.map (fun li -> LotOwner.Owner li, getRoleForLotOwnerPerson li))
+            |> Async.map (List.map (fun li -> mapLotOwnerDbRowAndRoleToLotOwner (LotOwnerType.Owner li, ownerDbRowDictionary.[li.PersonId])))
 
-        let! ownerOrgs =
-            orgOwnerRoles.Keys
+        let! lotOwnersWithOrganizationType =
+            orgDbRowDictionary.Keys
             |> List.ofSeq
             |> Server.Organizations.Query.getOrganizationsByIds connectionString
-            |> Async.map (fun list -> list |> List.map (fun li -> LotOwner.Organization li, getRoleForLotOwnerOrganization li))
+            |> Async.map (List.map (fun li -> mapLotOwnerDbRowAndRoleToLotOwner (LotOwnerType.Organization li, orgDbRowDictionary.[li.OrganizationId])))
 
         return Some {
             LotId = dbModel.LotId            
@@ -134,7 +137,7 @@ let getLot (connectionString: string) (lotId: Guid): Async<Lot option> = async {
             LotType = LotType.OfString dbModel.LotType
             Description = dbModel.Description
             Floor = dbModel.Floor
-            Owners = ownerOrgs @ ownerPersons
+            Owners = lotOwnersWithOrganizationType @ lotOwnersWithOwnerType
             Share = dbModel.Share
         }
     | None ->
