@@ -16,6 +16,7 @@ open Client
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Library
+open Client.IbanValidator
 
 type Model = {
     InvoiceId: Guid
@@ -119,7 +120,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
         | Editing (_, componentState) ->
             match componentState.Invoice.Validate () with
             | Ok invoice ->
-                match ValidatedInvoice.Validate invoice with
+                match ValidatedInvoice.Validate validateIban invoice with
                 | Ok _ ->
                     let cmd = 
                         Cmd.OfAsync.either
@@ -135,7 +136,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
         | Creating (_, componentState) ->
             match componentState.Invoice.Validate () with
             | Ok invoice ->
-                match ValidatedInvoice.Validate invoice with
+                match ValidatedInvoice.Validate validateIban invoice with
                 | Ok _ ->
                     let cmd = 
                         Cmd.OfAsync.either

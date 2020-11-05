@@ -15,11 +15,11 @@ open Shared.Write
 
 open Client.Components
 open Client.Components.BasicModal
+open Client.Components.SelectionList
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
-
 open Client.Library
-open Client.Components.SelectionList
+open Client.IbanValidator
 
 type Model = {
     IsOpen: bool
@@ -137,7 +137,7 @@ let update (onConciergeChanged: Concierge -> unit) (onCanceled: unit -> unit) me
     | SavePerson ->
         match model.State with
         | EditingPerson componentState ->
-            match ValidatedPerson.Validate componentState.Person with
+            match ValidatedPerson.Validate validateIban componentState.Person with
             | Ok _ ->
                 onConciergeChanged (Concierge.NonOwner componentState.Person)
                 model, Cmd.none
@@ -181,7 +181,7 @@ let renderOwnerSelectionList (list: OwnerListItem list) selectedId dispatch =
             DisplayListItem = (fun ownerListItem -> 
                 [ownerListItem.FirstName; ownerListItem.LastName] 
                 |> List.choose id 
-                |> String.JoinWith ", "
+                |> String.joinWith ", "
                 |> str)
         |}, "OwnerSelectionList")
 

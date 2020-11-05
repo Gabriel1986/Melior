@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Library.fs" />
+    <Compile Include="IbanValidator.fs" />
     <Compile Include="Blueprint.Data.fs" />
     <Compile Include="Blueprint.Behavior.fs" />
     <Compile Include="LibraryExtensions.fs" />

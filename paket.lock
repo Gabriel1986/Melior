@@ -142,6 +142,7 @@ NUGET
     HaemmerElectronics.SeppPenner.Serilog.Sinks.AmazonS3 (1.0.12)
       AWSSDK.S3 (>= 3.3.111.25)
       Serilog (>= 2.9)
+    IbanNet (4.1)
     IdentityModel (4.2)
       Newtonsoft.Json (>= 11.0.2)
       System.Text.Encodings.Web (>= 4.6)

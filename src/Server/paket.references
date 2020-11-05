@@ -27,3 +27,4 @@ BCrypt.Net-Next
 GoogleAuthenticator
 MailKit
 HaemmerElectronics.SeppPenner.Serilog.Sinks.AmazonS3
+IbanNet

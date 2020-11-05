@@ -2,6 +2,7 @@
 
 open System
 open Shared.Trial
+open Library
 
 let private validateStringOfLength path (length: int) (s: string) =
     if String.IsNullOrEmpty (s)
@@ -103,6 +104,31 @@ module OrganizationNumber =
         if split.Length <> 3 
         then Of path ("", "", "")
         else Of path (split.[0], split.[1], split.[2])
+
+type IBAN =
+    private | IBAN of string
+    member me.Value () = match me with | IBAN value -> value
+    override me.ToString () =
+        me.Value ()
+        |> String.filter Char.IsLetterOrDigit
+        |> String.chunk 4
+        |> String.joinWith " "
+
+module IBAN =
+    //let ibanParser = new IbanParser(new IbanValidator())
+    let Of validateIban path value =
+        match value with
+        | v when String.IsNullOrWhiteSpace v -> Trial.ofError (path, "Verplicht veld")
+        | v ->
+            
+            match validateIban v with
+            | true  -> Trial.Pass (IBAN v)
+            | false -> Trial.ofError (path, "Ongeldige IBAN")
+
+    let OfOptional validateIban path value =
+        match String.IsNullOrWhiteSpace (value) with
+        | false -> Of validateIban path value |> Trial.map Some
+        | true  -> Trial.Pass None
 
 type VatNumber = 
     private | VatNumber of countryCode: string * vatNumber: string

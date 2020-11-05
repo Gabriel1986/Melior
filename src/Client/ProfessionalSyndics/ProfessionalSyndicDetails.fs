@@ -16,6 +16,7 @@ open Client
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Library
+open Client.IbanValidator
 
 type Model = {
     ProfessionalSyndicId: Guid
@@ -117,7 +118,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
     | Save ->
         match model.State with
         | Editing (_, componentState) ->
-            match ValidatedProfessionalSyndic.Validate componentState.ProfessionalSyndic with
+            match ValidatedProfessionalSyndic.Validate validateIban componentState.ProfessionalSyndic with
             | Ok _ ->
                 let cmd = 
                     Cmd.OfAsync.either
@@ -130,7 +131,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 let newComponentState, newComponentCommand = ProfessionalSyndicEditComponent.update (ProfessionalSyndicEditComponent.Message.ErrorsChanged e) (componentState)
                 { model with State = Editing (false, newComponentState) }, newComponentCommand |> Cmd.map ProfessionalSyndicEditComponentMsg
         | Creating (_, componentState) ->
-            match ValidatedProfessionalSyndic.Validate componentState.ProfessionalSyndic with
+            match ValidatedProfessionalSyndic.Validate validateIban componentState.ProfessionalSyndic with
             | Ok _ ->
                 let cmd =
                     Cmd.OfAsync.either

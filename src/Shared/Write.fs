@@ -53,14 +53,14 @@ type ValidatedOtherAddress =
 type ValidatedBankAccount = 
     {
         Description: String255 option
-        IBAN: String64 option
+        IBAN: IBAN option
         BIC: String16 option
     }
-    static member BasicValidate (basePath: string) (bankAccount: BankAccount) =
+    static member BasicValidate validateIban (basePath: string) (bankAccount: BankAccount) =
         let onBasePath subPath = sprintf "%s.%s" basePath subPath
         trial {
             from description in String255.OfOptional (onBasePath (nameof bankAccount.Description)) bankAccount.Description
-            also iban in String64.OfOptional (onBasePath (nameof bankAccount.IBAN)) bankAccount.IBAN
+            also iban in IBAN.OfOptional validateIban (onBasePath (nameof bankAccount.IBAN)) bankAccount.IBAN
             also bic in String16.OfOptional (onBasePath (nameof bankAccount.BIC)) bankAccount.BIC
             yield {
                 Description = description
@@ -110,7 +110,7 @@ type ValidatedPerson =
         OtherContactMethods: ValidatedContactMethod list
         BankAccounts: ValidatedBankAccount list
     }
-    static member BasicValidate (basePath: string) (person: Person) =
+    static member BasicValidate (validateIban: string -> bool) (basePath: string) (person: Person) =
         let onBasePath subPath = sprintf "%s.%s" basePath subPath
         trial {
            from firstName in validateOptional (String255.Of (nameof person.FirstName |> onBasePath)) person.FirstName
@@ -125,7 +125,7 @@ type ValidatedPerson =
            also contactAddress in validateContactAddress (nameof person.ContactAddress |> onBasePath) person.ContactAddress
            also otherContactMethods in person.OtherContactMethods |> List.mapi (fun index c -> ValidatedContactMethod.BasicValidate (sprintf "%s.[%i]" (nameof person.OtherContactMethods) index |> onBasePath) c) |> Trial.sequence
            also otherAddresses in person.OtherAddresses |> List.mapi (fun index a -> ValidatedOtherAddress.BasicValidate (sprintf "%s.[%i]" (nameof person.OtherAddresses) index |> onBasePath) a) |> Trial.sequence
-           also bankAccounts in person.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.BasicValidate (sprintf "%s.[%i]" (nameof person.BankAccounts) index |> onBasePath) b) |> Trial.sequence
+           also bankAccounts in person.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.BasicValidate validateIban (sprintf "%s.[%i]" (nameof person.BankAccounts) index |> onBasePath) b) |> Trial.sequence
            yield {
                PersonId = person.PersonId
                FirstName = firstName
@@ -144,8 +144,8 @@ type ValidatedPerson =
                BankAccounts = bankAccounts |> List.ofSeq
            }
         }
-    static member Validate (person: Person) =
-        ValidatedPerson.BasicValidate "" person
+    static member Validate (validateIban: string -> bool) (person: Person) =
+        ValidatedPerson.BasicValidate validateIban "" person
         |> Trial.toResult
 
 type ValidatedOwner = 
@@ -154,9 +154,9 @@ type ValidatedOwner =
         Person: ValidatedPerson
         IsResident: bool
     }
-    static member Validate (owner: Owner): Result<ValidatedOwner, (string * string) list> =
+    static member Validate (validateIban: string -> bool) (owner: Owner): Result<ValidatedOwner, (string * string) list> =
         trial {
-            from person in ValidatedPerson.BasicValidate (nameof owner.Person) owner.Person
+            from person in ValidatedPerson.BasicValidate validateIban (nameof owner.Person) owner.Person
             yield {
                 BuildingId = owner.BuildingId
                 Person = person
@@ -203,7 +203,7 @@ type ValidatedBuilding =
         YearOfDelivery: PositiveInt option
         BankAccounts: ValidatedBankAccount list
     }
-    static member Validate (building: Building): Result<ValidatedBuilding, (string * string) list> =
+    static member Validate (validateIban: string -> bool) (building: Building): Result<ValidatedBuilding, (string * string) list> =
         trial {
             from code in String16.Of (nameof building.Code) building.Code
             also name in String255.Of (nameof building.Name) building.Name
@@ -211,7 +211,7 @@ type ValidatedBuilding =
             also yearOfDelivery in validateOptional (PositiveInt.Of (nameof building.YearOfDelivery))  building.YearOfDelivery
             also address in ValidatedAddress.BasicValidate (nameof building.Address) building.Address
             also orgNr in validateOptional (OrganizationNumber.OfString (nameof building.OrganizationNumber)) building.OrganizationNumber
-            also bankAccounts in building.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.BasicValidate (sprintf "%s.[%i]" (nameof building.BankAccounts) index) b) |> Trial.sequence
+            also bankAccounts in building.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.BasicValidate validateIban (sprintf "%s.[%i]" (nameof building.BankAccounts) index) b) |> Trial.sequence
             yield {
                 BuildingId = building.BuildingId
                 Code = code
@@ -301,9 +301,9 @@ type ValidatedContactPerson =
         Person: ValidatedPerson
         RoleWithinOrganization: String32
     }
-    static member Validate (cp: ContactPerson) =
+    static member Validate (validateIban: string -> bool) (cp: ContactPerson) =
         trial {
-            from person in ValidatedPerson.BasicValidate (nameof cp.Person) cp.Person
+            from person in ValidatedPerson.BasicValidate validateIban (nameof cp.Person) cp.Person
             also role in String32.Of (nameof cp.RoleWithinOrganization) cp.RoleWithinOrganization
             yield {
                 OrganizationId = cp.OrganizationId
@@ -331,7 +331,7 @@ type ValidatedOrganization =
         OtherContactMethods: ValidatedContactMethod list
         BankAccounts: ValidatedBankAccount list
     }
-    static member BasicValidate (basePath: string) (organization: Organization) =
+    static member BasicValidate (validateIban: string -> bool) (basePath: string) (organization: Organization) =
         let onBasePath (s: string) = sprintf "%s.%s" basePath s
         trial {
             from name in String255.Of (nameof organization.Name |> onBasePath) organization.Name
@@ -343,7 +343,7 @@ type ValidatedOrganization =
             also mainEmailAddress in validateOptional (String255.Of (nameof organization.MainEmailAddress |> onBasePath)) organization.MainEmailAddress
             also mainEmailAddressComment in validateOptional (String255.Of (nameof organization.MainEmailAddressComment |> onBasePath))  organization.MainEmailAddressComment
             also otherContactMethods in organization.OtherContactMethods |> List.mapi (fun index c -> ValidatedContactMethod.BasicValidate (sprintf "%s.[%i]" (nameof organization.OtherContactMethods) index |> onBasePath) c) |> Trial.sequence
-            also bankAccounts in organization.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.BasicValidate (sprintf "%s.[%i]" (nameof organization.BankAccounts) index |> onBasePath) b) |> Trial.sequence
+            also bankAccounts in organization.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.BasicValidate validateIban (sprintf "%s.[%i]" (nameof organization.BankAccounts) index |> onBasePath) b) |> Trial.sequence
             yield {
                 OrganizationId = organization.OrganizationId
                 BuildingId = organization.BuildingId
@@ -361,17 +361,17 @@ type ValidatedOrganization =
                 BankAccounts = bankAccounts |> List.ofSeq
             }
         }
-    static member Validate (organization: Organization) =
-        ValidatedOrganization.BasicValidate "" organization
+    static member Validate (validateIban: string -> bool) (organization: Organization) =
+        ValidatedOrganization.BasicValidate validateIban "" organization
         |> Trial.toResult
 
 type ValidatedProfessionalSyndic = 
     {
         Organization: ValidatedOrganization
     }
-    static member Validate (proSyndic: ProfessionalSyndic) =
+    static member Validate (validateIban: string -> bool) (proSyndic: ProfessionalSyndic) =
         trial {
-            from organization in ValidatedOrganization.BasicValidate (nameof proSyndic.Organization) proSyndic.Organization
+            from organization in ValidatedOrganization.BasicValidate validateIban (nameof proSyndic.Organization) proSyndic.Organization
             yield {
                 Organization = organization
             }
@@ -506,10 +506,10 @@ type ValidatedInvoice =
         InvoiceDate: DateTime //Date on the invoice
         DueDate: DateTime //Due date of the invoice
     }
-    static member Validate (invoice: Invoice) =
+    static member Validate (validateIban: string -> bool) (invoice: Invoice) =
         trial {
             from vatRate in validatePositiveInt (nameof invoice.VatRate) invoice.VatRate
-            also organizationBankAccount in ValidatedBankAccount.BasicValidate (nameof invoice.OrganizationBankAccount) invoice.OrganizationBankAccount
+            also organizationBankAccount in ValidatedBankAccount.BasicValidate validateIban (nameof invoice.OrganizationBankAccount) invoice.OrganizationBankAccount
             also organizationInvoiceNumber in validateOptional (String64.Of (nameof invoice.OrganizationInvoiceNumber)) invoice.OrganizationInvoiceNumber
             yield {
                 InvoiceId = invoice.InvoiceId

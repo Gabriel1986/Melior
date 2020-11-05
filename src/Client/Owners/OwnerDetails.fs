@@ -16,6 +16,7 @@ open Client
 open Client.Library
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
+open Client.IbanValidator
 
 type Model = {
     OwnerId: Guid
@@ -120,7 +121,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
     | Save ->
         match model.State with
         | Editing (_, componentState) ->
-            match ValidatedOwner.Validate componentState.Owner with
+            match ValidatedOwner.Validate validateIban componentState.Owner with
             | Ok _ ->
                 let cmd = 
                     Cmd.OfAsync.either
@@ -133,7 +134,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 let newComponentState, newComponentCommand = OwnerEditComponent.update (OwnerEditComponent.Message.ErrorsChanged e) (componentState)
                 { model with State = Editing (false, newComponentState) }, newComponentCommand |> Cmd.map OwnerEditComponentMsg
         | Creating (_, componentState) ->
-            match ValidatedOwner.Validate componentState.Owner with
+            match ValidatedOwner.Validate validateIban componentState.Owner with
             | Ok _ ->
                 let cmd =
                     Cmd.OfAsync.either

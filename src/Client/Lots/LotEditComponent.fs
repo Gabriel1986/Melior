@@ -127,7 +127,7 @@ let renderEditLotOwners (lotOwners: LotOwner list) (dispatch: Message -> unit) =
     let ownerTypes (lotOwner: LotOwner) =
         match lotOwner.LotOwnerType with
         | LotOwnerType.Owner _ -> str "Persoon"
-        | LotOwnerType.Organization o -> str ("Leverancier: " + (o.OrganizationTypeNames |> String.JoinWith ", "))
+        | LotOwnerType.Organization o -> str ("Leverancier: " + (o.OrganizationTypeNames |> String.joinWith ", "))
 
     let ownerName (lotOwner: LotOwner) =
         match lotOwner.LotOwnerType with

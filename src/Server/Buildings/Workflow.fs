@@ -6,14 +6,14 @@ open Shared.Write
 open Shared.Read
 open Server.Library
 open Server.LibraryExtensions
+open Server.IbanValidator
 open Storage
-open Server.SeedData
 
 //TODO: license check if we ever sell to professional syndics?
 let createBuilding (storage: IBuildingStorage) (msg: Message<Building>) = async {
     if msg.CurrentUser.HasAdminAccessToBuilding msg.Payload.BuildingId
     then
-        let validated = ValidatedBuilding.Validate msg.Payload
+        let validated = ValidatedBuilding.Validate validateIban msg.Payload
         match validated with
         | Ok validated ->
             do! storage.CreateBuilding validated
@@ -27,7 +27,7 @@ let createBuilding (storage: IBuildingStorage) (msg: Message<Building>) = async 
 let updateBuilding (storage: IBuildingStorage) (msg: Message<Building>) = async {
     if msg.CurrentUser.HasAdminAccessToBuilding msg.Payload.BuildingId
     then
-        let validated = ValidatedBuilding.Validate msg.Payload
+        let validated = ValidatedBuilding.Validate validateIban msg.Payload
         match validated with
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateBuilding validated

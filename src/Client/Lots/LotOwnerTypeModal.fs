@@ -161,7 +161,7 @@ let renderOwnerSelectionList (list: OwnerListItem list) dispatch =
             DisplayListItem = (fun ownerListItem -> 
                 [ownerListItem.FirstName; ownerListItem.LastName] 
                 |> List.choose id 
-                |> String.JoinWith " "
+                |> String.joinWith " "
                 |> str)
         |}, "OwnerSelectionList")
 

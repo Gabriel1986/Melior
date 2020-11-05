@@ -365,7 +365,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 account.IBAN 
             ] 
             |> List.filter (String.IsNullOrEmpty >> not) 
-            |> String.JoinWith " - "
+            |> String.joinWith " - "
         IsSelected = state.Invoice.OrganizationBankAccount = Some account
     }
 

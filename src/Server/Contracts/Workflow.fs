@@ -10,7 +10,7 @@ open Storage
 
 let createContract (store: IContractStorage) (msg: Message<Contract>) = async {
     if msg.CurrentUser.HasAdminAccessToBuilding msg.Payload.BuildingId then
-        let validated = ValidatedContract.Validate (msg.Payload)
+        let validated = ValidatedContract.Validate msg.Payload
         match validated with
         | Ok validated -> 
             let! ok = store.CreateContract (msg |> Message.map validated)
@@ -23,7 +23,7 @@ let createContract (store: IContractStorage) (msg: Message<Contract>) = async {
 
 let updateContract (store: IContractStorage) (msg: Message<Contract>) = async {
     if msg.CurrentUser.HasAdminAccessToBuilding msg.Payload.BuildingId then
-        let validated = ValidatedContract.Validate (msg.Payload)
+        let validated = ValidatedContract.Validate msg.Payload
         match validated with
         | Ok validated ->
             let! nbRows = store.UpdateContract (msg |> Message.map validated)
@@ -50,7 +50,7 @@ let deleteContract (store: IContractStorage) (msg: Message<BuildingId * Guid>) =
 
 let saveContractTypeAnswer (store: IContractStorage) (msg: Message<ContractTypeAnswer>) = async {
     if msg.CurrentUser.HasAdminAccessToBuilding msg.Payload.BuildingId then
-        let! nbRows = store.SaveContractTypeAnswer (msg.Payload)
+        let! nbRows = store.SaveContractTypeAnswer msg.Payload
         if nbRows = 0 then
             return Error SaveAnswerError.NotFound
         else

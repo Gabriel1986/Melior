@@ -30,7 +30,7 @@ type BankAccount =
             if not (String.IsNullOrWhiteSpace(me.IBAN)) then yield me.IBAN
             if not (String.IsNullOrWhiteSpace(me.BIC)) then yield me.BIC
         ]
-        |> String.JoinWith " - "
+        |> String.joinWith " - "
     static member Init () = {
         Description = ""
         IBAN = ""
@@ -165,14 +165,14 @@ and Address =
                 if me.Street.IsSome then yield me.Street.Value
                 if me.MailboxNumber.IsSome then yield (sprintf "bus %s" me.MailboxNumber.Value)
             ]
-            |> String.JoinWith " "
+            |> String.joinWith " "
 
         [
             if (not (String.IsNullOrWhiteSpace houseNumber)) then yield houseNumber
-            if me.ZipCode.IsSome || me.Town.IsSome then yield ([me.ZipCode; me.Town] |> String.JoinOptionsWith " ")
+            if me.ZipCode.IsSome || me.Town.IsSome then yield ([me.ZipCode; me.Town] |> String.joinOptionsWith " ")
             if me.Country.IsSome then yield me.Country.Value
         ]
-        |> String.JoinWith ", "
+        |> String.joinWith ", "
 and OtherAddress = 
     {
         Name: string
@@ -395,7 +395,7 @@ and Person =
         OtherContactMethods: ContactMethod list
         BankAccounts: BankAccount list
     }
-    member me.FullName () = [ me.FirstName; me.LastName ] |> String.JoinOptionsWith " "
+    member me.FullName () = [ me.FirstName; me.LastName ] |> String.joinOptionsWith " "
     static member Init () = {
         PersonId = Guid.NewGuid()
         FirstName = None
@@ -456,7 +456,7 @@ and OwnerListItem =
         BankAccounts: BankAccount list
         IsResident: bool
     }
-    member me.FullName () = [ me.FirstName; me.LastName ] |> String.JoinOptionsWith " "
+    member me.FullName () = [ me.FirstName; me.LastName ] |> String.joinOptionsWith " "
 
 and ProfessionalSyndicListItem = {
     OrganizationId: Guid

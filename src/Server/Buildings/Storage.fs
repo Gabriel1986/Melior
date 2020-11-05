@@ -6,10 +6,10 @@ open Npgsql.FSharp
 open Server.Addresses.Workflow
 open Server.PostgreSQL
 open Server.Library
+open Server.SeedData
+open Server.IbanValidator
 open Shared.Read
 open Shared.Write
-open FSharp.Data
-open Server.SeedData
 
 type IBuildingStorage =
     abstract CreateBuilding: ValidatedBuilding -> Async<unit>
@@ -26,7 +26,7 @@ and ValidatedSyndicInput =
         | SyndicInput.ProfessionalSyndicId proId -> Ok (ValidatedSyndicInput.ProfessionalSyndicId proId)
         | SyndicInput.OwnerId ownerId -> Ok (ValidatedSyndicInput.OwnerId ownerId)
         | SyndicInput.Other person ->
-            ValidatedPerson.Validate person
+            ValidatedPerson.Validate validateIban person
             |> Result.map ValidatedSyndicInput.Other
 and ValidatedConciergeInput =
     | OwnerId of Guid
@@ -35,7 +35,7 @@ and ValidatedConciergeInput =
         function
         | ConciergeInput.OwnerId ownerId -> Ok (ValidatedConciergeInput.OwnerId ownerId)
         | ConciergeInput.NonOwner person ->
-            ValidatedPerson.Validate person
+            ValidatedPerson.Validate validateIban person
             |> Result.map ValidatedConciergeInput.NonOwner
 
 let private paramsFor (validated: ValidatedBuilding) =
