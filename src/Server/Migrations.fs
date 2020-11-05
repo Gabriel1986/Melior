@@ -441,4 +441,3 @@ type AddStartDateAndEndDateToLotOwners() =
                 ALTER TABLE LotOwners ALTER COLUMN StartDate SET NOT NULL;
             """
     override u.Down () = failwith "Not supported"
-

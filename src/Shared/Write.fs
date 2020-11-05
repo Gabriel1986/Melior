@@ -16,7 +16,7 @@ type ValidatedAddress =
         Country: String64 option
     }
     static member BasicValidate (basePath: string) (address: Address) = 
-        let onBasePath subPath = sprintf "%s.%s" basePath subPath
+        let onBasePath s = if String.IsNullOrWhiteSpace basePath then s else sprintf "%s.%s" basePath s
         trial {
             from street in validateOptional (String255.Of (onBasePath (nameof address.Street))) address.Street
             also mailboxNumber in validateOptional (String16.Of (onBasePath (nameof address.MailboxNumber))) address.MailboxNumber
@@ -39,7 +39,7 @@ type ValidatedOtherAddress =
         Address: ValidatedAddress
     }
     static member BasicValidate (basePath: string) (otherAddress: OtherAddress) =
-        let onBasePath subPath = sprintf "%s.%s" basePath subPath
+        let onBasePath s = if String.IsNullOrWhiteSpace basePath then s else sprintf "%s.%s" basePath s
         trial {
             from name in String255.Of (onBasePath (nameof otherAddress.Name)) otherAddress.Name
             also address in ValidatedAddress.BasicValidate (onBasePath (nameof otherAddress.Address)) otherAddress.Address
@@ -55,9 +55,10 @@ type ValidatedBankAccount =
         Description: String255 option
         IBAN: IBAN option
         BIC: String16 option
+        Verified: bool
     }
     static member BasicValidate validateIban (basePath: string) (bankAccount: BankAccount) =
-        let onBasePath subPath = sprintf "%s.%s" basePath subPath
+        let onBasePath s = if String.IsNullOrWhiteSpace basePath then s else sprintf "%s.%s" basePath s
         trial {
             from description in String255.OfOptional (onBasePath (nameof bankAccount.Description)) bankAccount.Description
             also iban in IBAN.OfOptional validateIban (onBasePath (nameof bankAccount.IBAN)) bankAccount.IBAN
@@ -66,6 +67,7 @@ type ValidatedBankAccount =
                 Description = description
                 IBAN = iban
                 BIC = bic
+                Verified = bankAccount.Verified
             }
         }
 
@@ -77,7 +79,7 @@ type ValidatedContactMethod =
         Description: string
     }
     static member BasicValidate (basePath: string) (contactMethod: ContactMethod) =
-        let onBasePath subPath = sprintf "%s.%s" basePath subPath
+        let onBasePath s = if String.IsNullOrWhiteSpace basePath then s else sprintf "%s.%s" basePath s
         trial {
             from value in String255.Of (onBasePath (nameof contactMethod.Value)) contactMethod.Value
             yield {
@@ -111,7 +113,7 @@ type ValidatedPerson =
         BankAccounts: ValidatedBankAccount list
     }
     static member BasicValidate (validateIban: string -> bool) (basePath: string) (person: Person) =
-        let onBasePath subPath = sprintf "%s.%s" basePath subPath
+        let onBasePath s = if String.IsNullOrWhiteSpace basePath then s else sprintf "%s.%s" basePath s
         trial {
            from firstName in validateOptional (String255.Of (nameof person.FirstName |> onBasePath)) person.FirstName
            also lastName in validateOptional (String255.Of (nameof person.LastName |> onBasePath)) person.LastName
@@ -332,7 +334,7 @@ type ValidatedOrganization =
         BankAccounts: ValidatedBankAccount list
     }
     static member BasicValidate (validateIban: string -> bool) (basePath: string) (organization: Organization) =
-        let onBasePath (s: string) = sprintf "%s.%s" basePath s
+        let onBasePath (s: string) = if String.IsNullOrWhiteSpace basePath then s else sprintf "%s.%s" basePath s
         trial {
             from name in String255.Of (nameof organization.Name |> onBasePath) organization.Name
             also address in ValidatedAddress.BasicValidate (nameof organization.Address |> onBasePath) organization.Address
