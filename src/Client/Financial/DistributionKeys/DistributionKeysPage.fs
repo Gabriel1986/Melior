@@ -69,10 +69,12 @@ type Msg =
     | SelectTab of Tab
     | RemotingError of exn
     | RemoveListItem of DistributionKeyModel
+    | ConfirmRemoveListItem of DistributionKeyModel
     | ListItemRemoved of Result<DistributionKeyModel, DeleteDistributionKeyError>
     | Created of DistributionKeyModel
     | Edited of DistributionKeyModel
     | CurrentDistributionKeyChanged of DistributionKeyModel
+    | NoOp
 
 type DistributionKeysPageProps = {| CurrentUser: User; CurrentBuildingId: BuildingId; DistributionKeyId: Guid option |}
 
@@ -144,6 +146,15 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | SelectTab tab ->
         { state with SelectedTab = tab }, Cmd.none
     | RemoveListItem distributionKey ->
+        state, 
+            showConfirmationModal
+                {|
+                    Title = "Verdeelsleutel verwijderen?"
+                    Message = sprintf "Bent u er zeker van dat u %s wilt verwijderen?" distributionKey.Name
+                    OnConfirmed = fun () -> ConfirmRemoveListItem distributionKey
+                    OnDismissed = fun () -> NoOp
+                |}
+    | ConfirmRemoveListItem distributionKey ->
         let cmd =
             Cmd.OfAsync.either
                 (Remoting.getRemotingApi().DeleteDistributionKey)
@@ -191,6 +202,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         ]
     | CurrentDistributionKeyChanged distributionKey ->
         { state with SelectedDistributionKeyId = Some distributionKey.DistributionKeyId }, Cmd.none
+    | NoOp ->
+        state, Cmd.none
 
 let view (state: State) (dispatch: Msg -> unit) =
     let determineNavItemStyle (tab: Tab) =

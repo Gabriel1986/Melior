@@ -36,9 +36,11 @@ type Msg =
     | RemotingError of exn
     | Loaded of listItems: OrganizationListItem list * selectedListItemId: Guid option
     | RemoveListItem of OrganizationListItem
+    | ConfirmRemoveListItem of OrganizationListItem
     | ListItemRemoved of Result<OrganizationListItem, DeleteOrganizationError>
     | Created of Organization
     | Edited of Organization
+    | NoOp
 
 type OrganizationPageProps = {|
     CurrentUser: User
@@ -138,6 +140,15 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             | None -> Cmd.none
         newState, cmd
     | RemoveListItem organization ->
+        state, 
+            showConfirmationModal
+                {|
+                    Title = "Leverancier verwijderen?"
+                    Message = sprintf "Bent u er zeker van dat u %s wilt verwijderen?" organization.Name
+                    OnConfirmed = fun () -> ConfirmRemoveListItem organization
+                    OnDismissed = fun () -> NoOp
+                |}
+    | ConfirmRemoveListItem organization ->
         let cmd =
             Cmd.OfAsync.either
                 (Remoting.getRemotingApi().DeleteOrganization)
@@ -192,6 +203,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectTab (Details listItem) |> Cmd.ofMsg
             showSuccessToastCmd "De leverancier is gewijzigd"
         ]
+    | NoOp ->
+        state, Cmd.none
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =

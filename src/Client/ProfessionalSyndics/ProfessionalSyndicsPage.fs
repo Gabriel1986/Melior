@@ -35,9 +35,11 @@ type Msg =
     | RemotingError of exn
     | Loaded of listItems: ProfessionalSyndicListItem list * selectedListItemId: Guid option
     | RemoveListItem of ProfessionalSyndicListItem
+    | ConfirmRemoveListItem of ProfessionalSyndicListItem
     | ListItemRemoved of Result<ProfessionalSyndicListItem, DeleteProfessionalSyndicError>
     | Created of ProfessionalSyndic
     | Edited of ProfessionalSyndic
+    | NoOp
 
 type ProfessionalSyndicsPageProps = {|
     CurrentUser: User
@@ -131,6 +133,15 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             | None -> Cmd.none
         newState, cmd
     | RemoveListItem professionalSyndic ->
+        state, 
+            showConfirmationModal
+                {|
+                    Title = "Professionele syndicus verwijderen?"
+                    Message = sprintf "Bent u er zeker van dat u %s wilt verwijderen?" professionalSyndic.Name
+                    OnConfirmed = fun () -> ConfirmRemoveListItem professionalSyndic
+                    OnDismissed = fun () -> NoOp
+                |}
+    | ConfirmRemoveListItem professionalSyndic ->
         let cmd =
             Cmd.OfAsync.either
                 (Remoting.getRemotingApi().DeleteProfessionalSyndic)
@@ -180,6 +191,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectTab (Details listItem) |> Cmd.ofMsg
             showSuccessToastCmd "De professionele syndicus is gewijzigd"
         ]
+    | NoOp ->
+        state, Cmd.none
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =

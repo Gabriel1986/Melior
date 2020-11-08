@@ -37,9 +37,11 @@ type Msg =
     | RemotingError of exn
     | Loaded of listItems: OwnerListItem list * selectedListItemId: Guid option
     | RemoveListItem of OwnerListItem
+    | ConfirmRemoveListItem of OwnerListItem
     | ListItemRemoved of Result<OwnerListItem, DeleteOwnerError>
     | Created of Owner
     | Edited of Owner
+    | NoOp
 
 type OwnersPageProps = {|
     CurrentUser: User
@@ -142,6 +144,15 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             | None -> Cmd.none
         newState, cmd
     | RemoveListItem owner ->
+        state, 
+            showConfirmationModal
+                {|
+                    Title = "Eigenaar verwijderen?"
+                    Message = sprintf "Bent u er zeker van dat u %s wilt verwijderen?" (owner.FullName ())
+                    OnConfirmed = fun () -> ConfirmRemoveListItem owner
+                    OnDismissed = fun () -> NoOp
+                |}
+    | ConfirmRemoveListItem owner ->
         let cmd =
             Cmd.OfAsync.either
                 (Remoting.getRemotingApi().DeleteOwner)
@@ -190,6 +201,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectTab (Details listItem) |> Cmd.ofMsg
             showSuccessToastCmd "De eigenaar is gewijzigd"
         ]
+    | NoOp ->
+        state, Cmd.none
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =

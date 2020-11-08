@@ -95,12 +95,13 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         { newState with ShowingLotOwnerModal = false }, Cmd.none
     | RemoveLotOwner toRemove ->
         state, 
-            showConfirmationModal ( 
-                "Eigenaar verwijderen", 
-                "Bent u er zeker van dat u de koppeling tussen de eigenaar en het kavel wilt verbreken?",
-                (fun () -> ConfirmRemoveLotOwner toRemove),
-                (fun () -> NoOp)
-            )
+            showConfirmationModal 
+                {|
+                    Title = "Eigenaar verwijderen"
+                    Message = "Bent u er zeker van dat u de koppeling tussen de eigenaar en het kavel wilt verbreken?"
+                    OnConfirmed = (fun () -> ConfirmRemoveLotOwner toRemove)
+                    OnDismissed = (fun () -> NoOp)
+                |}
     | ConfirmRemoveLotOwner toRemove ->
         let newLotOwners = state.Lot.Owners |> List.filter (fun o -> o <> toRemove) |> ensureLegalRepresentative
         changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none

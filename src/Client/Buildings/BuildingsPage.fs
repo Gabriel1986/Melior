@@ -64,10 +64,12 @@ type Msg =
     | RemotingError of exn
     | Loaded of listItems: BuildingListItem list * selectedListItemId: Guid option
     | RemoveListItem of BuildingListItem
+    | ConfirmRemoveListItem of BuildingListItem
     | ListItemRemoved of Result<BuildingListItem, DeleteBuildingError>
     | Created of Building
     | Edited of Building
     | CurrentBuildingChanged of BuildingListItem
+    | NoOp
 
 type BuildingsPageProps = {|
     CurrentUser: User
@@ -126,6 +128,15 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             | None -> Cmd.none
         newState, cmd
     | RemoveListItem building ->
+        state, 
+            showConfirmationModal
+                {|
+                    Title = "Gebouw verwijderen?"
+                    Message = sprintf "Bent u er zeker van dat u %s wilt verwijderen?" building.Name
+                    OnConfirmed = fun () -> ConfirmRemoveListItem building
+                    OnDismissed = fun () -> NoOp
+                |}
+    | ConfirmRemoveListItem building ->
         let cmd =
             Cmd.OfAsync.either
                 (Remoting.getRemotingApi().DeleteBuilding)
@@ -175,6 +186,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         ]
     | CurrentBuildingChanged building ->
         { state with CurrentBuildingId = Some building.BuildingId }, Cmd.none
+    | NoOp ->
+        state, Cmd.none
 
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =

@@ -37,10 +37,10 @@ let showSuccessToastCmd (message: string) =
             .Type(AlertType.Success))
     SweetAlert.Run(alert)
 
-let showConfirmationModal (title: string, message: string, onConfirmed: unit -> 'Msg, onDismissed: unit -> 'Msg) =
+let showConfirmationModal (props: {| Title: string; Message: string; OnConfirmed: unit -> 'Msg; OnDismissed: unit -> 'Msg |}) =
     let alert =
-        (ConfirmAlert(message, (fun result -> match result with | ConfirmAlertResult.Confirmed -> onConfirmed() | ConfirmAlertResult.Dismissed _ -> onDismissed()))
-            .Title(title)
+        (ConfirmAlert(props.Message, (fun result -> match result with | ConfirmAlertResult.Confirmed -> props.OnConfirmed() | ConfirmAlertResult.Dismissed _ -> props.OnDismissed()))
+            .Title(props.Title)
             .Timeout(10000)
             .Type(AlertType.Question)
             .ShowCloseButton(true))

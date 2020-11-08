@@ -36,9 +36,11 @@ type Msg =
     | RemotingError of exn
     | Loaded of listItems: LotListItem list * selectedListItemId: Guid option
     | RemoveListItem of LotListItem
+    | ConfirmRemoveListItem of LotListItem
     | ListItemRemoved of Result<LotListItem, DeleteLotError>
     | Created of Lot
     | Edited of Lot
+    | NoOp
 
 type LotsPageProps = {|
     CurrentUser: User
@@ -157,6 +159,15 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             | None -> Cmd.none
         newState, cmd
     | RemoveListItem lot ->
+        state, 
+            showConfirmationModal
+                {|
+                    Title = "Kavel verwijderen?"
+                    Message = sprintf "Bent u er zeker van dat u %s wilt verwijderen?" lot.Code
+                    OnConfirmed = fun () -> ConfirmRemoveListItem lot
+                    OnDismissed = fun () -> NoOp
+                |}
+    | ConfirmRemoveListItem lot ->
         let cmd =
             Cmd.OfAsync.either
                 (Remoting.getRemotingApi().DeleteLot)
@@ -205,6 +216,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectTab (Details listItem) |> Cmd.ofMsg
             showSuccessToastCmd "Het kavel is gewijzigd"
         ]
+    | NoOp ->
+        state, Cmd.none
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =

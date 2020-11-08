@@ -273,13 +273,27 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         state, 
             if x
             then TwoFacAuthenticationChangedConfirmed x |> Cmd.ofMsg
-            else showConfirmationModal ("Deze actie zal de two-factor authentication van de huidige gebruiker afzetten", "Bent u er zeker van?", (fun () -> TwoFacAuthenticationChangedConfirmed x), (fun () -> NoOp))
+            else 
+                showConfirmationModal 
+                    {|
+                        Title = "Deze actie zal de two-factor authentication van de huidige gebruiker afzetten"
+                        Message = "Bent u er zeker van?"
+                        OnConfirmed = fun () -> TwoFacAuthenticationChangedConfirmed x
+                        OnDismissed = fun () -> NoOp
+                    |}
     | TwoFacAuthenticationChangedConfirmed x ->
         changeUser (fun l -> { l with UseTwoFac = x }), Cmd.none
     | IsSysAdminChanged x ->
         state, 
             if x 
-            then showConfirmationModal ("Deze actie zal van de huidige gebruiker een systeem administrator maken", "Bent u er zeker van?", (fun () -> IsSysAdminChangedConfirmed x), (fun () -> NoOp))
+            then 
+                showConfirmationModal 
+                    {|
+                        Title = "Deze actie zal van de huidige gebruiker een systeem administrator maken"
+                        Message = "Bent u er zeker van?"
+                        OnConfirmed = fun () -> IsSysAdminChangedConfirmed x
+                        OnDismissed = fun () -> NoOp
+                    |}
             else IsSysAdminChangedConfirmed x |> Cmd.ofMsg
     | IsSysAdminChangedConfirmed x ->
         let rolesWithoutSysAdminRole = state.User.Roles |> List.filter (function | SysAdminRole -> false | _ -> true)

@@ -35,9 +35,11 @@ type Msg =
     | RemotingError of exn
     | Loaded of listItems: User list * selectedListItemId: Guid option
     | RemoveListItem of User
+    | ConfirmRemoveListItem of User
     | ListItemRemoved of Result<User, DeleteUserError>
     | Created of User
     | Edited of User
+    | NoOp
 
 type UsersPageProps = {|
     CurrentUser: User
@@ -155,6 +157,15 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             | None -> Cmd.none
         newState, cmd
     | RemoveListItem user ->
+        state, 
+            showConfirmationModal
+                {|
+                    Title = "Gebruiker verwijderen?"
+                    Message = sprintf "Bent u er zeker van dat u %s wilt verwijderen?" user.DisplayName
+                    OnConfirmed = fun () -> ConfirmRemoveListItem user
+                    OnDismissed = fun () -> NoOp
+                |}
+    | ConfirmRemoveListItem user ->
         let cmd =
             Cmd.OfAsync.either
                 (Remoting.getRemotingApi().DeleteUser)
@@ -204,6 +215,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectTab (Details listItem) |> Cmd.ofMsg
             showSuccessToastCmd "De gebruiker is gewijzigd"
         ]
+    | NoOp ->
+        state, Cmd.none
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =

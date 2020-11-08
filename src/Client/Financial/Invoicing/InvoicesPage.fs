@@ -40,9 +40,11 @@ type Msg =
     | Loaded of listItems: InvoiceListItem list * selectedListItem: Guid option
     | FinancialYearsLoaded of financialYears: FinancialYear list
     | RemoveListItem of InvoiceListItem
+    | ConfirmRemoveListItem of InvoiceListItem
     | ListItemRemoved of Result<InvoiceListItem, DeleteInvoiceError>
     | Created of Invoice
     | Edited of Invoice
+    | NoOp
 
 type InvoicesPageProps = {|
     CurrentUser: User
@@ -164,6 +166,15 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             | None -> Cmd.none
         newState, cmd
     | RemoveListItem invoice ->
+        state, 
+            showConfirmationModal
+                {|
+                    Title = "Factuur verwijderen?"
+                    Message = sprintf "Bent u er zeker van dat u %s wilt verwijderen?" invoice.LocalInvoiceNumber
+                    OnConfirmed = fun () -> ConfirmRemoveListItem invoice
+                    OnDismissed = fun () -> NoOp
+                |}
+    | ConfirmRemoveListItem invoice ->
         let cmd =
             Cmd.OfAsync.either
                 (Remoting.getRemotingApi().DeleteInvoice)
@@ -200,6 +211,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, showSuccessToastCmd "De factuur is gewijzigd"
     | FinancialYearsLoaded financialYears ->
         { state with FinancialYears = financialYears }, Cmd.none
+    | NoOp ->
+        state, Cmd.none
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =

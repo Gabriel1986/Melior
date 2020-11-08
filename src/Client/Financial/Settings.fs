@@ -167,11 +167,13 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with FinancialCategories = financialCategories; IsLoadingFinancialCategories = false }, Cmd.none
     | CloseFinancialYear financialYear ->
         state,
-        showConfirmationModal (
-            (sprintf "Boekjaar %s beëindigen?" financialYear.Code),
-            "Hierdoor worden alle financiële verrichtingen die gekoppeld zijn aan het boekjaar afgesloten (u kan ze niet meer aanpassen)",
-            (fun () -> ConfirmCloseFinancialYear financialYear),
-            (fun () -> CancelCloseFinancialYear))
+        showConfirmationModal
+            {|
+                Title = sprintf "Boekjaar %s beëindigen?" financialYear.Code
+                Message = "Hierdoor worden alle financiële verrichtingen die gekoppeld zijn aan het boekjaar afgesloten (u kan ze niet meer aanpassen)"
+                OnConfirmed = fun () -> ConfirmCloseFinancialYear financialYear
+                OnDismissed = fun () -> CancelCloseFinancialYear
+            |}
     | CancelCloseFinancialYear ->
         state, Cmd.none
     | ConfirmCloseFinancialYear financialYear ->
@@ -255,11 +257,13 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         , showSuccessToastCmd "De boekhoudkundige rekening is gewijzigd"
     | DeleteFinancialCategory category ->
         state, 
-        showConfirmationModal (
-            (sprintf "Boekhoudkundige rekening %s verwijderen?" category.Code), 
-            "",
-            (fun () -> ConfirmDeleteFinancialCategory category), 
-            (fun () -> CancelDeleteFinancialCategory))
+        showConfirmationModal
+            {|
+                Title = sprintf "Boekhoudkundige rekening %s verwijderen?" category.Code
+                Message = ""
+                OnConfirmed = fun () -> ConfirmDeleteFinancialCategory category
+                OnDismissed = fun () -> CancelDeleteFinancialCategory
+            |}
     | ConfirmDeleteFinancialCategory category ->
         let newCategories = 
             state.FinancialCategories 
