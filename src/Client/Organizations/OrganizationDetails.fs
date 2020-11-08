@@ -16,7 +16,6 @@ open Client
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Library
-open Client.IbanValidator
 
 type Model = {
     OrganizationId: Guid
@@ -119,7 +118,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
     | Save ->
         match model.State with
         | Editing (_, componentState) ->
-            match ValidatedOrganization.Validate validateIban componentState.Organization with
+            match ValidatedOrganization.Validate componentState.Organization with
             | Ok _ ->
                 let cmd = 
                     Cmd.OfAsync.either
@@ -129,10 +128,9 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                         RemotingError
                 { model with State = Editing (true, componentState) }, cmd
             | Error e ->
-                printf "Errors: %A" e
                 { model with State = Editing (false, { componentState with Errors = e }) }, Cmd.none
         | Creating (_, componentState) ->
-            match ValidatedOrganization.Validate validateIban componentState.Organization with
+            match ValidatedOrganization.Validate componentState.Organization with
             | Ok _ ->
                 let cmd =
                     Cmd.OfAsync.either
@@ -142,7 +140,6 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                         RemotingError
                 { model with State = Creating(true, componentState) }, cmd
             | Error e ->
-                printf "Errors: %A" e
                 { model with State = Creating(false, { componentState with Errors = e }) }, Cmd.none
         | _ ->
             //Do nothing, unexpected message O_o

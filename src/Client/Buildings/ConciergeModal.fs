@@ -19,7 +19,6 @@ open Client.Components.SelectionList
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Library
-open Client.IbanValidator
 
 type Model = {
     IsOpen: bool
@@ -137,7 +136,7 @@ let update (onConciergeChanged: Concierge -> unit) (onCanceled: unit -> unit) me
     | SavePerson ->
         match model.State with
         | EditingPerson componentState ->
-            match ValidatedPerson.Validate validateIban componentState.Person with
+            match ValidatedPerson.Validate componentState.Person with
             | Ok _ ->
                 onConciergeChanged (Concierge.NonOwner componentState.Person)
                 model, Cmd.none
@@ -194,7 +193,7 @@ let modalContent model dispatch =
     | SelectingOwner (list, selectedId) ->
         renderOwnerSelectionList list selectedId dispatch
     | EditingPerson componentState ->
-        PersonEditComponent.view componentState (PersonEditComponentMsg >> dispatch)
+        PersonEditComponent.view componentState (PersonEditComponentMsg >> dispatch) {| ShowAddresses = true; ShowBankAccounts = true |}
     | OwnerNotFound ->
         div [] [ str "De eigenaar werd niet gevonden in de databank, vreemd genoeg..." ]
     | Saving ->

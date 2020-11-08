@@ -68,7 +68,7 @@ module Library =
                 Description = get.Required.Field "Description" Decode.string
                 IBAN = get.Required.Field "IBAN" Decode.string
                 BIC = get.Required.Field "BIC" Decode.string
-                Verified = get.Optional.Field "Verified" Decode.bool |> Option.defaultValue false
+                Validated = get.Optional.Field "Validated" Decode.bool
             })
         let private bankAccountListEncoder = Encode.Auto.generateEncoderCached<BankAccount list>()
     
@@ -100,7 +100,7 @@ module Library =
             Description = match validated.Description with | Some d -> string d | None -> ""
             IBAN = match validated.IBAN with | Some iban -> string iban | None -> ""
             BIC = match validated.BIC with | Some bic -> string bic | None -> ""
-            Verified = validated.Verified
+            Validated = validated.Validated
         }
 
         let toJson (validated: ValidatedBankAccount): string =

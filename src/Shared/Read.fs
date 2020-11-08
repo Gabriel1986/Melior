@@ -23,7 +23,7 @@ type BankAccount =
         Description: string
         IBAN: string
         BIC: string
-        Verified: bool
+        Validated: bool option
     }
     override me.ToString () =
         [
@@ -36,7 +36,7 @@ type BankAccount =
         Description = ""
         IBAN = ""
         BIC = ""
-        Verified = false
+        Validated = None
     }
 
 type User = 

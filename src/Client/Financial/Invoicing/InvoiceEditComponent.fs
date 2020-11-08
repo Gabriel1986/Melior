@@ -6,17 +6,18 @@ open Fable.React
 open Fable.React.Props
 open Elmish
 open Elmish.React
+open Shared.Read
+open Shared.Library
+open Shared.Trial
+open Shared.Trial.Control
+open Shared.MediaLibrary
+open Shared.Write
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Library
 open Client.Components
 open Client.Components.BasicModal
 open Client.Components.SelectionList
-open Shared.Read
-open Shared.Library
-open Shared.Trial
-open Shared.Trial.Control
-open Shared.MediaLibrary
 
 let possibleTaxRates = [ 0; 6; 12; 21 ]
 
@@ -39,7 +40,7 @@ type InvoiceInputModel =
         OrganizationInvoiceNumber: string option //Number @ supplier
         MediaFiles: MediaFile list
     }
-    static member init (buildingId: BuildingId): InvoiceInputModel = {
+    static member Init (buildingId: BuildingId): InvoiceInputModel = {
         InvoiceId = Guid.NewGuid()
         BuildingId = buildingId
         BookingDate = DateTime.Today
@@ -178,7 +179,7 @@ let init (invoice: Invoice option, currentBuilding: BuildingListItem) =
         | Some invoice ->
             InvoiceInputModel.fromInvoice (invoice)
         | None ->
-            InvoiceInputModel.init (currentBuilding.BuildingId)
+            InvoiceInputModel.Init (currentBuilding.BuildingId)
 
     {
         Invoice = inputModel
@@ -209,53 +210,46 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     let changeInvoice f state =
         { state with Invoice = f state.Invoice }
 
-    let removeError path state =
-        { state with Errors = (state.Errors |> List.filter (fun (ePath, _) -> ePath <> path)) }
+    let recalculateValidationErrors (state: State) =
+        match state.Errors with
+        | [] -> state
+        | _errors ->
+            match state.Invoice.Validate() with
+            | Ok _validated -> state
+            | Error validationErrors -> { state with Errors = validationErrors }
 
     match message with
     | CostChanged x ->
         let newCost = if String.IsNullOrEmpty(x) then None else Some x
-        state 
-        |> changeInvoice (fun invoice -> { invoice with Cost = newCost })
-        |> removeError (nameof state.Invoice.Cost)
+        state |> changeInvoice (fun invoice -> { invoice with Cost = newCost })
         , Cmd.none
     | FinancialYearChanged financialYear ->
-        state
-        |> changeInvoice (fun invoice -> { invoice with FinancialYear = Some financialYear })
-        |> removeError (nameof state.Invoice.FinancialYear)
+        state |> changeInvoice (fun invoice -> { invoice with FinancialYear = Some financialYear })
         , Cmd.none
     | DescriptionChanged description ->
         let newDescription = if String.IsNullOrEmpty(description) then None else Some description
-        state
-        |> changeInvoice (fun invoice -> { invoice with Description = newDescription })
-        |> removeError (nameof state.Invoice.Description)
+        state |> changeInvoice (fun invoice -> { invoice with Description = newDescription })
         , Cmd.none
     | VatRateChanged vatRate ->
         printf "New vat rate: %i" vatRate
-        state
-        |> changeInvoice (fun invoice -> { invoice with VatRate = vatRate })
-        |> removeError (nameof state.Invoice.VatRate)
+        state |> changeInvoice (fun invoice -> { invoice with VatRate = vatRate })
         , Cmd.none
     | ChangeCategory ->
         { state with ShowingFinancialCategoryModal = true }, Cmd.none
     | CategoryChanged financialCategory ->
         { state with ShowingFinancialCategoryModal = false }
         |> changeInvoice (fun invoice -> { invoice with FinancialCategory = financialCategory })
-        |> removeError (nameof state.Invoice.FinancialCategory)
         , Cmd.none
     | CancelChangeFinancialCategory ->
         { state with ShowingFinancialCategoryModal = false }, Cmd.none
     | BookingDateChanged bookingDate ->
-        state
-        |> changeInvoice (fun invoice -> { invoice with BookingDate = bookingDate })
-        |> removeError (nameof state.Invoice.BookingDate)
+        state |> changeInvoice (fun invoice -> { invoice with BookingDate = bookingDate })
         , Cmd.none
     | ChangeDistributionKey ->
         { state with ShowingDistributionKeyModal = true }, Cmd.none
     | DistributionKeyChanged distributionKey ->
         { state with ShowingDistributionKeyModal = false }
         |> changeInvoice (fun invoice -> { invoice with DistributionKey = distributionKey })
-        |> removeError (nameof state.Invoice.DistributionKey)
         , Cmd.none
     | CancelChangeDistributionKey ->
         { state with ShowingDistributionKeyModal = false }, Cmd.none
@@ -270,19 +264,14 @@ let update (message: Message) (state: State): State * Cmd<Message> =
                 Organization = organization
                 OrganizationBankAccount = organization |> Option.bind (fun o -> o.BankAccounts |> List.tryHead) 
         })
-        |> removeError (nameof state.Invoice.Organization)
         , Cmd.none
     | CancelChangeOrganization ->
         { state with ShowingOrganizationModal = false }, Cmd.none
     | InvoiceDateChanged invoiceDate ->
-        state
-        |> changeInvoice (fun invoice -> { invoice with InvoiceDate = invoiceDate })
-        |> removeError (nameof state.Invoice.InvoiceDate)
+        state |> changeInvoice (fun invoice -> { invoice with InvoiceDate = invoiceDate })
         , Cmd.none
     | DueDateChanged dueDate ->
-        state
-        |> changeInvoice (fun invoice -> { invoice with DueDate = dueDate })
-        |> removeError (nameof state.Invoice.DueDate)
+        state |> changeInvoice (fun invoice -> { invoice with DueDate = dueDate })
         , Cmd.none
     | ExternalInvoiceNumberChanged invoiceNumber ->
         let newInvoiceNumber =
@@ -291,9 +280,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             else Some invoiceNumber
         state |> changeInvoice (fun invoice -> { invoice with OrganizationInvoiceNumber = newInvoiceNumber }), Cmd.none
     | OrganizationBankAccountChanged account ->
-        state 
-        |> changeInvoice (fun invoice -> { invoice with OrganizationBankAccount = account })
-        |> removeError (nameof state.Invoice.OrganizationBankAccount)
+        state |> changeInvoice (fun invoice -> { invoice with OrganizationBankAccount = account })
         , Cmd.none
     | OrganizationAccountBICChanged newBic ->
         let account = 
@@ -338,6 +325,8 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | MediaFileRemoved mediaFile ->
         state |> changeInvoice (fun i -> { i with MediaFiles = i.MediaFiles |> List.filter (fun m -> m.FileId = mediaFile.FileId) })
         , Cmd.none
+
+    |> (fun (state, cmd) -> state |> recalculateValidationErrors, cmd)
 
 let inColumn x = div [ Class Bootstrap.col ] [ x ]
 

@@ -115,20 +115,13 @@ type IBAN =
         |> String.joinWith " "
 
 module IBAN =
-    //let ibanParser = new IbanParser(new IbanValidator())
-    let Of validateIban path value =
-        match value with
-        | v when String.IsNullOrWhiteSpace v -> Trial.ofError (path, "Verplicht veld")
-        | v ->
-            
-            match validateIban v with
-            | true  -> Trial.Pass (IBAN v)
-            | false -> Trial.ofError (path, "Ongeldige IBAN")
+    let Of path value =
+        String64.Of path value
+        |> Trial.map (string >> IBAN)
 
-    let OfOptional validateIban path value =
-        match String.IsNullOrWhiteSpace (value) with
-        | false -> Of validateIban path value |> Trial.map Some
-        | true  -> Trial.Pass None
+    let OfOptional path value =
+        String64.OfOptional path value
+        |> Trial.map (Option.map (string >> IBAN))
 
 type VatNumber = 
     private | VatNumber of countryCode: string * vatNumber: string

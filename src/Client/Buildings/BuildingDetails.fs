@@ -15,7 +15,6 @@ open Shared.Write
 open Client
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
-open Client.IbanValidator
 open Library
 
 type Model = {
@@ -129,7 +128,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
     | Save ->
         match model.State with
         | Editing (_, componentState) ->
-            match ValidatedBuilding.Validate validateIban componentState.Building with
+            match ValidatedBuilding.Validate componentState.Building with
             | Ok _ ->
                 let cmd = 
                     Cmd.OfAsync.either
@@ -142,7 +141,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 printf "%A" e
                 { model with State = Editing (false, { componentState with Errors = e }) }, Cmd.none
         | Creating (_, componentState) ->
-            match ValidatedBuilding.Validate validateIban componentState.Building with
+            match ValidatedBuilding.Validate componentState.Building with
             | Ok _ ->
                 let cmd =
                     Cmd.OfAsync.either

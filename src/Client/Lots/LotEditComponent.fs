@@ -5,11 +5,12 @@ open Fable.React
 open Fable.React.Props
 open Elmish
 open Elmish.React
+open Shared.Read
+open Shared.Write
+open Shared.Library
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Library
-open Shared.Read
-open Shared.Library
 
 type Message =
     | CodeChanged of string
@@ -23,8 +24,8 @@ type Message =
     | ConfirmRemoveLotOwner of LotOwner
     | SelectLegalRepresentative of LotOwner
     | ShareChanged of string
-    | StartDateChanged of LotOwner * DateTime
-    | EndDateChanged of LotOwner * DateTime option
+    | StartDateChanged of int * DateTime
+    | EndDateChanged of int * DateTime option
     | NoOp
 
 type State = {
@@ -44,9 +45,6 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     let changeLot f =
         { state with Lot = f state.Lot }
 
-    let removeError errorName state =
-        { state with Errors = (state.Errors |> List.filter (fun (path, e) -> path <> errorName)) }
-
     let parseInt str =
         match str |> String.toOption with
         | Some s ->
@@ -55,7 +53,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         | None ->
             None
 
-    let ensureLegalRepresentative lotOwners =
+    let ensureLegalRepresentative (lotOwners: LotOwner list) =
         match lotOwners with
         | [] -> []
         | xs ->
@@ -64,19 +62,23 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             else
                 xs
 
+    let recalculateValidationErrors (state: State) =
+        match state.Errors with
+        | [] -> state
+        | _errors ->
+            match ValidatedLot.Validate state.Lot with
+            | Ok _validated -> state
+            | Error validationErrors -> { state with Errors = validationErrors }
+
     match message with
     | CodeChanged x ->
-        changeLot (fun l -> { l with Code = x })
-        |> removeError (nameof state.Lot.Code), Cmd.none
+        changeLot (fun l -> { l with Code = x }), Cmd.none
     | LotTypeChanged x ->
-        changeLot (fun l -> { l with LotType = x })
-        |> removeError (nameof state.Lot.LotType), Cmd.none
+        changeLot (fun l -> { l with LotType = x }), Cmd.none
     | DescriptionChanged x ->
-        changeLot (fun l -> { l with Description = x |> String.toOption })
-        |> removeError (nameof state.Lot.Description), Cmd.none
+        changeLot (fun l -> { l with Description = x |> String.toOption }), Cmd.none
     | FloorChanged x ->
-        changeLot (fun l -> { l with Floor = parseInt x })
-        |> removeError (nameof state.Lot.Floor), Cmd.none
+        changeLot (fun l -> { l with Floor = parseInt x }), Cmd.none
     | ChangeLotOwners ->
         { state with ShowingLotOwnerModal = true }, Cmd.none
     | ChangeLotOwnersCanceled ->
@@ -112,18 +114,25 @@ let update (message: Message) (state: State): State * Cmd<Message> =
 
         changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
     | ShareChanged x ->
-        changeLot (fun l -> { l with Share = parseInt x })
-        |> removeError (nameof state.Lot.Share), Cmd.none
+        changeLot (fun l -> { l with Share = parseInt x }), Cmd.none
     | NoOp ->
         state, Cmd.none
-    | StartDateChanged (lotOwner, newStartDate) ->
-        let newLotOwners = state.Lot.Owners |> List.map (fun o -> if o = lotOwner then { o with StartDate = newStartDate } else o)
+    | StartDateChanged (index, newStartDate) ->
+        let newLotOwners = state.Lot.Owners |> List.mapi (fun idx o -> if idx = index then { o with StartDate = newStartDate } else o)
         changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
-    | EndDateChanged (lotOwner, newEndDate) ->
-        let newLotOwners = state.Lot.Owners |> List.map (fun o -> if o = lotOwner then { o with EndDate = newEndDate |> Option.map (fun ed -> ed.ToUniversalTime()) } else o)
+    | EndDateChanged (index, newEndDate) ->
+        let newLotOwners = state.Lot.Owners |> List.mapi (fun idx o -> if idx = index then { o with EndDate = newEndDate |> Option.map (fun ed -> ed.ToUniversalTime()) } else o)
         changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
 
-let renderEditLotOwners (lotOwners: LotOwner list) (dispatch: Message -> unit) =
+    |> (fun (state, cmd) -> state |> recalculateValidationErrors, cmd)
+
+let renderEditLotOwners (basePath: string) (errors: (string * string) list) (lotOwners: LotOwner list) (dispatch: Message -> unit) =
+    let errorMessageFor index s = 
+        let path = sprintf "%s.[%i].%s" basePath index s
+        match errors |> List.tryPick (fun (p, error) -> if p = path then Some error else None) with
+        | Some error -> div [ Class Bootstrap.invalidFeedback ] [ str error ]
+        | None -> null
+
     let ownerTypes (lotOwner: LotOwner) =
         match lotOwner.LotOwnerType with
         | LotOwnerType.Owner _ -> str "Persoon"
@@ -151,19 +160,19 @@ let renderEditLotOwners (lotOwners: LotOwner list) (dispatch: Message -> unit) =
                 str "Nee"
             ]
 
-    let startDateEditorFor (lotOwner: LotOwner) =
+    let startDateEditorFor (index: int) (lotOwner: LotOwner) =
         Flatpickr.flatpickr  [
-            Flatpickr.OnChange (fun e -> StartDateChanged (lotOwner, e) |> dispatch)
+            Flatpickr.OnChange (fun e -> StartDateChanged (index, e) |> dispatch)
             Flatpickr.Value lotOwner.StartDate
             Flatpickr.SelectionMode Flatpickr.Mode.Single
             Flatpickr.EnableTimePicker false
         ]
 
-    let endDateEditorFor (owner: LotOwner) =
+    let endDateEditorFor (index: int) (owner: LotOwner) =
         form [ Id (sprintf "%A" owner.LotOwnerType) ] [
             div [ Class Bootstrap.inputGroup ] [
-                Flatpickr.flatpickr [                    
-                    yield Flatpickr.OnChange (fun e -> EndDateChanged (owner, Some e) |> dispatch)
+                Flatpickr.flatpickr [
+                    yield Flatpickr.OnChange (fun e -> EndDateChanged (index, Some e) |> dispatch)
                     match owner.EndDate with
                     | Some endDate -> yield Flatpickr.Value endDate
                     | None -> yield Flatpickr.custom "key" owner.EndDate false
@@ -174,7 +183,7 @@ let renderEditLotOwners (lotOwners: LotOwner list) (dispatch: Message -> unit) =
                     button [
                         Type "reset"
                         classes [ Bootstrap.btn; Bootstrap.btnDanger; Bootstrap.btnSm ] 
-                        OnClick (fun _ -> EndDateChanged (owner, None) |> dispatch)
+                        OnClick (fun _ -> EndDateChanged (index, None) |> dispatch)
                     ] [
                         str "×"
                     ]
@@ -204,13 +213,16 @@ let renderEditLotOwners (lotOwners: LotOwner list) (dispatch: Message -> unit) =
                             ]
                         ]
                         tbody [] [
-                            yield! owners |> List.map (fun owner -> 
+                            yield! owners |> List.mapi (fun index owner ->
                                 tr [] [
                                     td [] [ ownerTypes owner ]
                                     td [] [ ownerName owner ]
                                     td [] [ isResident owner ]
-                                    td [] [ startDateEditorFor owner ]
-                                    td [] [ endDateEditorFor owner ]
+                                    td [] [ 
+                                        startDateEditorFor index owner
+                                        errorMessageFor index (nameof owner.StartDate)
+                                    ]
+                                    td [] [ endDateEditorFor index owner ]
                                     td [] [ isLegalRepresentative owner ]
                                     td [] [ 
                                         a [
@@ -316,12 +328,13 @@ let view (state: State) (dispatch: Message -> unit) =
                     Rows 4
                     Helpers.valueOrDefault state.Lot.Description
                     OnChange (fun e -> DescriptionChanged e.Value |> dispatch)
-                ] 
+                ]
+                FormError (errorFor (nameof state.Lot.Description))
             ]
             |> inColomn Bootstrap.col
         ]
 
-        renderEditLotOwners state.Lot.Owners dispatch
+        renderEditLotOwners (nameof state.Lot.Owners) state.Errors state.Lot.Owners dispatch
         |> inColomn Bootstrap.row
 
         LotOwnerTypeModal.render 

@@ -6,13 +6,12 @@ open Shared.Write
 open Shared.Remoting
 open Server.Library
 open Server.LibraryExtensions
-open Server.IbanValidator
 open Storage
 
 let createContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPerson>): Async<Result<unit, SaveContactPersonError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
-        let validated = ValidatedContactPerson.Validate validateIban msg.Payload
+        let validated = ValidatedContactPerson.Validate msg.Payload
         match validated with
         | Ok validated ->
             do! storage.CreateContactPerson validated
@@ -26,7 +25,7 @@ let createContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPer
 let updateContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPerson>): Async<Result<unit, SaveContactPersonError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
-        let validated = ValidatedContactPerson.Validate validateIban msg.Payload
+        let validated = ValidatedContactPerson.Validate msg.Payload
         match validated with
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateContactPerson validated
@@ -53,7 +52,7 @@ let deleteContactPerson (storage: IOrganizationStorage) (msg: Message<BuildingId
 let createOrganization (storage: IOrganizationStorage) (msg: Message<Organization>): Async<Result<unit, SaveOrganizationError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
-        let validated = ValidatedOrganization.Validate validateIban msg.Payload
+        let validated = ValidatedOrganization.Validate msg.Payload
         match validated with
         | Ok validated ->
             do! storage.CreateOrganization validated
@@ -67,7 +66,7 @@ let createOrganization (storage: IOrganizationStorage) (msg: Message<Organizatio
 let updateOrganization (storage: IOrganizationStorage) (msg: Message<Organization>): Async<Result<unit, SaveOrganizationError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
-        let validated = ValidatedOrganization.Validate validateIban msg.Payload
+        let validated = ValidatedOrganization.Validate msg.Payload
         match validated with
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateOrganization validated

@@ -13,6 +13,7 @@ open Client.ClientStyle.Helpers
 open Client.Components
 open Client.Components.BasicModal
 open Client.Components.SelectionList
+open Shared.Write
 
 module SubComponents =
     let private renderBuildings (onDelete: BuildingListItem -> unit) (buildings: BuildingListItem list) (key: string) =
@@ -251,19 +252,21 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     let changeUser f =
         { state with User = f state.User }
 
-    let removeError errorName state =
-        { state with Errors = (state.Errors |> List.filter (fun (path, e) -> path <> errorName)) }
+    let recalculateValidationErrors (state: State) =
+        match state.Errors with
+        | [] -> state
+        | _errors ->
+            match ValidatedUser.Validate state.User with
+            | Ok _validated -> state
+            | Error validationErrors -> { state with Errors = validationErrors }
 
     match message with
     | NameChanged x ->
-        changeUser (fun l -> { l with DisplayName = x })
-        |> removeError (nameof state.User.DisplayName), Cmd.none
+        changeUser (fun l -> { l with DisplayName = x }), Cmd.none
     | EmailAddressChanged x ->
-        changeUser (fun l -> { l with EmailAddress = x })
-        |> removeError (nameof state.User.EmailAddress), Cmd.none
+        changeUser (fun l -> { l with EmailAddress = x }), Cmd.none
     | LanguageChanged x ->
-        changeUser (fun l -> { l with PreferredLanguageCode = x })
-        |> removeError (nameof state.User.PreferredLanguageCode), Cmd.none
+        changeUser (fun l -> { l with PreferredLanguageCode = x }), Cmd.none
     | NoOp ->
         state, Cmd.none
     | TwoFacAuthenticationChanged x ->        
@@ -313,6 +316,8 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         changeUser (fun l -> { l with Roles = newSyndicRole::rolesWithoutSyndicRoles }), Cmd.none
     | RemotingExceptionOccured error ->
         state, showGenericErrorModalCmd error
+
+    |> (fun (state, cmd) -> state |> recalculateValidationErrors, cmd)
 
 let inColomn columnClass x = div [ Class columnClass ] [ x ]
 

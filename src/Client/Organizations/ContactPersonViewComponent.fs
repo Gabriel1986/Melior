@@ -8,7 +8,7 @@ open Client.ClientStyle.Helpers
 let view (props: {| ContactPerson: ContactPerson |}) =
     div [] [
         readonlyFormElement "Rol" props.ContactPerson.RoleWithinOrganization
-        PersonViewComponent.render {| Person = props.ContactPerson.Person; WithAddresses = false |}
+        PersonViewComponent.render {| Person = props.ContactPerson.Person; ShowAddresses = false; ShowBankAccounts = false |}
     ]
 
 let render =

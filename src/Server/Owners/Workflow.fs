@@ -6,13 +6,12 @@ open Shared.Read
 open Shared.Write
 open Server.Library
 open Server.LibraryExtensions
-open Server.IbanValidator
 open Storage
 
 let createOwner (storage: IOwnerStorage) (msg: Message<Owner>): Async<Result<unit, SaveOwnerError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId)
     then
-        let validated = ValidatedOwner.Validate validateIban msg.Payload
+        let validated = ValidatedOwner.Validate msg.Payload
         match validated with
         | Ok validated ->
             do! storage.CreateOwner validated
@@ -26,7 +25,7 @@ let createOwner (storage: IOwnerStorage) (msg: Message<Owner>): Async<Result<uni
 let updateOwner (storage: IOwnerStorage) (msg: Message<Owner>): Async<Result<unit, SaveOwnerError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId)
     then
-        let validated = ValidatedOwner.Validate validateIban msg.Payload
+        let validated = ValidatedOwner.Validate msg.Payload
         match validated with
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateOwner validated

@@ -77,5 +77,5 @@ let view (state: State) (dispatch: Message -> unit) =
             ]
             |> inColumn
         ]
-        PersonEditComponent.view (state.PersonEditComponentState) (PersonEditComponentMessage >> dispatch)
+        PersonEditComponent.view (state.PersonEditComponentState) (PersonEditComponentMessage >> dispatch) {| ShowAddresses = true; ShowBankAccounts = true |}
     ]

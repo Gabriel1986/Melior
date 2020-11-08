@@ -5,11 +5,12 @@ open Fable.React
 open Fable.React.Props
 open Elmish
 open Elmish.React
+open Shared.Read
+open Shared.Library
+open Shared.Write
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Components
-open Shared.Read
-open Shared.Library
 
 type Message =
     | NameChanged of string
@@ -65,6 +66,13 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         | None ->
             None
 
+    let recalculateValidationErrors (state: State) =
+        match state.Errors with
+        | [] -> state
+        | _errors ->
+            match ValidatedBuilding.Validate state.Building with
+            | Ok _validated -> state
+            | Error validationErrors -> { state with Errors = validationErrors }
 
     match message with
     | NameChanged x ->
@@ -89,12 +97,11 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | YearOfDeliveryChanged s ->
         changeBuilding (fun b -> { b with YearOfDelivery = parseInt s }), Cmd.none
     | BankAccountAdded ->
-        changeBuilding (fun b -> { b with BankAccounts = b.BankAccounts @ [ BankAccount.Init () ] }), Cmd.none
+        changeBuilding (fun b -> { b with BankAccounts = b.BankAccounts @ [ BankAccount.Init () ] })
+        , Cmd.none
     | BankAccountChanged (index, updatedBankAccount) ->
         changeBuilding (fun b ->
-            let updatedBankAccounts =
-                b.BankAccounts
-                |> List.mapi (fun i bankAccount -> if i = index then updatedBankAccount else bankAccount)
+            let updatedBankAccounts = b.BankAccounts |> List.mapi (fun i bankAccount -> if i = index then updatedBankAccount else bankAccount)
             { b with BankAccounts = updatedBankAccounts }
         ), Cmd.none
     | BankAccountRemoved index ->
@@ -106,18 +113,22 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             { b with BankAccounts = updatedBankAccounts }
         ), Cmd.none
 
+    |> (fun (state, cmd) -> state |> recalculateValidationErrors, cmd)
+
 let inColomn x = div [ Class Bootstrap.col ] [ x ]
 
 let private renderBankAccounts (basePath: string) (bankAccounts: BankAccount list) (errors: (string * string) list) dispatch =
     [
         yield! bankAccounts |> List.mapi (fun index bankAccount ->
             div [] [
-                BankAccountEditComponent.render 
-                    (bankAccount)
-                    (fun updated -> BankAccountChanged (index, updated) |> dispatch) 
-                    (Some (fun _ -> BankAccountRemoved index |> dispatch))
-                    (sprintf "%s.[%i]" basePath index)
-                    errors
+                BankAccountEditComponent.render
+                    {|
+                        BankAccount = bankAccount
+                        OnChange = fun updated -> BankAccountChanged (index, updated) |> dispatch
+                        OnDelete = Some (fun _ -> BankAccountRemoved index |> dispatch)
+                        BasePath = sprintf "%s.[%i]" basePath index
+                        Errors = errors
+                    |}
             ]
         )
         yield

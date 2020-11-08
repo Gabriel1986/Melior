@@ -18,7 +18,6 @@ open Client.Components.BasicModal
 open Client.Components.SelectionList
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
-open Client.IbanValidator
 
 type Model = {
     IsOpen: bool
@@ -183,7 +182,7 @@ let update onSyndicChanged onCanceled message model =
     | SavePerson ->
         match model.State with
         | EditingPerson componentState ->
-            match ValidatedPerson.Validate validateIban componentState.Person with
+            match ValidatedPerson.Validate componentState.Person with
             | Ok _ ->
                 onSyndicChanged (Syndic.Other componentState.Person)
                 model, Cmd.none
@@ -261,7 +260,7 @@ let modalContent model dispatch =
     | SelectingProfessionalSyndic (list, selectedId) ->
         renderProfessionalSyndicList list selectedId dispatch
     | EditingPerson componentState ->
-        PersonEditComponent.view componentState (PersonEditComponentMsg >> dispatch)
+        PersonEditComponent.view componentState (PersonEditComponentMsg >> dispatch) {| ShowAddresses = true; ShowBankAccounts = true |}
     | ProfessionalSyndicNotFound ->
         div [] [ str "De syndicus werd niet gevonden in de databank, vreemd genoeg..." ]
     | OwnerNotFound ->

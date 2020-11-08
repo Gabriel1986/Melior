@@ -8,7 +8,6 @@ open Shared.Remoting
 open Server.Library
 open Server.LibraryExtensions
 open Server.Blueprint.Data.SeedData
-open Server.IbanValidator
 
 let (|Authorized|Unauthorized|) (currentUser: User, buildingId: BuildingId option) =
     match buildingId with
@@ -54,7 +53,7 @@ let deleteDistributionKey (store: IFinancialStorage) (msg: Message<BuildingId * 
 let createInvoice (store: IFinancialStorage) (msg: Message<Invoice>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
-        match ValidatedInvoice.Validate validateIban msg.Payload with
+        match ValidatedInvoice.Validate msg.Payload with
         | Ok validated -> 
             do! store.CreateInvoice (msg |> Message.map validated)
             return Ok ()
@@ -67,7 +66,7 @@ let createInvoice (store: IFinancialStorage) (msg: Message<Invoice>) = async {
 let updateInvoice (store: IFinancialStorage) (msg: Message<Invoice>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
-        match ValidatedInvoice.Validate validateIban msg.Payload with
+        match ValidatedInvoice.Validate msg.Payload with
         | Ok validated ->
             let! nbUpdated = store.UpdateInvoice (msg |> Message.map validated)
             return if nbUpdated > 0 then Ok () else Error (SaveInvoiceError.NotFound)

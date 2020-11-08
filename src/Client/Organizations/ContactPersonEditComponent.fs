@@ -44,5 +44,8 @@ let view (state: State) (dispatch: Message -> unit) =
                 OnChange (fun e -> RoleWithinOrganizationChanged e.Value |> dispatch)
             ]
         ]
-        PersonEditComponent.view (state.PersonEditComponentState) (PersonEditComponentMessage >> dispatch)
+        PersonEditComponent.view 
+            (state.PersonEditComponentState) 
+            (PersonEditComponentMessage >> dispatch)
+            {| ShowAddresses = false; ShowBankAccounts = false |}
     ]

@@ -6,14 +6,13 @@ open Shared.Read
 open Shared.Write
 open Server.Library
 open Server.LibraryExtensions
-open Server.IbanValidator
 open Storage
 
 let createProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<ProfessionalSyndic>): Async<Result<unit, SaveProfessionalSyndicError>> = async {
     //Only a systems admin can create a professional syndic
     if msg.CurrentUser.IsSysAdmin ()
     then
-        let validated = ValidatedProfessionalSyndic.Validate validateIban msg.Payload
+        let validated = ValidatedProfessionalSyndic.Validate msg.Payload
         match validated with
         | Ok validated ->
             do! storage.CreateProfessionalSyndic validated
@@ -27,7 +26,7 @@ let createProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message
 let updateProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<ProfessionalSyndic>): Async<Result<unit, SaveProfessionalSyndicError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding(msg.Payload.Organization.OrganizationId)
     then
-        let validated = ValidatedProfessionalSyndic.Validate validateIban msg.Payload
+        let validated = ValidatedProfessionalSyndic.Validate msg.Payload
         match validated with
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateProfessionalSyndic validated

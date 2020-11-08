@@ -1,5 +1,6 @@
 ﻿module Client.Components.PersonViewComponent
 
+open Feliz
 open Fable.React
 open Shared.Read
 open Client.ClientStyle.Helpers
@@ -19,11 +20,11 @@ let private renderAddressesFor (person: Person) =
         yield! person.OtherAddresses |> List.map renderOtherAddress
     ]
 
-let view (withAddresses: bool) (person: Person) =
-    div [] [
+let view (showAddresses: bool) (showBankAccounts: bool) (person: Person) =
+    [
         yield readonlyFormElement "Naam" (person.FullName ())
 
-        if withAddresses then yield! renderAddressesFor person
+        if showAddresses then yield! renderAddressesFor person
 
         yield readonlyFormElement "Tel." (defaultArg person.MainTelephoneNumber "")
         yield readonlyFormElement "Tel. commentaar" (defaultArg person.MainTelephoneNumberComment "")
@@ -33,11 +34,12 @@ let view (withAddresses: bool) (person: Person) =
 
         yield! person.OtherContactMethods |> List.map (fun cm -> readonlyFormElement cm.Description cm.Value)
 
-        yield!
-            person.BankAccounts
-            |> List.mapi (fun i bankAccount -> readonlyFormElement (sprintf "Bankrekening %i" (i+1)) (string bankAccount))
-
+        if showBankAccounts then
+            yield!
+                person.BankAccounts
+                |> List.mapi (fun i bankAccount -> readonlyFormElement (sprintf "Bankrekening %i" (i+1)) (string bankAccount))
     ]
+    |> React.fragment
 
 let render =
-    FunctionComponent.Of ((fun (props: {| Person: Person; WithAddresses: bool |}) -> view props.WithAddresses props.Person), memoizeWith = memoEqualsButFunctions)
+    FunctionComponent.Of ((fun (props: {| Person: Person; ShowAddresses: bool; ShowBankAccounts: bool |}) -> view props.ShowAddresses props.ShowBankAccounts props.Person), memoizeWith = memoEqualsButFunctions)

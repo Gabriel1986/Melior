@@ -7,11 +7,12 @@ open Elmish.SweetAlert
 open Fable.React
 open Fable.React.Props
 
-open Client.ClientStyle
-open Client.ClientStyle.Helpers
 open Shared.Read
+open Shared.Write
 open Shared.Library
 open Shared.ConstrainedTypes
+open Client.ClientStyle
+open Client.ClientStyle.Helpers
 open Client.Library
 open Client.Components
 open Client.Components.BasicModal
@@ -104,6 +105,14 @@ let update (message: Message) (state: State): State * Cmd<Message> =
 
     let changeOtherContactMethods otherContactMethods =
         changeOrganization (fun o -> { o with OtherContactMethods = otherContactMethods })
+
+    let recalculateValidationErrors (state: State) =
+        match state.Errors with
+        | [] -> state
+        | _errors ->
+            match ValidatedOrganization.Validate state.Organization with
+            | Ok _validated -> state
+            | Error validationErrors -> { state with Errors = validationErrors }
 
     match message with
     | NameChanged x ->
@@ -202,7 +211,8 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         let newState = changeOrganization (fun org -> { org with VatNumber = (if String.IsNullOrEmpty vatNumber then None else Some vatNumber); VatNumberVerifiedOn = None })
         { newState with VatNumberCheckingState = None }, Cmd.none
     | BankAccountAdded ->
-        changeOrganization (fun org -> { org with BankAccounts = org.BankAccounts @ [ BankAccount.Init () ] }), Cmd.none
+        changeOrganization (fun org -> { org with BankAccounts = org.BankAccounts @ [ BankAccount.Init () ] })
+        , Cmd.none
     | BankAccountChanged (index, updatedBankAccount) ->
         changeOrganization (fun org ->
             let updatedBankAccounts =
@@ -228,7 +238,6 @@ let update (message: Message) (state: State): State * Cmd<Message> =
                     RemotingError
             { state with VatNumberCheckingState = Some CheckingVatNumber }, cmd
         | Error e ->
-            printf "%A" e
             { state with VatNumberCheckingState = Some VatNumberCheckingFailed }
             , showErrorToastCmd e
     | VatNumberVerified r ->
@@ -255,6 +264,8 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             , showErrorToastCmd e
     | RemotingError e ->
         state, showGenericErrorModalCmd e
+
+    |> (fun (state, cmd) -> state |> recalculateValidationErrors, cmd)
 
 let private contactMethodTypeOptions (currentlySelected: ContactMethodType): FormSelectOption list =
     [
@@ -515,12 +526,14 @@ let private renderBankAccounts (basePath: string) (bankAccounts: BankAccount lis
     [
         yield! bankAccounts |> List.mapi (fun index bankAccount ->
             div [] [
-                BankAccountEditComponent.render 
-                    (bankAccount)
-                    (fun updated -> BankAccountChanged (index, updated) |> dispatch) 
-                    (Some (fun _ -> BankAccountRemoved index |> dispatch))
-                    (sprintf "%s.[%i]" basePath index)
-                    errors
+                BankAccountEditComponent.render
+                    {|
+                        BankAccount = bankAccount
+                        OnChange = fun updated -> BankAccountChanged (index, updated) |> dispatch
+                        OnDelete = Some (fun _ -> BankAccountRemoved index |> dispatch)
+                        BasePath = sprintf "%s.[%i]" basePath index
+                        Errors = errors
+                    |}
             ]
         )
         yield
