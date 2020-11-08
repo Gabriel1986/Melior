@@ -242,7 +242,7 @@ let getOrganizations connectionString (buildingId: Guid) = async {
                     MainTelephoneNumber,
                     BankAccounts
                 FROM Organizations
-                WHERE BuildingId = @BuildingId
+                WHERE BuildingId = @BuildingId AND IsActive = TRUE
             """
         |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
         |> Sql.read readOrganizations
@@ -285,7 +285,7 @@ let getOrganizationsByIds connectionString (orgIds: Guid list) = async {
                         MainTelephoneNumber,
                         BankAccounts
                     FROM Organizations
-                    WHERE OrganizationId = ANY (@OrganizationIds)
+                    WHERE IsActive = TRUE AND OrganizationId = ANY (@OrganizationIds)
                 """
             |> Sql.parameters [ "@OrganizationIds", Sql.uuidArray (orgIds |> List.toArray) ]
             |> Sql.read readOrganizations
