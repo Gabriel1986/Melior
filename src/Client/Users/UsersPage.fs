@@ -264,24 +264,26 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 ]
             ]
 
-            match state.SelectedTab with
-            | List -> list state
-            | Details listItem -> 
-                UserDetails.render 
-                    {| 
-                        CurrentUser = state.CurrentUser 
-                        CreateOrUpdate = UserDetails.CreateOrUpdate.Update listItem
-                        NotifyCreated = fun b -> dispatch (Created b)
-                        NotifyEdited = fun b -> dispatch (Edited b)
-                    |}
-            | New ->
-                UserDetails.render 
-                    {| 
-                        CurrentUser = state.CurrentUser 
-                        CreateOrUpdate = UserDetails.CreateOrUpdate.Create (Guid.NewGuid())
-                        NotifyCreated = fun b -> dispatch (Created b)
-                        NotifyEdited = fun b -> dispatch (Edited b)
-                    |}
+            div [ Class Bootstrap.tabContent ] [
+                match state.SelectedTab with
+                | List -> list state
+                | Details listItem -> 
+                    UserDetails.render 
+                        {| 
+                            CurrentUser = state.CurrentUser 
+                            CreateOrUpdate = UserDetails.CreateOrUpdate.Update listItem
+                            NotifyCreated = fun b -> dispatch (Created b)
+                            NotifyEdited = fun b -> dispatch (Edited b)
+                        |}
+                | New ->
+                    UserDetails.render 
+                        {| 
+                            CurrentUser = state.CurrentUser 
+                            CreateOrUpdate = UserDetails.CreateOrUpdate.Create (Guid.NewGuid())
+                            NotifyCreated = fun b -> dispatch (Created b)
+                            NotifyEdited = fun b -> dispatch (Edited b)
+                        |}
+            ]
         ]
     ]
 

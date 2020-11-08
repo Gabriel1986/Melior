@@ -250,28 +250,30 @@ let view (state: State) (dispatch: Msg -> unit) =
                 ]
             ]
 
-            match state.SelectedTab with
-            | List -> list state
-            | Details listItem -> 
-                DistributionKeyDetails.render 
-                    {| 
-                        CurrentUser = state.CurrentUser 
-                        CurrentBuildingId = Some state.CurrentBuildingId
-                        AllLots = state.Lots.Value
-                        DistributionKey = Some listItem
-                        NotifyCreated = fun b -> dispatch (Created b)
-                        NotifyEdited = fun b -> dispatch (Edited b)
-                    |}
-            | New ->
-                DistributionKeyDetails.render 
-                    {| 
-                        CurrentUser = state.CurrentUser 
-                        CurrentBuildingId = Some state.CurrentBuildingId
-                        AllLots = state.Lots.Value
-                        DistributionKey = None
-                        NotifyCreated = fun b -> dispatch (Created b)
-                        NotifyEdited = fun b -> dispatch (Edited b)
-                    |}
+            div [ Class Bootstrap.tabContent ] [
+                match state.SelectedTab with
+                | List -> list state
+                | Details listItem -> 
+                    DistributionKeyDetails.render 
+                        {| 
+                            CurrentUser = state.CurrentUser 
+                            CurrentBuildingId = Some state.CurrentBuildingId
+                            AllLots = state.Lots.Value
+                            DistributionKey = Some listItem
+                            NotifyCreated = fun b -> dispatch (Created b)
+                            NotifyEdited = fun b -> dispatch (Edited b)
+                        |}
+                | New ->
+                    DistributionKeyDetails.render 
+                        {| 
+                            CurrentUser = state.CurrentUser 
+                            CurrentBuildingId = Some state.CurrentBuildingId
+                            AllLots = state.Lots.Value
+                            DistributionKey = None
+                            NotifyCreated = fun b -> dispatch (Created b)
+                            NotifyEdited = fun b -> dispatch (Edited b)
+                        |}
+            ]
         ]
     ]
 

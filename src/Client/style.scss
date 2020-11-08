@@ -170,3 +170,7 @@ header {
         margin-bottom: 30px;
     }
 }
+
+.tab-content > div:first-child {
+    padding-top: 0.75rem;
+}

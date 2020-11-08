@@ -248,28 +248,31 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                         [ str "Nieuwe eigenaar" ]
                 ]
             ]
-            match state.SelectedTab with
-            | List -> list state
-            | Details listItem -> 
-                OwnerDetails.render 
-                    {| 
-                        CurrentUser = state.CurrentUser 
-                        CurrentBuilding = state.CurrentBuilding
-                        Identifier = listItem.PersonId
-                        IsNew = false
-                        NotifyCreated = fun b -> dispatch (Created b)
-                        NotifyEdited = fun b -> dispatch (Edited b)
-                    |}
-            | New ->
-                OwnerDetails.render 
-                    {| 
-                        CurrentUser = state.CurrentUser 
-                        CurrentBuilding = state.CurrentBuilding
-                        Identifier = Guid.NewGuid()
-                        IsNew = true
-                        NotifyCreated = fun b -> dispatch (Created b)
-                        NotifyEdited = fun b -> dispatch (Edited b)
-                    |}
+
+            div [ Class Bootstrap.tabContent ] [
+                match state.SelectedTab with
+                | List -> list state
+                | Details listItem -> 
+                    OwnerDetails.render 
+                        {| 
+                            CurrentUser = state.CurrentUser 
+                            CurrentBuilding = state.CurrentBuilding
+                            Identifier = listItem.PersonId
+                            IsNew = false
+                            NotifyCreated = fun b -> dispatch (Created b)
+                            NotifyEdited = fun b -> dispatch (Edited b)
+                        |}
+                | New ->
+                    OwnerDetails.render 
+                        {| 
+                            CurrentUser = state.CurrentUser 
+                            CurrentBuilding = state.CurrentBuilding
+                            Identifier = Guid.NewGuid()
+                            IsNew = true
+                            NotifyCreated = fun b -> dispatch (Created b)
+                            NotifyEdited = fun b -> dispatch (Edited b)
+                        |}
+            ]
         ]
     ]
 
