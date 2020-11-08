@@ -6,6 +6,8 @@ open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.Configuration
 open System
 open Amazon.Runtime
+//Required for publish
+open Serilog.Events
 
 module Program =
     let exitCode = 0
