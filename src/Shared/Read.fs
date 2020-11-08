@@ -312,6 +312,7 @@ and Organization =
     {
         OrganizationId: Guid
         BuildingId: BuildingId option
+        UsesVatNumber: bool
         OrganizationNumber: string option
         VatNumber: string option
         VatNumberVerifiedOn: DateTime option
@@ -326,7 +327,7 @@ and Organization =
         ContactPersons: ContactPerson list
         BankAccounts: BankAccount list
     }
-    static member Init (buildingId: BuildingId option): Organization = 
+    static member Init (buildingId: BuildingId option, usesVatNumber: bool): Organization = 
         let orgId = Guid.NewGuid()
         {
             OrganizationId = orgId
@@ -344,6 +345,7 @@ and Organization =
             OtherContactMethods = []
             ContactPersons = []
             BankAccounts = []
+            UsesVatNumber = usesVatNumber
         }
 and ContactPerson = 
     {
@@ -446,7 +448,7 @@ and ProfessionalSyndic =
         BuildingIds: BuildingId list
     }
     static member Init () = {
-        Organization = Organization.Init None
+        Organization = Organization.Init (None, false)
         BuildingIds = []
     }
 and OwnerListItem = 

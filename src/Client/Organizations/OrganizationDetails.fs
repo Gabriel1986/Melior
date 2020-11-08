@@ -60,8 +60,8 @@ let private getOrganizationCmd organizationId =
 let init (props: DetailsProps): Model * Cmd<Msg> =
     let state, cmd =
         if props.IsNew then
-            let organization = { Organization.Init (Some props.CurrentBuilding.BuildingId) with OrganizationId = props.Identifier }
-            let organizationEditState, organizationEditCmd = OrganizationEditComponent.init (Some organization) (Some props.CurrentBuilding)
+            let organization = { Organization.Init (Some props.CurrentBuilding.BuildingId, true) with OrganizationId = props.Identifier }
+            let organizationEditState, organizationEditCmd = OrganizationEditComponent.init {| Organization = Some organization; Building = Some props.CurrentBuilding |}
             Creating (false, organizationEditState), organizationEditCmd |> Cmd.map OrganizationEditMsg
         else
             Loading, getOrganizationCmd props.Identifier
@@ -99,7 +99,7 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
         | None ->
             { model with State = OrganizationNotFound }, Cmd.none
     | Edit organization ->
-        let organizationEditState, organizationEditCmd = OrganizationEditComponent.init (Some organization) (Some model.CurrentBuilding)
+        let organizationEditState, organizationEditCmd = OrganizationEditComponent.init {| Organization = Some organization; Building = Some model.CurrentBuilding |}
         { model with State = Editing (false, organizationEditState) }, organizationEditCmd |> Cmd.map OrganizationEditMsg
     | OrganizationEditMsg componentMsg ->
         let updateComponentState s (isSaving, componentState) =

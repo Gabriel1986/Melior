@@ -15,6 +15,7 @@ module private Readers =
     type OrganizationDbModel = {
         OrganizationId: Guid
         BuildingId: Guid option
+        UsesVatNumber: bool
         OrganizationNumber: string option
         VatNumber: string option
         VatNumberVerifiedOn: DateTime option
@@ -31,6 +32,7 @@ module private Readers =
     let readOrganization (reader: CaseInsensitiveRowReader): OrganizationDbModel = {
         OrganizationId = reader.uuid "OrganizationId"
         BuildingId = reader.uuidOrNone "BuildingId"
+        UsesVatNumber = reader.bool "UsesVatNumber"
         OrganizationNumber = reader.stringOrNone "OrganizationNumber"
         VatNumber = reader.stringOrNone "VatNumber"
         VatNumberVerifiedOn = reader.dateTimeOrNone "VatNumberVerifiedOn"
@@ -168,6 +170,7 @@ let getOrganization (connectionString: string) (organizationId: Guid) = async {
                 SELECT
                     OrganizationId,
                     BuildingId,
+                    UsesVatNumber,
                     OrganizationNumber,
                     VatNumber,
                     VatNumberVerifiedOn,
@@ -204,6 +207,7 @@ let getOrganization (connectionString: string) (organizationId: Guid) = async {
             OrganizationId = dbModel.OrganizationId
             BuildingId = dbModel.BuildingId
             OrganizationTypes = organizationTypes
+            UsesVatNumber = dbModel.UsesVatNumber
             OrganizationNumber = dbModel.OrganizationNumber
             VatNumber = dbModel.VatNumber
             VatNumberVerifiedOn = dbModel.VatNumberVerifiedOn

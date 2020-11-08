@@ -326,6 +326,7 @@ type ValidatedOrganization =
     {
         OrganizationId: Guid
         BuildingId: Guid option //Pro syndics do NOT have a buildingId
+        UsesVatNumber: bool
         OrganizationNumber: OrganizationNumber option
         VatNumber: VatNumber option
         VatNumberVerifiedOn: DateTime option
@@ -344,8 +345,9 @@ type ValidatedOrganization =
         trial {
             from name in String255.Of (nameof organization.Name |> onBasePath) organization.Name
             also address in ValidatedAddress.BasicValidate (nameof organization.Address |> onBasePath) organization.Address
-            also organizationNumber in validateOptional (OrganizationNumber.OfString (nameof organization.OrganizationNumber |> onBasePath)) organization.OrganizationNumber
-            also vatNumber in validateOptional (VatNumber.OfString (nameof organization.VatNumber |> onBasePath)) organization.VatNumber
+            also organizationNumber in validateOptional (OrganizationNumber.OfString (nameof organization.OrganizationNumber |> onBasePath)) (if organization.UsesVatNumber then None else organization.OrganizationNumber)
+            also vatNumber in validateOptional (VatNumber.OfString (nameof organization.VatNumber |> onBasePath)) (if organization.UsesVatNumber then organization.VatNumber else None)
+            also vatNumberVerifiedOn in (if organization.UsesVatNumber then Trial.Pass None else Trial.Pass organization.VatNumberVerifiedOn)
             also mainTelephoneNumber in validateOptional (String32.Of (nameof organization.MainTelephoneNumber |> onBasePath)) organization.MainTelephoneNumber
             also mainTelephoneNumberComment in validateOptional (String255.Of (nameof organization.MainTelephoneNumberComment |> onBasePath)) organization.MainTelephoneNumberComment
             also mainEmailAddress in validateOptional (String255.Of (nameof organization.MainEmailAddress |> onBasePath)) organization.MainEmailAddress
@@ -355,9 +357,10 @@ type ValidatedOrganization =
             yield {
                 OrganizationId = organization.OrganizationId
                 BuildingId = organization.BuildingId
+                UsesVatNumber = organization.UsesVatNumber
                 OrganizationNumber = organizationNumber
                 VatNumber = vatNumber
-                VatNumberVerifiedOn = organization.VatNumberVerifiedOn
+                VatNumberVerifiedOn = vatNumberVerifiedOn
                 OrganizationTypeIds = organization.OrganizationTypes |> List.map (fun ot -> ot.OrganizationTypeId)
                 Name = name
                 Address = address

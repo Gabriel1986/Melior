@@ -16,7 +16,7 @@ type State = {
 }
 
 let init (professionalSyndic: ProfessionalSyndic) =
-    let state, cmd = OrganizationEditComponent.init (Some professionalSyndic.Organization) None
+    let state, cmd = OrganizationEditComponent.init {| Organization = Some professionalSyndic.Organization; Building = None |}
     {
         ProfessionalSyndic = professionalSyndic
         OrganizationEditComponentState = state

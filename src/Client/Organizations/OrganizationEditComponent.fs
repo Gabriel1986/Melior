@@ -16,6 +16,7 @@ open Client.ClientStyle.Helpers
 open Client.Library
 open Client.Components
 open Client.Components.BasicModal
+open Feliz
 
 type State = {
     Organization: Organization
@@ -40,6 +41,7 @@ and VatNumberCheckingState =
 type Message =
     | NameChanged of string
     | AddressChanged of Address
+    | UsesVatNumberChanged of bool
 
     | AddContactPerson
     | EditContactPerson of ContactPerson
@@ -77,11 +79,17 @@ type Message =
 
     | RemotingError of exn
 
-let init (organization: Organization option) (building: BuildingListItem option) =
+type OrganizationEditComponentProps = 
+    {|
+        Organization: Organization option
+        Building: BuildingListItem option
+    |}
+
+let init (props: OrganizationEditComponentProps) =
     let organization, createOrUpdate =
-        match organization with
+        match props.Organization with
         | Some organization -> organization, Update
-        | None        -> Organization.Init (building |> Option.map (fun b -> b.BuildingId)), Create
+        | None        -> Organization.Init (props.Building |> Option.map (fun b -> b.BuildingId), true), Create
 
     let cmd =
         Cmd.OfAsync.either
@@ -117,6 +125,8 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     match message with
     | NameChanged x ->
         changeOrganization (fun o -> { o with Name = x |> String.toOption |> Option.defaultValue "" }), Cmd.none
+    | UsesVatNumberChanged x ->
+        changeOrganization (fun o -> { o with UsesVatNumber = x }), Cmd.none
     | OrganizationNumberChanged x ->
         changeOrganization (fun o -> { o with OrganizationNumber = if String.IsNullOrEmpty x then None else Some x }), Cmd.none
     | MainTelephoneNumberChanged x ->
@@ -469,59 +479,6 @@ let renderSelectOrganizationTypes (selectedTypes: OrganizationType list) (allTyp
             ]
         |}
 
-let renderVatNumber state dispatch =
-    div [ Class Bootstrap.formGroup ] [
-        label [ HtmlFor "vatNumber" ] [ str "BTW nr." ]
-        div [ Class Bootstrap.inputGroup ] [
-            input [
-                Type "text"
-                MinLength 4.0
-                MaxLength 15.0
-                Helpers.valueOrDefault state.Organization.VatNumber
-                OnChange (fun e -> VatNumberChanged e.Value |> dispatch)
-            ]
-            div [ Class Bootstrap.inputGroupAppend ] [
-                match state.Organization.VatNumberVerifiedOn with
-                | Some dt ->
-                    yield
-                        button [
-                            Type "button"
-                            classes [ Bootstrap.btn; Bootstrap.btnSuccess ]
-                        ] [ 
-                            i [ classes [ FontAwesome.fa; FontAwesome.faThumbsUp ] ] [] 
-                        ]
-                | None ->
-                    match state.VatNumberCheckingState with
-                    | Some (CheckingVatNumber) ->
-                        yield
-                            button [ 
-                                Type "button"
-                                classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
-                            ] [
-                                i [ classes [ FontAwesome.fa; FontAwesome.faSpinner; FontAwesome.faSpin ] ] []
-                            ]
-                    | Some (VatNumberCheckingFailed) ->
-                        yield
-                            button [
-                                Type "button"
-                                classes [ Bootstrap.btn; Bootstrap.btnDanger ]
-                            ] [
-                                i [ classes [ FontAwesome.fa; FontAwesome.faThumbsDown ] ] []
-                            ]
-                    | None ->
-                        yield
-                            button [
-                                Type "button"
-                                classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
-                                OnClick (fun _ -> VerifyVatNumber |> dispatch)
-                            ] [
-                                i [ classes [ FontAwesome.fa; FontAwesome.faSearch ] ] []
-                                span [] [ str " Verifiëren" ]
-                            ]
-            ]
-        ]
-    ]
-
 let private renderBankAccounts (basePath: string) (bankAccounts: BankAccount list) (errors: (string * string) list) dispatch =
     [
         yield! bankAccounts |> List.mapi (fun index bankAccount ->
@@ -551,6 +508,86 @@ let private renderBankAccounts (basePath: string) (bankAccounts: BankAccount lis
             ]
     ]
 
+let private renderOrganizationNumber state dispatch =
+    [
+        formGroup [
+            Label "BTW-plichtig?"
+            Radio {
+                Inline = true
+                RadioButtons =
+                    FormRadioButton.YesNo
+                        (state.Organization.UsesVatNumber)
+                        (fun useVatNumber -> if state.Organization.UsesVatNumber = useVatNumber then () else (UsesVatNumberChanged useVatNumber |> dispatch))
+            }
+        ]
+        if not state.Organization.UsesVatNumber then
+            formGroup [
+                Label "Ondernemingsnr."
+                Input [ 
+                    Type "text"
+                    Pattern "[0-9]{4}\.[0-9]{3}\.[0-9]{3}"
+                    MaxLength 12.0
+                    Placeholder "xxxx.xxx.xxx"
+                    Helpers.valueOrDefault state.Organization.OrganizationNumber
+                    OnChange (fun e -> OrganizationNumberChanged e.Value |> dispatch)
+                ]
+            ]
+        else
+            div [ Class Bootstrap.formGroup ] [
+                label [ HtmlFor "vatNumber" ] [ str "BTW nr." ]
+                div [ Class Bootstrap.inputGroup ] [
+                    input [
+                        Type "text"
+                        MinLength 4.0
+                        MaxLength 15.0
+                        Helpers.valueOrDefault state.Organization.VatNumber
+                        OnChange (fun e -> VatNumberChanged e.Value |> dispatch)
+                    ]
+                    div [ Class Bootstrap.inputGroupAppend ] [
+                        match state.Organization.VatNumberVerifiedOn with
+                        | Some _ ->
+                            yield
+                                button [
+                                    Type "button"
+                                    classes [ Bootstrap.btn; Bootstrap.btnSuccess ]
+                                ] [ 
+                                    i [ classes [ FontAwesome.fa; FontAwesome.faThumbsUp ] ] [] 
+                                ]
+                        | None ->
+                            match state.VatNumberCheckingState with
+                            | Some (CheckingVatNumber) ->
+                                yield
+                                    button [ 
+                                        Type "button"
+                                        classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
+                                    ] [
+                                        i [ classes [ FontAwesome.fa; FontAwesome.faSpinner; FontAwesome.faSpin ] ] []
+                                    ]
+                            | Some (VatNumberCheckingFailed) ->
+                                yield
+                                    button [
+                                        Type "button"
+                                        classes [ Bootstrap.btn; Bootstrap.btnDanger ]
+                                    ] [
+                                        i [ classes [ FontAwesome.fa; FontAwesome.faThumbsDown ] ] []
+                                    ]
+                            | None ->
+                                yield
+                                    button [
+                                        Type "button"
+                                        classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
+                                        OnClick (fun _ -> VerifyVatNumber |> dispatch)
+                                    ] [
+                                        i [ classes [ FontAwesome.fa; FontAwesome.faSearch ] ] []
+                                        span [] [ str " Verifiëren" ]
+                                    ]
+                    ]
+                ]
+            ]
+    ]
+    |> React.fragment
+
+
 let view state dispatch =
     div [] [
         formGroup [ 
@@ -577,18 +614,7 @@ let view state dispatch =
                     yield str "Selecteren"
             ]
         ]
-        formGroup [
-            Label "Ondernemingsnr."
-            Input [ 
-                Type "text"
-                Pattern "[0-9]{4}\.[0-9]{3}\.[0-9]{3}"
-                MaxLength 12.0
-                Placeholder "xxxx.xxx.xxx"
-                Helpers.valueOrDefault state.Organization.OrganizationNumber
-                OnChange (fun e -> OrganizationNumberChanged e.Value |> dispatch)
-            ]
-        ]
-        if state.Organization.BuildingId.IsSome then renderVatNumber state dispatch else null
+        renderOrganizationNumber state dispatch
         h4 [] [ str "Adres" ]
         AddressEditComponent.render state.Organization.Address (Some (fun a -> AddressChanged a |> dispatch)) (nameof state.Organization.Address) state.Errors
         formGroup [ 
