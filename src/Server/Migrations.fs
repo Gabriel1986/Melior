@@ -417,7 +417,7 @@ type AddFinancialTables() =
                     LastUpdatedAt TIMESTAMP NOT NULL
                 );
             """
-    override u.Down () = failwith "Not supported"
+    override u.Down () = ()
 
 [<Migration(11L, "Add StartDate and EndDate to LotOwners, remove IsActive")>]
 type AddStartDateAndEndDateToLotOwners() =
@@ -440,5 +440,24 @@ type AddStartDateAndEndDateToLotOwners() =
             """
                 ALTER TABLE LotOwners ALTER COLUMN StartDate SET NOT NULL;
             """
-    override u.Down () = failwith "Not supported"
+    override u.Down () = ()
 
+[<Migration(12L, "Add UsesVatNumber to Organizations")>]
+type AddUsesVatNumberToOrganizations() =
+    inherit Migration ()
+    override u.Up () = 
+        u.Execute
+            """
+                ALTER TABLE Organizations ADD COLUMN IF NOT EXISTS UsesVatNumber BOOLEAN;
+            """
+
+        u.Execute
+            """
+                Update Organizations SET UsesVatNumber = (CASE WHEN BuildingId IS NULL THEN FALSE ELSE TRUE END);
+            """
+
+        u.Execute
+            """
+                ALTER TABLE Organizations ALTER COLUMN UsesVatNumber SET NOT NULL;
+            """
+    override u.Down () = ()

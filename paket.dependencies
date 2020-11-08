@@ -47,6 +47,7 @@ nuget GoogleAuthenticator
 nuget Thoth.Elmish.Debouncer
 nuget MailKit 2.9.0
 nuget HaemmerElectronics.SeppPenner.Serilog.Sinks.AmazonS3 1.0.12
+nuget Fable.SimpleHttp
 
 group Build
     source https://api.nuget.org/v3/index.json

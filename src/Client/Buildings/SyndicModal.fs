@@ -18,7 +18,6 @@ open Client.Components.BasicModal
 open Client.Components.SelectionList
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
-open Client.Library
 
 type Model = {
     IsOpen: bool
@@ -231,7 +230,7 @@ let renderOwnerSelectionList (list: OwnerListItem list) (selectedId: Guid option
             DisplayListItem = (fun ownerListItem -> 
                 [ownerListItem.FirstName; ownerListItem.LastName] 
                 |> List.choose id 
-                |> String.JoinWith ", "
+                |> String.joinWith ", "
                 |> str)
         |}, "OwnerSelectionList")
 
@@ -261,7 +260,7 @@ let modalContent model dispatch =
     | SelectingProfessionalSyndic (list, selectedId) ->
         renderProfessionalSyndicList list selectedId dispatch
     | EditingPerson componentState ->
-        PersonEditComponent.view componentState (PersonEditComponentMsg >> dispatch)
+        PersonEditComponent.view componentState (PersonEditComponentMsg >> dispatch) {| ShowAddresses = true; ShowBankAccounts = true |}
     | ProfessionalSyndicNotFound ->
         div [] [ str "De syndicus werd niet gevonden in de databank, vreemd genoeg..." ]
     | OwnerNotFound ->

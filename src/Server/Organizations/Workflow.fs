@@ -11,7 +11,7 @@ open Storage
 let createContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPerson>): Async<Result<unit, SaveContactPersonError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
-        let validated = ValidatedContactPerson.Validate (msg.Payload)
+        let validated = ValidatedContactPerson.Validate msg.Payload
         match validated with
         | Ok validated ->
             do! storage.CreateContactPerson validated
@@ -25,7 +25,7 @@ let createContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPer
 let updateContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPerson>): Async<Result<unit, SaveContactPersonError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
-        let validated = ValidatedContactPerson.Validate (msg.Payload)
+        let validated = ValidatedContactPerson.Validate msg.Payload
         match validated with
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateContactPerson validated
@@ -41,7 +41,7 @@ let updateContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPer
 let deleteContactPerson (storage: IOrganizationStorage) (msg: Message<BuildingId option * Guid>): Async<Result<unit, DeleteContactPersonError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (fst msg.Payload |> Option.defaultValue Guid.Empty)
     then
-        let! nbRowsAffected = storage.DeleteContactPerson (msg.Payload)
+        let! nbRowsAffected = storage.DeleteContactPerson msg.Payload
         if nbRowsAffected = 0
         then return Error DeleteContactPersonError.NotFound
         else return Ok ()
@@ -52,7 +52,7 @@ let deleteContactPerson (storage: IOrganizationStorage) (msg: Message<BuildingId
 let createOrganization (storage: IOrganizationStorage) (msg: Message<Organization>): Async<Result<unit, SaveOrganizationError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
-        let validated = ValidatedOrganization.Validate (msg.Payload)
+        let validated = ValidatedOrganization.Validate msg.Payload
         match validated with
         | Ok validated ->
             do! storage.CreateOrganization validated
@@ -66,7 +66,7 @@ let createOrganization (storage: IOrganizationStorage) (msg: Message<Organizatio
 let updateOrganization (storage: IOrganizationStorage) (msg: Message<Organization>): Async<Result<unit, SaveOrganizationError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
-        let validated = ValidatedOrganization.Validate (msg.Payload)
+        let validated = ValidatedOrganization.Validate msg.Payload
         match validated with
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateOrganization validated
@@ -82,7 +82,7 @@ let updateOrganization (storage: IOrganizationStorage) (msg: Message<Organizatio
 let deleteOrganization (storage: IOrganizationStorage) (msg: Message<BuildingId option * Guid>): Async<Result<unit, DeleteOrganizationError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (fst msg.Payload |> Option.defaultValue Guid.Empty)
     then
-        let! nbRowsAffected = storage.DeleteOrganization (msg.Payload)
+        let! nbRowsAffected = storage.DeleteOrganization msg.Payload
         if nbRowsAffected = 0
         then return Error DeleteOrganizationError.NotFound
         else return Ok ()
@@ -93,7 +93,7 @@ let deleteOrganization (storage: IOrganizationStorage) (msg: Message<BuildingId 
 let createOrganizationType (storage: IOrganizationStorage) (msg: Message<OrganizationType>): Async<Result<unit, SaveOrganizationTypeError>> = async {
     if msg.CurrentUser.IsSysAdmin ()
     then
-        let validated = ValidatedOrganizationType.Validate (msg.Payload)
+        let validated = ValidatedOrganizationType.Validate msg.Payload
         match validated with
         | Ok validated ->
             do! storage.CreateOrganizationType validated
@@ -107,7 +107,7 @@ let createOrganizationType (storage: IOrganizationStorage) (msg: Message<Organiz
 let updateOrganizationType (storage: IOrganizationStorage) (msg: Message<OrganizationType>): Async<Result<unit, SaveOrganizationTypeError>> = async {
     if msg.CurrentUser.IsSysAdmin ()
     then
-        let validated = ValidatedOrganizationType.Validate (msg.Payload)
+        let validated = ValidatedOrganizationType.Validate msg.Payload
         match validated with
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateOrganizationType validated
@@ -123,7 +123,7 @@ let updateOrganizationType (storage: IOrganizationStorage) (msg: Message<Organiz
 let deleteOrganizationType (storage: IOrganizationStorage) (msg: Message<Guid>): Async<Result<unit, DeleteOrganizationTypeError>> = async {
     if msg.CurrentUser.IsSysAdmin ()
     then
-        let! nbRowsAffected = storage.DeleteOrganizationType (msg.Payload)
+        let! nbRowsAffected = storage.DeleteOrganizationType msg.Payload
         if nbRowsAffected = 0
         then return Error DeleteOrganizationTypeError.NotFound
         else return Ok ()

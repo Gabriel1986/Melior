@@ -455,7 +455,7 @@ let view (state: State) (dispatch: Msg -> unit) =
                     |> List.map (fun child -> 
                         [
                             li [] [ 
-                                yield str (seq { for _ in 1..level do yield "" } |> String.JoinWith " ")
+                                yield str (seq { for _ in 1..level do yield "" } |> String.joinWith " ")
                                 yield str (sprintf "%s - %s" child.Code child.Description)
                                 //TODO.
                                 //if (child.BuildingId.IsSome) then

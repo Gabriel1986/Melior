@@ -77,7 +77,7 @@ let view (props: Props) =
                     ]
                 ]
                 readonlyFormElement "Eigenaar?" (if isOwner then "Ja" else "Nee")
-                PersonViewComponent.render {| Person = person; WithAddresses = false |}
+                PersonViewComponent.render {| Person = person; ShowAddresses = true; ShowBankAccounts = true |}
             ]
         | None ->
             null
@@ -85,9 +85,9 @@ let view (props: Props) =
         | Some syndic ->
             let viewComponent, syndicType = 
                 match syndic with
-                | Syndic.Owner owner -> PersonViewComponent.render {| Person = owner.Person; WithAddresses = true |}, "Eigenaar"
+                | Syndic.Owner owner -> PersonViewComponent.render {| Person = owner.Person; ShowAddresses = true; ShowBankAccounts = true |}, "Eigenaar"
                 | Syndic.ProfessionalSyndic pro -> OrganizationViewComponent.render {| Organization = pro.Organization |}, "Professionele syndicus"
-                | Syndic.Other person -> PersonViewComponent.render {| Person = person; WithAddresses = true |}, "Andere"
+                | Syndic.Other person -> PersonViewComponent.render {| Person = person; ShowAddresses = true; ShowBankAccounts = true |}, "Andere"
 
             fieldset [] [
                 legend [] [ 

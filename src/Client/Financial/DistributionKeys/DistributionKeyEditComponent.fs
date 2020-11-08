@@ -1,11 +1,11 @@
 ﻿module Client.Financial.DistributionKeys.DistributionKeyEditComponent
 
-open Shared.Read
-open Client
 open Fable.React
 open Fable.React.Props
 open Elmish
 open Elmish.React
+open Shared.Read
+open Client
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Types
@@ -29,8 +29,15 @@ let init (distributionKey: DistributionKeyModel, allLots: LotListItem list) =
     }, Cmd.none
 
 let update (message: Message) (state: State): State * Cmd<Message> =
-    let changeDistributionKey f =
-        { state with DistributionKey = f state.DistributionKey }
+    let changeDistributionKey f = { state with DistributionKey = f state.DistributionKey }
+
+    let recalculateValidationErrors (state: State) =
+        match state.Errors with
+        | [] -> state
+        | _errors ->
+            match state.DistributionKey.Validate() with
+            | Ok _validated -> state
+            | Error validationErrors -> { state with Errors = validationErrors }
 
     match message with
     | NameChanged x ->
@@ -43,6 +50,8 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             then state.DistributionKey.MatchingLots |> List.filter (fun lot -> lot <> x)
             else x::state.DistributionKey.MatchingLots
         changeDistributionKey (fun dKey -> { dKey with MatchingLots = lots }), Cmd.none
+
+    |> (fun (state, cmd) -> state |> recalculateValidationErrors, cmd)
 
 let inColomn x = div [ Class Bootstrap.col ] [ x ]
 

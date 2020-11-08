@@ -9,6 +9,7 @@ open Shared.Read
 open Shared.Library
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
+open Shared.Write
 
 type FinancialYearEditComponentProps = {|
     FinancialYear: FinancialYear
@@ -42,28 +43,29 @@ let initUpdate (financialYear: FinancialYear) =
     }, Cmd.none
 
 let update (msg: Message) (state: State): State * Cmd<Message> =
-    let removeError path state =
-        { state with Errors = (state.Errors |> List.filter (fun (ePath, _) -> ePath <> path)) }
+    let recalculateValidationErrors (state: State) =
+        match state.Errors with
+        | [] -> state
+        | _errors ->
+            match ValidatedFinancialYear.Validate state.FinancialYear with
+            | Ok _validated -> state
+            | Error validationErrors -> { state with Errors = validationErrors }
 
     let updateFinancialYear updateFunction state: State =
         { state with FinancialYear = updateFunction state.FinancialYear }
 
     match msg with
     | CodeChanged newCode ->
-        state
-        |> updateFinancialYear (fun y -> { y with Code = newCode })
-        |> removeError (nameof state.FinancialYear.Code)
+        state |> updateFinancialYear (fun y -> { y with Code = newCode })
         , Cmd.none
     | StartDateChanged newStartDate ->
-        state
-        |> updateFinancialYear (fun y -> { y with StartDate = newStartDate })
-        |> removeError (nameof state.FinancialYear.StartDate)
+        state |> updateFinancialYear (fun y -> { y with StartDate = newStartDate })
         , Cmd.none
     | EndDateChanged newEndDate ->
-        state
-        |> updateFinancialYear (fun y -> { y with EndDate = newEndDate })
-        |> removeError (nameof state.FinancialYear.EndDate)
+        state |> updateFinancialYear (fun y -> { y with EndDate = newEndDate })
         , Cmd.none
+
+    |> (fun (state, cmd) -> recalculateValidationErrors state, cmd)
 
 let view (state: State) (dispatch: Message -> unit) =
     let errorFor (path: string) =

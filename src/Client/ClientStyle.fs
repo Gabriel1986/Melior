@@ -45,13 +45,30 @@ module Helpers =
         Inline: bool
         RadioButtons: FormRadioButton list
     }
-    and FormRadioButton = {
-        Id: string
-        Key: string
-        Label: string
-        IsSelected: bool
-        OnClick: string -> unit
-    }
+    and FormRadioButton = 
+        {
+            Id: string
+            Key: string
+            Label: string
+            IsSelected: bool
+            OnClick: string -> unit
+        }
+        static member YesNo (yes: bool) (onChange: bool -> unit) = [
+            {
+                Id = "yes"
+                Key = "Yes"
+                Label = "Ja"
+                IsSelected = yes
+                OnClick = (fun _ -> onChange true)
+            }
+            {
+                Id = "no"
+                Key = "No"
+                Label = "Nee"
+                IsSelected = not yes
+                OnClick = (fun _ -> onChange false)
+            }
+        ]
 
     let private formRadio (props: FormRadio) =
         let toRadio (radio: FormRadioButton) =

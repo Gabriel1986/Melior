@@ -11,9 +11,14 @@ let validateOptional (validate: 'T -> Trial<'U, _>) (x: 'T option) =
 
 module String =
     let toOption s = if String.IsNullOrEmpty(s) then None else Some s
-    let JoinWith s (collection: string seq) = String.Join(s, collection)
-    let JoinOptionsWith s (collection: string option seq) =
-        collection |> Seq.choose id |> JoinWith s
+    let joinWith s (collection: string seq) = String.Join(s, collection)
+    let joinOptionsWith s (collection: string option seq) =
+        collection |> Seq.choose id |> joinWith s
+
+    let chunk length (xs: string) =
+        xs 
+        |> Seq.chunkBySize length 
+        |> Seq.map String
 
 type CreateOrUpdate = Create | Update
 

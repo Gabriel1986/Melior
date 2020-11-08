@@ -23,6 +23,7 @@ type BankAccount =
         Description: string
         IBAN: string
         BIC: string
+        Validated: bool option
     }
     override me.ToString () =
         [
@@ -30,11 +31,12 @@ type BankAccount =
             if not (String.IsNullOrWhiteSpace(me.IBAN)) then yield me.IBAN
             if not (String.IsNullOrWhiteSpace(me.BIC)) then yield me.BIC
         ]
-        |> String.JoinWith " - "
+        |> String.joinWith " - "
     static member Init () = {
         Description = ""
         IBAN = ""
         BIC = ""
+        Validated = None
     }
 
 type User = 
@@ -165,14 +167,14 @@ and Address =
                 if me.Street.IsSome then yield me.Street.Value
                 if me.MailboxNumber.IsSome then yield (sprintf "bus %s" me.MailboxNumber.Value)
             ]
-            |> String.JoinWith " "
+            |> String.joinWith " "
 
         [
             if (not (String.IsNullOrWhiteSpace houseNumber)) then yield houseNumber
-            if me.ZipCode.IsSome || me.Town.IsSome then yield ([me.ZipCode; me.Town] |> String.JoinOptionsWith " ")
+            if me.ZipCode.IsSome || me.Town.IsSome then yield ([me.ZipCode; me.Town] |> String.joinOptionsWith " ")
             if me.Country.IsSome then yield me.Country.Value
         ]
-        |> String.JoinWith ", "
+        |> String.joinWith ", "
 and OtherAddress = 
     {
         Name: string
@@ -310,6 +312,7 @@ and Organization =
     {
         OrganizationId: Guid
         BuildingId: BuildingId option
+        UsesVatNumber: bool
         OrganizationNumber: string option
         VatNumber: string option
         VatNumberVerifiedOn: DateTime option
@@ -324,7 +327,7 @@ and Organization =
         ContactPersons: ContactPerson list
         BankAccounts: BankAccount list
     }
-    static member Init (buildingId: BuildingId option): Organization = 
+    static member Init (buildingId: BuildingId option, usesVatNumber: bool): Organization = 
         let orgId = Guid.NewGuid()
         {
             OrganizationId = orgId
@@ -342,6 +345,7 @@ and Organization =
             OtherContactMethods = []
             ContactPersons = []
             BankAccounts = []
+            UsesVatNumber = usesVatNumber
         }
 and ContactPerson = 
     {
@@ -395,7 +399,7 @@ and Person =
         OtherContactMethods: ContactMethod list
         BankAccounts: BankAccount list
     }
-    member me.FullName () = [ me.FirstName; me.LastName ] |> String.JoinOptionsWith " "
+    member me.FullName () = [ me.FirstName; me.LastName ] |> String.joinOptionsWith " "
     static member Init () = {
         PersonId = Guid.NewGuid()
         FirstName = None
@@ -444,7 +448,7 @@ and ProfessionalSyndic =
         BuildingIds: BuildingId list
     }
     static member Init () = {
-        Organization = Organization.Init None
+        Organization = Organization.Init (None, false)
         BuildingIds = []
     }
 and OwnerListItem = 
@@ -456,7 +460,7 @@ and OwnerListItem =
         BankAccounts: BankAccount list
         IsResident: bool
     }
-    member me.FullName () = [ me.FirstName; me.LastName ] |> String.JoinOptionsWith " "
+    member me.FullName () = [ me.FirstName; me.LastName ] |> String.joinOptionsWith " "
 
 and ProfessionalSyndicListItem = {
     OrganizationId: Guid

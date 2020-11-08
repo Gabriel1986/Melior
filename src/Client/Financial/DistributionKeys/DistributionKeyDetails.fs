@@ -60,7 +60,7 @@ let init (props: DetailsProps): Model * Cmd<Msg> =
     }
     match props.DistributionKey with
     | None ->
-        let distributionKey = DistributionKeyModel.init (props.CurrentBuildingId)
+        let distributionKey = DistributionKeyModel.Init (props.CurrentBuildingId)
         let editState, editCmd = DistributionKeyEditComponent.init (distributionKey, props.AllLots)
         { model with State = Creating (false, editState) }, editCmd |> Cmd.map EditComponentMsg
     | Some distributionKey ->
@@ -107,13 +107,12 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
     | Save ->
         match model.State with
         | Editing (_, componentState) ->
-            let distributionKey = DistributionKeyModel.toBackendType componentState.DistributionKey
-            match ValidatedDistributionKey.Validate distributionKey with
+            match componentState.DistributionKey.Validate () with
             | Ok _ when componentState.DistributionKey.CanBeEdited ->
                 let cmd = 
                     Cmd.OfAsync.either
                         (Remoting.getRemotingApi().UpdateDistributionKey)
-                        distributionKey
+                        (componentState.DistributionKey.ToBackendModel())
                         (fun result -> result |> Result.map (fun _ -> componentState.DistributionKey) |> ProcessUpdateResult)
                         RemotingError
                 { model with State = Editing (true, componentState) }, cmd
@@ -124,13 +123,12 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 printf "%A" e
                 { model with State = Editing (false, { componentState with Errors = e }) }, Cmd.none
         | Creating (_, componentState) ->
-            let distributionKey = DistributionKeyModel.toBackendType componentState.DistributionKey
-            match ValidatedDistributionKey.Validate distributionKey with
+            match componentState.DistributionKey.Validate () with
             | Ok _ ->
                 let cmd =
                     Cmd.OfAsync.either
                         (Remoting.getRemotingApi().CreateDistributionKey)
-                        distributionKey
+                        (componentState.DistributionKey.ToBackendModel())
                         (fun result -> result |> Result.map (fun _ -> componentState.DistributionKey) |> ProcessCreateResult)
                         RemotingError
                 { model with State = Creating(true, componentState) }, cmd

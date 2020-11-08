@@ -79,7 +79,7 @@ let parseAddress (httpClient: HttpClient) (settings: AppSettings) (address: stri
                 Street = 
                     match [ street; streetNumber ] |> List.choose id with
                     | [] -> None 
-                    | xs -> xs |> String.JoinWith " " |> Some
+                    | xs -> xs |> String.joinWith " " |> Some
                 MailboxNumber = mailboxNumber
                 Town = town
                 ZipCode = zipCode

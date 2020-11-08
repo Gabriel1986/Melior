@@ -15,11 +15,10 @@ open Shared.Write
 
 open Client.Components
 open Client.Components.BasicModal
+open Client.Components.SelectionList
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
-
 open Client.Library
-open Client.Components.SelectionList
 
 type Model = {
     IsOpen: bool
@@ -181,7 +180,7 @@ let renderOwnerSelectionList (list: OwnerListItem list) selectedId dispatch =
             DisplayListItem = (fun ownerListItem -> 
                 [ownerListItem.FirstName; ownerListItem.LastName] 
                 |> List.choose id 
-                |> String.JoinWith ", "
+                |> String.joinWith ", "
                 |> str)
         |}, "OwnerSelectionList")
 
@@ -194,7 +193,7 @@ let modalContent model dispatch =
     | SelectingOwner (list, selectedId) ->
         renderOwnerSelectionList list selectedId dispatch
     | EditingPerson componentState ->
-        PersonEditComponent.view componentState (PersonEditComponentMsg >> dispatch)
+        PersonEditComponent.view componentState (PersonEditComponentMsg >> dispatch) {| ShowAddresses = true; ShowBankAccounts = true |}
     | OwnerNotFound ->
         div [] [ str "De eigenaar werd niet gevonden in de databank, vreemd genoeg..." ]
     | Saving ->

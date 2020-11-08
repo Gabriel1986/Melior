@@ -12,7 +12,7 @@ let createProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message
     //Only a systems admin can create a professional syndic
     if msg.CurrentUser.IsSysAdmin ()
     then
-        let validated = ValidatedProfessionalSyndic.Validate (msg.Payload)
+        let validated = ValidatedProfessionalSyndic.Validate msg.Payload
         match validated with
         | Ok validated ->
             do! storage.CreateProfessionalSyndic validated
@@ -26,7 +26,7 @@ let createProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message
 let updateProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<ProfessionalSyndic>): Async<Result<unit, SaveProfessionalSyndicError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding(msg.Payload.Organization.OrganizationId)
     then
-        let validated = ValidatedProfessionalSyndic.Validate (msg.Payload)
+        let validated = ValidatedProfessionalSyndic.Validate msg.Payload
         match validated with
         | Ok validated -> 
             let! nbRowsAffected = storage.UpdateProfessionalSyndic validated
@@ -40,9 +40,9 @@ let updateProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message
 }
 
 let deleteProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<Guid>): Async<Result<unit, DeleteProfessionalSyndicError>> = async {
-    if msg.CurrentUser.HasAdminAccessToBuilding(msg.Payload)
+    if msg.CurrentUser.HasAdminAccessToBuilding msg.Payload
     then
-        let! nbRowsAffected = storage.DeleteProfessionalSyndic (msg.Payload)
+        let! nbRowsAffected = storage.DeleteProfessionalSyndic msg.Payload
         if nbRowsAffected = 0
         then return Error DeleteProfessionalSyndicError.NotFound
         else return Ok ()

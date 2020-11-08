@@ -2,6 +2,7 @@
 
 open System
 open Shared.Trial
+open Library
 
 let private validateStringOfLength path (length: int) (s: string) =
     if String.IsNullOrEmpty (s)
@@ -103,6 +104,24 @@ module OrganizationNumber =
         if split.Length <> 3 
         then Of path ("", "", "")
         else Of path (split.[0], split.[1], split.[2])
+
+type IBAN =
+    private | IBAN of string
+    member me.Value () = match me with | IBAN value -> value
+    override me.ToString () =
+        me.Value ()
+        |> String.filter Char.IsLetterOrDigit
+        |> String.chunk 4
+        |> String.joinWith " "
+
+module IBAN =
+    let Of path value =
+        String64.Of path value
+        |> Trial.map (string >> IBAN)
+
+    let OfOptional path value =
+        String64.OfOptional path value
+        |> Trial.map (Option.map (string >> IBAN))
 
 type VatNumber = 
     private | VatNumber of countryCode: string * vatNumber: string

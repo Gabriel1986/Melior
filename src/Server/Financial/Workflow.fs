@@ -18,7 +18,7 @@ let (|Authorized|Unauthorized|) (currentUser: User, buildingId: BuildingId optio
 let createDistributionKey (store: IFinancialStorage) (msg: Message<DistributionKey>) = async {
     match (msg.CurrentUser, msg.Payload.BuildingId) with
     | Authorized ->
-        match ValidatedDistributionKey.Validate (msg.Payload) with
+        match ValidatedDistributionKey.Validate msg.Payload with
         | Ok validated -> 
             do! store.CreateDistributionKey (msg |> Message.map validated)
             return Ok ()
@@ -31,7 +31,7 @@ let createDistributionKey (store: IFinancialStorage) (msg: Message<DistributionK
 let updateDistributionKey (store: IFinancialStorage) (msg: Message<DistributionKey>) = async {
     match (msg.CurrentUser, msg.Payload.BuildingId) with
     | Authorized ->
-        match ValidatedDistributionKey.Validate (msg.Payload) with
+        match ValidatedDistributionKey.Validate msg.Payload with
         | Ok validated ->
             let! nbUpdated = store.UpdateDistributionKey (msg |> Message.map validated)
             return if nbUpdated > 0 then Ok () else Error (SaveDistributionKeyError.NotFound)
@@ -53,7 +53,7 @@ let deleteDistributionKey (store: IFinancialStorage) (msg: Message<BuildingId * 
 let createInvoice (store: IFinancialStorage) (msg: Message<Invoice>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
-        match ValidatedInvoice.Validate (msg.Payload) with
+        match ValidatedInvoice.Validate msg.Payload with
         | Ok validated -> 
             do! store.CreateInvoice (msg |> Message.map validated)
             return Ok ()
@@ -66,7 +66,7 @@ let createInvoice (store: IFinancialStorage) (msg: Message<Invoice>) = async {
 let updateInvoice (store: IFinancialStorage) (msg: Message<Invoice>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
-        match ValidatedInvoice.Validate (msg.Payload) with
+        match ValidatedInvoice.Validate msg.Payload with
         | Ok validated ->
             let! nbUpdated = store.UpdateInvoice (msg |> Message.map validated)
             return if nbUpdated > 0 then Ok () else Error (SaveInvoiceError.NotFound)
@@ -88,7 +88,7 @@ let deleteInvoice (store: IFinancialStorage) (msg: Message<BuildingId * Guid>) =
 let createFinancialYear (store: IFinancialStorage) (msg: Message<FinancialYear>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
-        match ValidatedFinancialYear.Validate (msg.Payload) with
+        match ValidatedFinancialYear.Validate msg.Payload with
         | Ok validated -> 
             do! store.CreateFinancialYear (msg |> Message.map validated)
             return Ok ()
@@ -101,7 +101,7 @@ let createFinancialYear (store: IFinancialStorage) (msg: Message<FinancialYear>)
 let updateFinancialYear (store: IFinancialStorage) (msg: Message<FinancialYear>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
-        match ValidatedFinancialYear.Validate (msg.Payload) with
+        match ValidatedFinancialYear.Validate msg.Payload with
         | Ok validated ->
             let! nbUpdated = store.UpdateFinancialYear (msg |> Message.map validated)
             return if nbUpdated > 0 then Ok () else Error (SaveFinancialYearError.NotFound)
@@ -132,7 +132,7 @@ let deleteFinancialYear (store: IFinancialStorage) (msg: Message<BuildingId * Gu
 let createFinancialCategory (store: IFinancialStorage) (msg: Message<FinancialCategory>) = async {
     match (msg.CurrentUser, msg.Payload.BuildingId) with
     | Authorized ->
-        match ValidatedFinancialCategory.Validate (msg.Payload) with
+        match ValidatedFinancialCategory.Validate msg.Payload with
         | Ok validated -> 
             do! store.CreateFinancialCategory (msg |> Message.map validated)
             return Ok ()
@@ -145,7 +145,7 @@ let createFinancialCategory (store: IFinancialStorage) (msg: Message<FinancialCa
 let updateFinancialCategory (store: IFinancialStorage) (msg: Message<FinancialCategory>) = async {
     match (msg.CurrentUser, msg.Payload.BuildingId) with
     | Authorized ->
-        match ValidatedFinancialCategory.Validate (msg.Payload) with
+        match ValidatedFinancialCategory.Validate msg.Payload with
         | Ok validated ->
             let! nbUpdated = store.UpdateFinancialCategory (msg |> Message.map validated)
             return if nbUpdated > 0 then Ok () else Error (SaveFinancialCategoryError.NotFound)

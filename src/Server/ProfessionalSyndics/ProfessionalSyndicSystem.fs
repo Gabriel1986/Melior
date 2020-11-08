@@ -17,7 +17,7 @@ let build (config: IConfiguration): IProfessionalSyndicSystem =
             member _.UpdateProfessionalSyndic msg = Workflow.updateProfessionalSyndic store msg
             member _.DeleteProfessionalSyndic msg = Workflow.deleteProfessionalSyndic store msg
             member _.GetProfessionalSyndic msg = 
-                if msg.CurrentUser.HasAdminAccessToProfessionalSyndic (msg.Payload)
+                if msg.CurrentUser.HasAdminAccessToProfessionalSyndic msg.Payload
                 then Query.getProfessionalSyndic conn msg.Payload
                 else Async.lift None
             member _.GetProfessionalSyndics msg =

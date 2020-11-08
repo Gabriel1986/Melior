@@ -82,6 +82,7 @@ let createQuery =
         INSERT INTO Organizations (
             OrganizationId,
             BuildingId,
+            UsesVatNumber,
             OrganizationNumber,
             VatNumber,
             VatNumberVerifiedOn,
@@ -96,6 +97,7 @@ let createQuery =
         ) VALUES (
             @OrganizationId,
             @BuildingId,
+            @UsesVatNumber,
             @OrganizationNumber,
             @VatNumber,
             @VatNumberVerifiedOn,
@@ -114,6 +116,7 @@ let updateQuery =
     """
         UPDATE Organizations SET
             OrganizationNumber = @OrganizationNumber,
+            UsesVatNumber = @UsesVatNumber,
             VatNumber = @VatNumber,
             VatNumberVerifiedOn = @VatNumberVerifiedOn,
             Name = @Name,
@@ -130,6 +133,7 @@ let updateQuery =
 let paramsFor (validated: ValidatedOrganization) = [
     "@OrganizationId"            , Sql.uuid validated.OrganizationId
     "@BuildingId"                , Sql.uuidOrNone validated.BuildingId
+    "@UsesVatNumber"             , Sql.bool validated.UsesVatNumber
     "@OrganizationNumber"        , Sql.stringOrNone (validated.OrganizationNumber |> Option.map string)
     "@VatNumber"                 , Sql.stringOrNone (validated.VatNumber |> Option.map string)
     "@VatNumberVerifiedOn"       , Sql.timestampOrNone validated.VatNumberVerifiedOn

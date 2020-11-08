@@ -39,6 +39,7 @@
     <None Include="public\assets\logo.svg" />
     <None Include="public\assets\logo_transparent.svg" />
     <None Include="public\assets\mini_logo.svg" />
+    <Compile Include="IbanValidator.fs" />
     <Compile Include="Upload.fs" />
     <Compile Include="Remoting.fs" />
     <Compile Include="Routing.fs" />

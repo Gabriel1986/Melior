@@ -63,9 +63,14 @@ module Library =
     [<RequireQualifiedAccess>]
     module BankAccount =
         let private bankAccountEncoder = Encode.Auto.generateEncoderCached<BankAccount>()
-        let private bankAccountDecoder = Decode.Auto.generateDecoderCached<BankAccount>()
+        let private bankAccountDecoder: Decoder<BankAccount> =
+            Decode.object(fun get -> {
+                Description = get.Required.Field "Description" Decode.string
+                IBAN = get.Required.Field "IBAN" Decode.string
+                BIC = get.Required.Field "BIC" Decode.string
+                Validated = get.Optional.Field "Validated" Decode.bool
+            })
         let private bankAccountListEncoder = Encode.Auto.generateEncoderCached<BankAccount list>()
-        let private bankAccountListDecoder = Decode.Auto.generateDecoderCached<BankAccount list>()
     
         let toJson (bankAccount: BankAccount) =
             Encode.toString 0 (bankAccountEncoder bankAccount)
@@ -82,7 +87,7 @@ module Library =
             Encode.toString 0 (bankAccountListEncoder bankAccounts)
     
         let listFromJson (str: string) =
-            match Decode.fromString bankAccountListDecoder str with
+            match Decode.fromString (Decode.list bankAccountDecoder) str with
             | Ok result ->
                 result
             | Error e ->
@@ -95,6 +100,7 @@ module Library =
             Description = match validated.Description with | Some d -> string d | None -> ""
             IBAN = match validated.IBAN with | Some iban -> string iban | None -> ""
             BIC = match validated.BIC with | Some bic -> string bic | None -> ""
+            Validated = validated.Validated
         }
 
         let toJson (validated: ValidatedBankAccount): string =

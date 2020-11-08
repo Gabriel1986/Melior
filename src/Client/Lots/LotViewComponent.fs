@@ -1,7 +1,6 @@
 ﻿module Client.Lots.LotViewComponent
 
 open Fable.React
-open Fable.React.Props
 open Shared.Read
 open Shared.Library
 open Client.ClientStyle
@@ -11,7 +10,7 @@ let view (detail: Lot) =
     let ownerTypes (lotOwner: LotOwner) =
         match lotOwner.LotOwnerType with
         | LotOwnerType.Owner _ -> str "Persoon"
-        | LotOwnerType.Organization o -> str ("Leverancier: " + (o.OrganizationTypeNames |> String.JoinWith ", "))
+        | LotOwnerType.Organization o -> str ("Leverancier: " + (o.OrganizationTypeNames |> String.joinWith ", "))
 
     let ownerName (lotOwner: LotOwner) =
         match lotOwner.LotOwnerType with

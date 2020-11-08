@@ -9,6 +9,7 @@ open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Shared.Read
 open Shared.Library
+open Shared.Write
 
 type State = {
     Person: Person
@@ -61,6 +62,14 @@ let update (message: Message) (state: State): State * Cmd<Message> =
 
     let changeOtherContactMethods otherContactMethods =
         changePerson (fun p -> { p with OtherContactMethods = otherContactMethods })
+
+    let recalculateValidationErrors (state: State) =
+        match state.Errors with
+        | [] -> state
+        | _errors ->
+            match ValidatedPerson.Validate state.Person with
+            | Ok _validated -> state
+            | Error validationErrors -> { state with Errors = validationErrors }
 
     match message with
     | FirstNameChanged x ->
@@ -146,13 +155,15 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             { p with BankAccounts = updatedBankAccounts }
         ), Cmd.none
 
+    |> (fun (state, cmd) -> state |> recalculateValidationErrors, cmd)
+
 let private genderOptions dispatch currentGender: FormRadioButton list =
     let onClick = (fun gender ->
         let newGender =
             match gender with
             | x when x = string Male -> Male
             | x when x = string Female -> Female
-            | _ -> Other
+            | _ -> Gender.Other
         GenderChanged newGender |> dispatch
     )
     [
@@ -174,7 +185,7 @@ let private genderOptions dispatch currentGender: FormRadioButton list =
             Id = "otherGender"
             Key = string Other
             Label = "Ander"
-            IsSelected = currentGender = Other
+            IsSelected = currentGender = Gender.Other
             OnClick = onClick
         }
     ]
@@ -401,12 +412,14 @@ let private renderBankAccounts (basePath: string) (bankAccounts: BankAccount lis
     [
         yield! bankAccounts |> List.mapi (fun index bankAccount ->
             div [] [
-                BankAccountEditComponent.render 
-                    (bankAccount)
-                    (fun updated -> BankAccountChanged (index, updated) |> dispatch) 
-                    (Some (fun _ -> BankAccountRemoved index |> dispatch))
-                    (sprintf "%s.[%i]" basePath index)
-                    errors
+                BankAccountEditComponent.render
+                    {|
+                        BankAccount = bankAccount
+                        OnChange = fun updated -> BankAccountChanged (index, updated) |> dispatch
+                        OnDelete = Some (fun _ -> BankAccountRemoved index |> dispatch)
+                        BasePath = sprintf "%s.[%i]" basePath index
+                        Errors = errors
+                    |}
             ]
         )
         yield
@@ -424,7 +437,9 @@ let private renderBankAccounts (basePath: string) (bankAccounts: BankAccount lis
             ]
     ]
 
-let view state dispatch =
+let view state dispatch (props: {| ShowAddresses: bool; ShowBankAccounts: bool |}) =
+    let errorFor path = state.Errors |> List.tryPick (fun (ePath, error) -> if path = ePath then Some error else None)
+
     div [] [
         yield formGroup [ 
             Label "Voornaam" 
@@ -434,7 +449,8 @@ let view state dispatch =
                 Helpers.valueOrDefault state.Person.FirstName 
                 OnChange (fun e -> FirstNameChanged e.Value |> dispatch)
                 Required true
-            ] 
+            ]
+            FormError (errorFor (nameof state.Person.FirstName))
         ]
         yield formGroup [ 
             Label "Achternaam"
@@ -444,21 +460,23 @@ let view state dispatch =
                 Helpers.valueOrDefault state.Person.LastName
                 OnChange (fun e -> LastNameChanged e.Value |> dispatch)
                 Required true
-            ] 
+            ]
+            FormError (errorFor (nameof state.Person.LastName))
         ]
         yield formGroup [ 
             Label "Taal"
             Radio { 
                 Inline = true
                 RadioButtons = languageOptions dispatch state.Person.LanguageCode 
-            } 
+            }
+            FormError (errorFor (nameof state.Person.LanguageCode))
         ]
         yield formGroup [ 
             Label "Geslacht"
             Radio { 
                 Inline = true
                 RadioButtons = genderOptions dispatch state.Person.Gender
-            } 
+            }
         ]
         yield formGroup [ 
             Label "Aanhef"
@@ -467,11 +485,15 @@ let view state dispatch =
                 MaxLength 32.0
                 Helpers.valueOrDefault state.Person.Title
                 OnChange (fun e -> TitleChanged e.Value |> dispatch)
-            ] 
+            ]
+            FormError (errorFor (nameof state.Person.Title))
         ]
-        yield! renderMainAddress state dispatch
-        yield! renderContactAddress state dispatch
-        yield! renderOtherAddresses state dispatch
+        if props.ShowAddresses then
+            yield! [
+                yield! renderMainAddress state dispatch
+                yield! renderContactAddress state dispatch
+                yield! renderOtherAddresses state dispatch
+            ]
         yield formGroup [ 
             Label "Tel."
             Input [ 
@@ -479,7 +501,8 @@ let view state dispatch =
                 MaxLength 32.0 
                 Helpers.valueOrDefault state.Person.MainTelephoneNumber
                 OnChange (fun e -> MainTelephoneNumberChanged e.Value |> dispatch)
-            ] 
+            ]
+            FormError (errorFor (nameof state.Person.MainTelephoneNumber))
         ]
         yield formGroup [ 
             Label "Tel. commentaar"
@@ -489,6 +512,7 @@ let view state dispatch =
                 Helpers.valueOrDefault state.Person.MainTelephoneNumberComment
                 OnChange (fun e -> MainTelephoneNumberCommentChanged e.Value |> dispatch)
             ] 
+            FormError (errorFor (nameof state.Person.MainTelephoneNumberComment))
         ]
         yield formGroup [ 
             Label "E-mail"
@@ -497,7 +521,8 @@ let view state dispatch =
                 MaxLength 255.0 
                 Helpers.valueOrDefault state.Person.MainEmailAddress
                 OnChange (fun e -> MainEmailAddressChanged e.Value |> dispatch)
-            ] 
+            ]
+            FormError (errorFor (nameof state.Person.MainEmailAddress))
         ]
         yield formGroup [ 
             Label "E-mail commentaar"
@@ -506,8 +531,12 @@ let view state dispatch =
                 MaxLength 255.0
                 Helpers.valueOrDefault state.Person.MainEmailAddressComment
                 OnChange (fun e -> MainEmailAddressCommentChanged e.Value |> dispatch)
-            ] 
+            ]
+            FormError (errorFor (nameof state.Person.MainEmailAddressComment))
         ]
         yield! renderOtherContactMethods state.Person.OtherContactMethods dispatch
-        yield! renderBankAccounts (nameof state.Person.BankAccounts) state.Person.BankAccounts state.Errors dispatch
+        if props.ShowBankAccounts then 
+            yield! [
+                yield! renderBankAccounts (nameof state.Person.BankAccounts) state.Person.BankAccounts state.Errors dispatch
+            ]
     ]

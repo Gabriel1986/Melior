@@ -68,14 +68,17 @@ let view (state: State) (dispatch: Message -> unit) =
 
     div [] [
         div [ classes [ Bootstrap.row; "full-width" ] ] [
-            formGroup [ 
+            formGroup [
                 Label "Bewoner"
                 Radio {
                     Inline = true
-                    RadioButtons = yesNo
+                    RadioButtons =
+                        FormRadioButton.YesNo
+                            (state.Owner.IsResident)
+                            (fun isResident -> IsResidentChanged isResident |> dispatch)
                 }
             ]
             |> inColumn
         ]
-        PersonEditComponent.view (state.PersonEditComponentState) (PersonEditComponentMessage >> dispatch)
+        PersonEditComponent.view (state.PersonEditComponentState) (PersonEditComponentMessage >> dispatch) {| ShowAddresses = true; ShowBankAccounts = true |}
     ]

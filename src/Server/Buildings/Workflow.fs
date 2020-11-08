@@ -7,7 +7,6 @@ open Shared.Read
 open Server.Library
 open Server.LibraryExtensions
 open Storage
-open Server.SeedData
 
 //TODO: license check if we ever sell to professional syndics?
 let createBuilding (storage: IBuildingStorage) (msg: Message<Building>) = async {

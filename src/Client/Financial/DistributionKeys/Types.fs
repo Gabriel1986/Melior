@@ -2,6 +2,7 @@
 
 open System
 open Shared.Read
+open Shared.Write
 
 type DistributionKeyModel = 
     {
@@ -12,7 +13,7 @@ type DistributionKeyModel =
         CanBeEdited: bool
         MatchingLots: LotListItem list
     }
-    static member init (buildingId: BuildingId option) = {
+    static member Init (buildingId: BuildingId option) = {
         DistributionKeyId = Guid.NewGuid()
         BuildingId = buildingId
         Name = ""
@@ -20,13 +21,13 @@ type DistributionKeyModel =
         CanBeEdited = true
         MatchingLots = []
     }
-
-module DistributionKeyModel =
-    let toBackendType (model: DistributionKeyModel): DistributionKey = {
-        DistributionKeyId = model.DistributionKeyId
-        BuildingId = model.BuildingId
-        Name = model.Name
-        DistributionType = model.DistributionType
-        LotsOrLotTypes = LotsOrLotTypes.Lots (model.MatchingLots |> List.map (fun lot -> lot.LotId))
+    member me.ToBackendModel () = {
+        DistributionKeyId = me.DistributionKeyId
+        BuildingId = me.BuildingId
+        Name = me.Name
+        DistributionType = me.DistributionType
+        LotsOrLotTypes = LotsOrLotTypes.Lots (me.MatchingLots |> List.map (fun lot -> lot.LotId))
         IncludeGroundFloor = true
     }
+    member me.Validate () =
+        ValidatedDistributionKey.Validate (me.ToBackendModel ())
