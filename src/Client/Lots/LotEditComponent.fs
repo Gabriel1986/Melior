@@ -24,8 +24,8 @@ type Message =
     | ConfirmRemoveLotOwner of LotOwner
     | SelectLegalRepresentative of LotOwner
     | ShareChanged of string
-    | StartDateChanged of int * DateTime
-    | EndDateChanged of int * DateTime option
+    | StartDateChanged of int * DateTimeOffset
+    | EndDateChanged of int * DateTimeOffset option
     | NoOp
 
 type State = {
@@ -88,7 +88,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             LotId = state.Lot.LotId
             LotOwnerType = lotOwnerType
             LotOwnerRole = LotOwnerRole.Other
-            StartDate = DateTime.Today
+            StartDate = new DateTimeOffset(DateTime.Today)
             EndDate = None
         }
         let newState = changeLot (fun l -> { l with Owners = (newLotOwner::l.Owners) |> ensureLegalRepresentative })
@@ -156,29 +156,33 @@ let renderEditLotOwners (basePath: string) (errors: (string * string) list) (lot
             button [ 
                 classes [ Bootstrap.btn; Bootstrap.btnLight; Bootstrap.btnSm ]
                 OnClick (fun _ -> SelectLegalRepresentative lotOwner |> dispatch)
-                Disabled (lotOwner.EndDate.IsSome && lotOwner.EndDate.Value < DateTime.Today)
+                Disabled (lotOwner.EndDate.IsSome && lotOwner.EndDate.Value < DateTimeOffset.Now)
             ] [
                 str "Nee"
             ]
 
     let startDateEditorFor (index: int) (lotOwner: LotOwner) =
         Flatpickr.flatpickr  [
-            Flatpickr.OnChange (fun e -> StartDateChanged (index, e) |> dispatch)
-            Flatpickr.Value lotOwner.StartDate
+            Flatpickr.OnChange (fun e -> StartDateChanged (index, new DateTimeOffset(e)) |> dispatch)
+            Flatpickr.Value lotOwner.StartDate.LocalDateTime
             Flatpickr.SelectionMode Flatpickr.Mode.Single
             Flatpickr.EnableTimePicker false
+            Flatpickr.Locale Flatpickr.Locales.dutch
+            Flatpickr.DateFormat "d/m/Y"
         ]
 
     let endDateEditorFor (index: int) (owner: LotOwner) =
         form [ Id (sprintf "%A" owner.LotOwnerType) ] [
             div [ Class Bootstrap.inputGroup ] [
                 Flatpickr.flatpickr [
-                    yield Flatpickr.OnChange (fun e -> EndDateChanged (index, Some e) |> dispatch)
+                    yield Flatpickr.OnChange (fun e -> EndDateChanged (index, Some (new DateTimeOffset(e))) |> dispatch)
                     match owner.EndDate with
-                    | Some endDate -> yield Flatpickr.Value endDate
+                    | Some endDate -> yield Flatpickr.Value endDate.LocalDateTime
                     | None -> yield Flatpickr.custom "key" owner.EndDate false
                     yield Flatpickr.SelectionMode Flatpickr.Mode.Single
                     yield Flatpickr.EnableTimePicker false
+                    yield Flatpickr.Locale Flatpickr.Locales.dutch
+                    yield Flatpickr.DateFormat "d/m/Y"
                 ]
                 div [ Class Bootstrap.inputGroupAppend ] [
                     button [

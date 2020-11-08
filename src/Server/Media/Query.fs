@@ -17,7 +17,9 @@ module private Readers =
         FileName = reader.string "FileName"
         FileSize = reader.int "FileSize"
         MimeType = reader.string "MimeType"
-        UploadedOn = new DateTimeOffset(DateTime.SpecifyKind(reader.dateTime "UploadedOn", DateTimeKind.Utc))
+        UploadedOn =
+            let uploadedOn = reader.dateTime "UploadedOn"
+            new DateTimeOffset(uploadedOn.Year, uploadedOn.Month, uploadedOn.Day, uploadedOn.Hour, uploadedOn.Minute, uploadedOn.Second, TimeSpan.FromHours(2.0))
     }
 
     let selectQuery =

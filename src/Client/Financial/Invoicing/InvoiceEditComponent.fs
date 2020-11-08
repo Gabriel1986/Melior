@@ -33,8 +33,8 @@ type InvoiceInputModel =
         FinancialCategory: FinancialCategory option
         BookingDate: DateTime
         DistributionKey: DistributionKeyListItem option
-        InvoiceDate: DateTime
-        DueDate: DateTime
+        InvoiceDate: DateTimeOffset
+        DueDate: DateTimeOffset
         Organization: OrganizationListItem option
         OrganizationBankAccount: BankAccount option
         OrganizationInvoiceNumber: string option //Number @ supplier
@@ -51,8 +51,8 @@ type InvoiceInputModel =
         VatRate = 21
         FinancialCategory = None
         DistributionKey = None
-        InvoiceDate = DateTime.Today
-        DueDate = DateTime.Today
+        InvoiceDate = new DateTimeOffset(DateTime.Today)
+        DueDate = new DateTimeOffset(DateTime.Today)
         Organization = None
         OrganizationInvoiceNumber = None
         OrganizationBankAccount = None
@@ -134,8 +134,8 @@ type Message =
     | ChangeOrganization
     | OrganizationChanged of OrganizationListItem option
     | CancelChangeOrganization
-    | InvoiceDateChanged of DateTime
-    | DueDateChanged of DateTime
+    | InvoiceDateChanged of DateTimeOffset
+    | DueDateChanged of DateTimeOffset
     | ExternalInvoiceNumberChanged of string
     | OrganizationBankAccountChanged of BankAccount option
     | OrganizationAccountBICChanged of string
@@ -532,6 +532,8 @@ let view (state: State) (dispatch: Message -> unit) =
                     Flatpickr.Value (state.Invoice.BookingDate)
                     Flatpickr.SelectionMode Flatpickr.Mode.Single
                     Flatpickr.EnableTimePicker false
+                    Flatpickr.Locale Flatpickr.Locales.dutch
+                    Flatpickr.DateFormat "d/m/Y"
                 ]
                 FormError (errorFor (nameof state.Invoice.BookingDate))
             ]
@@ -614,10 +616,12 @@ let view (state: State) (dispatch: Message -> unit) =
             formGroup [
                 Label "Factuurdatum"
                 Date [
-                    Flatpickr.OnChange (fun e -> InvoiceDateChanged e |> dispatch)
-                    Flatpickr.Value (state.Invoice.InvoiceDate)
+                    Flatpickr.OnChange (fun e -> InvoiceDateChanged (new DateTimeOffset(e)) |> dispatch)
+                    Flatpickr.Value (state.Invoice.InvoiceDate.LocalDateTime)
                     Flatpickr.SelectionMode Flatpickr.Mode.Single
                     Flatpickr.EnableTimePicker false
+                    Flatpickr.Locale Flatpickr.Locales.dutch
+                    Flatpickr.DateFormat "d/m/Y"
                 ]
                 FormError (errorFor (nameof state.Invoice.InvoiceDate))
             ]
@@ -626,10 +630,12 @@ let view (state: State) (dispatch: Message -> unit) =
             formGroup [
                 Label "Uiterste betaaldatum"
                 Date [
-                    Flatpickr.OnChange (fun e -> DueDateChanged e |> dispatch)
-                    Flatpickr.Value (state.Invoice.DueDate)
+                    Flatpickr.OnChange (fun e -> DueDateChanged (new DateTimeOffset(e)) |> dispatch)
+                    Flatpickr.Value (state.Invoice.DueDate.LocalDateTime)
                     Flatpickr.SelectionMode Flatpickr.Mode.Single
                     Flatpickr.EnableTimePicker false
+                    Flatpickr.Locale Flatpickr.Locales.dutch
+                    Flatpickr.DateFormat "d/m/Y"
                 ]
             ]
             |> inColumn

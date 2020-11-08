@@ -42,8 +42,8 @@ let private generateInsertSqlForOwners (owners: ValidatedLotOwner list) =
             "@Role", Sql.string (string owner.LotOwnerRole)
             "@PersonId", Sql.uuidOrNone personId
             "@OrganizationId", Sql.uuidOrNone orgId
-            "@StartDate", Sql.timestamp owner.StartDate
-            "@EndDate", Sql.timestampOrNone owner.EndDate
+            "@StartDate", Sql.timestamp owner.StartDate.Date
+            "@EndDate", Sql.timestampOrNone (owner.EndDate |> Option.map (fun dt -> dt.Date))
         ]
     )
 
@@ -86,8 +86,8 @@ let private generateUpdateSqlForOwners (owners: ValidatedLotOwner list) =
         , [ 
             yield "@Role", Sql.string (string owner.LotOwnerRole)
             yield "@LotId", Sql.uuid owner.LotId
-            yield "@StartDate", Sql.timestamp owner.StartDate
-            yield "@EndDate", Sql.timestampOrNone owner.EndDate
+            yield "@StartDate", Sql.timestamp (owner.StartDate.AddHours(2.0).Date)
+            yield "@EndDate", Sql.timestampOrNone (owner.EndDate |> Option.map (fun dt -> dt.AddHours(2.0).Date))
             yield! queryParameters
         ]
     )

@@ -78,8 +78,8 @@ let private paramsForInvoice (msg: Message<ValidatedInvoice>) =
            "@OrganizationId", Sql.uuid invoice.OrganizationId
            "@OrganizationBankAccount", Sql.jsonb (ValidatedBankAccount.toJson invoice.OrganizationBankAccount)
            "@OrganizationInvoiceNumber", Sql.stringOrNone (invoice.OrganizationInvoiceNumber |> Option.map string)
-           "@InvoiceDate", Sql.timestamp invoice.InvoiceDate
-           "@DueDate", Sql.timestamp invoice.DueDate
+           "@InvoiceDate", Sql.timestamp (invoice.InvoiceDate.AddHours(2.0).Date)
+           "@DueDate", Sql.timestamp (invoice.DueDate.AddHours(2.0).Date)
            "@CreatedBy", Sql.string (msg.CurrentUser.Principal ())
            "@CreatedAt", Sql.timestamp DateTime.UtcNow
            "@LastUpdatedBy", Sql.string (msg.CurrentUser.Principal ())

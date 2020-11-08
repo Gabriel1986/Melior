@@ -590,6 +590,7 @@ let private renderOrganizationNumber state dispatch =
 
 let view state dispatch =
     div [] [
+        renderOrganizationNumber state dispatch
         formGroup [ 
             Label "Naam" 
             Input [ 
@@ -614,7 +615,6 @@ let view state dispatch =
                     yield str "Selecteren"
             ]
         ]
-        renderOrganizationNumber state dispatch
         h4 [] [ str "Adres" ]
         AddressEditComponent.render state.Organization.Address (Some (fun a -> AddressChanged a |> dispatch)) (nameof state.Organization.Address) state.Errors
         formGroup [ 

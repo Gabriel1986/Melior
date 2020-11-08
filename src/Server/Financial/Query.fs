@@ -7,6 +7,7 @@ open Npgsql.FSharp
 open Server.PostgreSQL
 open Server.PostgreSQL.Sql
 open Shared.MediaLibrary
+open System.Globalization
 
 type DistributionKeyRow = {
     DistributionKeyId: Guid
@@ -96,8 +97,13 @@ let readInvoiceListItem (reader: CaseInsensitiveRowReader): InvoiceListItem = {
     OrganizationName = reader.string "OrganizationName"
     CategoryCode = reader.string "CategoryCode"
     CategoryDescription = reader.string "CategoryDescription"
-    InvoiceDate = reader.dateTime "InvoiceDate"
-    DueDate = reader.dateTime "DueDate"
+    InvoiceDate = 
+        let dt = reader.dateTime "InvoiceDate"
+        new DateTimeOffset(dt.Year, dt.Month, dt.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
+
+    DueDate = 
+        let dt = reader.dateTime "DueDate"
+        new DateTimeOffset(dt.Year, dt.Month, dt.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
 }
 
 let readFinancialYear (reader: CaseInsensitiveRowReader): FinancialYear = {
@@ -341,8 +347,14 @@ let getInvoice (conn: string) (invoiceId: Guid): Async<Invoice option> = async {
             Organization = organization
             OrganizationBankAccount = dbRow.OrganizationBankAccount
             OrganizationInvoiceNumber = dbRow.OrganizationInvoiceNumber
-            InvoiceDate = dbRow.InvoiceDate
-            DueDate = dbRow.DueDate
+            InvoiceDate =
+                let dt = dbRow.InvoiceDate
+                new DateTimeOffset(dt.Year, dt.Month, dt.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
+
+            DueDate =
+                let dt = dbRow.DueDate
+                new DateTimeOffset(dt.Year, dt.Month, dt.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
+
             MediaFiles = mediaFiles
         }
     | None ->

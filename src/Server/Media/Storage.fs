@@ -20,7 +20,7 @@ let paramsFor (mediaFile: MediaFile) = [
     "@FileName", Sql.string mediaFile.FileName
     "@FileSize", Sql.int mediaFile.FileSize
     "@MimeType", Sql.string mediaFile.MimeType
-    "@UploadedOn", Sql.timestamp mediaFile.UploadedOn.UtcDateTime
+    "@UploadedOn", Sql.timestamp mediaFile.UploadedOn.LocalDateTime
 ]
 
 let createMediaFile (connectionString: string) (mediaFile: MediaFile) =

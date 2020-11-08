@@ -114,8 +114,8 @@ let getLot (connectionString: string) (lotId: Guid): Async<Lot option> = async {
             LotId = dbRow.LotId
             LotOwnerType = lotOwnerType
             LotOwnerRole = dbRow.Role
-            StartDate = dbRow.StartDate
-            EndDate = dbRow.EndDate
+            StartDate = new DateTimeOffset(dbRow.StartDate.Year, dbRow.StartDate.Month, dbRow.StartDate.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
+            EndDate = dbRow.EndDate |> Option.map (fun endDate -> new DateTimeOffset(endDate.Year, endDate.Month, endDate.Day, 2, 0, 0, TimeSpan.FromHours(2.0)))
         }
 
         let! lotOwnersWithOwnerType =

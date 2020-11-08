@@ -244,12 +244,12 @@ type ValidatedLotOwner =
         LotId: Guid
         LotOwnerId: LotOwnerId
         LotOwnerRole: LotOwnerRole
-        StartDate: DateTime
-        EndDate: DateTime option
+        StartDate: DateTimeOffset
+        EndDate: DateTimeOffset option
     }
     static member BasicValidate (basePath: string) (lotOwner: LotOwner): Trial<ValidatedLotOwner, string * string> =
         let onBasePath (s: string) = if String.IsNullOrWhiteSpace basePath then s else sprintf "%s.%s" basePath s
-        let validateStartDate (path: string) (startDate: DateTime, endDate: DateTime option) =
+        let validateStartDate (path: string) (startDate: DateTimeOffset, endDate: DateTimeOffset option) =
             match endDate with
             | Some endDate when endDate < startDate -> Trial.ofError (path, "De startdatum moet voor de einddatum vallen")
             | _ -> Trial.Pass startDate
@@ -514,8 +514,8 @@ type ValidatedInvoice =
         OrganizationId: Guid
         OrganizationBankAccount: ValidatedBankAccount
         OrganizationInvoiceNumber: String64 option //Number @ supplier
-        InvoiceDate: DateTime //Date on the invoice
-        DueDate: DateTime //Due date of the invoice
+        InvoiceDate: DateTimeOffset //Date on the invoice
+        DueDate: DateTimeOffset //Due date of the invoice
     }
     static member Validate (invoice: Invoice) =
         trial {

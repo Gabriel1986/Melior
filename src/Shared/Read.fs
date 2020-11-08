@@ -255,8 +255,8 @@ and LotOwner = {
     LotId: Guid
     LotOwnerType: LotOwnerType
     LotOwnerRole: LotOwnerRole
-    StartDate: DateTime
-    EndDate: DateTime option
+    StartDate: DateTimeOffset
+    EndDate: DateTimeOffset option
 }
 and LotOwnerType =
     | Owner of OwnerListItem
@@ -650,8 +650,8 @@ type InvoiceListItem =
         OrganizationName: string
         CategoryCode: string //Boekhoudkundige rekening
         CategoryDescription: string
-        InvoiceDate: DateTime
-        DueDate: DateTime
+        InvoiceDate: DateTimeOffset
+        DueDate: DateTimeOffset
         //HasBeenPaid: bool TODO
     }
     member me.LocalInvoiceNumber = Invoice.calculateLocalInvoiceNumber (me.FinancialYearCode, me.InvoiceNumber)
@@ -681,8 +681,8 @@ type Invoice =
         Organization: OrganizationListItem
         OrganizationBankAccount: BankAccount
         OrganizationInvoiceNumber: string option //Number @ supplier
-        InvoiceDate: DateTime //Date on the invoice
-        DueDate: DateTime //Due date of the invoice
+        InvoiceDate: DateTimeOffset //Date on the invoice
+        DueDate: DateTimeOffset //Due date of the invoice
         //PaymentIds: Guid list
         MediaFiles: MediaFile list
     }
