@@ -7,7 +7,7 @@
     open Server.Blueprint.Behavior
     open LibraryExtensions
 
-    let meliorBff (environment: IEnv) (ctx: HttpContext): RemotingApi = 
+    let syndicusAssistentBff (environment: IEnv) (ctx: HttpContext): RemotingApi = 
         let createMsg payload: Message<'T> = {
             CreatedAt = DateTimeOffset.Now
             Context = ctx

@@ -76,7 +76,7 @@ module Application =
 
                 Remoting.createApi()
                 |> Remoting.withRouteBuilder Shared.Remoting.routeBuilder
-                |> Remoting.fromContext (meliorBff environment)
+                |> Remoting.fromContext (syndicusAssistentBff environment)
                 |> Remoting.withDiagnosticsLogger (printfn "%s")
                 |> Remoting.withErrorHandler (errorHandler)
                 |> Remoting.buildHttpHandler

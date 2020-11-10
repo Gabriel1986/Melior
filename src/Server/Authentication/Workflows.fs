@@ -108,7 +108,7 @@
         open System.IdentityModel.Tokens.Jwt
         open System.Security.Claims
 
-        let [<Literal>] issuer = "urn.melior.authentication.be"
+        let [<Literal>] issuer = "urn.syndicusassistent.authentication.be"
         let private jwtSecurityTokenHandler = new JwtSecurityTokenHandler();
 
         let private tokenValidationParameters signingKey =

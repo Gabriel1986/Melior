@@ -1,3 +1,2 @@
-# Melior
-Melior Beheer
-
+# Syndicus Assistent
+Syndicus Assistent @ Melior Digital
