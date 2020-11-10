@@ -151,7 +151,7 @@ let getLots (connectionString: string) (buildingId: Guid): Async<LotListItem lis
     |> Sql.query
         (sprintf 
             """
-                SELECT
+                SELECT DISTINCT
                     lot.LotId,
                     lot.BuildingId,
                     person.PersonId as LegalRepresentativePersonId,
