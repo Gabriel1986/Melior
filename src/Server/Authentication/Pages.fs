@@ -243,6 +243,11 @@ let twoFacPage (validationErrors: string list) (token: string) (antiForgeryToken
                         label [] [ str "Code die door de authenticator app getoond wordt:" ]
                         input [ _name "VerificationCode"; _type "text"; _required; _autofocus; _maxlength "6"; _class "form-control" ]
                     ]
+                    div [] [
+                        button [ _class "btn btn-primary"; _type "submit"; _name "SubmitButton"; _value "Submit"] [
+                            str "Valideren"
+                        ]
+                    ]
                 ]
             ]
             yield div [ _class "card-footer text-muted" ] [
