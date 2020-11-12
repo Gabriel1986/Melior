@@ -183,6 +183,7 @@ type RemotingApi = {
     DeleteContract: BuildingId * Guid -> Async<Result<unit, DeleteContractError>>
 
     GetDistributionKeys: BuildingId -> Async<DistributionKey list>
+    GetDistributionKey: Guid -> Async<DistributionKey option>
     GetDistributionKeyListItems: BuildingId -> Async<DistributionKeyListItem list>
     CreateDistributionKey: DistributionKey -> Async<Result<unit, SaveDistributionKeyError>>
     UpdateDistributionKey: DistributionKey -> Async<Result<unit, SaveDistributionKeyError>>
@@ -205,6 +206,7 @@ type RemotingApi = {
     DeleteFinancialCategory: BuildingId * Guid -> Async<Result<unit, DeleteFinancialCategoryError>>
 
     GetUsers: unit -> Async<User list>
+    GetUser: Guid -> Async<User option>
     CreateUser: User -> Async<Result<unit, SaveUserError>>
     UpdateUser: User -> Async<Result<unit, SaveUserError>>
     DeleteUser: Guid -> Async<Result<unit, DeleteUserError>>

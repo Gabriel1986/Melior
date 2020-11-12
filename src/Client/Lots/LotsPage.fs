@@ -16,6 +16,7 @@ open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.SortableTable
 open Client.Library
+open Client.Routing
 
 type State = {
     CurrentUser: User
@@ -27,7 +28,7 @@ type State = {
 }
 and Tab =
     | List
-    | Details of LotListItem
+    | Details of lotId: Guid
     | New
 type Msg =
     | AddDetailTab of LotListItem
@@ -54,13 +55,36 @@ type SortableLotListItemAttribute =
     | LotType
     | Floor
     | Share
-    member me.ToString' () =
+    override me.ToString () =
         match me with
         | OwnerName -> "Eigenaar"
         | Code -> "Code"
         | LotType -> "Type"
         | Floor -> "Verd."
         | Share -> "Quot."
+    member me.ReactElementFor': LotListItem -> ReactElement =
+        match me with
+        | OwnerName -> (fun li ->
+            match li.LegalRepresentative with
+            | None -> 
+                str ""
+            | Some legalRepresentative ->
+                let page =
+                    match legalRepresentative with
+                    | Owner owner -> 
+                        Page.OwnerDetails { BuildingId = li.BuildingId; DetailId = owner.PersonId }
+                    | Organization org -> 
+                        Page.OrganizationDetails { BuildingId = li.BuildingId; DetailId = org.OrganizationId }
+
+                str (me.StringValueOf' li)
+                |> wrapInLink page)
+        | x -> (fun li -> str (x.StringValueOf' li))
+    member me.ExtraHeaderAttributes': IHTMLProp seq =
+        match me with
+        | Code -> seq { Style [ Width "200px" ] }
+        | Share -> seq { Style [ Width "100px" ]; Title "Quotiteit / aandeel" }
+        | Floor -> seq { Style [ Width "100px" ] }
+        | _ -> Seq.empty
     member me.StringValueOf': LotListItem -> string =
         match me with
         | OwnerName -> (fun li ->
@@ -80,10 +104,10 @@ type SortableLotListItemAttribute =
             fun li otherLi -> (defaultArg li.Share -1000) - (defaultArg otherLi.Share -1000)
         | _     -> 
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
-    static member All = [ LotType; Code; Share; Floor; OwnerName ]
+    static member All = [ LotType; Code; Share; OwnerName; Floor ]
     interface ISortableAttribute<LotListItem> with
-        member me.ToString = me.ToString'
-        member me.ToLongString = me.ToString'
+        member me.ReactElementFor = me.ReactElementFor'
+        member me.ExtraHeaderAttributes = me.ExtraHeaderAttributes'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member _.IsFilterable = true
@@ -93,7 +117,10 @@ let init (props: LotsPageProps) =
         CurrentUser = props.CurrentUser
         CurrentBuilding = props.CurrentBuilding
         SelectedListItems = []
-        SelectedTab = List
+        SelectedTab =
+            match props.LotId with
+            | Some lotId -> Details lotId
+            | None -> List
         ListItems = []
         LoadingListItems = true
     }
@@ -133,7 +160,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.Description)
             |> List.sortBy (fun li -> li.Floor)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }, Routing.navigateToPage (Routing.Page.LotDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.LotId })
+        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.LotId }, Routing.navigateToPage (Routing.Page.LotDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.LotId })
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
@@ -144,7 +171,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let cmd =
             match tab with
             | List -> Routing.navigateToPage (Routing.Page.LotList { BuildingId = buildingId })
-            | Details li -> Routing.navigateToPage (Routing.Page.LotDetails { BuildingId = buildingId; DetailId = li.LotId })
+            | Details lotId -> Routing.navigateToPage (Routing.Page.LotDetails { BuildingId = buildingId; DetailId = lotId })
             | New -> Routing.navigateToPage (Routing.Page.LotList { BuildingId = buildingId })
         { state with SelectedTab = tab }, cmd
     | Loaded (lots, selectedLotId) ->
@@ -201,7 +228,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectedListItems = newSelectedListItems
         }
         , Cmd.batch [
-            SelectTab (Details listItem) |> Cmd.ofMsg
+            SelectTab (Details listItem.LotId) |> Cmd.ofMsg
             showSuccessToastCmd "Het kavel is aangemaakt"
         ]
     | Edited lot ->
@@ -213,7 +240,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectedListItems = newSelectedListItems
         }
         , Cmd.batch [
-            SelectTab (Details listItem) |> Cmd.ofMsg
+            SelectTab (Details listItem.LotId) |> Cmd.ofMsg
             showSuccessToastCmd "Het kavel is gewijzigd"
         ]
     | NoOp ->
@@ -254,7 +281,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 for selected in state.SelectedListItems do
                     yield li [ Class Bootstrap.navItem ] [
                         a 
-                            [ Class (determineNavItemStyle (Details selected)); OnClick (fun _ -> SelectTab (Details selected) |> dispatch) ] 
+                            [ Class (determineNavItemStyle (Details selected.LotId)); OnClick (fun _ -> SelectTab (Details selected.LotId) |> dispatch) ] 
                             [ str selected.Code ]
                     ]
                 yield li [ Class Bootstrap.navItem ] [
@@ -267,12 +294,12 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             div [ Class Bootstrap.tabContent ] [
                 match state.SelectedTab with
                 | List -> list state
-                | Details listItem -> 
+                | Details lotId -> 
                     LotDetails.render 
                         {| 
                             CurrentUser = state.CurrentUser 
                             CurrentBuilding = state.CurrentBuilding
-                            Identifier = listItem.LotId
+                            Identifier = lotId
                             IsNew = false
                             NotifyCreated = fun b -> dispatch (Created b)
                             NotifyEdited = fun b -> dispatch (Edited b)

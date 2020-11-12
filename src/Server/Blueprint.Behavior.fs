@@ -174,6 +174,7 @@ module Financial =
 
         //Queries
         abstract GetDistributionKeys: Message<BuildingId> -> Async<DistributionKey list>
+        abstract GetDistributionKey: Message<Guid> -> Async<DistributionKey option>
         abstract GetDistributionKeyListItems: Message<BuildingId> -> Async<DistributionKeyListItem list>
         abstract GetInvoices: Message<InvoiceFilter> -> Async<InvoiceListItem list>
         abstract GetInvoice: Message<Guid> -> Async<Invoice option>

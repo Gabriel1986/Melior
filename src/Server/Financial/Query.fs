@@ -95,6 +95,7 @@ let readInvoiceListItem (reader: CaseInsensitiveRowReader): InvoiceListItem = {
     Cost = reader.decimal "Cost"
     DistributionKeyName = reader.string "DistributionKeyName"
     OrganizationName = reader.string "OrganizationName"
+    OrganizationId = reader.uuid "OrganizationId"
     CategoryCode = reader.string "CategoryCode"
     CategoryDescription = reader.string "CategoryDescription"
     InvoiceDate = 
@@ -137,6 +138,20 @@ let getDistributionKeyListItems (conn: string) (buildingId: BuildingId): Async<D
     |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
     |> Sql.read readDistributionKeyListItem
 
+let private convertToDistributionKeys =
+    List.groupBy (fun (row: DistributionKeyRow) -> row.DistributionKeyId)
+    >> List.map (fun (_, distributionKeys) ->
+        let first = distributionKeys |> List.head
+        {
+            DistributionKeyId = first.DistributionKeyId
+            BuildingId = first.BuildingId
+            Name = first.Name
+            DistributionType = first.DistributionType
+            LotsOrLotTypes = distributionKeys |> mapToLotsOrLotTypes
+            IncludeGroundFloor = first.IncludeGroundFloor
+        }    
+    )
+
 let getDistributionKeys (conn: string) (buildingId: BuildingId): Async<DistributionKey list> = async {
     let! distributionKeyRows =
         Sql.connect conn
@@ -157,20 +172,33 @@ let getDistributionKeys (conn: string) (buildingId: BuildingId): Async<Distribut
         |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
         |> Sql.read readDistributionKey
 
-    return
-        distributionKeyRows
-        |> List.groupBy (fun row -> row.DistributionKeyId)
-        |> List.map (fun (_, distributionKeys) ->
-            let first = distributionKeys |> List.head
-            {
-                DistributionKeyId = first.DistributionKeyId
-                BuildingId = first.BuildingId
-                Name = first.Name
-                DistributionType = first.DistributionType
-                LotsOrLotTypes = distributionKeys |> mapToLotsOrLotTypes
-                IncludeGroundFloor = first.IncludeGroundFloor
-            }    
-        )
+    return distributionKeyRows |> convertToDistributionKeys
+}
+
+let getDistributionKey (conn: string) (distributionKeyId: Guid) = async {
+    let! distributionKeyRows =
+        Sql.connect conn
+        |> Sql.query            
+            """
+                SELECT
+                    dKey.DistributionKeyId,
+                    dKey.BuildingId,
+                    dKey.Name,
+                    dKey.DistributionType,
+                    dKey.IncludeGroundFloor,
+                    link.LotId, 
+                    link.LotType
+                FROM DistributionKeys dKey
+                LEFT JOIN DistributionKeyLotsOrLotTypes link ON link.DistributionKeyId = dKey.DistributionKeyId
+                WHERE dKey.DistributionKeyId = @DistributionKeyId AND dKey.IsActive = TRUE
+            """
+        |> Sql.parameters [ "@DistributionKeyId", Sql.uuid distributionKeyId ]
+        |> Sql.read readDistributionKey
+
+    return 
+        distributionKeyRows 
+        |> convertToDistributionKeys 
+        |> List.tryHead
 }
 
 let getDistributionKeysByIds (conn: string) (buildingId: BuildingId, distributionKeyIds: Guid list): Async<DistributionKeyListItem list> =
@@ -219,6 +247,7 @@ let getInvoices (conn: string) (filter: InvoiceFilter): Async<InvoiceListItem li
                     invoice.InvoiceNumber,
                     invoice.Cost,
                     (SELECT dKey.Name AS DistributionKeyName FROM DistributionKeys dKey WHERE dKey.DistributionKeyId = invoice.DistributionKeyId),
+                    invoice.OrganizationId,
                     invoice.OrganizationName,
                     (SELECT cat.Code AS CategoryCode, cat.Description AS CategoryDescription FROM FinancialCategories cat WHERE cat.FinancialCategoryId = invoice.FinancialCategoryId),
                     invoice.InvoiceDate,

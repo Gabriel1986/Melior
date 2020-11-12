@@ -274,12 +274,9 @@ let view (state: State) (dispatch: Message -> unit) =
             td [] [ 
                 match c.ContractOrganization with 
                 | Some org -> 
-                    span [] [ 
-                        span [ Title "Openen in nieuwe tab" ] [
-                            a [ Target "_blank"; Href (Client.Routing.generateUrl (Page.OrganizationDetails { BuildingId = state.CurrentBuildingId; DetailId = org.OrganizationId })) ] [
-                                str org.Name
-                            ]
-                        ]
+                    span [] [
+                        str org.Name
+                        |> wrapInLink (Page.OrganizationDetails { BuildingId = state.CurrentBuildingId; DetailId = org.OrganizationId })
                     ]
                 | None ->
                     null

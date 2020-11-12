@@ -323,14 +323,14 @@ module Client =
                         {| 
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
-                            PersonId = None
+                            OwnerId = None
                         |}
                 | Page.OwnerDetails props, _, Some building ->
                     OwnersPage.render 
                         {| 
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
-                            PersonId = Some props.DetailId
+                            OwnerId = Some props.DetailId
                         |}
                 | Page.LotList _, _, Some building ->
                     LotsPage.render 

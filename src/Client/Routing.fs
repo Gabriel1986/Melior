@@ -2,6 +2,8 @@
     open System
     open Elmish
     open Feliz.Router
+    open Fable.React
+    open Fable.React.Props
 
     type BuildingSpecificProps = {
         BuildingId: Guid
@@ -253,3 +255,15 @@
             Page.UserDetails userId
         | _ -> 
             Page.NotFound
+
+    let wrapInLink (page: Page) (element: ReactElement) =
+        let url = generateUrl page
+
+        let onClick (e: Browser.Types.MouseEvent) =
+            e.preventDefault();
+            e.stopPropagation();
+            Browser.Dom.window.location.href <- url
+
+        a [ Href url; OnClick onClick ] [
+            element
+        ]

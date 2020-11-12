@@ -10,7 +10,6 @@ open Feliz.ElmishComponents
 
 open Shared.Read
 open Shared.Remoting
-open Shared.Write
 
 open Client
 open Client.ClientStyle
@@ -20,7 +19,7 @@ open Types
 
 type Model = {
     AllLots: LotListItem list
-    DistributionKeyModel: DistributionKeyModel option
+    DistributionKeyId: Guid
     State: State
     NotifyCreated: DistributionKeyModel -> unit
     NotifyEdited: DistributionKeyModel -> unit
@@ -44,27 +43,34 @@ type Msg =
 type DetailsProps = {|
     CurrentUser: User
     CurrentBuildingId: Guid option
-    DistributionKey: DistributionKeyModel option
+    Identifier: Guid
+    IsNew: bool
     AllLots: LotListItem list
     NotifyCreated: DistributionKeyModel -> unit
     NotifyEdited: DistributionKeyModel -> unit
 |}
 
+let private getDistributionKey lots distributionKeyId =
+    Cmd.OfAsync.either
+        (Client.Remoting.getRemotingApi()).GetDistributionKey
+        distributionKeyId
+        (Option.map (DistributionKeyModel.FromBackendModel lots) >> View)
+        RemotingError
+
 let init (props: DetailsProps): Model * Cmd<Msg> =
     let model = { 
         AllLots = props.AllLots
-        DistributionKeyModel = props.DistributionKey
-        State = Loading 
+        DistributionKeyId = props.Identifier
+        State = Loading
         NotifyCreated = props.NotifyCreated
         NotifyEdited = props.NotifyEdited
     }
-    match props.DistributionKey with
-    | None ->
-        let distributionKey = DistributionKeyModel.Init (props.CurrentBuildingId)
+    if props.IsNew then
+        let distributionKey = { DistributionKeyModel.Init (props.CurrentBuildingId) with DistributionKeyId = props.Identifier }
         let editState, editCmd = DistributionKeyEditComponent.init (distributionKey, props.AllLots)
         { model with State = Creating (false, editState) }, editCmd |> Cmd.map EditComponentMsg
-    | Some distributionKey ->
-        { model with State = Viewing distributionKey }, Cmd.none
+    else
+        { model with State = Loading }, getDistributionKey props.AllLots props.Identifier
 
 let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
     let processSaveError =
@@ -192,19 +198,19 @@ let view (model: Model) (dispatch: Msg -> unit) =
                     DistributionKey = detail
                     AllLots = model.AllLots
                 |}
-            div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
-                div [ Class Bootstrap.cardBody ] [
-                    yield
+            if detail.CanBeEdited then
+                div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+                    div [ Class Bootstrap.cardBody ] [
                         button [ 
                             classes [ Bootstrap.btn; Bootstrap.btnPrimary; Bootstrap.mr1 ]
-                            OnClick (fun _ -> Edit detail |> dispatch) 
+                            OnClick (fun _ -> Edit detail |> dispatch)
                         ] [
                             i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []
                             str " "
                             str "Aanpassen"
                         ]
+                    ]
                 ]
-            ]
         ]
 
 let render (props: DetailsProps) =

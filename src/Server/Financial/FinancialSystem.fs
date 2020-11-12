@@ -16,6 +16,13 @@ let build (config: IConfiguration): IFinancialSystem =
             member _.UpdateDistributionKey msg = Workflow.updateDistributionKey store msg
             member _.DeleteDistributionKey msg = Workflow.deleteDistributionKey store msg
             member _.GetDistributionKeys msg = Query.getDistributionKeys conn msg.Payload
+            member _.GetDistributionKey msg = async {
+                match! Query.getDistributionKey conn msg.Payload with
+                | Some distributionKey when (distributionKey.BuildingId.IsNone || msg.CurrentUser.HasAccessToBuilding distributionKey.BuildingId.Value) ->
+                    return Some distributionKey
+                | _ ->
+                    return None
+            }
             member _.GetDistributionKeyListItems msg = Query.getDistributionKeyListItems conn msg.Payload
 
             member _.CreateInvoice msg = Workflow.createInvoice store msg

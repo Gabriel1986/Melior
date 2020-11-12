@@ -27,7 +27,7 @@ type State = {
 }
 and Tab =
     | List
-    | Details of OrganizationListItem
+    | Details of organizationId: Guid
     | New
 type Msg =
     | AddDetailTab of OrganizationListItem
@@ -52,11 +52,13 @@ type SortableOrganizationListItemAttribute =
     | Type
     | Name
     | VatOrOrgNumber
-    member me.ToString' () =
+    override me.ToString () =
         match me with
         | Type -> "Type"
         | Name -> "Naam"
         | VatOrOrgNumber -> "BTW / Ondernemingsnr."
+    member me.ReactElementFor': OrganizationListItem -> ReactElement =
+        fun li -> str (me.StringValueOf' li)
     member me.StringValueOf': OrganizationListItem -> string =
         match me with
         | Type -> (fun li -> String.Join(", ", li.OrganizationTypeNames))
@@ -68,8 +70,8 @@ type SortableOrganizationListItemAttribute =
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
     static member All = [ Type; Name; VatOrOrgNumber ]
     interface ISortableAttribute<OrganizationListItem> with
-        member me.ToString = me.ToString'
-        member me.ToLongString = me.ToString'
+        member me.ReactElementFor = me.ReactElementFor'
+        member _.ExtraHeaderAttributes = Seq.empty
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member _.IsFilterable = true
@@ -79,7 +81,10 @@ let init (props: OrganizationPageProps) =
         CurrentUser = props.CurrentUser
         CurrentBuilding = props.CurrentBuilding
         SelectedListItems = []
-        SelectedTab = List
+        SelectedTab =
+            match props.OrganizationId with
+            | Some orgId -> Tab.Details orgId
+            | None -> Tab.List
         ListItems = []
         LoadingListItems = true
     }
@@ -111,7 +116,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             then state.SelectedListItems
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.Name)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem },
+        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.OrganizationId },
         Routing.navigateToPage (Routing.Page.OrganizationDetails { BuildingId = state.CurrentBuilding.BuildingId;  DetailId = listItem.OrganizationId })
     | RemoveDetailTab listItem ->
         let updatedTabs = 
@@ -125,7 +130,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let cmd =
             match tab with
             | List -> Routing.navigateToPage (Routing.Page.OrganizationList { BuildingId = buildingId })
-            | Details li -> Routing.navigateToPage (Routing.Page.OrganizationDetails { BuildingId = buildingId; DetailId = li.OrganizationId })
+            | Details organizationId -> Routing.navigateToPage (Routing.Page.OrganizationDetails { BuildingId = buildingId; DetailId = organizationId })
             | New -> Routing.navigateToPage (Routing.Page.OrganizationList { BuildingId = buildingId })
         { state with SelectedTab = tab }, cmd
     | Loaded (owners, selectedOrgId) ->
@@ -183,10 +188,10 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with
             ListItems = newListItems
             SelectedListItems = newSelectedListItems
-            SelectedTab = Details listItem
+            SelectedTab = Details listItem.OrganizationId
         }
         , Cmd.batch [
-            SelectTab (Details listItem) |> Cmd.ofMsg
+            SelectTab (Details listItem.OrganizationId) |> Cmd.ofMsg
             showSuccessToastCmd "De organisatie is aangemaakt"
         ]
     | Edited organization ->
@@ -197,10 +202,10 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         { state with 
             ListItems = newListItems
             SelectedListItems = newSelectedListItems
-            SelectedTab = Details listItem
+            SelectedTab = Details listItem.OrganizationId
         }
         , Cmd.batch [
-            SelectTab (Details listItem) |> Cmd.ofMsg
+            SelectTab (Details listItem.OrganizationId) |> Cmd.ofMsg
             showSuccessToastCmd "De leverancier is gewijzigd"
         ]
     | NoOp ->
@@ -241,7 +246,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 for selected in state.SelectedListItems do
                     yield li [ Class Bootstrap.navItem ] [
                         a 
-                            [ Class (determineNavItemStyle (Details selected)); OnClick (fun _ -> SelectTab (Details selected) |> dispatch) ] 
+                            [ Class (determineNavItemStyle (Details selected.OrganizationId)); OnClick (fun _ -> SelectTab (Details selected.OrganizationId) |> dispatch) ] 
                             [ str (sprintf "%s (%A)" selected.Name (selected.VatNumber |> Option.orElse selected.OrganizationNumber |> Option.defaultValue "")) ]
                     ]
                 yield li [ Class Bootstrap.navItem ] [
@@ -254,12 +259,12 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             div [ Class Bootstrap.tabContent ] [
                 match state.SelectedTab with
                 | List -> list state
-                | Details listItem -> 
+                | Details organizationId -> 
                     OrganizationDetails.render 
                         {| 
                             CurrentUser = state.CurrentUser 
                             CurrentBuilding = state.CurrentBuilding
-                            Identifier = listItem.OrganizationId
+                            Identifier = organizationId
                             IsNew = false
                             NotifyCreated = fun b -> dispatch (Created b)
                             NotifyEdited = fun b -> dispatch (Edited b)

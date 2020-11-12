@@ -136,6 +136,9 @@
             GetDistributionKeys = fun buildingId ->
                 createMsg buildingId
                 |> environment.FinancialSystem.GetDistributionKeys
+            GetDistributionKey = fun distributionKeyId ->
+                createMsg distributionKeyId
+                |> environment.FinancialSystem.GetDistributionKey
             GetDistributionKeyListItems = fun buildingId ->
                 createMsg buildingId
                 |> environment.FinancialSystem.GetDistributionKeyListItems
@@ -194,6 +197,9 @@
             GetUsers = fun input ->
                 createMsg input
                 |> environment.AuthenticationSystem.GetUsers
+            GetUser = fun userId ->
+                createMsg userId
+                |> environment.AuthenticationSystem.GetUser
             CreateUser = fun input ->
                 createMsg input
                 |> environment.AuthenticationSystem.CreateUser

@@ -25,7 +25,7 @@ module SubComponents =
                 OnSelect = None
                 IsEditable = None
                 OnEdit = None
-                IsDeletable = Some (fun _ -> true)
+                IsDeletable = None
                 OnDelete = Some onDelete
                 Key = key
             |}
@@ -38,7 +38,7 @@ module SubComponents =
                 OnSelect = None
                 IsEditable = None
                 OnEdit = None
-                IsDeletable = Some (fun _ -> true)
+                IsDeletable = None
                 OnDelete = Some onDelete
                 Key = "ProfessionalSyndicRoles"
             |}

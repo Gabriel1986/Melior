@@ -32,6 +32,7 @@ module private Readers =
 
     type LotOwnerDbModel = {
         LotId: Guid
+        LotOwnerId: Guid
         PersonId: Guid option
         OrganizationId: Guid option
         Role: LotOwnerRole
@@ -41,6 +42,7 @@ module private Readers =
 
     let readLotOwner (reader: CaseInsensitiveRowReader): LotOwnerDbModel = {
         LotId = reader.uuid "LotId"
+        LotOwnerId = reader.uuid "LotOwnerId"
         OrganizationId = reader.uuidOrNone "OrganizationId"
         PersonId = reader.uuidOrNone "PersonId"
         Role =
@@ -98,7 +100,18 @@ let getLot (connectionString: string) (lotId: Guid): Async<Lot option> = async {
     | Some dbModel ->
         let! lotOwnerDbRows =
             Sql.connect connectionString
-            |> Sql.query "SELECT lotOwner.LotId, lotOwner.OrganizationId, lotOwner.PersonId, lotOwner.Role, lotOwner.StartDate, lotOwner.EndDate FROM LotOwners lotOwner WHERE lotId = @LotId"
+            |> Sql.query 
+                """
+                    SELECT
+                        lotOwner.LotId,
+                        lotOwner.LotOwnerId,
+                        lotOwner.OrganizationId,
+                        lotOwner.PersonId,
+                        lotOwner.Role,
+                        lotOwner.StartDate,
+                        lotOwner.EndDate
+                    FROM LotOwners lotOwner WHERE lotId = @LotId AND IsDeleted = FALSE
+                """
             |> Sql.parameters [ "@LotId", Sql.uuid lotId ]
             |> Sql.read readLotOwner
 
@@ -112,6 +125,7 @@ let getLot (connectionString: string) (lotId: Guid): Async<Lot option> = async {
 
         let mapLotOwnerDbRowAndRoleToLotOwner (lotOwnerType: LotOwnerType, dbRow: LotOwnerDbModel) = { 
             LotId = dbRow.LotId
+            LotOwnerId = dbRow.LotOwnerId
             LotOwnerType = lotOwnerType
             LotOwnerRole = dbRow.Role
             StartDate = new DateTimeOffset(dbRow.StartDate.Year, dbRow.StartDate.Month, dbRow.StartDate.Day, 2, 0, 0, TimeSpan.FromHours(2.0))

@@ -147,7 +147,7 @@ module Helpers =
             str ""
         else
             div [ Class Bootstrap.row ] [
-                yield label [ classes [ Bootstrap.colMd4; Bootstrap.colLg3; Bootstrap.fontWeightBold ] ] [ str lbl ]
+                yield label [ classes [ Bootstrap.colMd4; Bootstrap.colLg3; Bootstrap.fontWeightBold; Bootstrap.pl0 ] ] [ str lbl ]
                 yield p [ Class Bootstrap.col ] [ str value ]
                 yield p [ Class Bootstrap.col ] [ str description ]            
             ]

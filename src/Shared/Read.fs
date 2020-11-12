@@ -253,6 +253,7 @@ and Lot =
     }
 and LotOwner = {
     LotId: Guid
+    LotOwnerId: Guid
     LotOwnerType: LotOwnerType
     LotOwnerRole: LotOwnerRole
     StartDate: DateTimeOffset
@@ -306,6 +307,10 @@ and LotListItem = {
 and LotOwnerListItem =
     | Owner of {| PersonId: Guid; Name: string |}
     | Organization of {| OrganizationId: Guid; Name: string |}
+    member me.Name =
+        match me with
+        | Owner owner -> owner.Name
+        | Organization org -> org.Name
 
 //A (non-building) organization
 and Organization = 
@@ -647,6 +652,7 @@ type InvoiceListItem =
         InvoiceNumber: int
         Cost: decimal
         DistributionKeyName: string
+        OrganizationId: Guid
         OrganizationName: string
         CategoryCode: string //Boekhoudkundige rekening
         CategoryDescription: string

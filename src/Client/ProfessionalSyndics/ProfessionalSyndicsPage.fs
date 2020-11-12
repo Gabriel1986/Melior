@@ -26,7 +26,7 @@ type State = {
 }
 and Tab =
     | List
-    | Details of ProfessionalSyndicListItem
+    | Details of proSyndicId: Guid
     | New
 type Msg =
     | AddDetailTab of ProfessionalSyndicListItem
@@ -51,12 +51,14 @@ type SortableProfessionalSyndicListItemAttribute =
     | Address
     | EmailAddress
     | TelephoneNumber
-    member me.ToString' () =
+    override me.ToString () =
         match me with
         | Name -> "Naam"
         | Address -> "Adres"
         | EmailAddress -> "E-mail"
         | TelephoneNumber -> "Tel."
+    member me.ReactElementFor': ProfessionalSyndicListItem -> ReactElement =
+        fun li -> str (me.StringValueOf' li)
     member me.StringValueOf': ProfessionalSyndicListItem -> string =
         match me with
         | Name -> (fun li -> li.Name)
@@ -67,17 +69,20 @@ type SortableProfessionalSyndicListItemAttribute =
         fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
     static member All = [ Name; Address; EmailAddress; TelephoneNumber ]
     interface ISortableAttribute<ProfessionalSyndicListItem> with
-        member me.ToString = me.ToString'
-        member me.ToLongString = me.ToString'
+        member me.ReactElementFor = me.ReactElementFor'
+        member _.ExtraHeaderAttributes = Seq.empty
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
-        member me.IsFilterable = true
+        member _.IsFilterable = true
 
 let init (props: ProfessionalSyndicsPageProps) =
     let state = { 
         CurrentUser = props.CurrentUser
         SelectedListItems = []
-        SelectedTab = List
+        SelectedTab =
+            match props.ProfessionalSyndicId with
+            | Some proSyndicId -> Tab.Details proSyndicId
+            | None -> Tab.List
         ListItems = []
         LoadingListItems = true
     }
@@ -106,7 +111,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             then state.SelectedListItems
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.Name)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }
+        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.OrganizationId }
         , Routing.navigateToPage (Routing.Page.ProfessionalSyndicDetails listItem.OrganizationId)
     | RemoveDetailTab listItem ->
         let updatedTabs = 
@@ -118,7 +123,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let cmd =
             match tab with
             | List -> Routing.navigateToPage (Routing.Page.ProfessionalSyndicList)
-            | Details li -> Routing.navigateToPage (Routing.Page.ProfessionalSyndicDetails li.OrganizationId)
+            | Details proSyndicId -> Routing.navigateToPage (Routing.Page.ProfessionalSyndicDetails proSyndicId)
             | New -> Routing.navigateToPage (Routing.Page.ProfessionalSyndicList)
         { state with SelectedTab = tab }, cmd
     | Loaded (professionalSyndics, selectedProfessionalSyndicId) ->
@@ -176,7 +181,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectedListItems = newSelectedListItems
         }
         , Cmd.batch [
-            SelectTab (Details listItem) |> Cmd.ofMsg
+            SelectTab (Details listItem.OrganizationId) |> Cmd.ofMsg
             showSuccessToastCmd "De professionele syndicus is aangemaakt"
         ]
     | Edited professionalSyndic ->
@@ -188,7 +193,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectedListItems = newSelectedListItems 
         }
         , Cmd.batch [
-            SelectTab (Details listItem) |> Cmd.ofMsg
+            SelectTab (Details listItem.OrganizationId) |> Cmd.ofMsg
             showSuccessToastCmd "De professionele syndicus is gewijzigd"
         ]
     | NoOp ->
@@ -229,7 +234,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 for selected in state.SelectedListItems do
                     yield li [ Class Bootstrap.navItem ] [
                         a 
-                            [ Class (determineNavItemStyle (Details selected)); OnClick (fun _ -> SelectTab (Details selected) |> dispatch) ] 
+                            [ Class (determineNavItemStyle (Details selected.OrganizationId)); OnClick (fun _ -> SelectTab (Details selected.OrganizationId) |> dispatch) ] 
                             [ str selected.Name ]
                     ]
                 yield li [ Class Bootstrap.navItem ] [
@@ -242,11 +247,11 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             div [ Class Bootstrap.tabContent ] [
                 match state.SelectedTab with
                 | List -> list state
-                | Details listItem -> 
+                | Details proSyndicId -> 
                     ProfessionalSyndicDetails.render 
                         {| 
                             CurrentUser = state.CurrentUser 
-                            Identifier = listItem.OrganizationId
+                            Identifier = proSyndicId
                             IsNew = false
                             NotifyCreated = fun b -> dispatch (Created b)
                             NotifyEdited = fun b -> dispatch (Edited b)

@@ -230,7 +230,7 @@ type ValidatedBuilding =
         |> Trial.toResult
 
 
-type LotOwnerId =
+type LotOwnerTypeId =
     | OwnerId of Guid
     | OrganizationId of Guid
 
@@ -242,7 +242,8 @@ let private mapLotOwnerTypeToId =
 type ValidatedLotOwner = 
     {
         LotId: Guid
-        LotOwnerId: LotOwnerId
+        LotOwnerId: Guid
+        LotOwnerTypeId: LotOwnerTypeId
         LotOwnerRole: LotOwnerRole
         StartDate: DateTimeOffset
         EndDate: DateTimeOffset option
@@ -251,14 +252,15 @@ type ValidatedLotOwner =
         let onBasePath (s: string) = if String.IsNullOrWhiteSpace basePath then s else sprintf "%s.%s" basePath s
         let validateStartDate (path: string) (startDate: DateTimeOffset, endDate: DateTimeOffset option) =
             match endDate with
-            | Some endDate when endDate < startDate -> Trial.ofError (path, "De startdatum moet voor de einddatum vallen")
+            | Some endDate when endDate < startDate -> Trial.ofError (path, "De begindatum moet vóór de einddatum vallen")
             | _ -> Trial.Pass startDate
 
         trial {
             from startDate in validateStartDate (nameof lotOwner.StartDate |> onBasePath) (lotOwner.StartDate, lotOwner.EndDate)
             yield {
                 LotId = lotOwner.LotId
-                LotOwnerId = mapLotOwnerTypeToId lotOwner.LotOwnerType
+                LotOwnerId = lotOwner.LotOwnerId
+                LotOwnerTypeId = mapLotOwnerTypeToId lotOwner.LotOwnerType
                 LotOwnerRole = lotOwner.LotOwnerRole
                 StartDate = startDate
                 EndDate = lotOwner.EndDate

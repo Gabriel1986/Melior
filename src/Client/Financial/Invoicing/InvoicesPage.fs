@@ -16,6 +16,7 @@ open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.SortableTable
 open Client.Library
+open Client.Routing
 
 type State = {
     CurrentUser: User
@@ -30,7 +31,7 @@ type State = {
 }
 and Tab =
     | List
-    | Details of InvoiceListItem
+    | Details of invoiceId: Guid
     | New
 type Msg =
     | AddDetailTab of InvoiceListItem
@@ -52,33 +53,27 @@ type InvoicesPageProps = {|
     InvoiceId: Guid option
 |}
 
-
-//InvoiceId: Guid
-//BuildingId: BuildingId
-//FinancialYearCode: string
-//InvoiceNumber: int
-//Cost: int
-//VatRate: int
-//DistributionKeyName: string
-//OrganizationName: string
-//CategoryCode: string //Boekhoudkundige rekening
-//DueDate: DateTimeOffset
-//HasLinkedDocuments: bool
-//HasBeenPaid: bool
-
 type SortableInvoiceListItemAttribute =
     | InvoiceNumber
     | Organization
     | DistributionKey
     | Cost
     | DueDate
-    member me.ToString' () =
+    override me.ToString () =
         match me with
         | InvoiceNumber -> "Nr."
         | Organization -> "Leverancier"
         | DistributionKey -> "Sleutel"
         | Cost -> "Totaal"
         | DueDate -> "Betaaldag"
+    member me.ReactElementFor': InvoiceListItem -> ReactElement =
+        match me with
+        | Organization -> (fun li -> 
+            span [] [
+                str (me.StringValueOf' li)
+                |> wrapInLink (Page.OrganizationDetails { BuildingId = li.BuildingId; DetailId = li.OrganizationId })
+            ])
+        | x -> (fun li -> str (x.StringValueOf' li))
     member me.StringValueOf': InvoiceListItem -> string =
         match me with
         | InvoiceNumber -> (fun li -> li.LocalInvoiceNumber)
@@ -96,8 +91,8 @@ type SortableInvoiceListItemAttribute =
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
     static member All = [ InvoiceNumber; Organization; DistributionKey; Cost; DueDate ]
     interface ISortableAttribute<InvoiceListItem> with
-        member me.ToString = me.ToString'
-        member me.ToLongString = me.ToString'
+        member me.ReactElementFor = me.ReactElementFor'
+        member _.ExtraHeaderAttributes = Seq.empty
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member _.IsFilterable = true
@@ -107,7 +102,10 @@ let init (props: InvoicesPageProps) =
         CurrentUser = props.CurrentUser
         CurrentBuilding = props.CurrentBuilding
         SelectedListItems = []
-        SelectedTab = List
+        SelectedTab =
+            match props.InvoiceId with
+            | Some invoiceId -> Tab.Details invoiceId
+            | None -> Tab.List
         ListItems = []
         LoadingListItems = true
         FinancialYears = []
@@ -134,6 +132,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         Cost = invoice.Cost
         DistributionKeyName = invoice.DistributionKey.Name
         OrganizationName = invoice.Organization.Name
+        OrganizationId = invoice.Organization.OrganizationId
         CategoryCode = invoice.FinancialCategory.Code
         CategoryDescription = invoice.FinancialCategory.Description
         DueDate = invoice.DueDate
@@ -146,7 +145,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             then state.SelectedListItems
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.LocalInvoiceNumber)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }, Routing.navigateToPage (Routing.Page.InvoiceDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.InvoiceId })
+        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.InvoiceId }, Routing.navigateToPage (Routing.Page.InvoiceDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.InvoiceId })
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
@@ -249,7 +248,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 for selected in state.SelectedListItems do
                     yield li [ Class Bootstrap.navItem ] [
                         a 
-                            [ Class (determineNavItemStyle (Details selected)); OnClick (fun _ -> SelectTab (Details selected) |> dispatch) ] 
+                            [ Class (determineNavItemStyle (Details selected.InvoiceId)); OnClick (fun _ -> SelectTab (Details selected.InvoiceId) |> dispatch) ] 
                             [ str selected.LocalInvoiceNumber ]
                     ]
                 yield li [ Class Bootstrap.navItem ] [
@@ -262,12 +261,12 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             div [ Class Bootstrap.tabContent ] [
                 match state.SelectedTab with
                 | List -> list state
-                | Details listItem -> 
+                | Details invoiceId -> 
                     InvoiceDetails.render 
                         {| 
                             CurrentUser = state.CurrentUser 
                             CurrentBuilding = state.CurrentBuilding
-                            Identifier = listItem.InvoiceId
+                            Identifier = invoiceId
                             IsNew = false
                             NotifyCreated = fun b -> dispatch (Created b)
                             NotifyEdited = fun b -> dispatch (Edited b)

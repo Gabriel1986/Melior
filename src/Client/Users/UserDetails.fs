@@ -18,7 +18,7 @@ open Client.ClientStyle.Helpers
 open Library
 
 type Model = {
-    Detail: User
+    UserId: Guid
     CurrentUser: User
     State: State
     NotifyCreated: User -> unit
@@ -26,8 +26,8 @@ type Model = {
 }
 and State =
     | Loading
-    | Viewing  of detail: User
-    | Editing  of isSaving: bool * userEditState: UserEditComponent.State
+    | Viewing of detail: User
+    | Editing of isSaving: bool * userEditState: UserEditComponent.State
     | Creating of isSaving: bool * userEditState: UserEditComponent.State
     | UserNotFound
 
@@ -42,11 +42,11 @@ type Msg =
 
 type CreateOrUpdate =
     | Create of userId: Guid
-    | Update of User
+    | Update of userId: Guid
     member me.UserId =
         match me with
         | Create userId -> userId
-        | Update user -> user.UserId
+        | Update userId -> userId
 
 type DetailsProps = {|
     CurrentUser: User
@@ -55,30 +55,32 @@ type DetailsProps = {|
     NotifyEdited: User -> unit
 |}
 
+let private getUser userId =
+    Cmd.OfAsync.either
+        (Remoting.getRemotingApi()).GetUser
+        userId
+        View
+        RemotingError
+
 let init (props: DetailsProps): Model * Cmd<Msg> =
-    let state, cmd, user =
+    let state, cmd, userId =
         match props.CreateOrUpdate with
         | Create userId ->
             let user = { User.Init () with UserId = userId }
             let userEditState, userEditCmd = UserEditComponent.init user
-            Creating (false, userEditState), userEditCmd |> Cmd.map UserEditMsg, user
-        | Update user ->
-            Viewing user, Cmd.none, user
+            Creating (false, userEditState), userEditCmd |> Cmd.map UserEditMsg, userId
+        | Update userId ->
+            Loading, getUser userId, userId
 
     {
         CurrentUser = props.CurrentUser
-        Detail = user
+        UserId = userId
         State = state
         NotifyCreated = props.NotifyCreated
         NotifyEdited = props.NotifyEdited
     }, cmd
 
 let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
-    let changeViewingState (change: User -> User) =
-        match model.State with
-        | Viewing user -> Viewing (change user)
-        | other -> other
-
     let processSaveUserError =
         function
         | SaveUserError.AuthorizationError ->

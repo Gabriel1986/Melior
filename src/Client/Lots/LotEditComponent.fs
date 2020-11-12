@@ -86,9 +86,10 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | AddLotOwnerOfType lotOwnerType ->
         let newLotOwner: LotOwner = {
             LotId = state.Lot.LotId
+            LotOwnerId = Guid.NewGuid()
             LotOwnerType = lotOwnerType
             LotOwnerRole = LotOwnerRole.Other
-            StartDate = new DateTimeOffset(DateTime.Today)
+            StartDate = DateTimeOffset.Now
             EndDate = None
         }
         let newState = changeLot (fun l -> { l with Owners = (newLotOwner::l.Owners) |> ensureLegalRepresentative })
@@ -106,14 +107,17 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         let newLotOwners = state.Lot.Owners |> List.filter (fun o -> o <> toRemove) |> ensureLegalRepresentative
         changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
     | SelectLegalRepresentative lotOwner ->
-        let newLotOwners = 
-            state.Lot.Owners 
-            |> List.map (fun o ->
-                if o = lotOwner
-                then { o with LotOwnerRole = LotOwnerRole.LegalRepresentative }
-                else { o with LotOwnerRole = LotOwnerRole.Other })
+        if (lotOwner.EndDate.IsSome && lotOwner.EndDate.Value < DateTimeOffset.Now) then
+            state, showErrorToastCmd "U kan deze eigenaar geen stemhouder maken van het kavel, de einddatum van de eigenaar is reeds verstreken"
+        else
+            let newLotOwners = 
+                state.Lot.Owners 
+                |> List.map (fun o ->
+                    if o = lotOwner
+                    then { o with LotOwnerRole = LotOwnerRole.LegalRepresentative }
+                    else { o with LotOwnerRole = LotOwnerRole.Other })
 
-        changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
+            changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
     | ShareChanged x ->
         changeLot (fun l -> { l with Share = parseInt x }), Cmd.none
     | NoOp ->
@@ -122,7 +126,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         let newLotOwners = state.Lot.Owners |> List.mapi (fun idx o -> if idx = index then { o with StartDate = newStartDate } else o)
         changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
     | EndDateChanged (index, newEndDate) ->
-        let newLotOwners = state.Lot.Owners |> List.mapi (fun idx o -> if idx = index then { o with EndDate = newEndDate |> Option.map (fun ed -> ed.ToUniversalTime()) } else o)
+        let newLotOwners = state.Lot.Owners |> List.mapi (fun idx o -> if idx = index then { o with EndDate = newEndDate } else o)
         changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
 
     |> (fun (state, cmd) -> state |> recalculateValidationErrors, cmd)
@@ -156,23 +160,27 @@ let renderEditLotOwners (basePath: string) (errors: (string * string) list) (lot
             button [ 
                 classes [ Bootstrap.btn; Bootstrap.btnLight; Bootstrap.btnSm ]
                 OnClick (fun _ -> SelectLegalRepresentative lotOwner |> dispatch)
-                Disabled (lotOwner.EndDate.IsSome && lotOwner.EndDate.Value < DateTimeOffset.Now)
             ] [
                 str "Nee"
             ]
 
     let startDateEditorFor (index: int) (lotOwner: LotOwner) =
-        Flatpickr.flatpickr  [
-            Flatpickr.OnChange (fun e -> StartDateChanged (index, new DateTimeOffset(e)) |> dispatch)
-            Flatpickr.Value lotOwner.StartDate.LocalDateTime
-            Flatpickr.SelectionMode Flatpickr.Mode.Single
-            Flatpickr.EnableTimePicker false
-            Flatpickr.Locale Flatpickr.Locales.dutch
-            Flatpickr.DateFormat "d/m/Y"
+        let errorMessage = errorMessageFor index (nameof lotOwner.StartDate)
+        div [ Style [ MaxWidth "160px" ] ] [
+            Flatpickr.flatpickr  [
+                Flatpickr.OnChange (fun e -> StartDateChanged (index, new DateTimeOffset(e)) |> dispatch)
+                Flatpickr.Value lotOwner.StartDate.DateTime
+                Flatpickr.SelectionMode Flatpickr.Mode.Single
+                Flatpickr.EnableTimePicker false
+                Flatpickr.Locale Flatpickr.Locales.dutch
+                Flatpickr.DateFormat "d/m/Y"
+                Flatpickr.ClassName (if errorMessage <> null then (sprintf "%s %s" Bootstrap.isInvalid Bootstrap.formControl) else "")
+            ]
+            errorMessage
         ]
 
     let endDateEditorFor (index: int) (owner: LotOwner) =
-        form [ Id (sprintf "%A" owner.LotOwnerType) ] [
+        form [ Id (sprintf "%A" owner.LotOwnerId) ] [
             div [ Class Bootstrap.inputGroup ] [
                 Flatpickr.flatpickr [
                     yield Flatpickr.OnChange (fun e -> EndDateChanged (index, Some (new DateTimeOffset(e))) |> dispatch)
@@ -202,9 +210,13 @@ let renderEditLotOwners (basePath: string) (errors: (string * string) list) (lot
             | [] ->
                 null
             | owners ->
-                div [ Class Bootstrap.formGroup ] [                    
+                div [ Class Bootstrap.formGroup ] [
                     h3 [] [ str "Eigenaar(s)" ]
-                    p [] [ str "Bij een overdracht moet de einddatum van de vorige eigenaar(s) gezet worden op de dag vóór het verlijden van de akte en de begindatum van de nieuwe eigenaar(s) op de dag van het verlijden van de akte." ]
+                    p [ Class Bootstrap.textInfo ] [
+                        i [ classes [ FontAwesome.fa; FontAwesome.faInfoCircle ] ] []
+                        str " "
+                        str "Bij een overdracht moet de einddatum van de vorige eigenaar(s) gezet worden op de dag vóór het verlijden van de akte en de begindatum van de nieuwe eigenaar(s) op de dag van het verlijden van de akte." 
+                    ]
                     table [ classes [ Bootstrap.table; Bootstrap.tableStriped; Bootstrap.tableHover ] ] [
                         thead [] [
                             tr [] [
@@ -223,10 +235,7 @@ let renderEditLotOwners (basePath: string) (errors: (string * string) list) (lot
                                     td [] [ ownerTypes owner ]
                                     td [] [ ownerName owner ]
                                     td [] [ isResident owner ]
-                                    td [] [ 
-                                        startDateEditorFor index owner
-                                        errorMessageFor index (nameof owner.StartDate)
-                                    ]
+                                    td [] [ startDateEditorFor index owner ]
                                     td [] [ endDateEditorFor index owner ]
                                     td [] [ isLegalRepresentative owner ]
                                     td [] [ 
@@ -275,7 +284,9 @@ let view (state: State) (dispatch: Message -> unit) =
 
     div [] [
         div [ Class Bootstrap.row ] [
-            h3 [] [ str "Algemeen" ]
+            div [ Class Bootstrap.col12 ] [
+                h3 [] [ str "Algemeen" ]
+            ]
         ]
         div [ Class Bootstrap.row ] [
             formGroup [ 

@@ -461,3 +461,32 @@ type AddUsesVatNumberToOrganizations() =
                 ALTER TABLE Organizations ALTER COLUMN UsesVatNumber SET NOT NULL;
             """
     override u.Down () = ()
+
+[<Migration(13L, "Add IsDeleted and LotOwnerId to LotOwners")>]
+type AddIsDeletedAndLotOwnerIdToLotOwners() =
+    inherit Migration ()
+    override u.Up () = 
+        u.Execute
+            """
+                ALTER TABLE LotOwners ADD COLUMN IF NOT EXISTS IsDeleted BOOLEAN DEFAULT FALSE;
+                ALTER TABLE LotOwners ADD COLUMN IF NOT EXISTS LotOwnerId UUID;
+                ALTER TABLE LotOwners DROP COLUMN IF EXISTS IsActive;
+            """
+
+        u.Execute
+            """
+                UPDATE LotOwners SET IsDeleted = FALSE;
+                UPDATE LotOwners SET LotOwnerId = uuid_generate_v4();
+            """
+
+        u.Execute 
+            """
+                ALTER TABLE LotOwners ALTER COLUMN LotOwnerId SET NOT NULL;
+            """
+
+        u.Execute
+            """
+                ALTER TABLE LotOwners DROP CONSTRAINT lotowners_pkey;
+                ALTER TABLE LotOwners ADD PRIMARY KEY  (LotOwnerId);
+            """
+    override u.Down () = ()

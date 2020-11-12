@@ -26,7 +26,7 @@ type State = {
 }
 and Tab =
     | List
-    | Details of User
+    | Details of userId: Guid
     | New
 type Msg =
     | AddDetailTab of User
@@ -54,7 +54,7 @@ type SortableUserAttribute =
     | NbUserRoles
     | NbSyndicRoles
     | NbProSyndicRoles
-    member me.ToString' () =
+    override me.ToString () =
         match me with
         | EmailAddress -> "E-mail"
         | DisplayName -> "Naam"
@@ -63,12 +63,14 @@ type SortableUserAttribute =
         | NbUserRoles -> "#G"
         | NbSyndicRoles -> "#E"
         | NbProSyndicRoles -> "#P"
-    member me.ToLongString' () =
+    member me.ExtraHeaderAttributes': IHTMLProp seq =
         match me with
-        | NbUserRoles -> "#Gebruikersrollen"
-        | NbSyndicRoles -> "#Eigenaar-syndicus rollen"
-        | NbProSyndicRoles -> "#Professioneel syndicus rollen"
-        | _ -> me.ToString' ()
+        | NbUserRoles -> seq { Title "#Gebruikersrollen" }
+        | NbSyndicRoles -> seq { Title "#Eigenaar-syndicus rollen" }
+        | NbProSyndicRoles -> seq { Title "#Professioneel syndicus rollen" }
+        | _ -> Seq.empty
+    member me.ReactElementFor': User -> ReactElement =
+        fun li -> str (me.StringValueOf' li)
     member me.StringValueOf': User -> string =
         match me with
         | EmailAddress -> (fun li -> li.EmailAddress)
@@ -99,8 +101,8 @@ type SortableUserAttribute =
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
     static member All = [ DisplayName; EmailAddress; PreferredLanguageCode; IsSysAdmin; NbUserRoles; NbSyndicRoles; NbProSyndicRoles ]
     interface ISortableAttribute<User> with
-        member me.ToString = me.ToString'
-        member me.ToLongString = me.ToLongString'
+        member me.ReactElementFor = me.ReactElementFor'
+        member me.ExtraHeaderAttributes = me.ExtraHeaderAttributes'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member me.IsFilterable = true
@@ -109,7 +111,10 @@ let init (props: UsersPageProps) =
     let state = { 
         CurrentUser = props.CurrentUser
         SelectedListItems = []
-        SelectedTab = List
+        SelectedTab =
+            match props.UserId with
+            | Some userId -> Tab.Details userId
+            | None -> Tab.List
         ListItems = []
         LoadingListItems = true
     }
@@ -130,7 +135,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             then state.SelectedListItems
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.DisplayName)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }
+        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.UserId }
         , Routing.navigateToPage (Routing.Page.UserDetails listItem.UserId)
     | RemoveDetailTab listItem ->
         let updatedTabs = 
@@ -142,7 +147,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let cmd =
             match tab with
             | List -> Routing.navigateToPage (Routing.Page.UserList)
-            | Details li -> Routing.navigateToPage (Routing.Page.UserDetails li.UserId)
+            | Details userId -> Routing.navigateToPage (Routing.Page.UserDetails userId)
             | New -> Routing.navigateToPage (Routing.Page.UserList)
         { state with SelectedTab = tab }, cmd
     | Loaded (users, selectedUserId) ->
@@ -200,7 +205,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectedListItems = newSelectedListItems
         }
         , Cmd.batch [
-            SelectTab (Details listItem) |> Cmd.ofMsg
+            SelectTab (Details listItem.UserId) |> Cmd.ofMsg
             showSuccessToastCmd "De gebruiker is aangemaakt"
         ]
     | Edited user ->
@@ -212,7 +217,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectedListItems = newSelectedListItems
         }
         , Cmd.batch [
-            SelectTab (Details listItem) |> Cmd.ofMsg
+            SelectTab (Details listItem.UserId) |> Cmd.ofMsg
             showSuccessToastCmd "De gebruiker is gewijzigd"
         ]
     | NoOp ->
@@ -254,7 +259,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 for selected in state.SelectedListItems do
                     yield li [ Class Bootstrap.navItem ] [
                         a 
-                            [ Class (determineNavItemStyle (Details selected)); OnClick (fun _ -> SelectTab (Details selected) |> dispatch) ] 
+                            [ Class (determineNavItemStyle (Details selected.UserId)); OnClick (fun _ -> SelectTab (Details selected.UserId) |> dispatch) ] 
                             [ str selected.DisplayName ]
                     ]
                 yield li [ Class Bootstrap.navItem ] [
@@ -267,11 +272,11 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             div [ Class Bootstrap.tabContent ] [
                 match state.SelectedTab with
                 | List -> list state
-                | Details listItem -> 
+                | Details userId -> 
                     UserDetails.render 
                         {| 
                             CurrentUser = state.CurrentUser 
-                            CreateOrUpdate = UserDetails.CreateOrUpdate.Update listItem
+                            CreateOrUpdate = UserDetails.CreateOrUpdate.Update (userId)
                             NotifyCreated = fun b -> dispatch (Created b)
                             NotifyEdited = fun b -> dispatch (Edited b)
                         |}

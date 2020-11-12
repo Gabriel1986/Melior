@@ -21,12 +21,14 @@ type SortableAttribute =
     | Name
     | OrganizationNumber
     | Address
-    member me.ToString' () =
+    override me.ToString () =
         match me with
         | Code -> "Code"
         | Name -> "Naam"
         | OrganizationNumber -> "Ond. nr."
         | Address -> "Adres"
+    member me.ReactElementFor': BuildingListItem -> ReactElement =
+        fun li -> str (me.StringValueOf' li) 
     member me.StringValueOf': BuildingListItem -> string =
         match me with
         | Name -> (fun li -> li.Name)
@@ -34,13 +36,11 @@ type SortableAttribute =
         | OrganizationNumber -> (fun li -> defaultArg li.OrganizationNumber "")
         | Address -> (fun li -> string li.Address)
     member me.Compare': BuildingListItem -> BuildingListItem -> int =
-        fun li otherLi ->
-            let result = me.StringValueOf'(li).CompareTo(me.StringValueOf'(otherLi))
-            result
+        fun li otherLi -> me.StringValueOf'(li).CompareTo(me.StringValueOf'(otherLi))
     static member All = [ Code; Name; OrganizationNumber; Address ]
     interface ISortableAttribute<BuildingListItem> with
-        member me.ToString = me.ToString'
-        member me.ToLongString = me.ToString'
+        member me.ReactElementFor = me.ReactElementFor'
+        member _.ExtraHeaderAttributes = Seq.empty
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member _.IsFilterable = true
@@ -55,7 +55,7 @@ type State = {
 }
 and Tab =
     | List
-    | Details of BuildingListItem
+    | Details of buildingId: Guid
     | New
 type Msg =
     | AddDetailTab of BuildingListItem
@@ -81,7 +81,10 @@ let init (props: BuildingsPageProps) =
     let state = { 
         CurrentUser = props.CurrentUser
         SelectedListItems = []
-        SelectedTab = List
+        SelectedTab =
+            match props.BuildingId with
+            | Some buildingId -> Tab.Details buildingId
+            | None -> Tab.List
         ListItems = []
         LoadingListItems = true
         CurrentBuildingId = props.CurrentBuildingId
@@ -103,7 +106,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             then state.SelectedListItems
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.Code)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }, Routing.navigateToPage (Routing.Page.BuildingDetails listItem.BuildingId)
+        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.BuildingId }, Routing.navigateToPage (Routing.Page.BuildingDetails listItem.BuildingId)
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
@@ -113,7 +116,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let cmd =
             match tab with
             | List -> Routing.navigateToPage (Routing.Page.BuildingList)
-            | Details li -> Routing.navigateToPage (Routing.Page.BuildingDetails li.BuildingId)
+            | Details buildingId -> Routing.navigateToPage (Routing.Page.BuildingDetails buildingId)
             | New -> Routing.navigateToPage (Routing.Page.BuildingList)
         { state with SelectedTab = tab }, cmd
     | Loaded (buildings, selectedBuildingId) ->
@@ -170,7 +173,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             ListItems = newListItems |> List.sortBy (fun b -> b.Code)
             SelectedListItems = newSelectedListItems
         }, Cmd.batch [
-            SelectTab (Details listItem) |> Cmd.ofMsg
+            SelectTab (Details listItem.BuildingId) |> Cmd.ofMsg
             showSuccessToastCmd "Het gebouw is aangemaakt"
         ]
     | Edited building ->
@@ -181,7 +184,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             ListItems = newListItems
             SelectedListItems = newSelectedListItems
         }, Cmd.batch [
-            SelectTab (Details listItem) |> Cmd.ofMsg
+            SelectTab (Details listItem.BuildingId) |> Cmd.ofMsg
             showSuccessToastCmd "Het gebouw is gewijzigd"
         ]
     | CurrentBuildingChanged building ->
@@ -227,7 +230,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 for selected in state.SelectedListItems do
                     yield li [ Class Bootstrap.navItem ] [
                         a 
-                            [ Class (determineNavItemStyle (Details selected)); OnClick (fun _ -> SelectTab (Details selected) |> dispatch) ] 
+                            [ Class (determineNavItemStyle (Details selected.BuildingId)); OnClick (fun _ -> SelectTab (Details selected.BuildingId) |> dispatch) ] 
                             [ str (sprintf "%s: %s" selected.Code selected.Name) ]
                     ]
                 yield li [ Class Bootstrap.navItem ] [
@@ -240,11 +243,11 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             div [ Class Bootstrap.tabContent ] [
                 match state.SelectedTab with
                 | List -> list state
-                | Details listItem -> 
+                | Details buildingId -> 
                     BuildingDetails.render 
                         {| 
                             CurrentUser = state.CurrentUser 
-                            Identifier = listItem.BuildingId
+                            Identifier = buildingId
                             IsNew = false
                             NotifyCreated = fun b -> dispatch (Created b)
                             NotifyEdited = fun b -> dispatch (Edited b)

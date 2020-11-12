@@ -13,8 +13,8 @@ open Client.ClientStyle.Helpers
 open Fable.Core
 
 type ISortableAttribute<'T> =
-    abstract member ToString: (unit -> string)
-    abstract member ToLongString: (unit -> string)
+    abstract member ReactElementFor: ('T -> ReactElement)
+    abstract member ExtraHeaderAttributes: IHTMLProp seq
     abstract member StringValueOf: ('T -> string)
     abstract member Compare: 'T -> 'T -> int
     abstract member IsFilterable: bool
@@ -149,62 +149,50 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
         state.SortOn 
         |> List.tryPick (fun (attr, reversed) -> if attr = attribute then Some reversed else None)
 
-    let extraColumnHeaders =
-        [ 
-            if state.OnSelect.IsSome && state.IsSelected.IsSome then yield th [ Class Bootstrap.borderTop0 ] [] 
-            if state.OnEdit.IsSome then yield th [ Class Bootstrap.borderTop0 ] []
-            if state.OnDelete.IsSome then yield th [ Class Bootstrap.borderTop0 ] []
-        ]
-
-    let extraColumns (li: 'T) =
-        seq {
-            if state.OnSelect.IsSome && state.IsSelected.IsSome then
-                yield
-                    td [] [
-                        div [ Class Bootstrap.formCheck ] [
-                            button [
-                                Type "button"
-                                classes [ Bootstrap.btn; Bootstrap.btnSm; if state.IsSelected.Value (li) then Bootstrap.btnPrimary else Bootstrap.btnLight ]
-                            ] [
-                                str (if state.IsSelected.Value (li) then "Geselecteerd" else "Selecteren")
-                            ]
+    let selectedColumn, selectHeader =
+        if state.OnSelect.IsSome && state.IsSelected.IsSome then
+            fun li ->
+                td [] [
+                    div [ Class Bootstrap.formCheck ] [
+                        button [
+                            Type "button"
+                            classes [ Bootstrap.btn; Bootstrap.btnSm; if state.IsSelected.Value (li) then Bootstrap.btnPrimary else Bootstrap.btnLight ]
+                            OnClick (fun e -> e.preventDefault(); e.stopPropagation(); state.OnSelect.Value li)
+                        ] [
+                            str (if state.IsSelected.Value (li) then "Geselecteerd" else "Selecteren")
                         ]
                     ]
-            if state.OnEdit.IsSome then
-                yield
-                    td [] [
-                        if not state.IsEditable.IsSome || state.IsEditable.Value(li) then
-                            a [ 
-                                classes [ Bootstrap.textPrimary; "pointer" ]
-                                OnClick (fun e -> e.preventDefault(); e.stopPropagation(); state.OnEdit.Value (li))
-                            ] [
-                                i [ classes [ FontAwesome.fa; FontAwesome.faExternalLinkAlt] ] []
-                            ]
-                        else
-                            null
-                    ]
-            if state.OnDelete.IsSome then
-                yield
-                    td [] [
-                        if (not state.IsDeletable.IsSome || state.IsDeletable.Value(li)) then
-                            a [
-                                classes [ Bootstrap.textDanger; "pointer" ]
-                                OnClick (fun e -> e.preventDefault(); e.stopPropagation(); state.OnDelete.Value (li)) 
-                            ] [
-                                i [ classes [ FontAwesome.far; FontAwesome.faTrashAlt ] ] []
-                            ]
-                        else
-                            null
-                    ]
-        }
+                ]
+            , th [ Class Bootstrap.borderTop0 ] [] 
+        else
+            fun _ -> null
+            , null
+
+    let deleteColumn, deleteHeader =
+        if state.OnDelete.IsSome then
+            fun li ->
+                td [ Style [ Width "30px" ] ] [
+                    if (not state.IsDeletable.IsSome || state.IsDeletable.Value(li)) then
+                        button [
+                            classes [ Bootstrap.btn; Bootstrap.btnSm; Bootstrap.btnDanger ]
+                            OnClick (fun e -> e.preventDefault(); e.stopPropagation(); state.OnDelete.Value (li)) 
+                        ] [
+                            str "Verwijderen"
+                        ]
+                    else
+                        null
+                ]
+            , th [ classes [ Bootstrap.borderTop0 ]; Style [ Width "30px" ] ] []
+        else
+            fun _ -> null
+            , null
 
     let header (attr: ISortableAttribute<'T>) =
         let name = attr.ToString ()
-        let longName = attr.ToLongString ()
         th 
-            [ Class Bootstrap.borderTop0 ]
+            [ yield Class Bootstrap.borderTop0; yield! attr.ExtraHeaderAttributes ]
             [
-                div [ OnClick (dispatchSortOn attr); if name <> longName then Title longName ] [
+                div [ OnClick (dispatchSortOn attr) ] [
                     yield str (sprintf "%s%s " name (sortingIndexNumber attr)) 
                     yield 
                         match sortingDirection attr with
@@ -229,18 +217,23 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
         thead [] [
             tr [] [
                 yield! state.DisplayAttributes |> List.map (fun attr -> header attr)
-                yield! extraColumnHeaders
+                yield! [ selectHeader; deleteHeader ]
             ]
         ]
         tbody []
             (state.FilteredListItems
             |> List.map (fun li -> 
-                tr [ 
-                    if state.OnSelect.IsSome then yield OnClick (fun _ -> state.OnSelect.Value li) 
-                    if (state.IsSelected.IsSome && state.IsSelected.Value li) then yield (Class Bootstrap.tablePrimary)
+                tr [
+                    if state.OnEdit.IsSome 
+                    then yield! [ OnClick (fun _ -> state.OnEdit.Value li) :> IHTMLProp; Style [ Cursor "pointer" ] :> IHTMLProp ]
+                    elif state.OnSelect.IsSome
+                    then yield! [ OnClick (fun _ -> state.OnSelect.Value li) :> IHTMLProp; Style [ Cursor "pointer" ] :> IHTMLProp ]
+                    
+                    if (state.IsSelected.IsSome && state.IsSelected.Value li) 
+                    then yield (Class Bootstrap.tablePrimary)
                 ] [
-                    yield! (state.DisplayAttributes |> List.map (fun attr -> td [] [ str (attr.StringValueOf li) ]))
-                    yield! (extraColumns li)
+                    yield! (state.DisplayAttributes |> List.map (fun attr -> td [] [ attr.ReactElementFor li ]))
+                    yield! [ selectedColumn li; deleteColumn li ]
                 ]
             ))
     ]

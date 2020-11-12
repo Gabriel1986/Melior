@@ -28,7 +28,7 @@ type State = {
 }
 and Tab =
     | List
-    | Details of OwnerListItem
+    | Details of ownerId: Guid
     | New
 type Msg =
     | AddDetailTab of OwnerListItem
@@ -46,18 +46,24 @@ type Msg =
 type OwnersPageProps = {|
     CurrentUser: User
     CurrentBuilding: BuildingListItem
-    PersonId: Guid option
+    OwnerId: Guid option
 |}
 
 type SortableOwnerListItemAttribute =
     | FirstName
     | LastName
     | IsResident
-    member me.ToString' () =
+    override me.ToString () =
         match me with
         | FirstName -> "Voornaam"
         | LastName -> "Achternaam"
         | IsResident -> "Bewoner"
+    member me.ReactElementFor': OwnerListItem -> ReactElement =
+        fun li -> str (me.StringValueOf' li)
+    member me.ExtraHeaderAttributes': IHTMLProp seq =
+        match me with
+        | IsResident -> seq { Style [ Width "100px" ] }
+        | _ -> Seq.empty
     member me.StringValueOf': OwnerListItem -> string =
         match me with
         | FirstName -> (fun li -> string li.FirstName)
@@ -74,8 +80,8 @@ type SortableOwnerListItemAttribute =
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
     static member All = [ FirstName; LastName; IsResident ]
     interface ISortableAttribute<OwnerListItem> with
-        member me.ToString = me.ToString'
-        member me.ToLongString = me.ToString'
+        member me.ReactElementFor = me.ReactElementFor'
+        member me.ExtraHeaderAttributes = me.ExtraHeaderAttributes'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member _.IsFilterable = true
@@ -85,7 +91,10 @@ let init (props: OwnersPageProps) =
         CurrentUser = props.CurrentUser
         CurrentBuilding = props.CurrentBuilding
         SelectedListItems = []
-        SelectedTab = List
+        SelectedTab =
+            match props.OwnerId with
+            | Some ownerId -> Tab.Details ownerId
+            | None -> Tab.List
         ListItems = []
         LoadingListItems = true
     }
@@ -94,7 +103,7 @@ let init (props: OwnersPageProps) =
         Cmd.OfAsync.either
             (Remoting.getRemotingApi().GetOwners)
             state.CurrentBuilding.BuildingId
-            (fun owners -> Loaded (owners, props.PersonId))
+            (fun owners -> Loaded (owners, props.OwnerId))
             RemotingError
     state, cmd
 
@@ -116,7 +125,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.LastName)
             |> List.sortBy (fun li -> li.FirstName)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }
+        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.PersonId }
         , Routing.navigateToPage (Routing.Page.OwnerDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.PersonId })
     | RemoveDetailTab listItem ->
         let updatedTabs = 
@@ -129,7 +138,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let cmd =
             match tab with
             | List -> Routing.navigateToPage (Routing.Page.OwnerList { BuildingId = buildingId })
-            | Details li -> Routing.navigateToPage (Routing.Page.OwnerDetails { BuildingId = buildingId; DetailId = li.PersonId })
+            | Details personId -> Routing.navigateToPage (Routing.Page.OwnerDetails { BuildingId = buildingId; DetailId = personId })
             | New -> Routing.navigateToPage (Routing.Page.OwnerList { BuildingId = buildingId })
         { state with SelectedTab = tab }, cmd
     | Loaded (owners, selectedOwnerId) ->
@@ -186,7 +195,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectedListItems = newSelectedListItems 
         }
         , Cmd.batch [
-            SelectTab (Details listItem) |> Cmd.ofMsg
+            SelectTab (Details listItem.PersonId) |> Cmd.ofMsg
             showSuccessToastCmd "De eigenaar is aangemaakt"
         ]
     | Edited owner ->
@@ -198,7 +207,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectedListItems = newSelectedListItems 
         }
         , Cmd.batch [
-            SelectTab (Details listItem) |> Cmd.ofMsg
+            SelectTab (Details listItem.PersonId) |> Cmd.ofMsg
             showSuccessToastCmd "De eigenaar is gewijzigd"
         ]
     | NoOp ->
@@ -239,7 +248,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 for selected in state.SelectedListItems do
                     yield li [ Class Bootstrap.navItem ] [
                         a 
-                            [ Class (determineNavItemStyle (Details selected)); OnClick (fun _ -> SelectTab (Details selected) |> dispatch) ] 
+                            [ Class (determineNavItemStyle (Details selected.PersonId)); OnClick (fun _ -> SelectTab (Details selected.PersonId) |> dispatch) ] 
                             [ str (sprintf "%s %s" (defaultArg selected.FirstName "") (defaultArg selected.LastName "")) ]
                     ]
                 yield li [ Class Bootstrap.navItem ] [
@@ -252,12 +261,12 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             div [ Class Bootstrap.tabContent ] [
                 match state.SelectedTab with
                 | List -> list state
-                | Details listItem -> 
+                | Details personId -> 
                     OwnerDetails.render 
                         {| 
                             CurrentUser = state.CurrentUser 
                             CurrentBuilding = state.CurrentBuilding
-                            Identifier = listItem.PersonId
+                            Identifier = personId
                             IsNew = false
                             NotifyCreated = fun b -> dispatch (Created b)
                             NotifyEdited = fun b -> dispatch (Edited b)

@@ -19,11 +19,17 @@ type SortableAttribute =
     | Name
     | DistributionType
     | NbMatchingLots
-    member me.ToString' () =
+    override me.ToString () =
         match me with
         | Name -> "Naam"
         | DistributionType -> "Verdeling"
         | NbMatchingLots -> "# Kavels"
+    member me.ExtraHeaderAttributes': IHTMLProp seq =
+        match me with
+        | NbMatchingLots -> seq { Style [ Width "100px" ] }
+        | _ -> Seq.empty
+    member me.ReactElementFor': DistributionKeyModel -> ReactElement =
+        fun li -> str (me.StringValueOf' li) 
     member me.StringValueOf': DistributionKeyModel -> string =
         match me with
         | Name -> (fun li -> li.Name)
@@ -35,12 +41,11 @@ type SortableAttribute =
             | NbMatchingLots ->
                 li.MatchingLots.Length - otherLi.MatchingLots.Length
             | _ ->
-                let result = me.StringValueOf'(li).CompareTo(me.StringValueOf'(otherLi))
-                result
+                me.StringValueOf'(li).CompareTo(me.StringValueOf'(otherLi))
     static member All = [ Name; DistributionType; NbMatchingLots ]
     interface ISortableAttribute<DistributionKeyModel> with
-        member me.ToString = me.ToString'
-        member me.ToLongString = me.ToString'
+        member me.ReactElementFor = me.ReactElementFor'
+        member me.ExtraHeaderAttributes = me.ExtraHeaderAttributes'
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member _.IsFilterable = true
@@ -58,7 +63,7 @@ type State = {
 }
 and Tab =
     | List
-    | Details of DistributionKeyModel
+    | Details of distributionKeyId: Guid
     | New
 
 type Msg =
@@ -88,29 +93,20 @@ let init (props: DistributionKeysPageProps) =
         Lots = None
         ListItems = []
         SelectedListItems = []
-        SelectedTab = Tab.List
+        SelectedTab =
+            match props.DistributionKeyId with
+            | Some distributionKeyId -> Tab.Details distributionKeyId
+            | None -> Tab.List
     },
     Cmd.batch [
         Cmd.OfAsync.either (Remoting.getRemotingApi()).GetDistributionKeys props.CurrentBuildingId DistributionKeysLoaded RemotingError
         Cmd.OfAsync.either (Remoting.getRemotingApi()).GetLots props.CurrentBuildingId LotsLoaded RemotingError
     ]
 
-let private createModel (lots: LotListItem list) (key: DistributionKey): DistributionKeyModel = {
-    DistributionKeyId = key.DistributionKeyId
-    BuildingId = key.BuildingId
-    Name = key.Name
-    DistributionType = key.DistributionType
-    CanBeEdited = key.BuildingId.IsSome
-    MatchingLots =
-        match key.LotsOrLotTypes with
-        | LotsOrLotTypes.Lots lotIds -> lots |> List.filter (fun lot -> lotIds |> List.contains(lot.LotId))
-        | LotsOrLotTypes.LotTypes types -> lots |> List.filter (fun lot -> (if not key.IncludeGroundFloor then lot.Floor.IsNone || lot.Floor.Value <> 0 else true) && types |> List.contains(lot.LotType))
-}
-
 let private evolve (state: State) =
     match state.DistributionKeys, state.Lots with
     | (Some keys, Some lots) ->
-        let models = keys |> List.map (createModel lots)
+        let models = keys |> List.map (DistributionKeyModel.FromBackendModel lots)
         let state = { state with IsLoading = false; ListItems = models }
         let cmd = 
             let selectedOpt = 
@@ -137,7 +133,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             then state.SelectedListItems
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.Name)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem }, Routing.navigateToPage (Routing.Page.DistributionKeyDetails { BuildingId = state.CurrentBuildingId; DetailId = listItem.DistributionKeyId })
+        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.DistributionKeyId }, Routing.navigateToPage (Routing.Page.DistributionKeyDetails { BuildingId = state.CurrentBuildingId; DetailId = listItem.DistributionKeyId })
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
@@ -187,7 +183,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectedListItems = newSelectedListItems
         }, Cmd.batch [
             showSuccessToastCmd "De verdeelsleutel is aangemaakt"
-            (SelectTab (Tab.Details distributionKey)) |> Cmd.ofMsg
+            (SelectTab (Tab.Details distributionKey.DistributionKeyId)) |> Cmd.ofMsg
         ]
     | Edited distributionKey ->
         let listItem = distributionKey
@@ -198,7 +194,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             SelectedListItems = newSelectedListItems
         }, Cmd.batch [
             showSuccessToastCmd "De verdeelsleutel is gewijzigd"
-            (SelectTab (Tab.Details listItem)) |> Cmd.ofMsg
+            (SelectTab (Tab.Details listItem.DistributionKeyId)) |> Cmd.ofMsg
         ]
     | CurrentDistributionKeyChanged distributionKey ->
         { state with SelectedDistributionKeyId = Some distributionKey.DistributionKeyId }, Cmd.none
@@ -240,7 +236,7 @@ let view (state: State) (dispatch: Msg -> unit) =
                 for selected in state.SelectedListItems do
                     yield li [ Class Bootstrap.navItem ] [
                         a 
-                            [ Class (determineNavItemStyle (Details selected)); OnClick (fun _ -> SelectTab (Details selected) |> dispatch) ] 
+                            [ Class (determineNavItemStyle (Details selected.DistributionKeyId)); OnClick (fun _ -> SelectTab (Details selected.DistributionKeyId) |> dispatch) ] 
                             [ str selected.Name ]
                     ]
                 yield li [ Class Bootstrap.navItem ] [
@@ -253,13 +249,14 @@ let view (state: State) (dispatch: Msg -> unit) =
             div [ Class Bootstrap.tabContent ] [
                 match state.SelectedTab with
                 | List -> list state
-                | Details listItem -> 
+                | Details distributionKeyId -> 
                     DistributionKeyDetails.render 
                         {| 
                             CurrentUser = state.CurrentUser 
                             CurrentBuildingId = Some state.CurrentBuildingId
                             AllLots = state.Lots.Value
-                            DistributionKey = Some listItem
+                            Identifier = distributionKeyId
+                            IsNew = false
                             NotifyCreated = fun b -> dispatch (Created b)
                             NotifyEdited = fun b -> dispatch (Edited b)
                         |}
@@ -269,7 +266,8 @@ let view (state: State) (dispatch: Msg -> unit) =
                             CurrentUser = state.CurrentUser 
                             CurrentBuildingId = Some state.CurrentBuildingId
                             AllLots = state.Lots.Value
-                            DistributionKey = None
+                            Identifier = Guid.NewGuid()
+                            IsNew = true
                             NotifyCreated = fun b -> dispatch (Created b)
                             NotifyEdited = fun b -> dispatch (Edited b)
                         |}
