@@ -486,7 +486,7 @@ type AddIsDeletedAndLotOwnerIdToLotOwners() =
 
         u.Execute
             """
-                ALTER TABLE LotOwners DROP CONSTRAINT lotowners_pkey;
+                ALTER TABLE LotOwners DROP CONSTRAINT IF EXISTS lotowners_pkey;
                 ALTER TABLE LotOwners ADD PRIMARY KEY  (LotOwnerId);
             """
     override u.Down () = ()
