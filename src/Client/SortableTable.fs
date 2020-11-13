@@ -192,7 +192,7 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
         th 
             [ yield Class Bootstrap.borderTop0; yield! attr.ExtraHeaderAttributes ]
             [
-                div [ OnClick (dispatchSortOn attr) ] [
+                div [ OnClick (dispatchSortOn attr); Class "pointer" ] [
                     yield str (sprintf "%s%s " name (sortingIndexNumber attr)) 
                     yield 
                         match sortingDirection attr with
