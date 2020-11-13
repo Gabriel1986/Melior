@@ -177,7 +177,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             printf "Could not delete the professional syndic, it was not found in the DB, somehow..."
             state, Cmd.none
     | RemotingError e ->
-        state, showGenericErrorModalCmd e
+        { state with ListItems = []; LoadingListItems = false }, showGenericErrorModalCmd e
     | Created professionalSyndic ->
         let listItem = toListItem professionalSyndic
         let newListItems = listItem :: state.ListItems

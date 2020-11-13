@@ -225,7 +225,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             printf "The lot that was being deleted was not found in the DB... Somehow..."
             state, Cmd.none
     | RemotingError e ->
-        state, showGenericErrorModalCmd e
+        { state with ListItems = []; LoadingListItems = false }, showGenericErrorModalCmd e
     | Created lot ->
         let listItem = toListItem lot
         let newListItems = listItem :: state.ListItems

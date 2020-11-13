@@ -125,8 +125,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         evolve { state with DistributionKeys = Some distributionKeys; LoadingListItems = false }
     | LotsLoaded lots ->
         evolve { state with Lots = Some lots }
-    | RemotingError error ->
-        state, showGenericErrorModalCmd error
+    | RemotingError e ->
+        { state with ListItems = []; LoadingListItems = false }, showGenericErrorModalCmd e
     | AddDetailTab listItem ->
         let newlySelectedItems = 
             if state.SelectedListItems |> List.exists (fun li -> li.BuildingId = listItem.BuildingId)

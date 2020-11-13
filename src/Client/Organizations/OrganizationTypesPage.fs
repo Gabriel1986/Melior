@@ -20,7 +20,7 @@ type OrganizationTypesPageProps = {| CurrentUser: User |}
 
 type State = {
     CurrentUser: User
-    OrganizationTypes: (OrganizationType * EditingState option) list
+    ListItems: (OrganizationType * EditingState option) list
 }
 and EditingState = 
     {
@@ -56,7 +56,7 @@ type Message =
 let init (props: OrganizationTypesPageProps) =
     let state = {
         CurrentUser = props.CurrentUser
-        OrganizationTypes = []
+        ListItems = []
     }
 
     let cmd =
@@ -70,22 +70,22 @@ let init (props: OrganizationTypesPageProps) =
 let update (message: Message) (state: State): State * Cmd<Message> =
     let changeOrganizationType (orgTypeId: Guid) (changeOrganizationType: OrganizationType -> OrganizationType) (changeEditingState: EditingState -> EditingState option): State =
         let newOrganizationTypes = 
-            state.OrganizationTypes 
+            state.ListItems 
             |> List.map (fun (orgType, editingState) -> 
                 if orgType.OrganizationTypeId = orgTypeId 
                 then changeOrganizationType orgType, (editingState |> Option.bind changeEditingState) else orgType, editingState)
-        { state with OrganizationTypes = newOrganizationTypes }
+        { state with ListItems = newOrganizationTypes }
 
     match message with
     | Loaded organizationTypes ->
-        { state with OrganizationTypes = organizationTypes |> List.map (fun li -> li, None) }, Cmd.none
+        { state with ListItems = organizationTypes |> List.map (fun li -> li, None) }, Cmd.none
     | RemotingError e ->
-        state, showGenericErrorModalCmd e
+        { state with ListItems = [] }, showGenericErrorModalCmd e
     | Edit typeId ->
         let newOrgTypes = 
-            state.OrganizationTypes 
+            state.ListItems 
             |> List.map (fun (li, editing) -> if li.OrganizationTypeId = typeId then li, Some (EditingState.Init false li) else li, editing)
-        { state with OrganizationTypes = newOrgTypes }, Cmd.none
+        { state with ListItems = newOrgTypes }, Cmd.none
     | SaveEdit organizationType ->
         match ValidatedOrganizationType.Validate (organizationType) with
         | Ok _ ->
@@ -116,18 +116,18 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | CreateOrganizationType ->
         let li = OrganizationType.Init ()
         let organizationType = li, Some (EditingState.Init true li)
-        { state with OrganizationTypes = state.OrganizationTypes @ [ organizationType ] }, Cmd.none
+        { state with ListItems = state.ListItems @ [ organizationType ] }, Cmd.none
     | CancelCreation orgTypeId ->
         let newOrganizationTypes = 
-            state.OrganizationTypes 
+            state.ListItems 
             |> List.filter (fun (orgType, _) -> orgType.OrganizationTypeId <> orgTypeId)
-        { state with OrganizationTypes = newOrganizationTypes }, Cmd.none
+        { state with ListItems = newOrganizationTypes }, Cmd.none
     | Delete orgTypeId ->
         let cmd =
             Cmd.OfAsync.attempt
                 (Client.Remoting.getRemotingApi()).DeleteOrganizationType orgTypeId
                 RemotingError
-        let newState = { state with OrganizationTypes = state.OrganizationTypes |> List.filter (fun (orgType, _) -> orgType.OrganizationTypeId <> orgTypeId) }
+        let newState = { state with ListItems = state.ListItems |> List.filter (fun (orgType, _) -> orgType.OrganizationTypeId <> orgTypeId) }
         newState, cmd
     | CreationFailed (organizationType, e) ->
         match e with
@@ -246,7 +246,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 ]
             ]
             tbody [] [
-                yield! state.OrganizationTypes |> List.map toRow
+                yield! state.ListItems |> List.map toRow
             ]
         ]
         div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [

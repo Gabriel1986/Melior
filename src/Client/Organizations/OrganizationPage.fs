@@ -185,7 +185,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             printf "The organization couldn't be found in the DB, somehow?"
             state, Cmd.none
     | RemotingError e ->
-        state, showGenericErrorModalCmd e
+        { state with ListItems = []; LoadingListItems = false }, showGenericErrorModalCmd e
     | Created organization ->
         let listItem = toListItem organization
         let newListItems = listItem :: state.ListItems

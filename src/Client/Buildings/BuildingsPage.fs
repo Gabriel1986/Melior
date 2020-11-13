@@ -171,7 +171,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             printf "The building that's being deleted was not found O_o?"
             state, Cmd.none
     | RemotingError e ->
-        state, showGenericErrorModalCmd e
+        { state with ListItems = []; LoadingListItems = false }, showGenericErrorModalCmd e
     | Created building ->
         let listItem = building.ToListItem()
         let newListItems = listItem :: state.ListItems
