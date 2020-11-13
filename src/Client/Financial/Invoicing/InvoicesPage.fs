@@ -274,7 +274,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             printf "The invoice that was being deleted was not found in the DB... Somehow..."
             state, showErrorToastCmd "De factuur werd niet gevonden in de databank"
     | RemotingError e ->
-        { state with ListItems = []; LoadingListItems = false }, showGenericErrorModalCmd e
+        { state with ListItems = []; LoadingListItems = false; LoadingFilters = false }, showGenericErrorModalCmd e
     | Created invoice ->
         let listItem = toListItem invoice
         let newListItems = listItem :: state.ListItems
