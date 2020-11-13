@@ -74,7 +74,7 @@ module Helpers =
         let toRadio (radio: FormRadioButton) =
             div [ 
                     classes [ yield Bootstrap.formCheck; if props.Inline then yield Bootstrap.formCheckInline ]
-                    OnClick (fun _ -> radio.OnClick radio.Key)
+                    OnClick (fun _ -> if radio.IsSelected then () else radio.OnClick radio.Key)
                 ] [
                     yield
                         input [ 

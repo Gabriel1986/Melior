@@ -135,8 +135,14 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             then state.SelectedListItems
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.DisplayName)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.UserId }
-        , Routing.navigateToPage (Routing.Page.UserDetails listItem.UserId)
+
+        let updatedState = { state with SelectedListItems = newlySelectedItems }
+        match state.SelectedTab with
+        | Details detailId when detailId = listItem.UserId ->
+            updatedState, Cmd.none
+        | _ ->
+            { updatedState with SelectedTab = Details listItem.UserId }
+            , Routing.navigateToPage (Routing.Page.UserDetails listItem.UserId)
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
@@ -235,19 +241,29 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
 
     div [ Class Bootstrap.row ] [
         let list (state: State) =
-            printf "UsersPage >> list is being re-rendered"
-            SortableTable.render 
-                {|
-                    ListItems = state.ListItems
-                    DisplayAttributes = SortableUserAttribute.All
-                    IsSelected = None
-                    OnSelect = None
-                    IsEditable = None
-                    OnEdit = Some (AddDetailTab >> dispatch)
-                    IsDeletable = None
-                    OnDelete = Some (RemoveListItem >> dispatch)
-                    Key = "UsersPageTable"
-                |}
+            [
+                SortableTable.render 
+                    {|
+                        ListItems = state.ListItems
+                        DisplayAttributes = SortableUserAttribute.All
+                        IsSelected = None
+                        OnSelect = None
+                        IsEditable = None
+                        OnEdit = Some (AddDetailTab >> dispatch)
+                        IsDeletable = None
+                        OnDelete = Some (RemoveListItem >> dispatch)
+                        Key = "UsersPageTable"
+                    |}
+                if state.LoadingListItems then
+                    div [ Class Bootstrap.textCenter ] [
+                        str "Gebruikers worden geladen..."
+                    ]
+                elif state.ListItems |> List.length = 0 then
+                    div [ Class Bootstrap.textCenter ] [
+                        str "Er werden geen resultaten gevonden..."
+                    ]
+            ]
+            |> fragment []
 
         div [ Class Bootstrap.colMd12 ] [
             div [ classes [ Bootstrap.nav; Bootstrap.navTabs ] ] [

@@ -2,7 +2,6 @@
 
 open System
 open Elmish
-open Elmish.SweetAlert
 open Fable
 open Fable.React
 open Fable.React.Props
@@ -125,8 +124,14 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.LastName)
             |> List.sortBy (fun li -> li.FirstName)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.PersonId }
-        , Routing.navigateToPage (Routing.Page.OwnerDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.PersonId })
+
+        let updatedState = { state with SelectedListItems = newlySelectedItems }
+        match state.SelectedTab with
+        | Details detailId when detailId = listItem.PersonId ->
+            updatedState, Cmd.none
+        | _ ->
+            { updatedState with SelectedTab = Details listItem.PersonId }
+            , Routing.navigateToPage (Routing.Page.OwnerDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.PersonId })
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
@@ -225,18 +230,29 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
 
     div [ Class Bootstrap.row ] [
         let list (state: State) =
-            SortableTable.render 
-                {|
-                    ListItems = state.ListItems
-                    DisplayAttributes = SortableOwnerListItemAttribute.All
-                    IsSelected = None
-                    OnSelect = None
-                    IsEditable = None
-                    OnEdit = Some (AddDetailTab >> dispatch)
-                    IsDeletable = None
-                    OnDelete = Some (RemoveListItem >> dispatch)
-                    Key = "OwnersPageTable"
-                |}
+            [
+                SortableTable.render 
+                    {|
+                        ListItems = state.ListItems
+                        DisplayAttributes = SortableOwnerListItemAttribute.All
+                        IsSelected = None
+                        OnSelect = None
+                        IsEditable = None
+                        OnEdit = Some (AddDetailTab >> dispatch)
+                        IsDeletable = None
+                        OnDelete = Some (RemoveListItem >> dispatch)
+                        Key = "OwnersPageTable"
+                    |}
+                if state.LoadingListItems then
+                    div [ Class Bootstrap.textCenter ] [
+                        str "Eigenaars worden geladen..."
+                    ]
+                elif state.ListItems |> List.length = 0 then
+                    div [ Class Bootstrap.textCenter ] [
+                        str "Er werden geen resultaten gevonden..."
+                    ]
+            ]
+            |> fragment []
 
         div [ Class Bootstrap.colMd12 ] [
             div [ classes [ Bootstrap.nav; Bootstrap.navTabs ] ] [

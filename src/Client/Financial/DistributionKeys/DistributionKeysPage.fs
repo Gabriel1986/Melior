@@ -54,7 +54,7 @@ type State = {
     CurrentUser: User
     CurrentBuildingId: Guid
     SelectedDistributionKeyId: Guid option
-    IsLoading: bool
+    LoadingListItems: bool
     DistributionKeys: DistributionKey list option
     Lots: LotListItem list option
     ListItems: DistributionKeyModel list
@@ -88,7 +88,7 @@ let init (props: DistributionKeysPageProps) =
         CurrentUser = props.CurrentUser
         CurrentBuildingId = props.CurrentBuildingId
         SelectedDistributionKeyId = props.DistributionKeyId
-        IsLoading = true
+        LoadingListItems = true
         DistributionKeys = None
         Lots = None
         ListItems = []
@@ -107,8 +107,8 @@ let private evolve (state: State) =
     match state.DistributionKeys, state.Lots with
     | (Some keys, Some lots) ->
         let models = keys |> List.map (DistributionKeyModel.FromBackendModel lots)
-        let state = { state with IsLoading = false; ListItems = models }
-        let cmd = 
+        let state = { state with ListItems = models }
+        let cmd =
             let selectedOpt = 
                 state.SelectedDistributionKeyId
                 |> Option.bind (fun selectedId -> models |> List.tryFind (fun model -> model.DistributionKeyId = selectedId))
@@ -122,7 +122,7 @@ let private evolve (state: State) =
 let update (msg: Msg) (state: State): State * Cmd<Msg> =
     match msg with
     | DistributionKeysLoaded distributionKeys ->
-        evolve { state with DistributionKeys = Some distributionKeys }
+        evolve { state with DistributionKeys = Some distributionKeys; LoadingListItems = false }
     | LotsLoaded lots ->
         evolve { state with Lots = Some lots }
     | RemotingError error ->
@@ -133,7 +133,14 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             then state.SelectedListItems
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.Name)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.DistributionKeyId }, Routing.navigateToPage (Routing.Page.DistributionKeyDetails { BuildingId = state.CurrentBuildingId; DetailId = listItem.DistributionKeyId })
+
+        let updatedState = { state with SelectedListItems = newlySelectedItems }
+        match state.SelectedTab with
+        | Details detailId when detailId = listItem.DistributionKeyId ->
+            updatedState, Cmd.none
+        | _ ->
+            { updatedState with SelectedTab = Details listItem.DistributionKeyId }
+            , Routing.navigateToPage (Routing.Page.DistributionKeyDetails { BuildingId = state.CurrentBuildingId; DetailId = listItem.DistributionKeyId })
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
@@ -213,18 +220,29 @@ let view (state: State) (dispatch: Msg -> unit) =
 
     div [ Class Bootstrap.row ] [
         let list (state: State) =
-            SortableTable.render 
-                {|
-                    ListItems = state.ListItems
-                    DisplayAttributes = SortableAttribute.All
-                    IsSelected = None
-                    OnSelect = None
-                    IsEditable = Some (fun li -> li.CanBeEdited)
-                    OnEdit = Some (AddDetailTab >> dispatch)
-                    IsDeletable = Some (fun li -> li.CanBeEdited)
-                    OnDelete = Some (RemoveListItem >> dispatch)
-                    Key = "DistributionKeysPageTable"
-                |}
+            [
+                SortableTable.render 
+                    {|
+                        ListItems = state.ListItems
+                        DisplayAttributes = SortableAttribute.All
+                        IsSelected = None
+                        OnSelect = None
+                        IsEditable = Some (fun li -> li.CanBeEdited)
+                        OnEdit = Some (AddDetailTab >> dispatch)
+                        IsDeletable = Some (fun li -> li.CanBeEdited)
+                        OnDelete = Some (RemoveListItem >> dispatch)
+                        Key = "DistributionKeysPageTable"
+                    |}
+                if state.LoadingListItems then
+                    div [ Class Bootstrap.textCenter ] [
+                        str "Verdeelsleutels worden geladen..."
+                    ]
+                elif state.ListItems |> List.length = 0 then
+                    div [ Class Bootstrap.textCenter ] [
+                        str "Er werden geen resultaten gevonden..."
+                    ]
+            ]
+            |> fragment []
 
         div [ Class Bootstrap.colMd12 ] [
             div [ classes [ Bootstrap.nav; Bootstrap.navTabs ] ] [

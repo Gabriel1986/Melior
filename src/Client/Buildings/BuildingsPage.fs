@@ -106,7 +106,14 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             then state.SelectedListItems
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.Code)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.BuildingId }, Routing.navigateToPage (Routing.Page.BuildingDetails listItem.BuildingId)
+
+        let updatedState = { state with SelectedListItems = newlySelectedItems }
+        match state.SelectedTab with
+        | Details detailId when detailId = listItem.BuildingId ->
+            updatedState, Cmd.none
+        | _ ->
+            { updatedState with SelectedTab = Details listItem.BuildingId }
+            , Routing.navigateToPage (Routing.Page.BuildingDetails listItem.BuildingId)
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
@@ -205,20 +212,30 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
 
     div [ Class Bootstrap.row ] [
         let list (state: State) =
-            let currentBuildingId = state.CurrentBuildingId |> Option.defaultValue (Guid.Empty)
-
-            SortableTable.render 
-                {|
-                    ListItems = state.ListItems
-                    DisplayAttributes = SortableAttribute.All
-                    IsSelected = Some (fun li -> li.BuildingId = currentBuildingId)
-                    OnSelect = Some (CurrentBuildingChanged >> dispatch)
-                    IsEditable = None
-                    OnEdit = Some (AddDetailTab >> dispatch)
-                    IsDeletable = None
-                    OnDelete = Some (RemoveListItem >> dispatch)
-                    Key = "BuildingsPageTable"
-                |}
+            [
+                let currentBuildingId = state.CurrentBuildingId |> Option.defaultValue (Guid.Empty)
+                SortableTable.render
+                    {|
+                        ListItems = state.ListItems
+                        DisplayAttributes = SortableAttribute.All
+                        IsSelected = Some (fun li -> li.BuildingId = currentBuildingId)
+                        OnSelect = Some (CurrentBuildingChanged >> dispatch)
+                        IsEditable = None
+                        OnEdit = Some (AddDetailTab >> dispatch)
+                        IsDeletable = None
+                        OnDelete = Some (RemoveListItem >> dispatch)
+                        Key = "BuildingsPageTable"
+                    |}
+                if state.LoadingListItems then
+                    div [ Class Bootstrap.textCenter ] [
+                        str "Gebouwen worden geladen..."
+                    ]
+                elif state.ListItems |> List.length = 0 then
+                    div [ Class Bootstrap.textCenter ] [
+                        str "Er werden geen resultaten gevonden..."
+                    ]
+            ]
+            |> fragment []
 
         div [ Class Bootstrap.colMd12 ] [
             div [ classes [ Bootstrap.nav; Bootstrap.navTabs ] ] [

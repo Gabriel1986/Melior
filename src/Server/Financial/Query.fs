@@ -222,16 +222,18 @@ let getInvoices (conn: string) (filter: InvoiceFilter): Async<InvoiceListItem li
     let whereFilter, whereParameters =
         match filter.Period with
         | InvoiceFilterPeriod.FinancialYear financialYearId -> 
-            "FinancialYearId = @FinancialYearId", [ "@FinancialYearId", Sql.uuid financialYearId ]
+            "invoice.FinancialYearId = @FinancialYearId", [
+                "@FinancialYearId", Sql.uuid financialYearId
+            ]
         | InvoiceFilterPeriod.Month (month, year) ->
-            let date = new DateTime(year, month, 1, 0, 0, 0)
-            "InvoiceDate >= @FilterStartDate AND InvoiceDate < @FilterEndDate", [
+            let date = new DateTime(year, month, 1)
+            "invoice.InvoiceDate >= @FilterStartDate AND invoice.InvoiceDate < @FilterEndDate", [
                 "@FilterStartDate", Sql.timestamp date 
                 "@FilterEndDate", Sql.timestamp (date.AddMonths(1))
             ]
         | InvoiceFilterPeriod.Year year ->
             let date = new DateTime(year, 1, 1)
-            "InvoiceDate >= @FilterStartDate AND InvoiceDate < @FilterEndDate", [
+            "invoice.InvoiceDate >= @FilterStartDate AND invoice.InvoiceDate < @FilterEndDate", [
                 "@FilterStartDate", Sql.timestamp date
                 "@FilterEndDate", Sql.timestamp (date.AddYears(1))
             ]
@@ -243,17 +245,23 @@ let getInvoices (conn: string) (filter: InvoiceFilter): Async<InvoiceListItem li
                 SELECT
                     invoice.InvoiceId,
                     invoice.BuildingId,
-                    (SELECT year.IsClosed AS FinancialYearIsClosed, year.Code AS FinancialYearCode FROM FinancialYears year WHERE year.FinancialYearId = invoice.FinancialYearId),
+                    year.IsClosed AS FinancialYearIsClosed,
+                    year.Code AS FinancialYearCode,
                     invoice.InvoiceNumber,
                     invoice.Cost,
-                    (SELECT dKey.Name AS DistributionKeyName FROM DistributionKeys dKey WHERE dKey.DistributionKeyId = invoice.DistributionKeyId),
+                    dKey.Name as DistributionKeyName,
                     invoice.OrganizationId,
-                    invoice.OrganizationName,
-                    (SELECT cat.Code AS CategoryCode, cat.Description AS CategoryDescription FROM FinancialCategories cat WHERE cat.FinancialCategoryId = invoice.FinancialCategoryId),
+                    org.Name AS OrganizationName,
+                    cat.Code AS CategoryCode,
+                    cat.Description AS CategoryDescription,
                     invoice.InvoiceDate,
                     invoice.DueDate
-                FROM Invoices
-                WHERE BuildingId = @BuildingId AND %s
+                FROM Invoices invoice
+                LEFT JOIN FinancialYears year ON invoice.FinancialYearId = year.FinancialYearId
+                LEFT JOIN DistributionKeys dKey ON invoice.DistributionKeyId = dKey.DistributionKeyId
+                LEFT JOIN FinancialCategories cat ON invoice.FinancialCategoryId = cat.FinancialCategoryId
+                LEFT JOIN Organizations org ON invoice.OrganizationId = org.OrganizationId
+                WHERE invoice.BuildingId = @BuildingId AND %s
             """
             whereFilter)
     |> Sql.parameters ([ "@BuildingId", Sql.uuid filter.BuildingId ] @ whereParameters)

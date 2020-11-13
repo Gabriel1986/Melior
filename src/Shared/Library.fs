@@ -9,6 +9,17 @@ let validateOptional (validate: 'T -> Trial<'U, _>) (x: 'T option) =
     | Some x -> validate x |> Trial.map Some
     | None -> Trial.Pass None
 
+module List =
+    let tryMaxBy (projection: 'T -> 'U) (list: 'T list) =
+        match list with
+        | [] -> None
+        | list -> list |> List.maxBy projection |> Some
+
+    let tryMinBy (projection: 'T -> 'U) (list: 'T list) =
+        match list with
+        | [] -> None
+        | list -> list |> List.minBy projection |> Some
+
 module String =
     let toOption s = if String.IsNullOrEmpty(s) then None else Some s
     let joinWith s (collection: string seq) = String.Join(s, collection)

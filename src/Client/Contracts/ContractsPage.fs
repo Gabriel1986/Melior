@@ -117,7 +117,7 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
         }
 
         let (debouncerModel, debouncerCmd) =
-            state.Debouncer
+            Debouncer.create ()
             |> Debouncer.bounce (TimeSpan.FromSeconds 2.0) (sprintf "answer_to_%A" question) (SaveAnswer answer)
 
         let newAnswers = answer::(state.ContractTypeAnswers |> List.filter (fun a -> a.Payload.Question <> answer.Payload.Question))

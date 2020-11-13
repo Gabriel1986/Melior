@@ -116,8 +116,14 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             then state.SelectedListItems
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.Name)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.OrganizationId },
-        Routing.navigateToPage (Routing.Page.OrganizationDetails { BuildingId = state.CurrentBuilding.BuildingId;  DetailId = listItem.OrganizationId })
+
+        let updatedState = { state with SelectedListItems = newlySelectedItems }
+        match state.SelectedTab with
+        | Details detailId when detailId = listItem.OrganizationId ->
+            updatedState, Cmd.none
+        | _ ->
+            { updatedState with SelectedTab = Details listItem.OrganizationId },
+            Routing.navigateToPage (Routing.Page.OrganizationDetails { BuildingId = state.CurrentBuilding.BuildingId;  DetailId = listItem.OrganizationId })
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
@@ -133,12 +139,12 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             | Details organizationId -> Routing.navigateToPage (Routing.Page.OrganizationDetails { BuildingId = buildingId; DetailId = organizationId })
             | New -> Routing.navigateToPage (Routing.Page.OrganizationList { BuildingId = buildingId })
         { state with SelectedTab = tab }, cmd
-    | Loaded (owners, selectedOrgId) ->
-        let newState = { state with ListItems = owners; LoadingListItems = false }
+    | Loaded (organizations, selectedOrgId) ->
+        let newState = { state with ListItems = organizations; LoadingListItems = false }
         let cmd =
             match selectedOrgId with
             | Some selectedOrgId ->
-                let selectedListItem = owners |> List.tryFind (fun listItem -> listItem.OrganizationId = selectedOrgId)
+                let selectedListItem = organizations |> List.tryFind (fun listItem -> listItem.OrganizationId = selectedOrgId)
                 match selectedListItem with
                 | Some selected -> AddDetailTab selected |> Cmd.ofMsg
                 | None -> Cmd.none
@@ -223,18 +229,29 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
 
     div [ Class Bootstrap.row ] [
         let list (state: State) =
-            SortableTable.render 
-                {|
-                    ListItems = state.ListItems
-                    DisplayAttributes = SortableOrganizationListItemAttribute.All
-                    IsSelected = None
-                    OnSelect = None
-                    IsEditable = None
-                    OnEdit = Some (AddDetailTab >> dispatch)
-                    IsDeletable = None
-                    OnDelete = Some (RemoveListItem >> dispatch)
-                    Key = "OrganizationsPageTable"
-                |}
+            [
+                SortableTable.render 
+                    {|
+                        ListItems = state.ListItems
+                        DisplayAttributes = SortableOrganizationListItemAttribute.All
+                        IsSelected = None
+                        OnSelect = None
+                        IsEditable = None
+                        OnEdit = Some (AddDetailTab >> dispatch)
+                        IsDeletable = None
+                        OnDelete = Some (RemoveListItem >> dispatch)
+                        Key = "OrganizationsPageTable"
+                    |}
+                if state.LoadingListItems then
+                    div [ Class Bootstrap.textCenter ] [
+                        str "Leveranciers worden geladen..."
+                    ]
+                elif state.ListItems |> List.length = 0 then
+                    div [ Class Bootstrap.textCenter ] [
+                        str "Er werden geen resultaten gevonden..."
+                    ]
+            ]
+            |> fragment []
 
         div [ Class Bootstrap.colMd12 ] [
             div [ classes [ Bootstrap.nav; Bootstrap.navTabs ] ] [

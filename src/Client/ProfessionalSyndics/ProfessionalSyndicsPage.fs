@@ -111,8 +111,14 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             then state.SelectedListItems
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.Name)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.OrganizationId }
-        , Routing.navigateToPage (Routing.Page.ProfessionalSyndicDetails listItem.OrganizationId)
+
+        let updatedState = { state with SelectedListItems = newlySelectedItems }
+        match state.SelectedTab with
+        | Details detailId when detailId = listItem.OrganizationId ->
+            updatedState, Cmd.none
+        | _ ->
+            { updatedState with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.OrganizationId }
+            , Routing.navigateToPage (Routing.Page.ProfessionalSyndicDetails listItem.OrganizationId)
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
@@ -211,18 +217,29 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
 
     div [ Class Bootstrap.row ] [
         let list (state: State) =
-            SortableTable.render 
-                {|
-                    ListItems = state.ListItems
-                    DisplayAttributes = SortableProfessionalSyndicListItemAttribute.All
-                    IsSelected = None
-                    OnSelect = None
-                    IsEditable = None
-                    OnEdit = Some (AddDetailTab >> dispatch)
-                    IsDeletable = None
-                    OnDelete = Some (RemoveListItem >> dispatch)
-                    Key = "ProfessionalSyndicsPageTable"
-                |}
+            [
+                SortableTable.render 
+                    {|
+                        ListItems = state.ListItems
+                        DisplayAttributes = SortableProfessionalSyndicListItemAttribute.All
+                        IsSelected = None
+                        OnSelect = None
+                        IsEditable = None
+                        OnEdit = Some (AddDetailTab >> dispatch)
+                        IsDeletable = None
+                        OnDelete = Some (RemoveListItem >> dispatch)
+                        Key = "ProfessionalSyndicsPageTable"
+                    |}
+                if state.LoadingListItems then
+                    div [ Class Bootstrap.textCenter ] [
+                        str "Professionele syndici worden geladen..."
+                    ]
+                elif state.ListItems |> List.length = 0 then
+                    div [ Class Bootstrap.textCenter ] [
+                        str "Er werden geen resultaten gevonden..."
+                    ]
+            ]
+            |> fragment []
 
         div [ Class Bootstrap.colMd12 ] [
             div [ classes [ Bootstrap.nav; Bootstrap.navTabs ] ] [

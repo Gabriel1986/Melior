@@ -160,7 +160,14 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             else listItem::state.SelectedListItems
             |> List.sortBy (fun li -> li.Description)
             |> List.sortBy (fun li -> li.Floor)
-        { state with SelectedListItems = newlySelectedItems; SelectedTab = Details listItem.LotId }, Routing.navigateToPage (Routing.Page.LotDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.LotId })
+
+        let updatedState = { state with SelectedListItems = newlySelectedItems }
+        match state.SelectedTab with
+        | Details detailId when detailId = listItem.LotId ->
+            updatedState, Cmd.none
+        | _ ->
+            { updatedState with SelectedTab = Details listItem.LotId }
+            , Routing.navigateToPage (Routing.Page.LotDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.LotId })
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
@@ -258,18 +265,29 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
 
     div [ Class Bootstrap.row ] [
         let list (state: State) =
-            SortableTable.render 
-                {|
-                    ListItems = state.ListItems
-                    DisplayAttributes = SortableLotListItemAttribute.All
-                    IsSelected = None
-                    OnSelect = None
-                    IsEditable = None
-                    OnEdit = Some (AddDetailTab >> dispatch)
-                    IsDeletable = None
-                    OnDelete = Some (RemoveListItem >> dispatch)
-                    Key = "LotsPageTable"
-                |}
+            [
+                SortableTable.render 
+                    {|
+                        ListItems = state.ListItems
+                        DisplayAttributes = SortableLotListItemAttribute.All
+                        IsSelected = None
+                        OnSelect = None
+                        IsEditable = None
+                        OnEdit = Some (AddDetailTab >> dispatch)
+                        IsDeletable = None
+                        OnDelete = Some (RemoveListItem >> dispatch)
+                        Key = "LotsPageTable"
+                    |}
+                if state.LoadingListItems then
+                    div [ Class Bootstrap.textCenter ] [
+                        str "Kavels worden geladen..."
+                    ]
+                elif state.ListItems |> List.length = 0 then
+                    div [ Class Bootstrap.textCenter ] [
+                        str "Er werden geen resultaten gevonden..."
+                    ]
+            ]
+            |> fragment []
 
         div [ Class Bootstrap.colMd12 ] [
             div [ classes [ Bootstrap.nav; Bootstrap.navTabs ] ] [
