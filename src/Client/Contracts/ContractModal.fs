@@ -184,7 +184,7 @@ let renderOrganizationSelectionList (list: OrganizationListItem list) (selected:
             AllItems = list |> List.sortBy (fun o -> o.Name)
             SelectedItems = match selected with | Some s -> [ s ] | None -> []
             OnSelectionChanged = fun selection -> SelectOrganization (selection |> List.head) |> dispatch
-            DisplayListItem = (fun org -> str org.Name)
+            ListItemToString = (fun org -> org.Name)
         |}, "OrganizationSelectionList")
 
 let modalContent model dispatch =

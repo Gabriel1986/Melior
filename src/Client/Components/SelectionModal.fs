@@ -1,9 +1,11 @@
 ﻿namespace Client.Components
 
-open Elmish
+open System
 open Fable
 open Fable.React
 open Fable.React.Props
+open Elmish
+open Elmish.React
 open Feliz
 open Feliz.ElmishComponents
 
@@ -15,20 +17,24 @@ module SelectionList =
         AllItems: 'T list
         SelectionMode: SelectionMode
         SelectedItems: 'T list
+        Filter: string
+        OnSelectionChanged: 'T list -> unit
+        ListItemToString: 'T -> string
     }
     and SelectionListProps<'T> = 
         {|
             SelectionMode: SelectionMode
             AllItems: 'T list
             SelectedItems: 'T list
-            DisplayListItem: 'T -> ReactElement
             OnSelectionChanged: 'T list -> unit
+            ListItemToString: 'T -> string
         |}
     and SelectionMode =
         | SingleSelect
         | MultiSelect
 
     type Message<'T> =
+        | FilterChanged of string
         | ToggleItemSelection of 'T
 
 
@@ -38,10 +44,15 @@ module SelectionList =
                 SelectionMode = props.SelectionMode
                 AllItems = props.AllItems
                 SelectedItems = props.SelectedItems
+                Filter = ""
+                OnSelectionChanged = props.OnSelectionChanged
+                ListItemToString = props.ListItemToString
             }, Cmd.none
 
-        let update (onSelectionChanged: 'T list -> unit) (msg: Message<'T>) (model: Model<'T>): Model<'T> * Cmd<Message<'T>> = 
+        let update (msg: Message<'T>) (model: Model<'T>): Model<'T> * Cmd<Message<'T>> = 
             match msg with
+            | FilterChanged newFilter ->
+                { model with Filter = newFilter }, Cmd.none
             | ToggleItemSelection item ->
                 let selectedItems =
                     match model.SelectionMode with
@@ -52,10 +63,15 @@ module SelectionList =
                         then model.SelectedItems |> List.filter ((<>) item)
                         else item::model.SelectedItems
 
-                onSelectionChanged(selectedItems)
+                model.OnSelectionChanged(selectedItems)
                 { model with SelectedItems = selectedItems }, Cmd.none
 
-        let view (displayListItem: 'T -> ReactElement) (model: Model<'T>) (dispatch: Message<'T> -> unit) =
+        let view (model: Model<'T>) (dispatch: Message<'T> -> unit) =
+            let filteredItems =
+                match model.Filter with
+                | x when String.IsNullOrWhiteSpace(x) -> model.AllItems
+                | x -> model.AllItems |> List.filter (fun item -> (model.ListItemToString item).ToLowerInvariant().Contains(x.ToLowerInvariant()))
+
             let renderItem item =
                 let isSelected = model.SelectedItems |> List.contains item
                 let style = [
@@ -68,11 +84,25 @@ module SelectionList =
                     classes style'
                     OnClick (fun _ -> ToggleItemSelection item |> dispatch)
                 ] [
-                    displayListItem item
+                    str (model.ListItemToString item)
                 ]
 
-            div [ Class Bootstrap.listGroup ] [
-                yield! model.AllItems |> List.map renderItem
+            [
+                div [ classes [ Bootstrap.inputGroup; Bootstrap.inputGroupSm; Bootstrap.mb2 ]; Style [ MaxWidth "250px" ] ] [ 
+                    input [ Type "text"
+                            Class Bootstrap.formControl
+                            Placeholder ""
+                            OnChange (fun e -> FilterChanged e.Value |> dispatch) ]
+                    div [ Class Bootstrap.inputGroupAppend ] [
+                        span [ Class Bootstrap.inputGroupText ] [
+                            i [ classes [ FontAwesome.fa; FontAwesome.faSearch ] ] [ ] 
+                        ]
+                    ]
+                ]
+                div [ Class Bootstrap.listGroup ] [
+                    yield! filteredItems |> List.map renderItem
+                ]
             ]
+            |> fragment []
 
-        React.elmishComponent ("SelectionModal", init props, update props.OnSelectionChanged, view props.DisplayListItem, key)
+        React.elmishComponent ("SelectionModal", init props, update, view, key)

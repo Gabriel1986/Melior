@@ -422,14 +422,7 @@ let view (state: State) (dispatch: Message -> unit) =
                                         | Some selected -> props.FinancialCategories |> List.filter (fun cat -> cat.Code = selected)
                                         | None -> []
                                     OnSelectionChanged = fun selection -> Message.CategoryChanged (selection |> List.tryHead) |> dispatch
-                                    DisplayListItem = 
-                                        (fun financialCategory -> 
-                                            [
-                                                span [ Key financialCategory.Code ] [ str financialCategory.Code ]
-                                                str " - "
-                                                span [ Key (financialCategory.Code + "1") ] [ str financialCategory.Description ]
-                                            ] 
-                                            |> ofList)
+                                    ListItemToString = (fun financialCategory -> sprintf "%s - %s" financialCategory.Code financialCategory.Description)
                                 |}, "FinancialCategorySelectionList")
                         ]
                         Footer [
@@ -457,7 +450,7 @@ let view (state: State) (dispatch: Message -> unit) =
                                     AllItems = props.AllDistributionKeys |> List.sortBy (fun cat -> cat.Name)
                                     SelectedItems = [ props.SelectedDistributionKey ] |> List.choose id
                                     OnSelectionChanged = fun selection -> Message.DistributionKeyChanged (selection |> List.tryHead) |> dispatch
-                                    DisplayListItem = fun dKey -> str dKey.Name
+                                    ListItemToString = fun dKey -> dKey.Name
                                 |}, "DistributionKeySelectionList")
                         ]
                         Footer [
@@ -488,7 +481,7 @@ let view (state: State) (dispatch: Message -> unit) =
                                         | Some selected -> props.AllOrganizations |> List.filter (fun org -> org.OrganizationId = selected)
                                         | None -> []
                                     OnSelectionChanged = fun selection -> Message.OrganizationChanged (selection |> List.tryHead) |> dispatch
-                                    DisplayListItem = fun dKey -> str dKey.Name
+                                    ListItemToString = fun dKey -> dKey.Name
                                 |}, "OrganizationSelectionList")
                         ]
                         Footer [

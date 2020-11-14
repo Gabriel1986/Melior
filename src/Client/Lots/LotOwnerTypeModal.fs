@@ -158,11 +158,10 @@ let renderOwnerSelectionList (list: OwnerListItem list) dispatch =
             AllItems = list |> List.sortBy (fun o -> o.FirstName)
             SelectedItems = []
             OnSelectionChanged = fun selection -> SetSelectedOwner (selection |> List.tryHead) |> dispatch
-            DisplayListItem = (fun ownerListItem -> 
+            ListItemToString = (fun ownerListItem -> 
                 [ownerListItem.FirstName; ownerListItem.LastName] 
                 |> List.choose id 
-                |> String.joinWith " "
-                |> str)
+                |> String.joinWith " ")
         |}, "OwnerSelectionList")
 
 let renderOrganizationSelectionList (list: OrganizationListItem list) dispatch =
@@ -172,7 +171,7 @@ let renderOrganizationSelectionList (list: OrganizationListItem list) dispatch =
             AllItems = list |> List.sortBy (fun o -> o.Name)
             SelectedItems = []
             OnSelectionChanged = fun selection -> SetSelectedOrganization (selection |> List.tryHead) |> dispatch
-            DisplayListItem = (fun org -> str org.Name)
+            ListItemToString = (fun org -> org.Name)
         |}, "OrganizationSelectionList")
 
 let modalContent model dispatch =

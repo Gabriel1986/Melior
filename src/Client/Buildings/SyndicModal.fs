@@ -227,11 +227,10 @@ let renderOwnerSelectionList (list: OwnerListItem list) (selectedId: Guid option
                 | Some selectedId -> list |> List.filter (fun o -> o.PersonId = selectedId)
                 | None -> []
             OnSelectionChanged = fun selection -> selection |> List.head |> SelectOwner |> dispatch
-            DisplayListItem = (fun ownerListItem -> 
+            ListItemToString = (fun ownerListItem -> 
                 [ownerListItem.FirstName; ownerListItem.LastName] 
                 |> List.choose id 
-                |> String.joinWith ", "
-                |> str)
+                |> String.joinWith ", ")
         |}, "OwnerSelectionList")
 
 let renderProfessionalSyndicList (list: ProfessionalSyndicListItem list) (selectedId: Guid option) dispatch =
@@ -244,7 +243,7 @@ let renderProfessionalSyndicList (list: ProfessionalSyndicListItem list) (select
                 | Some selectedId -> list |> List.filter (fun o -> o.OrganizationId = selectedId)
                 | None -> []
             OnSelectionChanged = fun selection -> selection |> List.head |> SelectProfessionalSyndic |> dispatch
-            DisplayListItem = (fun syndic -> str syndic.Name)
+            ListItemToString = (fun syndic -> syndic.Name)
         |}, "SyndicSelectionList")
 
 let modalContent model dispatch =

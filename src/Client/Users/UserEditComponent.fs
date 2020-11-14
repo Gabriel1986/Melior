@@ -99,7 +99,7 @@ module SubComponents =
                                             | Some buildings -> buildings
                                             | None -> []
                                         OnSelectionChanged = fun selection -> state.update {| BuildingEditorIsOpenOn = Some selection |}
-                                        DisplayListItem = fun building -> str (sprintf "%s %s" building.Code building.Name)
+                                        ListItemToString = fun building -> sprintf "%s %s" building.Code building.Name
                                     |}, "BuildingSelectionList")
                             ]
                             ModalProp.Footer [
@@ -177,7 +177,7 @@ module SubComponents =
                                                 | Some buildings -> buildings
                                                 | None -> []
                                             OnSelectionChanged = fun selection -> state.update {| ProSyndicEditorIsOpenOn = Some selection |}
-                                            DisplayListItem = fun listItem -> str (sprintf "%s - %s" listItem.Name (string listItem.Address))
+                                            ListItemToString = fun listItem -> sprintf "%s - %s" listItem.Name (string listItem.Address)
                                         |}, "ProSyndicSelectionList")
                                 ]
                                 ModalProp.Footer [

@@ -177,11 +177,10 @@ let renderOwnerSelectionList (list: OwnerListItem list) selectedId dispatch =
                 | Some selectedId -> list |> List.filter (fun i -> i.PersonId = selectedId)
                 | None -> []
             OnSelectionChanged = fun selected -> SelectOwner (selected |> List.head) |> dispatch
-            DisplayListItem = (fun ownerListItem -> 
+            ListItemToString = (fun ownerListItem -> 
                 [ownerListItem.FirstName; ownerListItem.LastName] 
                 |> List.choose id 
-                |> String.joinWith ", "
-                |> str)
+                |> String.joinWith ", ")
         |}, "OwnerSelectionList")
 
 let modalContent model dispatch =
