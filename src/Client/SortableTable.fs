@@ -163,7 +163,7 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
                         ]
                     ]
                 ]
-            , th [ Class Bootstrap.borderTop0 ] [] 
+            , th [ classes [ Bootstrap.borderTop0; Bootstrap.borderBottom0 ] ] [] 
         else
             fun _ -> null
             , null
@@ -182,7 +182,7 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
                     else
                         null
                 ]
-            , th [ classes [ Bootstrap.borderTop0 ]; Style [ Width "30px" ] ] []
+            , th [ classes [ Bootstrap.borderTop0; Bootstrap.borderBottom0 ]; Style [ Width "30px" ] ] []
         else
             fun _ -> null
             , null
@@ -190,7 +190,7 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
     let header (attr: ISortableAttribute<'T>) =
         let name = attr.ToString ()
         th 
-            [ yield Class Bootstrap.borderTop0; yield! attr.ExtraHeaderAttributes ]
+            [ yield classes [ Bootstrap.borderTop0; Bootstrap.borderBottom0 ]; yield! attr.ExtraHeaderAttributes ]
             [
                 div [ OnClick (dispatchSortOn attr); Class "pointer" ] [
                     yield str (sprintf "%s%s " name (sortingIndexNumber attr)) 
