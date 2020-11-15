@@ -26,6 +26,7 @@ type State = {
     ContactPersonModalState: ContactPersonModalState
     OrganizationTypeModalState: OrganizationTypeModalState
     VatNumberCheckingState: VatNumberCheckingState option
+    BankAccountEditComponentState: BankAccountEditComponent.State
 }
 and ContactPersonModalState =
     | Closed
@@ -78,6 +79,7 @@ type Message =
     | VatNumberVerified of result: Result<VatNumberValidationResponse, string>
 
     | RemotingError of exn
+    | BankAccountEditComponentMsg of BankAccountEditComponent.Msg
 
 type OrganizationEditComponentProps = 
     {|
@@ -97,6 +99,13 @@ let init (props: OrganizationEditComponentProps) =
             AllOrganizationTypesLoaded
             RemotingError
 
+    let componentState, componentCmd =
+        BankAccountEditComponent.init
+            {|
+                BankAccounts = organization.BankAccounts
+                BasePath = nameof (organization.BankAccounts)
+            |}
+
     { 
         Organization = organization
         CreateOrUpdate = createOrUpdate
@@ -105,7 +114,11 @@ let init (props: OrganizationEditComponentProps) =
         OrganizationTypeModalState = Closed
         AllOrganizationTypes = []
         VatNumberCheckingState = None
-    }, cmd
+        BankAccountEditComponentState = componentState
+    }, Cmd.batch [ 
+        cmd
+        componentCmd |> Cmd.map BankAccountEditComponentMsg
+    ]
 
 let update (message: Message) (state: State): State * Cmd<Message> =
     let changeOrganization alterFunc =
@@ -274,6 +287,13 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             , showErrorToastCmd e
     | RemotingError e ->
         state, showGenericErrorModalCmd e
+    | BankAccountEditComponentMsg msg ->
+        let componentState, componentCmd =
+            BankAccountEditComponent.update msg state.BankAccountEditComponentState
+        { state with
+            BankAccountEditComponentState = componentState
+            Organization = { state.Organization with BankAccounts = componentState.BankAccounts }
+        }, componentCmd |> Cmd.map BankAccountEditComponentMsg
 
     |> (fun (state, cmd) -> state |> recalculateValidationErrors, cmd)
 
@@ -479,35 +499,6 @@ let renderSelectOrganizationTypes (selectedTypes: OrganizationType list) (allTyp
             ]
         |}
 
-let private renderBankAccounts (basePath: string) (bankAccounts: BankAccount list) (errors: (string * string) list) dispatch =
-    [
-        yield! bankAccounts |> List.mapi (fun index bankAccount ->
-            div [] [
-                BankAccountEditComponent.render
-                    {|
-                        BankAccount = bankAccount
-                        OnChange = fun updated -> BankAccountChanged (index, updated) |> dispatch
-                        OnDelete = Some (fun _ -> BankAccountRemoved index |> dispatch)
-                        BasePath = sprintf "%s.[%i]" basePath index
-                        Errors = errors
-                    |}
-            ]
-        )
-        yield
-            formGroup [
-                OtherChildren [
-                    button [ 
-                        classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
-                        OnClick (fun _ -> BankAccountAdded |> dispatch) 
-                    ] [ 
-                        i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
-                        str " "
-                        str "Bankrekening toevoegen" 
-                    ]
-                ]
-            ]
-    ]
-
 let private renderOrganizationNumber state dispatch =
     [
         formGroup [
@@ -588,7 +579,7 @@ let private renderOrganizationNumber state dispatch =
     |> React.fragment
 
 
-let view state dispatch =
+let view (state: State) (dispatch: Message -> unit) =
     div [] [
         renderOrganizationNumber state dispatch
         formGroup [ 
@@ -664,7 +655,7 @@ let view state dispatch =
 
         fieldset [] [
             legend [] [ h4 [] [ str "Bankrekeningen" ] ]
-            yield! renderBankAccounts (nameof state.Organization.BankAccounts) state.Organization.BankAccounts state.Errors dispatch
+            BankAccountEditComponent.view state.Errors state.BankAccountEditComponentState (BankAccountEditComponentMsg >> dispatch)
         ]
 
         div [] [

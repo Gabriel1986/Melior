@@ -12,6 +12,7 @@ open ClientStyle
 open ClientStyle.Helpers
 open Routing
 open Shared.Read
+open Shared.MediaLibrary
 
 type State = {
     SidebarIsOpen: bool
@@ -122,15 +123,6 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
                 ]
 
         if state.CurrentBuilding.IsSome then yield! [
-            //yield li [] [
-            //    span [ Class Bootstrap.navbarText ] [
-            //        str state.CurrentBuilding.Value.Name
-            //    ]
-            //    span [ Class Bootstrap.navbarText ] [
-            //        str (sprintf "(%s)" state.CurrentBuilding.Value.Code)
-            //    ]
-            //]
-
             let buildingSpecificProps = { BuildingId = state.CurrentBuilding.Value.BuildingId }
             yield li [ Class Bootstrap.navItem ] [
                 a [
@@ -239,6 +231,8 @@ let renderUserMode (state: State) (currentPage: Page option) (dispatch: Msg -> u
 
 
 let renderNavigation (state: State) (currentPage: Page option) (dispatch: Msg -> unit) = 
+    let pictureId = Hooks.useState (state.CurrentBuilding |> Option.bind (fun cb -> cb.PictureId))
+
     [
         if state.CurrentUser.HasAccessToAdminMode () then
             yield li [ Class Bootstrap.navItem ] [
@@ -251,6 +245,24 @@ let renderNavigation (state: State) (currentPage: Page option) (dispatch: Msg ->
                     ]
                 ]
             ]
+
+        if state.CurrentUser.HasAccessToAdminMode() && state.AdminModeEnabled && pictureId.current.IsSome then
+            yield [
+                hr []
+                li [] [
+                    span [ Class Bootstrap.navbarBrand ] [
+                        img [
+                            Src (Client.Upload.thumbnailUri Partitions.BuildingImages pictureId.current.Value) 
+                            Alt "Building image"
+                            Style [ MaxWidth "100px" ]
+                            OnError (fun _ -> pictureId.update(fun _ -> None))
+                            Title state.CurrentBuilding.Value.Name
+                        ]
+                    ]
+                ]
+            ]
+            |> fragment []
+
 
         yield
             li [ Class Bootstrap.navItem; Style [ PaddingTop "15px" ] ] [ 

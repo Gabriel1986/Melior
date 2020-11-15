@@ -15,6 +15,7 @@ type State = {
     Person: Person
     CreateOrUpdate: CreateOrUpdate
     Errors: (string * string) list
+    BankAccountEditComponentState: BankAccountEditComponent.State
 }
 
 type Message =
@@ -38,20 +39,27 @@ type Message =
     | OtherContactMethodDescriptionChanged of index: int * newDescription: string
     | OtherContactMethodTypeChanged of index: int * newType: ContactMethodType
     | OtherContactMethodValueChanged of index: int * newValue: string
-    | BankAccountAdded
-    | BankAccountChanged of (int * BankAccount)
-    | BankAccountRemoved of int
+    | BankAccountEditComponentMsg of BankAccountEditComponent.Msg
 
 let init (person: Person option) =
     let person, createOrUpdate =
         match person with
         | Some person -> person, Update
         | None        -> Person.Init (), Create
+
+    let componentState, componentCmd =
+        BankAccountEditComponent.init
+            {|
+                BankAccounts = person.BankAccounts
+                BasePath = nameof (person.BankAccounts)
+            |}
+
     { 
         Person = person
         CreateOrUpdate = createOrUpdate
-        Errors  = [] 
-    }, Cmd.none
+        Errors  = []
+        BankAccountEditComponentState = componentState
+    }, componentCmd |> Cmd.map BankAccountEditComponentMsg
 
 let update (message: Message) (state: State): State * Cmd<Message> =
     let changePerson alterFunc =
@@ -137,23 +145,13 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             if index = cmId then { cm with Value = newValue } else cm
         )
         changeOtherContactMethods newOtherContactMethods, Cmd.none
-    | BankAccountAdded ->
-        changePerson (fun p -> { p with BankAccounts = p.BankAccounts @ [ BankAccount.Init () ] }), Cmd.none
-    | BankAccountChanged (index, updatedBankAccount) ->
-        changePerson (fun p ->
-            let updatedBankAccounts =
-                p.BankAccounts
-                |> List.mapi (fun i bankAccount -> if i = index then updatedBankAccount else bankAccount)
-            { p with BankAccounts = updatedBankAccounts }
-        ), Cmd.none
-    | BankAccountRemoved index ->
-        changePerson (fun p ->
-            let updatedBankAccounts =
-                p.BankAccounts
-                |> List.mapi (fun i bankAccount -> if i = index then None else Some bankAccount)
-                |> List.choose id
-            { p with BankAccounts = updatedBankAccounts }
-        ), Cmd.none
+    | BankAccountEditComponentMsg msg ->
+        let componentState, componentCmd =
+            BankAccountEditComponent.update msg state.BankAccountEditComponentState
+        { state with 
+            BankAccountEditComponentState = componentState
+            Person = { state.Person with BankAccounts = componentState.BankAccounts } 
+        }, componentCmd |> Cmd.map BankAccountEditComponentMsg
 
     |> (fun (state, cmd) -> state |> recalculateValidationErrors, cmd)
 
@@ -408,37 +406,10 @@ let private renderOtherContactMethods (otherContactMethods: ContactMethod list) 
             ]
     ]
 
-let private renderBankAccounts (basePath: string) (bankAccounts: BankAccount list) (errors: (string * string) list) dispatch =
-    [
-        yield! bankAccounts |> List.mapi (fun index bankAccount ->
-            div [] [
-                BankAccountEditComponent.render
-                    {|
-                        BankAccount = bankAccount
-                        OnChange = fun updated -> BankAccountChanged (index, updated) |> dispatch
-                        OnDelete = Some (fun _ -> BankAccountRemoved index |> dispatch)
-                        BasePath = sprintf "%s.[%i]" basePath index
-                        Errors = errors
-                    |}
-            ]
-        )
-        yield
-            formGroup [
-                OtherChildren [
-                    button [ 
-                        classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
-                        OnClick (fun _ -> BankAccountAdded |> dispatch) 
-                    ] [ 
-                        i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
-                        str " "
-                        str "Bankrekening toevoegen" 
-                    ]
-                ]
-            ]
-    ]
-
-let view state dispatch (props: {| ShowAddresses: bool; ShowBankAccounts: bool |}) =
+let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bool; ShowBankAccounts: bool |}) =
     let errorFor path = state.Errors |> List.tryPick (fun (ePath, error) -> if path = ePath then Some error else None)
+
+    printf "Person edit component errors: %A" state.Errors
 
     div [] [
         yield formGroup [ 
@@ -536,7 +507,5 @@ let view state dispatch (props: {| ShowAddresses: bool; ShowBankAccounts: bool |
         ]
         yield! renderOtherContactMethods state.Person.OtherContactMethods dispatch
         if props.ShowBankAccounts then 
-            yield! [
-                yield! renderBankAccounts (nameof state.Person.BankAccounts) state.Person.BankAccounts state.Errors dispatch
-            ]
+            yield BankAccountEditComponent.view state.Errors state.BankAccountEditComponentState (BankAccountEditComponentMsg >> dispatch)
     ]

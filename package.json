@@ -38,6 +38,7 @@
     "whatwg-fetch": "^3.0.0"
   },
   "dependencies": {
+    "date-fns": "^2.16.1",
     "filepond": "^4.9.2",
     "filepond-plugin-file-validate-type": "^1.2.5",
     "filepond-plugin-image-preview": "^4.6.0",

@@ -10,8 +10,8 @@ module Flatpickr =
     open System
 
     /// Sets the initial value for the Flatpickr component
-    let Values (dates: DateTime list) = 
-        {| Value = dates; IsConfig = false; Key = "values" |}
+    let Values (dates: DateTime array) = 
+        {| Value = dates; IsConfig = false; Key = "value" |}
         |> unbox<Flatpickr.IFlatpickrOption>
 
 module Helpers =
@@ -129,12 +129,12 @@ module Helpers =
                 yield formRadio radioProps.Value
             if dateProps.IsSome then
                 yield
-                    Flatpickr.flatpickr (dateProps.Value @ [ 
+                    Flatpickr.flatpickr ([
                         Flatpickr.DateFormat "j F, Y"
                         Flatpickr.ClassName (sprintf "%s %s %s" Bootstrap.formControl (if error.IsSome then Bootstrap.isInvalid else "") "flatpickr-input")
                         Flatpickr.Locale Flatpickr.Locales.dutch 
                         Flatpickr.TimeTwentyFour true
-                    ])
+                    ] @ dateProps.Value)
             if otherChildren.IsSome then
                 yield! otherChildren.Value
             if error.IsSome then
@@ -147,9 +147,10 @@ module Helpers =
             str ""
         else
             div [ Class Bootstrap.row ] [
-                yield label [ classes [ Bootstrap.colMd4; Bootstrap.colLg3; Bootstrap.fontWeightBold; Bootstrap.pl0 ] ] [ str lbl ]
-                yield p [ Class Bootstrap.col ] [ str value ]
-                yield p [ Class Bootstrap.col ] [ str description ]            
+                label [ classes [ Bootstrap.colMd4; Bootstrap.fontWeightBold; Bootstrap.pl0 ]; Style [ MaxWidth "300px" ] ] [ str lbl ]
+                p [ Class Bootstrap.col ] [ str value ]
+                if not (String.IsNullOrWhiteSpace(description)) then
+                    p [ Class Bootstrap.col ] [ str description ]
             ]
 
     let readonlyFormElement (lbl: string) (value: string) =

@@ -49,17 +49,18 @@ let private paramsFor (validated: ValidatedBuilding) =
         |> Option.map (fun d -> (new LocalDate(today.Year, d.UntilMonth, d.UntilDay)).ToDateTimeUnspecified())
 
     [
-        "@BuildingId"                , Sql.uuid validated.BuildingId
-        "@Code"                      , Sql.string (string validated.Code)
-        "@Name"                      , Sql.string (string validated.Name)
-        "@Address"                   , Sql.jsonb (ValidatedAddress.toJson validated.Address)
-        "@OrganizationNumber"        , Sql.stringOrNone (validated.OrganizationNumber |> Option.map string)
-        "@Remarks"                   , Sql.stringOrNone validated.Remarks
-        "@GeneralMeetingFrom"        , Sql.timestampOrNone generalMeetingFrom
-        "@GeneralMeetingUntil"       , Sql.timestampOrNone  generalMeetingUntil
-        "@YearOfConstruction"        , Sql.intOrNone (validated.YearOfConstruction |> Option.map (fun x -> x.Value ()))
-        "@YearOfDelivery"            , Sql.intOrNone (validated.YearOfDelivery |> Option.map (fun x -> x.Value ()))
-        "@BankAccounts"              , Sql.jsonb (validated.BankAccounts |> ValidatedBankAccount.listToJson)
+        "@BuildingId"         , Sql.uuid validated.BuildingId
+        "@Code"               , Sql.string (string validated.Code)
+        "@Name"               , Sql.string (string validated.Name)
+        "@Address"            , Sql.jsonb (ValidatedAddress.toJson validated.Address)
+        "@OrganizationNumber" , Sql.stringOrNone (validated.OrganizationNumber |> Option.map string)
+        "@Remarks"            , Sql.stringOrNone validated.Remarks
+        "@GeneralMeetingFrom" , Sql.timestampOrNone generalMeetingFrom
+        "@GeneralMeetingUntil", Sql.timestampOrNone  generalMeetingUntil
+        "@YearOfConstruction" , Sql.intOrNone (validated.YearOfConstruction |> Option.map (fun x -> x.Value ()))
+        "@YearOfDelivery"     , Sql.intOrNone (validated.YearOfDelivery |> Option.map (fun x -> x.Value ()))
+        "@BankAccounts"       , Sql.jsonb (validated.BankAccounts |> ValidatedBankAccount.listToJson)
+        "@PictureId"          , Sql.uuidOrNone validated.PictureId
     ]
 
 let updateBuildingSyndic (connectionString: string) (buildingId: BuildingId, syndicId: ValidatedSyndicInput option) =
@@ -188,7 +189,8 @@ let createBuilding (connectionString: string) (validated: ValidatedBuilding) = a
                     GeneralMeetingUntil,
                     YearOfConstruction,
                     YearOfDelivery,
-                    BankAccounts
+                    BankAccounts,
+                    PictureId
                 ) VALUES (
                     @BuildingId,
                     @Code,
@@ -200,7 +202,8 @@ let createBuilding (connectionString: string) (validated: ValidatedBuilding) = a
                     @GeneralMeetingUntil,
                     @YearOfConstruction,
                     @YearOfDelivery,
-                    @BankAccounts
+                    @BankAccounts,
+                    @PictureId
                 )
             """, (paramsFor validated)
 
@@ -223,7 +226,8 @@ let updateBuilding (connectionString: string) (validated: ValidatedBuilding) =
                 GeneralMeetingUntil= @GeneralMeetingUntil,
                 YearOfConstruction = @YearOfConstruction,
                 YearOfDelivery = @YearOfDelivery,
-                BankAccounts = @BankAccounts
+                BankAccounts = @BankAccounts,
+                PictureId = @PictureId
             WHERE BuildingId = @BuildingId
         """
     |> Sql.parameters (paramsFor validated)

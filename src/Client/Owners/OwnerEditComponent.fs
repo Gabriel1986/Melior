@@ -44,26 +44,8 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             then Some (String.Join(".", path.Split('.').[1..]), error)
             else None)
         { state with PersonEditComponentState = { state.PersonEditComponentState with Errors = personErrors } }, Cmd.none
-        
 
 let view (state: State) (dispatch: Message -> unit) =
-    let yesNo = [
-        {
-            Id = "ownerIsResident"
-            Key = "IsResident"
-            Label = "Ja"
-            IsSelected = state.Owner.IsResident
-            OnClick = (fun _ -> IsResidentChanged true |> dispatch)
-        }
-        {
-            Id = "ownerIsNotResident"
-            Key = "IsNotResident"
-            Label = "Nee"
-            IsSelected = not state.Owner.IsResident
-            OnClick = (fun _ -> IsResidentChanged false |> dispatch)
-        }
-    ]
-
     let inColumn x = div [ Class Bootstrap.col ] [ x ]
 
     div [] [

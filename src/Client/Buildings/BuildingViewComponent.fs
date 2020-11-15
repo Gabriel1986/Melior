@@ -3,11 +3,13 @@
 open System
 open Fable.React
 open Fable.React.Props
+open Fable.DateFunctions
 open Shared.Read
 open Client.Components
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Organizations
+open Shared.MediaLibrary
 
 type Props = {|
     Building: Building
@@ -18,41 +20,73 @@ type Props = {|
 |}
 
 let view (props: Props) =
+    let showDefaultImage = Hooks.useState props.Building.PictureId.IsNone
     let detail = props.Building
     div [] [
         fieldset [] [
-            yield legend [] [ h2 [] [ str "Algemeen" ] ]
-            yield readonlyFormElement "Code" detail.Code
-            yield readonlyFormElement "Naam" detail.Name
-            yield readonlyFormElement "Adres" (string detail.Address)
-            yield readonlyFormElement "Bouwjaar" (detail.YearOfConstruction |> Option.map string |> Option.defaultValue "")
-            yield readonlyFormElement "Opleveringsjaar" (detail.YearOfDelivery |> Option.map string |> Option.defaultValue "")
+            legend [] [ str "Algemeen" ]
+            div [ Class Bootstrap.dFlex ] [
+                div [] [
+                    match props.Building.PictureId with
+                    | Some pictureId when not (showDefaultImage.current) ->
+                        img [
+                            Src (Client.Upload.downloadUri Partitions.BuildingImages pictureId) 
+                            Alt "Building image"
+                            Style [ Height "350px" ]
+                            Class "pointer"
+                            OnError (fun _ -> showDefaultImage.update(fun _ -> true))
+                        ]
+                    | _ ->
+                        img [
+                            Src "https://i.ibb.co/rQnJ0hn/architecture-768432-640.jpg"
+                            Alt "Building image"
+                            Class "pointer"
+                            Style [ Height "240px" ]
+                        ]
+                ]
+                div [ classes [ Bootstrap.flexGrow1; Bootstrap.col] ] [
+                        yield readonlyFormElement "Naam" detail.Name
+                        yield readonlyFormElement "Code" detail.Code
+                        yield readonlyFormElement "Adres" (string detail.Address)
 
-            match detail.OrganizationNumber with
-            | Some number ->
-                yield readonlyFormElement "Ondernemingsnummer" number
-            | None ->
-                ()
+                        match detail.OrganizationNumber with
+                        | Some number ->
+                            yield readonlyFormElement "Ondernemingsnummer" number
+                        | None ->
+                            ()
 
-            match detail.Remarks with
-            | Some remarks ->
-                yield readonlyFormElement "Opmerkingen" remarks
-            | None ->
-                ()
+                        yield readonlyFormElement "Bouwjaar" (detail.YearOfConstruction |> Option.map string |> Option.defaultValue "")
+                        yield readonlyFormElement "Opleveringsjaar" (detail.YearOfDelivery |> Option.map string |> Option.defaultValue "")
 
-            match detail.GeneralMeetingPeriod with
-            | Some period ->
-                let currentYear = DateTime.Today.Year
-                let from = new DateTime(currentYear, period.FromMonth, period.FromDay)
-                let until = new DateTime(currentYear, period.UntilMonth, period.UntilDay)
-                yield readonlyFormElement "Periode algemene vergadering: " (sprintf "Tussen %s en %s" (from.ToString("dd/MM")) (until.ToString("dd/MM")))
-            | _ ->
-                ()
+            
+                        //match detail.Remarks with
+                        //| Some remarks ->
+                        //    yield readonlyFormElement "Opmerkingen" remarks
+                        //| None ->
+                        //    ()
 
-            yield!
-                detail.BankAccounts
-                |> List.mapi (fun i bankAccount -> readonlyFormElement (sprintf "Bankrekening %i" (i+1)) (string bankAccount))
+                        match detail.GeneralMeetingPeriod with
+                        | Some period ->
+                            let currentYear = DateTime.Today.Year
+                            let from = new DateTime(currentYear, period.FromMonth, period.FromDay)
+                            let until = new DateTime(currentYear, period.UntilMonth, period.UntilDay)
+                            yield readonlyFormElement "Periode algemene vergadering " (sprintf "%s tot %s" (from.Format("dd MMMM", DateTime.Locales.Dutch)) (until.Format("dd MMMM", DateTime.Locales.Dutch)))
+                        | _ ->
+                            ()
+
+                        yield!
+                            detail.BankAccounts
+                            |> List.mapi (fun i bankAccount -> 
+                                let bankAccountDescription =
+                                    if detail.BankAccounts.Length > 1 then
+                                        sprintf "Bankrekening %i" (i+1)
+                                    else
+                                        "Bankrekening"
+                                readonlyFormElement bankAccountDescription (string bankAccount))
+                    ]
+                ]
         ]
+
         match detail.Concierge with
         | Some concierge ->
             let person, isOwner = 
@@ -60,11 +94,11 @@ let view (props: Props) =
                 | Concierge.Owner owner -> owner.Person, true 
                 | Concierge.NonOwner person -> person, false
 
-            fieldset [] [
-                legend [] [ 
+            fieldset [ Class Bootstrap.mt2 ] [
+                legend [] [
                     div [ Class Bootstrap.formInline ] [
                         div [ Class Bootstrap.formGroup ] [
-                            h2 [ Class Bootstrap.mr2 ] [ str "Concierge" ]
+                            span [ Class Bootstrap.mr2 ] [ str "Concierge" ]
                             button [ 
                                 classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm; Bootstrap.mr2 ]
                                 OnClick (fun _ -> props.OnEditConcierge ()) 
@@ -89,11 +123,11 @@ let view (props: Props) =
                 | Syndic.ProfessionalSyndic pro -> OrganizationViewComponent.render {| Organization = pro.Organization |}, "Professionele syndicus"
                 | Syndic.Other person -> PersonViewComponent.render {| Person = person; ShowAddresses = true; ShowBankAccounts = true |}, "Andere"
 
-            fieldset [] [
+            fieldset [ Class Bootstrap.mt2 ] [
                 legend [] [ 
                     div [ Class Bootstrap.formInline ] [
                         div [ Class Bootstrap.formGroup ] [
-                            h2 [ Class Bootstrap.mr2 ] [ str "Syndicus" ] 
+                            span [ Class Bootstrap.mr2 ] [ str "Syndicus" ]
                             button [ 
                                 classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm; Bootstrap.mr2 ]
                                 OnClick (fun _ -> props.OnEditSyndic ()) 

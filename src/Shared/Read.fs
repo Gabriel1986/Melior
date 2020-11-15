@@ -116,6 +116,7 @@ type Building =
         YearOfConstruction: int option
         YearOfDelivery: int option
         BankAccounts: BankAccount list
+        PictureId: Guid option
     }
     static member Init () = {
         BuildingId = Guid.NewGuid()
@@ -130,6 +131,7 @@ type Building =
         YearOfConstruction = None
         YearOfDelivery = None
         BankAccounts = []
+        PictureId = None
     }
     member me.ToListItem (): BuildingListItem = {
         BuildingId = me.BuildingId
@@ -138,6 +140,7 @@ type Building =
         Address = me.Address
         OrganizationNumber = me.OrganizationNumber
         BankAccounts = me.BankAccounts
+        PictureId = me.PictureId
     }
 and Address =
     {
@@ -177,12 +180,10 @@ and Address =
         |> String.joinWith ", "
 and OtherAddress = 
     {
-        Name: string
         Description: string
         Address: Address
     }
     static member Init () = {
-        Name = ""
         Description = ""
         Address = Address.Init ()
     }
@@ -224,6 +225,7 @@ and BuildingListItem = {
     Address: Address
     OrganizationNumber: string option
     BankAccounts: BankAccount list
+    PictureId: Guid option
 }
 and Lot = 
     {

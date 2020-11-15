@@ -5,9 +5,6 @@ open Fable.React
 open Shared.Read
 open Client.ClientStyle.Helpers
 
-let private renderOtherAddress (other: OtherAddress) =
-    readonlyFormElement' other.Name (string other.Address) other.Description
-
 let private renderAddressesFor (person: Person) =
     let contactAdres = 
         match person.ContactAddress with
@@ -17,7 +14,13 @@ let private renderAddressesFor (person: Person) =
     [
         yield readonlyFormElement "Hoofdadres" (string person.MainAddress)
         yield readonlyFormElement "Contactadres" contactAdres
-        yield! person.OtherAddresses |> List.map renderOtherAddress
+        yield! person.OtherAddresses |> List.mapi (fun index otherAddress ->
+            let otherAddressDescription =
+                if person.OtherAddresses.Length > 1 then
+                    sprintf "Ander adres %i" (index+1)
+                else
+                    "Ander adres"
+            readonlyFormElement otherAddressDescription (sprintf "%s - %A" otherAddress.Description otherAddress.Address))
     ]
 
 let view (showAddresses: bool) (showBankAccounts: bool) (person: Person) =
@@ -32,12 +35,24 @@ let view (showAddresses: bool) (showBankAccounts: bool) (person: Person) =
         yield readonlyFormElement "E-mail" (defaultArg person.MainEmailAddress "")
         yield readonlyFormElement "E-mail commentaar" (defaultArg person.MainEmailAddressComment "")
 
-        yield! person.OtherContactMethods |> List.map (fun cm -> readonlyFormElement cm.Description cm.Value)
+        yield! person.OtherContactMethods |> List.mapi (fun index cm -> 
+            let otherContactMethodDescription =
+                if person.OtherContactMethods.Length > 1 then
+                    sprintf "Ander contactmiddel %i" (index+1)
+                else
+                    "Ander contactmiddel"
+            readonlyFormElement otherContactMethodDescription (sprintf "%s - %s" cm.Description cm.Value))
 
         if showBankAccounts then
             yield!
                 person.BankAccounts
-                |> List.mapi (fun i bankAccount -> readonlyFormElement (sprintf "Bankrekening %i" (i+1)) (string bankAccount))
+                |> List.mapi (fun i bankAccount -> 
+                    let bankAccountDescription =
+                        if person.BankAccounts.Length > 1 then
+                            sprintf "Bankrekening %i" (i+1)
+                        else
+                            "Bankrekening"
+                    readonlyFormElement bankAccountDescription (string bankAccount))
     ]
     |> React.fragment
 

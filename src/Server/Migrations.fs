@@ -490,3 +490,14 @@ type AddIsDeletedAndLotOwnerIdToLotOwners() =
                 ALTER TABLE LotOwners ADD PRIMARY KEY  (LotOwnerId);
             """
     override u.Down () = ()
+
+[<Migration(14L, "Add PhotoId and SharesTotal to Buildings")>]
+type AddPhotoIdAndSharesTotalToBuildings() =
+    inherit Migration ()
+    override u.Up () = 
+        u.Execute
+            """
+                ALTER TABLE Buildings ADD COLUMN IF NOT EXISTS PictureId UUID;
+                ALTER TABLE Buildings ADD COLUMN IF NOT EXISTS SharesTotal INT;
+            """
+    override u.Down () = ()

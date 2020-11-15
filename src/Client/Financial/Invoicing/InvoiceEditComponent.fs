@@ -729,17 +729,17 @@ let view (state: State) (dispatch: Message -> unit) =
                         FilePondOptions.MaxFiles 10
                         FilePondOptions.InitialFiles (state.Invoice.MediaFiles |> List.map (fun m -> m.FileId))
                         FilePondOptions.OnProcessFile (fun error filePondFile ->
-                            printf "%A" error
-                            filePondFile 
-                            |> FilePondFile.toMediaFile Partitions.Invoices (Some state.CurrentBuilding.BuildingId) state.Invoice.InvoiceId
-                            |> MediaFileAdded
-                            |> dispatch)
+                            if String.IsNullOrWhiteSpace(error) then
+                                filePondFile 
+                                |> FilePondFile.toMediaFile Partitions.Invoices (Some state.CurrentBuilding.BuildingId) state.Invoice.InvoiceId
+                                |> MediaFileAdded
+                                |> dispatch)
                         FilePondOptions.OnRemoveFile (fun error filePondFile ->
-                            printf "%A" error
-                            filePondFile
-                            |> FilePondFile.toMediaFile Partitions.Invoices (Some state.CurrentBuilding.BuildingId) state.Invoice.InvoiceId
-                            |> MediaFileRemoved
-                            |> dispatch)
+                            if String.IsNullOrWhiteSpace(error) then
+                                filePondFile
+                                |> FilePondFile.toMediaFile Partitions.Invoices (Some state.CurrentBuilding.BuildingId) state.Invoice.InvoiceId
+                                |> MediaFileRemoved
+                                |> dispatch)
                     ]
                 |}
         ]

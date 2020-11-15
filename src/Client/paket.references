@@ -14,3 +14,4 @@ Elmish.SweetAlert
 Fable.React.Flatpickr
 Thoth.Elmish.Debouncer
 Fable.SimpleHttp
+Fable.DateFunctions

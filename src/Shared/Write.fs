@@ -34,17 +34,14 @@ type ValidatedAddress =
 
 type ValidatedOtherAddress = 
     {
-        Name: String255
         Description: string
         Address: ValidatedAddress
     }
     static member BasicValidate (basePath: string) (otherAddress: OtherAddress) =
         let onBasePath s = if String.IsNullOrWhiteSpace basePath then s else sprintf "%s.%s" basePath s
         trial {
-            from name in String255.Of (onBasePath (nameof otherAddress.Name)) otherAddress.Name
-            also address in ValidatedAddress.BasicValidate (onBasePath (nameof otherAddress.Address)) otherAddress.Address
+            from address in ValidatedAddress.BasicValidate (onBasePath (nameof otherAddress.Address)) otherAddress.Address
             yield {
-                Name = name
                 Description = otherAddress.Description
                 Address = address
             }
@@ -204,6 +201,7 @@ type ValidatedBuilding =
         YearOfConstruction: PositiveInt option
         YearOfDelivery: PositiveInt option
         BankAccounts: ValidatedBankAccount list
+        PictureId: Guid option
     }
     static member Validate (building: Building): Result<ValidatedBuilding, (string * string) list> =
         trial {
@@ -225,6 +223,7 @@ type ValidatedBuilding =
                 YearOfConstruction = yearOfConstruction
                 YearOfDelivery = yearOfDelivery
                 BankAccounts = bankAccounts |> List.ofSeq
+                PictureId = building.PictureId
             }
         }
         |> Trial.toResult

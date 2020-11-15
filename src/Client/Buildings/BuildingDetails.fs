@@ -138,7 +138,6 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                         RemotingError
                 { model with State = Editing (true, componentState) }, cmd
             | Error e ->
-                printf "%A" e
                 { model with State = Editing (false, { componentState with Errors = e }) }, Cmd.none
         | Creating (_, componentState) ->
             match ValidatedBuilding.Validate componentState.Building with

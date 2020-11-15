@@ -91,8 +91,12 @@ let width: float = jsNative
 
 let thumbnailUri (partition: string) (fileId: System.Guid): string =
     if width < 800.0
-    then sprintf "%s/media/thumbnail/small/%s/%O" htmlBasePath partition fileId
-    else sprintf "%s/media/thumbnail/large/%s/%O" htmlBasePath partition fileId
+    then 
+        printf "%s/media/thumbnail/small/%s/%O" htmlBasePath partition fileId
+        sprintf "%s/media/thumbnail/small/%s/%O" htmlBasePath partition fileId
+    else 
+        printf "%s/media/thumbnail/large/%s/%O" htmlBasePath partition fileId
+        sprintf "%s/media/thumbnail/large/%s/%O" htmlBasePath partition fileId
 
 let inline filePondComponent (props : obj): ReactElement =
     ofImport "FilePondComponent" "./public/FilePond/FilePond.js" props []

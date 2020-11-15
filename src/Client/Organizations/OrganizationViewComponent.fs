@@ -18,7 +18,14 @@ let view (organization: Organization) =
         yield readonlyFormElement "E-mail" (defaultArg organization.MainEmailAddress "")
         yield readonlyFormElement "E-mail commentaar" (defaultArg organization.MainEmailAddressComment "")
 
-        yield! organization.OtherContactMethods |> List.map (fun cm -> readonlyFormElement cm.Description cm.Value)
+        yield! organization.OtherContactMethods |> List.mapi (fun index cm ->
+            let otherContactMethodDescription =
+                if organization.OtherContactMethods.Length > 1 then
+                    sprintf "Ander contactmiddel %i" (index+1)
+                else
+                    "Ander contactmiddel"
+            readonlyFormElement otherContactMethodDescription (sprintf "%s - %s" cm.Description cm.Value))
+
 
         if organization.ContactPersons.Length > 0 then
             yield fieldset [] [
@@ -28,7 +35,13 @@ let view (organization: Organization) =
 
         yield!
             organization.BankAccounts
-            |> List.mapi (fun i bankAccount -> readonlyFormElement (sprintf "Bankrekening %i" (i+1)) (string bankAccount))
+            |> List.mapi (fun i bankAccount -> 
+                let bankAccountDescription =
+                    if organization.BankAccounts.Length > 1 then
+                        sprintf "Bankrekening %i" (i+1)
+                    else
+                        "Bankrekening"
+                readonlyFormElement bankAccountDescription (string bankAccount))
     ]
 
 let render =

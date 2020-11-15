@@ -12,7 +12,6 @@ open Server.Persons.Library
 
 module ValidatedOtherAddress =
     let toOtherAddress (validated: ValidatedOtherAddress): OtherAddress = {
-        Name = string validated.Name
         Description = validated.Description
         Address = validated.Address |> ValidatedAddress.toAddress
     }

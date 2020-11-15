@@ -27,8 +27,9 @@ let [<Literal>] DefaultChunkSizeInBytes = 5000000.00
 module Partitions =
     let [<Literal>] Contracts = "Contracts"
     let [<Literal>] Invoices = "Invoices"
+    let [<Literal>] BuildingImages = "BuildingImages"
 
-    let possiblePartitions = [ Contracts; Invoices ]
+    let possiblePartitions = [ Contracts; Invoices; BuildingImages ]
 
 module MimeTypes =
     let private mimeTypeDictionary =
