@@ -32,26 +32,27 @@ let view (props: Props) =
                         img [
                             Src (Client.Upload.downloadUri Partitions.BuildingImages pictureId) 
                             Alt "Building image"
-                            Style [ Height "350px" ]
+                            Style [ Height "250px" ]
                             OnError (fun _ -> showDefaultImage.update(fun _ -> true))
                         ]
                     | _ ->
                         img [
                             Src "https://i.ibb.co/rQnJ0hn/architecture-768432-640.jpg"
                             Alt "Building image"
-                            Style [ Height "240px" ]
+                            Style [ Height "250px" ]
                         ]
                 ]
                 div [ classes [ Bootstrap.flexGrow1; Bootstrap.col] ] [
                         yield readonlyFormElement "Naam" detail.Name
                         yield readonlyFormElement "Code" detail.Code
-                        yield readonlyFormElement "Adres" (string detail.Address)
 
                         match detail.OrganizationNumber with
                         | Some number ->
                             yield readonlyFormElement "Ondernemingsnummer" number
                         | None ->
                             ()
+
+                        yield readonlyFormElement "Adres" (string detail.Address)
 
                         yield readonlyFormElement "Bouwjaar" (detail.YearOfConstruction |> Option.map string |> Option.defaultValue "")
                         yield readonlyFormElement "Opleveringsjaar" (detail.YearOfDelivery |> Option.map string |> Option.defaultValue "")

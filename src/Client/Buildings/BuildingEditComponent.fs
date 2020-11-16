@@ -220,7 +220,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     img [
                         Src (Client.Upload.downloadUri Partitions.BuildingImages pictureId) 
                         Alt "Building image"
-                        Style [ Height "500px" ]
+                        Style [ Height "250px" ]
                         Class "pointer"
                         OnError (fun _ -> dispatch ShowDefaultImage)
                         OnClick (fun _ -> dispatch OpenImageUploadDialog)
@@ -278,58 +278,55 @@ let view (state: State) (dispatch: Message -> unit) =
                     (nameof state.Building.Address)
                     state.Errors
                 |> inColumn
-
-                div [ Class Bootstrap.row ] [
-                    formGroup [
-                        Label "Bouwjaar"
-                        Input [
-                            Type "number"
-                            Helpers.valueOrDefault state.Building.YearOfConstruction
-                            OnChange (fun e -> YearOfConstructionChanged e.Value |> dispatch)
-                            Style [ Width "120px" ]
-                        ]
-                        FormError (errorFor (nameof state.Building.YearOfConstruction))
-                    ]
-                    |> inColumn
+            ]
+        ]
+        div [ Class Bootstrap.row ] [
+            formGroup [
+                Label "Bouwjaar"
+                Input [
+                    Type "number"
+                    Helpers.valueOrDefault state.Building.YearOfConstruction
+                    OnChange (fun e -> YearOfConstructionChanged e.Value |> dispatch)
+                    Style [ Width "120px" ]
                 ]
+                FormError (errorFor (nameof state.Building.YearOfConstruction))
+            ]
 
-                div [ Class Bootstrap.row ] [
-                    formGroup [
-                        Label "Opleveringsjaar"
-                        Input [
-                            Type "number"
-                            Helpers.valueOrDefault state.Building.YearOfDelivery
-                            OnChange (fun e -> YearOfDeliveryChanged e.Value |> dispatch)
-                            Style [ Width "120px" ]
-                        ]
-                        FormError (errorFor (nameof state.Building.YearOfDelivery))
+            div [ Style [ MarginLeft "15px" ] ] [
+                formGroup [
+                    Label "Opleveringsjaar"
+                    Input [
+                        Type "number"
+                        Helpers.valueOrDefault state.Building.YearOfDelivery
+                        OnChange (fun e -> YearOfDeliveryChanged e.Value |> dispatch)
+                        Style [ Width "120px" ]
                     ]
-                    |> inColumn
-                ]
-
-                div [ Class Bootstrap.row ] [
-                    formGroup [
-                        Label "Periode algemene vergadering"
-                        Date [
-                            match state.GeneralMeetingPeriod with
-                            | Some (start, until) -> 
-                                yield Flatpickr.Values [| start; until |]
-                            | _ -> 
-                                ()
-                            yield Flatpickr.Style [ Width "320px" ]
-                            yield Flatpickr.SelectionMode Flatpickr.Mode.Range
-                            yield Flatpickr.DateFormat "j F"
-                            yield
-                                Flatpickr.OnManyChanged (fun (dates: list<DateTime>) ->                                    
-                                    match dates with
-                                    | [ fromDate; toDate ] -> GeneralMeetingPeriodChanged (Some (fromDate, toDate)) |> dispatch
-                                    | _ -> GeneralMeetingPeriodChanged None |> dispatch)
-                        ]
-                    ]
-                    |> inColumn
+                    FormError (errorFor (nameof state.Building.YearOfDelivery))
                 ]
             ]
         ]
+
+        div [ Class Bootstrap.row ] [
+            formGroup [
+                Label "Periode algemene vergadering"
+                Date [
+                    match state.GeneralMeetingPeriod with
+                    | Some (start, until) -> 
+                        yield Flatpickr.Values [| start; until |]
+                    | _ -> 
+                        ()
+                    yield Flatpickr.Style [ Width "320px" ]
+                    yield Flatpickr.SelectionMode Flatpickr.Mode.Range
+                    yield Flatpickr.DateFormat "j F"
+                    yield
+                        Flatpickr.OnManyChanged (fun (dates: list<DateTime>) ->                                    
+                            match dates with
+                            | [ fromDate; toDate ] -> GeneralMeetingPeriodChanged (Some (fromDate, toDate)) |> dispatch
+                            | _ -> GeneralMeetingPeriodChanged None |> dispatch)
+                ]
+            ]
+        ]
+
         renderBankAccounts state dispatch
         renderImageUploadDialog state dispatch
     ]
