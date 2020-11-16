@@ -81,7 +81,7 @@ header {
 
     label #melior-sidebar-button {
         z-index: 1;
-        color: #fff;
+        color: #000;
         position: fixed;
         cursor: pointer;
         margin-top: -7px;
@@ -89,7 +89,7 @@ header {
         transition-property: color;
 
         &:hover {
-            color: #808080;
+            color: #ddd;
         }
     }
 
@@ -112,7 +112,7 @@ header {
 }
 
 #melior-sidebar-toggle:checked ~ .melior-sidebar {
-    left: -150px;
+    left: -180px;
 }
 
 #melior-sidebar-toggle {
@@ -121,17 +121,18 @@ header {
 
 .melior-sidebar {
     margin-top: -10px;
-    padding-top: 30px;
+    padding-top: 10px;
     position: fixed;
     left: 0;
-    width: 150px;
-    height: 100%;
+    width: 180px;
+    height: calc(100vh - 40px); 
     transition: 0.5s;
     transition-property: left;
+    overflow-y: auto;
 }
 
 .melior-content {
-    margin-left: 160px;
+    margin-left: 190px;
     margin-top: 50px;
     transition: 0.5s;
     transition-property: margin-left;

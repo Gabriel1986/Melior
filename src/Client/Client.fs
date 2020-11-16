@@ -240,6 +240,12 @@ module Client =
                             match msg with
                             | BuildingsPage.Msg.CurrentBuildingChanged newCurrentBuilding -> 
                                 setCurrentBuilding running newCurrentBuilding
+                            | BuildingsPage.Msg.Edited building ->
+                                match s.CurrentBuildingId with
+                                | Some buildingId when building.BuildingId = buildingId ->
+                                    setCurrentBuilding running (building.ToListItem())
+                                | _ ->
+                                    running
                             | _ -> 
                                 running
 
@@ -444,7 +450,7 @@ module Client =
 
             div [] [
                 input [ Type "checkbox"; Id "melior-sidebar-toggle" ]
-                header [ classes [ Bootstrap.bgDark; "melior-navbar" ] ] [                    
+                header [ classes [ Bootstrap.bgLight; "melior-navbar" ] ] [                    
                     label [ HtmlFor "melior-sidebar-toggle"] [
                         span [ classes [ FontAwesome.fas; FontAwesome.faBars ]; Id "melior-sidebar-button" ] []
                     ]
@@ -459,12 +465,22 @@ module Client =
                         ]
                     ]
                     div [ Class "melior-profile" ] [
-                        a [ classes [ Bootstrap.btn; Bootstrap.btnSecondary; Bootstrap.btnSm ]; Href "/authentication/logout" ] [
+                        if runningState.CurrentUser.HasAccessToAdminMode () then
+                            div [ classes [ Bootstrap.btnGroup; Bootstrap.btnGroupSm ] ] [
+                                button [ classes [ Bootstrap.btn; (if runningState.AdminModeEnabled then Bootstrap.btnSecondary else Bootstrap.btnOutlineSecondary) ]; OnClick (fun _ -> AdminModeChanged true |> dispatch) ] [
+                                    str "Admin"
+                                ]
+                                button [ classes [ Bootstrap.btn; (if runningState.AdminModeEnabled then Bootstrap.btnOutlineSecondary else Bootstrap.btnSecondary) ]; OnClick (fun _ -> AdminModeChanged false |> dispatch) ] [
+                                    str "Gebruiker"
+                                ]
+                            ]
+                            
+                        a [ classes [ Bootstrap.btn; Bootstrap.btnSecondary; Bootstrap.btnSm; Bootstrap.ml3 ]; Href "/authentication/logout" ] [
                             str "Afmelden"
                         ]
                     ]
-                ]                
-                div [ classes [ Bootstrap.navbarDark; Bootstrap.bgDark; "melior-sidebar" ];  ] [
+                ]
+                div [ classes [ Bootstrap.navbarLight; Bootstrap.bgLight; "melior-sidebar" ] ] [
                     Sidebar.render
                         {|
                             SidebarIsOpen = runningState.SidebarIsOpen
@@ -473,7 +489,6 @@ module Client =
                             CurrentBuilding = runningState.CurrentBuilding
                             CurrentUser = runningState.CurrentUser
                             AdminModeEnabled = runningState.AdminModeEnabled
-                            OnChangeAdminMode = AdminModeChanged >> dispatch
                         |}
                 ]
                 div [ classes [ "melior-content" ] ] [

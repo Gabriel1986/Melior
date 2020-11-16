@@ -33,14 +33,12 @@ let view (props: Props) =
                             Src (Client.Upload.downloadUri Partitions.BuildingImages pictureId) 
                             Alt "Building image"
                             Style [ Height "350px" ]
-                            Class "pointer"
                             OnError (fun _ -> showDefaultImage.update(fun _ -> true))
                         ]
                     | _ ->
                         img [
                             Src "https://i.ibb.co/rQnJ0hn/architecture-768432-640.jpg"
                             Alt "Building image"
-                            Class "pointer"
                             Style [ Height "240px" ]
                         ]
                 ]

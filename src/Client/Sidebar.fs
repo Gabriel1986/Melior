@@ -26,8 +26,6 @@ type Msg =
     | SetOpen of bool
     | NavigateToPage of Page
     | ToggleFinancialSubmenu
-    | SetAdminMode
-    | SetUserMode
 
 let init (isOpen: bool) (currentBuilding: BuildingListItem option) (currentUser: User) (adminModeEnabled: bool) =
     { 
@@ -38,7 +36,7 @@ let init (isOpen: bool) (currentBuilding: BuildingListItem option) (currentUser:
         FinancialSubmenuIsOpen = false
     }, Cmd.none
 
-let update onSetSidebarOpened onChangeAdminMode (msg: Msg) (state: State): State * Cmd<Msg> =
+let update onSetSidebarOpened (msg: Msg) (state: State): State * Cmd<Msg> =
     match msg with
     | SetOpen opened ->
         onSetSidebarOpened(opened)
@@ -46,14 +44,6 @@ let update onSetSidebarOpened onChangeAdminMode (msg: Msg) (state: State): State
 
     | NavigateToPage page ->
         state, Routing.navigateToPage page
-
-    | SetAdminMode ->
-        onChangeAdminMode true
-        state, Cmd.none
-    
-    | SetUserMode ->
-        onChangeAdminMode false
-        state, Cmd.none
 
     | ToggleFinancialSubmenu ->
         { state with FinancialSubmenuIsOpen = not state.FinancialSubmenuIsOpen }, Cmd.none
@@ -200,6 +190,7 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
             ]
         ]
     ]
+    |> fragment []
 
 let renderUserMode (state: State) (currentPage: Page option) (dispatch: Msg -> unit) = 
     [
@@ -228,55 +219,38 @@ let renderUserMode (state: State) (currentPage: Page option) (dispatch: Msg -> u
             ] [ str "Contracten" ]
         ]
     ]
+    |> fragment []
 
 
 let renderNavigation (state: State) (currentPage: Page option) (dispatch: Msg -> unit) = 
     let pictureId = Hooks.useState (state.CurrentBuilding |> Option.bind (fun cb -> cb.PictureId))
 
     [
-        if state.CurrentUser.HasAccessToAdminMode () then
-            yield li [ Class Bootstrap.navItem ] [
-                div [ classes [ Bootstrap.btnGroup; Bootstrap.btnGroupSm ] ] [
-                    button [ classes [ Bootstrap.btn; (if state.AdminModeEnabled then Bootstrap.btnPrimary else Bootstrap.btnLight) ]; OnClick (fun _ -> dispatch SetAdminMode) ] [
-                        str "Admin"
-                    ]
-                    button [ classes [ Bootstrap.btn; (if state.AdminModeEnabled then Bootstrap.btnLight else Bootstrap.btnPrimary) ]; OnClick (fun _ -> dispatch SetUserMode) ] [
-                        str "Gebruiker"
-                    ]
-                ]
-            ]
-
         if state.CurrentUser.HasAccessToAdminMode() && state.AdminModeEnabled && pictureId.current.IsSome then
-            yield [
-                hr []
-                li [] [
-                    span [ Class Bootstrap.navbarBrand ] [
-                        img [
-                            Src (Client.Upload.thumbnailUri Partitions.BuildingImages pictureId.current.Value) 
-                            Alt "Building image"
-                            Style [ MaxWidth "100px" ]
-                            OnError (fun _ -> pictureId.update(fun _ -> None))
-                            Title state.CurrentBuilding.Value.Name
-                        ]
-                    ]
+            li [] [
+                img [
+                    Src (Client.Upload.thumbnailUri Partitions.BuildingImages pictureId.current.Value) 
+                    Alt "Building image"
+                    Style [ MaxWidth "132px" ]
+                    OnError (fun _ -> pictureId.update(fun _ -> None))
+                    Title state.CurrentBuilding.Value.Name
                 ]
             ]
-            |> fragment []
 
 
-        yield
-            li [ Class Bootstrap.navItem; Style [ PaddingTop "15px" ] ] [ 
-                a [ 
-                    Class (determineStyle currentPage Page.Portal)
-                    OnClick (fun _ -> NavigateToPage Page.Portal |> dispatch) 
-                ] [ str "Portaal" ]
-            ]
+        
+        li [ Class Bootstrap.navItem; Style [ PaddingTop "15px" ] ] [ 
+            a [ 
+                Class (determineStyle currentPage Page.Portal)
+                OnClick (fun _ -> NavigateToPage Page.Portal |> dispatch) 
+            ] [ str "Portaal" ]
+        ]
 
         if state.AdminModeEnabled 
         then
-            yield! renderAdminMode state currentPage dispatch
+            renderAdminMode state currentPage dispatch
         else
-            yield! renderUserMode state currentPage dispatch
+            renderUserMode state currentPage dispatch
     ]
 
 let view (currentPage: Page option) (state: State) (dispatch: Msg -> unit) =
@@ -284,5 +258,5 @@ let view (currentPage: Page option) (state: State) (dispatch: Msg -> unit) =
         yield! renderNavigation state (convertCurrentPageForNavigation currentPage) dispatch
     ]
 
-let render (props: {| OnSetSidebarOpened: bool -> unit; SidebarIsOpen: bool; CurrentBuilding: BuildingListItem option; CurrentUser: User; CurrentPage: Page option; AdminModeEnabled: bool; OnChangeAdminMode: bool -> unit |}) =
-    React.elmishComponent ("Sidebar", init props.SidebarIsOpen props.CurrentBuilding props.CurrentUser props.AdminModeEnabled, update props.OnSetSidebarOpened props.OnChangeAdminMode, view props.CurrentPage)
+let render (props: {| OnSetSidebarOpened: bool -> unit; SidebarIsOpen: bool; CurrentBuilding: BuildingListItem option; CurrentUser: User; CurrentPage: Page option; AdminModeEnabled: bool |}) =
+    React.elmishComponent ("Sidebar", init props.SidebarIsOpen props.CurrentBuilding props.CurrentUser props.AdminModeEnabled, update props.OnSetSidebarOpened, view props.CurrentPage)
