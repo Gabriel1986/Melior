@@ -231,7 +231,7 @@ let renderNavigation (state: State) (currentPage: Page option) (dispatch: Msg ->
                 img [
                     Src (Client.Upload.thumbnailUri Partitions.BuildingImages pictureId.current.Value) 
                     Alt "Building image"
-                    Style [ MaxWidth "132px" ]
+                    Style [ MaxWidth "142px"; Border "2px black solid" ]
                     OnError (fun _ -> pictureId.update(fun _ -> None))
                     Title state.CurrentBuilding.Value.Name
                 ]

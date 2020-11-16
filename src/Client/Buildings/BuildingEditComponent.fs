@@ -215,12 +215,17 @@ let view (state: State) (dispatch: Message -> unit) =
         fieldset [ classes [ Bootstrap.row; Bootstrap.dFlex; Bootstrap.flexNowrap ] ] [
             legend [] [ str "Algemeen" ]
             div [] [
+                i [ 
+                    classes [ FontAwesome.fa; FontAwesome.faEdit; Bootstrap.textPrimary; "pointer" ]
+                    Style [ Position PositionOptions.Absolute; MarginLeft "5px"; MarginTop "5px" ]                     
+                    OnClick (fun _ -> dispatch OpenImageUploadDialog)
+                ] []
                 match state.Building.PictureId with
                 | Some pictureId when not (state.ShowingDefaultImage) ->
                     img [
                         Src (Client.Upload.downloadUri Partitions.BuildingImages pictureId) 
                         Alt "Building image"
-                        Style [ Height "250px" ]
+                        Style [ Height "250px"; Border "2px black solid" ]
                         Class "pointer"
                         OnError (fun _ -> dispatch ShowDefaultImage)
                         OnClick (fun _ -> dispatch OpenImageUploadDialog)
@@ -230,7 +235,7 @@ let view (state: State) (dispatch: Message -> unit) =
                         Src "https://i.ibb.co/rQnJ0hn/architecture-768432-640.jpg"
                         Alt "Building image"
                         Class "pointer"
-                        Style [ Height "240px" ]
+                        Style [ Height "250px"; Border "2px black solid" ]
                         OnClick (fun _ -> dispatch OpenImageUploadDialog)
                     ]
             ]

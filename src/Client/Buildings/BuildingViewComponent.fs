@@ -32,14 +32,14 @@ let view (props: Props) =
                         img [
                             Src (Client.Upload.downloadUri Partitions.BuildingImages pictureId) 
                             Alt "Building image"
-                            Style [ Height "250px" ]
+                            Style [ Height "250px"; Border "2px black solid" ]
                             OnError (fun _ -> showDefaultImage.update(fun _ -> true))
                         ]
                     | _ ->
                         img [
                             Src "https://i.ibb.co/rQnJ0hn/architecture-768432-640.jpg"
                             Alt "Building image"
-                            Style [ Height "250px" ]
+                            Style [ Height "250px"; Border "2px black solid" ]
                         ]
                 ]
                 div [ classes [ Bootstrap.flexGrow1; Bootstrap.col] ] [

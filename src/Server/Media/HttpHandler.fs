@@ -137,10 +137,10 @@ module private Internals =
                             use inputStream = FileInfo(combinedPath).OpenRead()
                             use! originalImage = Image.LoadAsync(inputStream)
                             let largeThumbResizeOptions = 
-                                new ResizeOptions(Mode = ResizeMode.Pad, Size = new Size(Height = 400, Width = 400))
+                                new ResizeOptions(Mode = ResizeMode.Crop, Size = new Size(Height = 400, Width = 400))
                             let largeThumbnail = originalImage.Clone(fun x -> x.Resize(largeThumbResizeOptions) |> ignore)
                             let smallThumbResizeOptions =
-                                new ResizeOptions(Mode = ResizeMode.Pad, Size = new Size(Height = 200, Width = 200))
+                                new ResizeOptions(Mode = ResizeMode.Crop, Size = new Size(Height = 200, Width = 200))
                             let smallThumbnail = originalImage.Clone(fun x -> x.Resize(smallThumbResizeOptions) |> ignore)
 
                             let jpegEncoder = new JpegEncoder(Quality = Nullable(80));
