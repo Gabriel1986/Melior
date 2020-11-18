@@ -138,13 +138,13 @@ let renderLotOwnerTypeSelection dispatch =
     div [] [
         div [ classes [ Bootstrap.dFlex; Bootstrap.justifyContentCenter; Bootstrap.formInline ] ] [
             label [] [ str "De eigenaar van deze kavel is een..." ]
-            div [ Class Bootstrap.btnGroup ] [
+            div [ classes [ Bootstrap.btnGroup; Bootstrap.ml2 ] ] [
                 button [ 
-                    classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
+                    classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
                     OnClick (fun _ -> LotOwnerKindSelected Owner |> dispatch)
                 ] [ str (string Owner) ]
                 button [ 
-                    classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
+                    classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
                     OnClick (fun _ -> LotOwnerKindSelected Organization |> dispatch)
                 ] [ str (string Organization) ]
             ]
@@ -195,21 +195,21 @@ let modalContent model dispatch =
 
 let renderModalButtons model dispatch =
     let toTypeSelectionButton =
-        button 
-            [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> OpenLotOwnerTypeSelection |> dispatch) ] 
-            [ str "Selecteer ander type" ]
-
-    let cancelButton =
-        button 
-            [ classes [ Bootstrap.btn; Bootstrap.btnDanger ]; OnClick (fun _ -> Dismiss |> dispatch) ]
-            [ str "Annuleren" ]
+        button [ 
+            classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
+            OnClick (fun _ -> OpenLotOwnerTypeSelection |> dispatch) 
+        ] [
+            i [ classes [ FontAwesome.fa; FontAwesome.faArrowLeft ] ] []
+            str " "
+            str "Selecteer ander type"
+        ]
 
     match model.State with
     | SelectingOrganizations
     | SelectingOwners ->
-        [ toTypeSelectionButton; cancelButton ]
+        [ toTypeSelectionButton ]
     | _ -> 
-        [ cancelButton ]
+        []
 
 
 let view (model: Model) dispatch =
@@ -217,7 +217,7 @@ let view (model: Model) dispatch =
         {| 
             ModalProps = [
                 IsOpen model.IsOpen
-                DisableBackgroundClick true
+                DisableBackgroundClick false
                 OnDismiss (fun _ -> dispatch Dismiss)
                 Header [
                     HeaderProp.HasDismissButton true

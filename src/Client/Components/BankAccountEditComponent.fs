@@ -133,7 +133,7 @@ let view (errors: (string * string) list) (state: State) (dispatch: Msg -> unit)
                             Helpers.valueOrDefault bankAccount.Description
                             OnChange (fun e -> DescriptionChanged (index, e.Value) |> dispatch)
                         ]
-                        FormError (errorFor (nameof bankAccount.Description) index)
+                        FieldError (errorFor (nameof bankAccount.Description) index)
                     ]
                 ]
                 div [ Class Bootstrap.colMd ] [
@@ -152,7 +152,7 @@ let view (errors: (string * string) list) (state: State) (dispatch: Msg -> unit)
                                     yield
                                         button [
                                             Type "button"
-                                            classes [ Bootstrap.btn; Bootstrap.btnSuccess ]
+                                            classes [ Bootstrap.btn; Bootstrap.btnOutlineSuccess ]
                                         ] [ 
                                             i [ classes [ FontAwesome.fa; FontAwesome.faThumbsUp ] ] [] 
                                         ]
@@ -162,7 +162,7 @@ let view (errors: (string * string) list) (state: State) (dispatch: Msg -> unit)
                                         yield
                                             button [ 
                                                 Type "button"
-                                                classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
+                                                classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
                                             ] [
                                                 i [ classes [ FontAwesome.fa; FontAwesome.faSpinner; FontAwesome.faSpin ] ] []
                                             ]
@@ -178,11 +178,12 @@ let view (errors: (string * string) list) (state: State) (dispatch: Msg -> unit)
                                     yield
                                         button [
                                             Type "button"
-                                            classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
+                                            classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
                                             OnClick (fun _ -> ValidateIban (index, bankAccount.IBAN) |> dispatch)
                                         ] [
                                             i [ classes [ FontAwesome.fa; FontAwesome.faSearch ] ] []
-                                            span [] [ str "Valideren" ]
+                                            str " "
+                                            str "Valideren"
                                         ]
                             ]
                         ]
@@ -201,7 +202,7 @@ let view (errors: (string * string) list) (state: State) (dispatch: Msg -> unit)
                             Disabled true
                             Helpers.valueOrDefault bankAccount.BIC
                         ] 
-                        FormError (errorFor (nameof bankAccount.BIC) index)
+                        FieldError (errorFor (nameof bankAccount.BIC) index)
                     ]
                 ]
                 div [ Class Bootstrap.colMd ] [
@@ -223,7 +224,7 @@ let view (errors: (string * string) list) (state: State) (dispatch: Msg -> unit)
             formGroup [
                 OtherChildren [
                     button [ 
-                        classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
+                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
                         OnClick (fun _ -> BankAccountAdded |> dispatch) 
                     ] [ 
                         i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []

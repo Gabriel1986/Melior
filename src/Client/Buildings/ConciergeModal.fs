@@ -154,13 +154,13 @@ let renderConciergeTypeSelection dispatch =
     div [] [
         div [ classes [ Bootstrap.dFlex; Bootstrap.justifyContentCenter; Bootstrap.formInline ] ] [
             label [] [ str "Deze concierge is een..." ]
-            div [ Class Bootstrap.btnGroup ] [
+            div [ classes [ Bootstrap.btnGroup; Bootstrap.ml2 ] ] [
                 button [ 
-                    classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
+                    classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
                     OnClick (fun _ -> ConciergeTypeSelected Owner |> dispatch)
                 ] [ str (string Owner) ]
                 button [ 
-                    classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
+                    classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
                     OnClick (fun _ -> ConciergeTypeSelected NonOwner |> dispatch)
                 ] [ str (string NonOwner) ]
             ]
@@ -201,16 +201,23 @@ let modalContent model dispatch =
 let renderModalButtons model dispatch =
     let toTypeSelectionButton =
         button 
-            [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> OpenConciergeTypeSelection |> dispatch) ] 
-            [ str "Selecteer ander type" ] 
+            [ classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]; OnClick (fun _ -> OpenConciergeTypeSelection |> dispatch) ] 
+            [
+                i [ classes [ FontAwesome.fa; FontAwesome.faArrowLeft ] ] []
+                str " "
+                str "Selecteer ander type" 
+            ] 
 
     match model.State with
     | EditingPerson _ ->
         [ 
             toTypeSelectionButton
             button 
-                [ classes [ Bootstrap.btn; Bootstrap.btnSuccess ]; OnClick (fun _ -> SavePerson |> dispatch) ] 
-                [ str "Bewaar persoon" ] 
+                [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> SavePerson |> dispatch) ] 
+                [ 
+                    i [ classes [ FontAwesome.fa; FontAwesome.faSave ] ] []
+                    str " "
+                    str "Bewaar persoon" ] 
         ]
     | SelectingOwner _ ->
         [ toTypeSelectionButton ]
@@ -223,7 +230,7 @@ let view (model: Model) dispatch =
         {| 
             ModalProps = [
                 IsOpen model.IsOpen
-                DisableBackgroundClick true
+                DisableBackgroundClick false
                 OnDismiss (fun _ -> dispatch Dismiss)
                 Header [
                     HeaderProp.HasDismissButton true
@@ -233,7 +240,6 @@ let view (model: Model) dispatch =
                 ]
                 Footer [
                     yield FooterProp.Buttons (renderModalButtons model dispatch)
-                    yield FooterProp.ShowDismissButton (Some "Annuleren")
                 ]
             ]           
         |}

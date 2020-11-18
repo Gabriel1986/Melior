@@ -185,10 +185,10 @@ let view (model: Model) (dispatch: Msg -> unit) =
             div [] [
                 UserEditComponent.view editState (UserEditMsg >> dispatch)
 
-                div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.mt5 ] ] [
+                div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.mt5; Bootstrap.dInlineBlock ] ] [
                     div [ Class Bootstrap.cardBody ] [
                         button [ 
-                            classes [ Bootstrap.btn; Bootstrap.btnSuccess ]
+                            classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
                             OnClick (fun _ -> Save |> dispatch) 
                         ] [
                             i [ classes [ FontAwesome.fa; FontAwesome.faSave ] ] []
@@ -201,7 +201,7 @@ let view (model: Model) (dispatch: Msg -> unit) =
     | Viewing detail ->
         div [] [
             UserViewComponent.render {| User = detail |}
-            div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.mt5 ] ] [
+            div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.mt5; Bootstrap.dInlineBlock ] ] [
                 div [ Class Bootstrap.cardBody ] [
                     yield
                         button [ 

@@ -203,8 +203,8 @@ type Message =
     | NameChanged of string
     | EmailAddressChanged of string
     | LanguageChanged of string
-    | TwoFacAuthenticationChanged of bool
-    | TwoFacAuthenticationChangedConfirmed of bool
+    | RemoveTwoFactorAuthentication
+    | RemoveTwoFacAuthenticationConfirmed
     | IsSysAdminChanged of bool
     | IsSysAdminChangedConfirmed of bool
     | BuildingsLoaded of BuildingListItem list
@@ -269,20 +269,17 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         changeUser (fun l -> { l with PreferredLanguageCode = x }), Cmd.none
     | NoOp ->
         state, Cmd.none
-    | TwoFacAuthenticationChanged x ->        
+    | RemoveTwoFactorAuthentication ->        
         state, 
-            if x
-            then TwoFacAuthenticationChangedConfirmed x |> Cmd.ofMsg
-            else 
-                showConfirmationModal 
-                    {|
-                        Title = "Deze actie zal de two-factor authentication van de huidige gebruiker afzetten"
-                        Message = "Bent u er zeker van?"
-                        OnConfirmed = fun () -> TwoFacAuthenticationChangedConfirmed x
-                        OnDismissed = fun () -> NoOp
-                    |}
-    | TwoFacAuthenticationChangedConfirmed x ->
-        changeUser (fun l -> { l with UseTwoFac = x }), Cmd.none
+            showConfirmationModal 
+                {|
+                    Title = "Deze actie zal de two-factor authentication van de huidige gebruiker afzetten"
+                    Message = "Bent u er zeker van?"
+                    OnConfirmed = fun () -> RemoveTwoFacAuthenticationConfirmed
+                    OnDismissed = fun () -> NoOp
+                |}
+    | RemoveTwoFacAuthenticationConfirmed ->
+        changeUser (fun l -> { l with UseTwoFac = false }), Cmd.none
     | IsSysAdminChanged x ->
         state, 
             if x 
@@ -349,7 +346,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Helpers.valueOrDefault state.User.EmailAddress
                     OnChange (fun e -> EmailAddressChanged e.Value |> dispatch)
                 ]
-                FormError (errorFor (nameof state.User.EmailAddress))
+                FieldError (errorFor (nameof state.User.EmailAddress))
             ]
             |> inColomn Bootstrap.col4
 
@@ -361,7 +358,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Helpers.valueOrDefault state.User.DisplayName
                     OnChange (fun e -> NameChanged e.Value |> dispatch)
                 ]
-                FormError (errorFor (nameof state.User.EmailAddress))
+                FieldError (errorFor (nameof state.User.EmailAddress))
             ]
             |> inColomn Bootstrap.col4
 
@@ -374,16 +371,19 @@ let view (state: State) (dispatch: Message -> unit) =
                     Helpers.valueOrDefault state.User.PreferredLanguageCode
                     OnChange (fun e -> LanguageChanged e.Value |> dispatch)
                 ]
-                FormError (errorFor (nameof state.User.PreferredLanguageCode))
+                FieldError (errorFor (nameof state.User.PreferredLanguageCode))
             ]
             |> inColomn Bootstrap.col4
         ]
         div [ Class Bootstrap.row ] [
             div [] [
-                if state.User.UseTwoFac then yield button [ OnClick (fun _ -> TwoFacAuthenticationChanged false |> dispatch) ] [ str "Two-factor authenticatie afzetten (GSM verloren, applicatie er af gesmeten, codes verloren, ...)" ]
+                if state.User.UseTwoFac then
+                    yield div [] [ button [ classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]; OnClick (fun _ -> RemoveTwoFactorAuthentication |> dispatch) ] [ str "Two-factor authenticatie afzetten (GSM verloren, applicatie er af gesmeten, codes verloren, ...)" ] ]
                 if state.User.IsSysAdmin ()
-                then yield button [ classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]; OnClick (fun _ -> IsSysAdminChanged false |> dispatch) ] [ str "Systeembeheerder rol afnemen" ]
-                else yield button [ classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]; OnClick (fun _ -> IsSysAdminChanged true |> dispatch) ] [ str "Systeembeheerder rol toekennen" ]
+                then 
+                    yield div [] [ button [ classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger; Bootstrap.mt2 ]; OnClick (fun _ -> IsSysAdminChanged false |> dispatch) ] [ str "Systeembeheerder rol afnemen" ] ]
+                else 
+                    yield div [] [ button [ classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger; Bootstrap.mt2 ]; OnClick (fun _ -> IsSysAdminChanged true |> dispatch) ] [ str "Systeembeheerder rol toekennen" ] ]
             ]
             |> inColomn Bootstrap.col
         ]

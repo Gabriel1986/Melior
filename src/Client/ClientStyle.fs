@@ -20,6 +20,17 @@ module Helpers =
     open Fable.React.Props
 
     let classes (classList: string list) = Class (String.Join(" ", classList))
+
+    type InputGroupProp =
+        | Label of string
+        | Input of IHTMLProp seq
+        | InputPrepend of IHTMLProp seq
+        | InputAppend of IHTMLProp seq
+        | InputError of string option
+
+    let inputGroup (props: InputGroupProp list) =
+        //TODO!
+        div [] []
     
     type FormGroupProp =
         | Name of string
@@ -30,7 +41,7 @@ module Helpers =
         | Radio of FormRadio
         | Date of Flatpickr.IFlatpickrOption list
         | OtherChildren of ReactElement seq
-        | FormError of string option
+        | FieldError of string option
     and FormSelect = {
         Identifier: string
         OnChanged: string -> unit
@@ -112,7 +123,7 @@ module Helpers =
         let radioProps = props |> List.tryPick (function | Radio x -> Some x | _ -> None)
         let dateProps = props |> List.tryPick (function | Date x -> Some x | _ -> None)
         let otherChildren = props |> List.tryPick (function | OtherChildren x -> Some x | _ -> None)
-        let error = props |> List.tryPick (function | FormError e -> e | _ -> None)
+        let error = props |> List.tryPick (function | FieldError e -> e | _ -> None)
 
         let theName = name |> Option.orElse lbl |> Option.defaultValue ""
 

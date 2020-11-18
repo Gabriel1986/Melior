@@ -329,6 +329,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     |> (fun (state, cmd) -> state |> recalculateValidationErrors, cmd)
 
 let inColumn x = div [ Class Bootstrap.col ] [ x ]
+let inColumn' colClass x = div [ Class colClass ] [ x ]
 
 let view (state: State) (dispatch: Message -> unit) =
     let errorFor (path: string) =
@@ -346,18 +347,6 @@ let view (state: State) (dispatch: Message -> unit) =
         IsSelected = state.Invoice.FinancialYear = Some financialYear
     }
 
-    let organizationBankAccountToOption (account: BankAccount): FormSelectOption = {
-        Key = account.Description
-        Label =
-            [ 
-                account.Description
-                account.IBAN 
-            ] 
-            |> List.filter (String.IsNullOrEmpty >> not) 
-            |> String.joinWith " - "
-        IsSelected = state.Invoice.OrganizationBankAccount = Some account
-    }
-
     let vatRateSelection: FormSelect = {
         Identifier = "vatRate"
         OnChanged = (fun e -> VatRateChanged (int (e.TrimEnd('%'))) |> dispatch)
@@ -372,10 +361,6 @@ let view (state: State) (dispatch: Message -> unit) =
         Options = state.FinancialYears |> List.map financialYearToOption
     }
 
-    let parseAccount (s: string, accounts: BankAccount list): BankAccount option =
-        accounts
-        |> List.tryFind (fun account -> account.BIC = s)
-
     let organizationBankAccountSelection: FormSelect = 
         let possibleBankAccounts = 
             match state.SelectedOrganization with
@@ -384,10 +369,22 @@ let view (state: State) (dispatch: Message -> unit) =
             | None ->
                 []
 
+        let organizationBankAccountToOption (index: int) (account: BankAccount): FormSelectOption = {
+            Key = string index
+            Label =
+                [ 
+                    account.Description
+                    account.IBAN 
+                ] 
+                |> List.filter (String.IsNullOrEmpty >> not) 
+                |> String.joinWith " - "
+            IsSelected = state.Invoice.OrganizationBankAccount = Some account
+        }
+
         {
             Identifier = "toAccount"
-            OnChanged = (fun e -> OrganizationBankAccountChanged (parseAccount (e, possibleBankAccounts)) |> dispatch)
-            Options = possibleBankAccounts |> List.map organizationBankAccountToOption
+            OnChanged = (fun e -> OrganizationBankAccountChanged (possibleBankAccounts |> List.indexed |> List.tryPick (fun (index, bankAccount) -> if (string index) = e then Some bankAccount else None)) |> dispatch)
+            Options = possibleBankAccounts |> List.mapi organizationBankAccountToOption
         }
 
     let calculateVat (cost: string option) (vatRate: int) = 
@@ -399,96 +396,93 @@ let view (state: State) (dispatch: Message -> unit) =
         | None ->
             0 |> decimal
 
-    let renderFinancialCategoryModal =
-        FunctionComponent.Of((fun (props: {| SelectedCategoryCode: string option; FinancialCategories: FinancialCategory list; Showing: bool |}) ->
-            BasicModal.render 
-                {| 
-                    ModalProps = [
-                        IsOpen props.Showing
-                        DisableBackgroundClick false
-                        OnDismiss (fun _ -> dispatch CancelChangeFinancialCategory)
-                        Header [
-                            HeaderProp.Title "Boekhoudkundige rekening selecteren"
-                            HeaderProp.HasDismissButton true
-                        ]
-                        Body [
-                            SelectionList.render (
-                                {|
-                                    SelectionMode = SelectionMode.SingleSelect
-                                    //Only financial categories starting with 6 should be shown.
-                                    AllItems = props.FinancialCategories |> List.filter (fun cat -> cat.Code.StartsWith("6")) |> List.sortBy (fun cat -> cat.Code)
-                                    SelectedItems = 
-                                        match props.SelectedCategoryCode with
-                                        | Some selected -> props.FinancialCategories |> List.filter (fun cat -> cat.Code = selected)
-                                        | None -> []
-                                    OnSelectionChanged = fun selection -> Message.CategoryChanged (selection |> List.tryHead) |> dispatch
-                                    ListItemToString = (fun financialCategory -> sprintf "%s - %s" financialCategory.Code financialCategory.Description)
-                                |}, "FinancialCategorySelectionList")
-                        ]
-                        Footer [
-                            //yield FooterProp.Buttons []
-                        ]
-                    ]           
-                |}), "FinancialCategoryModal", equalsButFunctions)
-
-    let renderDistributionKeyModal =
-        FunctionComponent.Of((fun (props: {| SelectedDistributionKey: DistributionKeyListItem option; AllDistributionKeys: DistributionKeyListItem list; Showing: bool |}) ->
-            BasicModal.render 
-                {| 
-                    ModalProps = [
-                        IsOpen props.Showing
-                        DisableBackgroundClick false
-                        OnDismiss (fun _ -> dispatch CancelChangeDistributionKey)
-                        Header [
-                            HeaderProp.Title "Verdeelsleutel selecteren"
-                            HeaderProp.HasDismissButton true
-                        ]
-                        Body [
-                            SelectionList.render (
-                                {|
-                                    SelectionMode = SelectionMode.SingleSelect
-                                    AllItems = props.AllDistributionKeys |> List.sortBy (fun cat -> cat.Name)
-                                    SelectedItems = [ props.SelectedDistributionKey ] |> List.choose id
-                                    OnSelectionChanged = fun selection -> Message.DistributionKeyChanged (selection |> List.tryHead) |> dispatch
-                                    ListItemToString = fun dKey -> dKey.Name
-                                |}, "DistributionKeySelectionList")
-                        ]
-                        Footer [
-                            //yield FooterProp.Buttons []
-                        ]
+    let renderFinancialCategoryModal (props: {| SelectedCategoryCode: string option; FinancialCategories: FinancialCategory list; Showing: bool |}) =
+        BasicModal.render 
+            {| 
+                ModalProps = [
+                    IsOpen props.Showing
+                    DisableBackgroundClick false
+                    OnDismiss (fun _ -> dispatch CancelChangeFinancialCategory)
+                    Header [
+                        HeaderProp.Title "Boekhoudkundige rekening selecteren"
+                        HeaderProp.HasDismissButton true
                     ]
-                |}), "DistributionKeyModal", equalsButFunctions)
-
-    let renderOrganizationModal =
-        FunctionComponent.Of((fun (props: {| SelectedOrganizationId: Guid option; AllOrganizations: OrganizationListItem list; Showing: bool |}) ->
-            BasicModal.render 
-                {| 
-                    ModalProps = [
-                        IsOpen props.Showing
-                        DisableBackgroundClick false
-                        OnDismiss (fun _ -> dispatch CancelChangeOrganization)
-                        Header [
-                            HeaderProp.Title "Leverancier selecteren"
-                            HeaderProp.HasDismissButton true
-                        ]
-                        Body [
-                            SelectionList.render (
-                                {|
-                                    SelectionMode = SelectionMode.SingleSelect
-                                    AllItems = props.AllOrganizations |> List.sortBy (fun cat -> cat.Name)
-                                    SelectedItems = 
-                                        match props.SelectedOrganizationId with
-                                        | Some selected -> props.AllOrganizations |> List.filter (fun org -> org.OrganizationId = selected)
-                                        | None -> []
-                                    OnSelectionChanged = fun selection -> Message.OrganizationChanged (selection |> List.tryHead) |> dispatch
-                                    ListItemToString = fun dKey -> dKey.Name
-                                |}, "OrganizationSelectionList")
-                        ]
-                        Footer [
-                            //yield FooterProp.Buttons []
-                        ]
+                    Body [
+                        SelectionList.render (
+                            {|
+                                SelectionMode = SelectionMode.SingleSelect
+                                //Only financial categories starting with 6 should be shown.
+                                AllItems = props.FinancialCategories |> List.filter (fun cat -> cat.Code.StartsWith("6")) |> List.sortBy (fun cat -> cat.Code)
+                                SelectedItems = 
+                                    match props.SelectedCategoryCode with
+                                    | Some selected -> props.FinancialCategories |> List.filter (fun cat -> cat.Code = selected)
+                                    | None -> []
+                                OnSelectionChanged = fun selection -> Message.CategoryChanged (selection |> List.tryHead) |> dispatch
+                                ListItemToString = (fun financialCategory -> sprintf "%s - %s" financialCategory.Code financialCategory.Description)
+                            |}, "FinancialCategorySelectionList")
                     ]
-                |}), "OrganizationModal", equalsButFunctions)
+                    Footer [
+                        //yield FooterProp.Buttons []
+                    ]
+                ]
+            |}
+
+    let renderDistributionKeyModal (props: {| SelectedDistributionKey: DistributionKeyListItem option; AllDistributionKeys: DistributionKeyListItem list; Showing: bool |}) =
+        BasicModal.render
+            {| 
+                ModalProps = [
+                    IsOpen props.Showing
+                    DisableBackgroundClick false
+                    OnDismiss (fun _ -> dispatch CancelChangeDistributionKey)
+                    Header [
+                        HeaderProp.Title "Verdeelsleutel selecteren"
+                        HeaderProp.HasDismissButton true
+                    ]
+                    Body [
+                        SelectionList.render (
+                            {|
+                                SelectionMode = SelectionMode.SingleSelect
+                                AllItems = props.AllDistributionKeys |> List.sortBy (fun cat -> cat.Name)
+                                SelectedItems = [ props.SelectedDistributionKey ] |> List.choose id
+                                OnSelectionChanged = fun selection -> Message.DistributionKeyChanged (selection |> List.tryHead) |> dispatch
+                                ListItemToString = fun dKey -> dKey.Name
+                            |}, "DistributionKeySelectionList")
+                    ]
+                    Footer [
+                        //yield FooterProp.Buttons []
+                    ]
+                ]
+            |}
+
+    let renderOrganizationModal (props: {| SelectedOrganizationId: Guid option; AllOrganizations: OrganizationListItem list; Showing: bool |}) =
+        BasicModal.render 
+            {| 
+                ModalProps = [
+                    IsOpen props.Showing
+                    DisableBackgroundClick false
+                    OnDismiss (fun _ -> dispatch CancelChangeOrganization)
+                    Header [
+                        HeaderProp.Title "Leverancier selecteren"
+                        HeaderProp.HasDismissButton true
+                    ]
+                    Body [
+                        SelectionList.render (
+                            {|
+                                SelectionMode = SelectionMode.SingleSelect
+                                AllItems = props.AllOrganizations |> List.sortBy (fun cat -> cat.Name)
+                                SelectedItems = 
+                                    match props.SelectedOrganizationId with
+                                    | Some selected -> props.AllOrganizations |> List.filter (fun org -> org.OrganizationId = selected)
+                                    | None -> []
+                                OnSelectionChanged = fun selection -> OrganizationChanged (selection |> List.tryHead) |> dispatch
+                                ListItemToString = fun dKey -> dKey.Name
+                            |}, "OrganizationSelectionList")
+                    ]
+                    Footer [
+                        //yield FooterProp.Buttons []
+                    ]
+                ]
+            |}
 
     let renderPaymentModal (isOpen: {| Showing: bool |}) =
         BasicModal.render 
@@ -514,7 +508,7 @@ let view (state: State) (dispatch: Message -> unit) =
             formGroup [ 
                 Label "Boekjaar"
                 Select financialYearSelection
-                FormError (errorFor (nameof state.Invoice.FinancialYear))
+                FieldError (errorFor (nameof state.Invoice.FinancialYear))
             ]
             |> inColumn
 
@@ -528,7 +522,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Flatpickr.Locale Flatpickr.Locales.dutch
                     Flatpickr.DateFormat "d/m/Y"
                 ]
-                FormError (errorFor (nameof state.Invoice.BookingDate))
+                FieldError (errorFor (nameof state.Invoice.BookingDate))
             ]
             |> inColumn
 
@@ -549,19 +543,42 @@ let view (state: State) (dispatch: Message -> unit) =
             ]
             |> inColumn
         ]
-        div [ Class Bootstrap.row ] [
-            formGroup [
-                Label "Leverancier"
-                Input [
-                    Type "text"
-                    Style [ Cursor "pointer"; BackgroundColor "unset" ]
-                    ReadOnly true
-                    OnClick (fun _ -> ChangeOrganization |> dispatch)
-                    valueOrDefault (state.Invoice.Organization |> Option.map (fun o -> o.Name))
+        div [ Class Bootstrap.row ] [            
+            div [ Class Bootstrap.formGroup ] [
+                let error = errorFor (nameof state.Invoice.Organization)
+                label [] [ str "Leverancier" ]
+                div [ Class Bootstrap.inputGroup; OnClick (fun _ -> dispatch ChangeOrganization) ] [
+                    input [
+                        Type "text"
+                        ReadOnly true
+                        Style [ BackgroundColor "unset"; Cursor "pointer" ]
+                        classes [ Bootstrap.formControl; if error.IsSome then Bootstrap.isInvalid ]
+                        Helpers.valueOrDefault (state.Invoice.Organization |> Option.map (fun o -> o.Name))
+                    ]
+                    div [ Class Bootstrap.inputGroupAppend ] [
+                        button [ classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]  ] [
+                            span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
+                        ]
+                    ]
+                    match error with
+                    | Some error -> div [ Class Bootstrap.invalidFeedback ] [ str error ]
+                    | None -> null
                 ]
-                FormError (errorFor (nameof state.Invoice.Organization))
             ]
             |> inColumn
+
+            //formGroup [
+            //    Label "Leverancier"
+            //    InputWithIcon ([ FontAwesome.fas; FontAwesome.faSearch ], [
+            //        Type "text"
+            //        Style [ Cursor "pointer"; BackgroundColor "unset" ]
+            //        ReadOnly true
+            //        OnClick (fun _ -> ChangeOrganization |> dispatch)
+            //        valueOrDefault 
+            //    ])
+            //    FieldError ()
+            //]
+            //|> inColumn
 
             match state.Invoice.Organization |> Option.map (fun o -> o.VatNumber), state.Invoice.Organization |> Option.map (fun o -> o.OrganizationNumber) with
             | Some vatNumber, _ ->               
@@ -602,10 +619,9 @@ let view (state: State) (dispatch: Message -> unit) =
                     OnChange (fun e -> ExternalInvoiceNumberChanged e.Value |> dispatch)
                     valueOrDefault (state.Invoice.OrganizationInvoiceNumber)
                 ]
-                FormError (errorFor (nameof state.Invoice.InvoiceNumber))
+                FieldError (errorFor (nameof state.Invoice.InvoiceNumber))
             ]
             |> inColumn
-
             formGroup [
                 Label "Factuurdatum"
                 Date [
@@ -616,10 +632,9 @@ let view (state: State) (dispatch: Message -> unit) =
                     Flatpickr.Locale Flatpickr.Locales.dutch
                     Flatpickr.DateFormat "d/m/Y"
                 ]
-                FormError (errorFor (nameof state.Invoice.InvoiceDate))
+                FieldError (errorFor (nameof state.Invoice.InvoiceDate))
             ]
             |> inColumn
-
             formGroup [
                 Label "Uiterste betaaldatum"
                 Date [
@@ -641,17 +656,15 @@ let view (state: State) (dispatch: Message -> unit) =
                     OnChange (fun e -> CostChanged e.Value |> dispatch)
                     valueOrDefault (state.Invoice.Cost)
                 ]
-                FormError (errorFor (nameof state.Invoice.Cost))
+                FieldError (errorFor (nameof state.Invoice.Cost))
             ]
             |> inColumn
-
             formGroup [
                 Label "BTW tarief"
                 Select vatRateSelection
-                FormError (errorFor (nameof state.Invoice.VatRate))
+                FieldError (errorFor (nameof state.Invoice.VatRate))
             ]
             |> inColumn
-
             formGroup [
                 Label "BTW totaal"
                 Input [
@@ -683,9 +696,9 @@ let view (state: State) (dispatch: Message -> unit) =
                     Select organizationBankAccountSelection
                 | None ->
                     OtherChildren [ div [] [ span [ Class Bootstrap.formControl ] [ str "Gelieve eerst een leverancier te selecteren" ] ] ]
-                FormError (errorFor (nameof state.Invoice.OrganizationBankAccount))
+                FieldError (errorFor (nameof state.Invoice.OrganizationBankAccount))
             ]
-            |> inColumn
+            |> inColumn' Bootstrap.col5
 
             let noOrgFound = state.Invoice.Organization.IsNone
             let orgBankAccountSelected = 
@@ -701,10 +714,9 @@ let view (state: State) (dispatch: Message -> unit) =
                     Disabled (noOrgFound || orgBankAccountSelected)
                     valueOrDefault (state.Invoice.OrganizationBankAccount |> Option.map (fun account -> account.IBAN))
                 ]
-                FormError (errorFor (nameof state.Invoice.OrganizationBankAccount))
+                FieldError (errorFor (nameof state.Invoice.OrganizationBankAccount))
             ]
             |> inColumn
-
             formGroup [
                 Label "BIC"
                 Input [
@@ -713,10 +725,9 @@ let view (state: State) (dispatch: Message -> unit) =
                     Disabled (noOrgFound || orgBankAccountSelected)
                     valueOrDefault (state.Invoice.OrganizationBankAccount |> Option.map (fun account -> account.BIC))
                 ]
-                FormError (errorFor (nameof state.Invoice.OrganizationBankAccount))
+                FieldError (errorFor (nameof state.Invoice.OrganizationBankAccount))
             ]
-            |> inColumn
-        ]
+            |> inColumn        ]
 
         div [] [
             filePond 
@@ -744,18 +755,18 @@ let view (state: State) (dispatch: Message -> unit) =
                 |}
         ]
 
-        div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
-            div [ Class Bootstrap.cardBody ] [
-                button [ 
-                    classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
-                    OnClick (fun _ -> AddPayment |> dispatch)
-                ][
-                    i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
-                    str " "
-                    str "Betaling toevoegen"
-                ]
-            ]
-        ]
+        //div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
+        //    div [ Class Bootstrap.cardBody ] [
+        //        button [ 
+        //            classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
+        //            OnClick (fun _ -> AddPayment |> dispatch)
+        //        ][
+        //            i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+        //            str " "
+        //            str "Betaling toevoegen"
+        //        ]
+        //    ]
+        //]
 
 
         renderFinancialCategoryModal 

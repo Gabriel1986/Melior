@@ -303,7 +303,7 @@ let private renderOtherAddresses (state: State) dispatch =
         yield 
             formGroup [
                 OtherChildren [
-                    button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> OtherAddressAdded |> dispatch) ] [
+                    button [ classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]; OnClick (fun _ -> OtherAddressAdded |> dispatch) ] [
                         i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
                         str " "
                         str "Ander adres toevoegen"
@@ -397,7 +397,7 @@ let private renderOtherContactMethods (otherContactMethods: ContactMethod list) 
         yield
             formGroup [
                 OtherChildren [
-                    button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> OtherContactMethodAdded |> dispatch) ] [
+                    button [ classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]; OnClick (fun _ -> OtherContactMethodAdded |> dispatch) ] [
                         i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
                         str " "
                         str "Ander contactmiddel toevoegen"
@@ -421,7 +421,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
                 OnChange (fun e -> FirstNameChanged e.Value |> dispatch)
                 Required true
             ]
-            FormError (errorFor (nameof state.Person.FirstName))
+            FieldError (errorFor (nameof state.Person.FirstName))
         ]
         yield formGroup [ 
             Label "Achternaam"
@@ -432,7 +432,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
                 OnChange (fun e -> LastNameChanged e.Value |> dispatch)
                 Required true
             ]
-            FormError (errorFor (nameof state.Person.LastName))
+            FieldError (errorFor (nameof state.Person.LastName))
         ]
         yield formGroup [ 
             Label "Taal"
@@ -440,7 +440,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
                 Inline = true
                 RadioButtons = languageOptions dispatch state.Person.LanguageCode 
             }
-            FormError (errorFor (nameof state.Person.LanguageCode))
+            FieldError (errorFor (nameof state.Person.LanguageCode))
         ]
         yield formGroup [ 
             Label "Geslacht"
@@ -457,7 +457,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
                 Helpers.valueOrDefault state.Person.Title
                 OnChange (fun e -> TitleChanged e.Value |> dispatch)
             ]
-            FormError (errorFor (nameof state.Person.Title))
+            FieldError (errorFor (nameof state.Person.Title))
         ]
         if props.ShowAddresses then
             yield! [
@@ -473,7 +473,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
                 Helpers.valueOrDefault state.Person.MainTelephoneNumber
                 OnChange (fun e -> MainTelephoneNumberChanged e.Value |> dispatch)
             ]
-            FormError (errorFor (nameof state.Person.MainTelephoneNumber))
+            FieldError (errorFor (nameof state.Person.MainTelephoneNumber))
         ]
         yield formGroup [ 
             Label "Tel. commentaar"
@@ -483,7 +483,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
                 Helpers.valueOrDefault state.Person.MainTelephoneNumberComment
                 OnChange (fun e -> MainTelephoneNumberCommentChanged e.Value |> dispatch)
             ] 
-            FormError (errorFor (nameof state.Person.MainTelephoneNumberComment))
+            FieldError (errorFor (nameof state.Person.MainTelephoneNumberComment))
         ]
         yield formGroup [ 
             Label "E-mail"
@@ -493,7 +493,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
                 Helpers.valueOrDefault state.Person.MainEmailAddress
                 OnChange (fun e -> MainEmailAddressChanged e.Value |> dispatch)
             ]
-            FormError (errorFor (nameof state.Person.MainEmailAddress))
+            FieldError (errorFor (nameof state.Person.MainEmailAddress))
         ]
         yield formGroup [ 
             Label "E-mail commentaar"
@@ -503,7 +503,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
                 Helpers.valueOrDefault state.Person.MainEmailAddressComment
                 OnChange (fun e -> MainEmailAddressCommentChanged e.Value |> dispatch)
             ]
-            FormError (errorFor (nameof state.Person.MainEmailAddressComment))
+            FieldError (errorFor (nameof state.Person.MainEmailAddressComment))
         ]
         yield! renderOtherContactMethods state.Person.OtherContactMethods dispatch
         if props.ShowBankAccounts then 

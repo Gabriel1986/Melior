@@ -409,10 +409,10 @@ let view (state: State) (dispatch: Msg -> unit) =
                 ]
                 //TODO: add ability to have multiple financial years
                 if shownFinancialYears.Length = 0 then
-                    div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+                    div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
                         div [ Class Bootstrap.cardBody ] [
                             button [
-                                classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
+                                classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
                                 OnClick (fun _ -> OpenCreateFinancialYear |> dispatch)
                             ] [
                                 i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []

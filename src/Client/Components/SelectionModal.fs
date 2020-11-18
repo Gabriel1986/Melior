@@ -74,14 +74,14 @@ module SelectionList =
 
             let renderItem item =
                 let isSelected = model.SelectedItems |> List.contains item
-                let style = [
-                    Bootstrap.listGroupItem
-                    Bootstrap.listGroupItemAction
-                    "pointer"
-                ]
-                let style' = if isSelected then Bootstrap.active::style else style
-                a [ 
-                    classes style'
+                a [
+                    classes [
+                        Bootstrap.listGroupItem
+                        Bootstrap.listGroupItemAction
+                        "pointer"
+                        if isSelected then
+                            Bootstrap.listGroupItemSecondary
+                    ]
                     OnClick (fun _ -> ToggleItemSelection item |> dispatch)
                 ] [
                     str (model.ListItemToString item)

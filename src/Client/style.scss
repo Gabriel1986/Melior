@@ -125,10 +125,35 @@ header {
     position: fixed;
     left: 0;
     width: 180px;
-    height: calc(100vh - 40px); 
+    height: calc(100vh - 40px);
     transition: 0.5s;
     transition-property: left;
     overflow-y: auto;
+
+    .nav-link {
+        transition: 0.5s;
+        transition-property: font-size padding;
+
+        &:hover {
+            font-size: 18px;
+            padding-left: 5px;
+        }
+
+        &.active {
+            color: rgb(84, 176, 55) !important;
+            font-size: 18px;
+            font-weight: 500;
+            padding-left: 5px;
+        }
+    }
+}
+
+.list-group-item-secondary {
+    font-weight: 500;
+}
+
+.table-active {
+    font-weight: 500;
 }
 
 .melior-content {
@@ -145,12 +170,6 @@ header {
 
 #melior-sidebar-toggle:checked ~ .melior-content {
     margin-left: 10px;
-}
-
-.table-primary {
-    td {
-        vertical-align: middle;
-    }
 }
 
 .form-control.flatpickr-input {

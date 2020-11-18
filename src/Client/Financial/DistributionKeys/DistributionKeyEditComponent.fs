@@ -83,7 +83,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Helpers.valueOrDefault state.DistributionKey.Name
                     OnChange (fun e -> NameChanged e.Value |> dispatch)
                 ] 
-                FormError (errorFor (nameof state.DistributionKey.Name))
+                FieldError (errorFor (nameof state.DistributionKey.Name))
             ]
             |> inColomn
             formGroup [ 

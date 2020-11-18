@@ -249,7 +249,7 @@ let view (state: State) (dispatch: Message -> unit) =
                             Helpers.valueOrDefault state.Building.Name
                             OnChange (fun e -> NameChanged e.Value |> dispatch)
                         ] 
-                        FormError (errorFor (nameof state.Building.Name))
+                        FieldError (errorFor (nameof state.Building.Name))
                     ]
                     |> inColumn
                     formGroup [ 
@@ -260,7 +260,7 @@ let view (state: State) (dispatch: Message -> unit) =
                             Helpers.valueOrDefault state.Building.Code
                             OnChange (fun e -> CodeChanged e.Value |> dispatch)
                         ] 
-                        FormError (errorFor (nameof state.Building.Code))
+                        FieldError (errorFor (nameof state.Building.Code))
                     ]
                     |> inColumn
                     formGroup [
@@ -274,7 +274,7 @@ let view (state: State) (dispatch: Message -> unit) =
                             Helpers.valueOrDefault state.Building.OrganizationNumber
                             OnChange (fun e -> OrganizationNumberChanged e.Value |> dispatch)
                         ] 
-                        FormError (errorFor (nameof state.Building.OrganizationNumber))
+                        FieldError (errorFor (nameof state.Building.OrganizationNumber))
                     ]
                 ]
                 AddressEditComponent.render 
@@ -294,7 +294,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     OnChange (fun e -> YearOfConstructionChanged e.Value |> dispatch)
                     Style [ Width "120px" ]
                 ]
-                FormError (errorFor (nameof state.Building.YearOfConstruction))
+                FieldError (errorFor (nameof state.Building.YearOfConstruction))
             ]
 
             div [ Style [ MarginLeft "15px" ] ] [
@@ -306,7 +306,7 @@ let view (state: State) (dispatch: Message -> unit) =
                         OnChange (fun e -> YearOfDeliveryChanged e.Value |> dispatch)
                         Style [ Width "120px" ]
                     ]
-                    FormError (errorFor (nameof state.Building.YearOfDelivery))
+                    FieldError (errorFor (nameof state.Building.YearOfDelivery))
                 ]
             ]
         ]

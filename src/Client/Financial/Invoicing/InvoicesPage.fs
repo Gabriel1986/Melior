@@ -333,7 +333,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
 
 let private leftChevronBtn (onClick: unit -> unit) =
     button [
-        classes [ Bootstrap.btn; Bootstrap.btnPrimary; Bootstrap.btnSm; Bootstrap.floatLeft ]
+        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm; Bootstrap.floatLeft ]
         OnClick (fun _ -> onClick ())
     ] [
         i [ classes [ FontAwesome.fa; FontAwesome.faChevronLeft ] ] []
@@ -341,7 +341,7 @@ let private leftChevronBtn (onClick: unit -> unit) =
 
 let private rightChevronBtn (onClick: unit -> unit) =
     button [
-        classes [ Bootstrap.btn; Bootstrap.btnPrimary; Bootstrap.btnSm; Bootstrap.floatRight ]
+        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm; Bootstrap.floatRight ]
         OnClick (fun _ -> onClick ())
     ] [
         i [ classes [ FontAwesome.fa; FontAwesome.faChevronRight ] ] []
@@ -397,7 +397,10 @@ let private renderPeriodFilter (state: State) (dispatch: Msg -> unit): ReactElem
                         match matchingIndex with
                         | 0 -> null
                         | _ -> leftChevronBtn (fun _ -> InvoiceFilterPeriodChanged (FinancialYear (state.FinancialYears.[matchingIndex-1].FinancialYearId)) |> dispatch)
-                        span [ Class Bootstrap.cardText; OnClick (fun _ -> InvoiceFilterPeriodTypeChanged FinancialYearType |> dispatch) ] [ str matchingFinancialYear.Code ]
+                        span [ 
+                            classes [ Bootstrap.cardText; "pointer" ]
+                            OnClick (fun _ -> InvoiceFilterPeriodTypeChanged FinancialYearType |> dispatch) 
+                        ] [ str matchingFinancialYear.Code ]
                         match matchingIndex with
                         | x when x = (state.FinancialYears.Length - 1) -> null
                         | _ -> rightChevronBtn (fun _ -> InvoiceFilterPeriodChanged (FinancialYear (state.FinancialYears.[matchingIndex+1].FinancialYearId)) |> dispatch)
@@ -406,7 +409,7 @@ let private renderPeriodFilter (state: State) (dispatch: Msg -> unit): ReactElem
                     div [ Style [ Width "200px" ]; Class Bootstrap.dInlineBlock ] [
                         leftChevronBtn (fun _ -> InvoiceFilterPeriodChanged (Year (year-1)) |> dispatch)
                         span [ 
-                            Class Bootstrap.cardText
+                            classes [ Bootstrap.cardText; "pointer" ]
                             OnClick (fun _ -> InvoiceFilterPeriodChanged (Year today.Year) |> dispatch) 
                         ] [ str (string year) ]
                         rightChevronBtn (fun _ -> InvoiceFilterPeriodChanged (Year (year+1)) |> dispatch)
@@ -415,7 +418,7 @@ let private renderPeriodFilter (state: State) (dispatch: Msg -> unit): ReactElem
                     div [ Style [ Width "200px" ]; classes [ Bootstrap.dInlineBlock ] ] [
                         leftChevronBtn (fun _ -> InvoiceFilterPeriodChanged (Month ((if month = 1 then 12 else month-1), year)) |> dispatch)
                         span [
-                            Class Bootstrap.cardText
+                            classes [ Bootstrap.cardText; "pointer" ]
                             OnClick (fun _ -> 
                                 InvoiceFilterPeriodChanged (InvoiceFilterPeriod.Month (today.Month, year))
                                 |> dispatch) 
@@ -425,7 +428,7 @@ let private renderPeriodFilter (state: State) (dispatch: Msg -> unit): ReactElem
                     div [ Style [ Width "200px" ]; classes [ Bootstrap.dInlineBlock; Bootstrap.ml1 ] ] [
                         leftChevronBtn (fun _ -> InvoiceFilterPeriodChanged (Month (month, year-1)) |> dispatch)
                         span [ 
-                            Class Bootstrap.cardText
+                            classes [ Bootstrap.cardText; "pointer" ]
                             OnClick (fun _ ->
                                 InvoiceFilterPeriodChanged (InvoiceFilterPeriod.Month (month, today.Year))
                                 |> dispatch) 

@@ -465,6 +465,7 @@ type ValidatedUser =
         EmailAddress: String255
         DisplayName: String255
         PreferredLanguageCode: String16
+        UseTwoFac: bool
         Roles: Role list
     }
     static member Validate (user: User) =
@@ -477,6 +478,7 @@ type ValidatedUser =
                 EmailAddress = emailAddress
                 DisplayName = displayName
                 PreferredLanguageCode = languageCode
+                UseTwoFac = user.UseTwoFac
                 Roles = user.Roles
             }
         }

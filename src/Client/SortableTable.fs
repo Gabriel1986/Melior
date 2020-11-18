@@ -156,7 +156,7 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
                     div [ Class Bootstrap.formCheck ] [
                         button [
                             Type "button"
-                            classes [ Bootstrap.btn; Bootstrap.btnSm; if state.IsSelected.Value (li) then Bootstrap.btnPrimary else Bootstrap.btnLight ]
+                            classes [ Bootstrap.btn; Bootstrap.btnSm; if state.IsSelected.Value (li) then Bootstrap.btnPrimary else Bootstrap.btnOutlinePrimary ]
                             OnClick (fun e -> e.preventDefault(); e.stopPropagation(); state.OnSelect.Value li)
                         ] [
                             str (if state.IsSelected.Value (li) then "Geselecteerd" else "Selecteren")
@@ -174,7 +174,7 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
                 td [ Style [ Width "30px" ] ] [
                     if (not state.IsDeletable.IsSome || state.IsDeletable.Value(li)) then
                         button [
-                            classes [ Bootstrap.btn; Bootstrap.btnSm; Bootstrap.btnDanger ]
+                            classes [ Bootstrap.btn; Bootstrap.btnSm; Bootstrap.btnOutlineDanger ]
                             OnClick (fun e -> e.preventDefault(); e.stopPropagation(); state.OnDelete.Value (li)) 
                         ] [
                             str "Verwijderen"
@@ -230,7 +230,7 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
                     then yield! [ OnClick (fun _ -> state.OnSelect.Value li) :> IHTMLProp; Style [ Cursor "pointer" ] :> IHTMLProp ]
                     
                     if (state.IsSelected.IsSome && state.IsSelected.Value li) 
-                    then yield (Class Bootstrap.tablePrimary)
+                    then yield (Class Bootstrap.tableActive)
                 ] [
                     yield! (state.DisplayAttributes |> List.map (fun attr -> td [] [ attr.ReactElementFor li ]))
                     yield! [ selectedColumn li; deleteColumn li ]

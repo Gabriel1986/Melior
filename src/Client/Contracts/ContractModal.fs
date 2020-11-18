@@ -136,7 +136,7 @@ let renderContractEditView (contract: Contract) dispatch =
                     input [ classes [ Bootstrap.formControl; "pointer" ]; Helpers.valueOrDefault orgName; ]
                     div [ Class Bootstrap.inputGroupAppend ] [
                         button [ classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]  ] [
-                            span [ classes [ FontAwesome.fas; FontAwesome.faLink ] ] []
+                            span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
                         ]
                     ]
                 ]
@@ -203,19 +203,29 @@ let modalContent model dispatch =
 
 let renderModalButtons model dispatch =
     let closeButton =
-        button 
-            [ classes [ Bootstrap.btn; Bootstrap.btnDanger ]; OnClick (fun _ -> dispatch CloseModal) ]
-            [ str "Annuleren" ]
+        button [ 
+            classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]; OnClick (fun _ -> dispatch CloseModal) 
+        ] [
+            str "Annuleren" 
+        ]
 
     let saveButton =
-        button
-            [ classes [ Bootstrap.btn; Bootstrap.btnSuccess ]; OnClick (fun _ -> dispatch SaveModal) ]
-            [ str "Bewaren" ]
+        button [ 
+            classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
+            OnClick (fun _ -> dispatch SaveModal) 
+        ] [
+            i [ classes [ FontAwesome.fa; FontAwesome.faSave ] ] []
+            str " "
+            str "Bewaren"
+        ]
 
     let cancelButton =
-        button 
-            [ classes [ Bootstrap.btn; Bootstrap.btnDanger ]; OnClick (fun _ -> dispatch CancelSelectOrganization) ]
-            [ str "Annuleren" ]
+        button [ 
+            classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]
+            OnClick (fun _ -> dispatch CancelSelectOrganization) 
+        ] [ 
+            str "Annuleren" 
+        ]
 
     match model.State with
     | EditingContract ->

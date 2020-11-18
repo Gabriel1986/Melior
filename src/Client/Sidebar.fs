@@ -140,7 +140,7 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
             ]
             yield li [ Class Bootstrap.navItem ] [
                 a [
-                    Class Bootstrap.navLink
+                    classes [ Bootstrap.navLink; if state.FinancialSubmenuIsOpen then "nav-item-open" else null ]
                     OnClick (fun _ -> ToggleFinancialSubmenu |> dispatch)
                 ] [ str "Boekhouding" ]
 
@@ -153,7 +153,7 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
                     | Some(Page.BankNotes _) -> true | _ -> false
 
                 if state.FinancialSubmenuIsOpen || currentPageIsFinancialPage then
-                    ul [ classes [ Bootstrap.navbarNav; Bootstrap.flexColumn; Bootstrap.px4 ] ] [
+                    ul [ classes [ Bootstrap.navbarNav; Bootstrap.flexColumn; Bootstrap.ml4 ] ] [
                         li [ Class Bootstrap.navItem ] [
                             a [
                                 Class (determineStyle currentPage (Page.FinancialSettings buildingSpecificProps))

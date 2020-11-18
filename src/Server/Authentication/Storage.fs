@@ -231,7 +231,8 @@ let updateUser conn (user: ValidatedUser) =
                 SET 
                     DisplayName = @DisplayName,
                     EmailAddress = @EmailAddress,
-                    PreferredLanguageCode = @PreferredLanguageCode
+                    PreferredLanguageCode = @PreferredLanguageCode,
+                    UseTwoFac = @UseTwoFac
                 WHERE
                     UserId = @UserId
             """, [
@@ -239,6 +240,7 @@ let updateUser conn (user: ValidatedUser) =
                 "@DisplayName", Sql.string (string user.DisplayName)
                 "@EmailAddress", Sql.string (string user.EmailAddress)
                 "@PreferredLanguageCode", Sql.string (string user.PreferredLanguageCode)
+                "@UseTwoFac", Sql.bool user.UseTwoFac
             ]
         yield! updateUserRoles user.UserId user.Roles
     ]

@@ -224,12 +224,14 @@ let view (model: Model) (dispatch: Msg -> unit) =
             div [] [
                 BuildingEditComponent.view editState (BuildingEditMsg >> dispatch)
 
-                div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+                div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
                     div [ Class Bootstrap.cardBody ] [
                         button [ 
-                            classes [ Bootstrap.btn; Bootstrap.btnSuccess ]
+                            classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
                             OnClick (fun _ -> Save |> dispatch) 
                         ] [
+                            i [ classes [ FontAwesome.fa; FontAwesome.faSave ] ] []
+                            str " "
                             str "Bewaren"
                         ]
                     ]
@@ -245,13 +247,15 @@ let view (model: Model) (dispatch: Msg -> unit) =
                     OnEditConcierge = fun _ -> ChangeConcierge |> dispatch
                     OnDeleteConcierge = fun _ -> ConciergeChanged None |> dispatch
                 |}
-            div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+            div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
                 div [ Class Bootstrap.cardBody ] [
                     yield
                         button [ 
                             classes [ Bootstrap.btn; Bootstrap.btnPrimary; Bootstrap.mr1 ]
                             OnClick (fun _ -> Edit detail |> dispatch) 
                         ] [
+                            i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []
+                            str " "
                             str "Aanpassen"
                         ]
 
@@ -267,9 +271,11 @@ let view (model: Model) (dispatch: Msg -> unit) =
                     if detail.Concierge.IsNone then
                         yield
                             button [
-                                classes [ Bootstrap.btn; Bootstrap.btnSecondary ]
+                                classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
                                 OnClick (fun _ -> ChangeConcierge |> dispatch)
                             ] [
+                                i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                                str " "
                                 str "Concierge toevoegen"
                             ]
                 ]

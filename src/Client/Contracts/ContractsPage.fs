@@ -225,29 +225,37 @@ let view (state: State) (dispatch: Message -> unit) =
     let renderQuestion (question: ContractTypeQuestion) =
         let answer = state.ContractTypeAnswers |> List.tryFind (fun answer -> answer.Payload.Question = question)
 
-        div [] [
-            yield label [] [ str (translateQuestion question) ]
+        tr [] [
+            yield td [] [ str (translateQuestion question) ]
 
             match answer with
             | Some savable ->
-                let positiveClass = if savable.Payload.IsTrue then Bootstrap.btnPrimary else Bootstrap.btnLight
-                let negativeClass = if savable.Payload.IsTrue then Bootstrap.btnLight else Bootstrap.btnPrimary
+                let positiveClass = if savable.Payload.IsTrue then Bootstrap.btnSecondary else Bootstrap.btnOutlineSecondary
+                let negativeClass = if savable.Payload.IsTrue then Bootstrap.btnOutlineSecondary else Bootstrap.btnSecondary
 
                 if savable.IsSaving then
-                    yield div [] [
-                        button [ Type "button"; classes [ Bootstrap.btn; positiveClass; Bootstrap.mb2 ]; HTMLAttr.Disabled true ] [ str "Ja" ]
-                        button [ Type "button"; classes [ Bootstrap.btn; negativeClass; Bootstrap.mb2 ]; HTMLAttr.Disabled true ] [ str "Nee" ]
+                    yield td [] [
+                        button [ Type "button"; classes [ Bootstrap.btn; positiveClass; Bootstrap.ml2 ]; HTMLAttr.Disabled true ] [ str "Ja" ]
+                        button [ Type "button"; classes [ Bootstrap.btn; negativeClass; Bootstrap.ml2 ]; HTMLAttr.Disabled true ] [ str "Nee" ]
                     ]
                 else
-                    yield div [] [
-                        button [ Type "button"; classes [ Bootstrap.btn; positiveClass; Bootstrap.mb2 ]; OnClick (fun _ -> SetAnswer (question, true) |> dispatch) ] [ str "Ja" ]
-                        button [ Type "button"; classes [ Bootstrap.btn; negativeClass; Bootstrap.mb2 ]; OnClick (fun _ -> SetAnswer (question, false) |> dispatch) ] [ str "Nee" ]                    
+                    yield td [] [
+                        button [ Type "button"; classes [ Bootstrap.btn; positiveClass; Bootstrap.ml2 ]; OnClick (fun _ -> SetAnswer (question, true) |> dispatch) ] [ str "Ja" ]
+                        button [ Type "button"; classes [ Bootstrap.btn; negativeClass; Bootstrap.ml2 ]; OnClick (fun _ -> SetAnswer (question, false) |> dispatch) ] [ str "Nee" ]                    
                     ]
             | None ->
-                yield div [] [
-                    button [ Type "button"; classes [ Bootstrap.btn; Bootstrap.btnLight; Bootstrap.mb2 ]; OnClick (fun _ -> SetAnswer (question, true) |> dispatch) ] [ str "Ja" ]
-                    button [ Type "button"; classes [ Bootstrap.btn; Bootstrap.btnLight; Bootstrap.mb2 ]; OnClick (fun _ -> SetAnswer (question, false) |> dispatch) ] [ str "Nee" ]                                    
+                yield td [] [
+                    button [ Type "button"; classes [ Bootstrap.btn; Bootstrap.btnLight; Bootstrap.ml2 ]; OnClick (fun _ -> SetAnswer (question, true) |> dispatch) ] [ str "Ja" ]
+                    button [ Type "button"; classes [ Bootstrap.btn; Bootstrap.btnLight; Bootstrap.ml2 ]; OnClick (fun _ -> SetAnswer (question, false) |> dispatch) ] [ str "Nee" ]                                    
                 ]
+        ]
+
+    let renderQuestions (questions: ContractTypeQuestion array) =
+        table [ Style [ BorderCollapse "separate"; BorderSpacing "0 5px" ] ] [
+            tbody [] [
+                for question in questions do
+                    yield renderQuestion question
+            ]
         ]
 
     let translateContractType (c: Contract) =
@@ -357,17 +365,17 @@ let view (state: State) (dispatch: Message -> unit) =
                         | _ -> None)
             ]
         ]
-        div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+        div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
             div [ Class Bootstrap.cardBody ] [
-                button [ classes [ Bootstrap.btn; Bootstrap.btnSecondary ]; Type "button"; OnClick (fun _ -> OpenQuestionModal |> dispatch) ] [
-                    i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []
-                    str " "
-                    str "Instellingen gebouw aanpassen"
-                ]
-                button [ classes [ Bootstrap.btn; Bootstrap.btnSuccess ]; Style [ MarginLeft "5px" ]; Type "button"; OnClick (fun _ -> CreateNewContract |> dispatch) ] [
+                button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; Type "button"; OnClick (fun _ -> CreateNewContract |> dispatch) ] [
                     i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
                     str " "
                     str "Contract aanmaken"
+                ]
+                button [ classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.ml2 ]; Type "button"; OnClick (fun _ -> OpenQuestionModal |> dispatch) ] [
+                    i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []
+                    str " "
+                    str "Instellingen gebouw aanpassen"
                 ]
             ]
         ]
@@ -391,8 +399,18 @@ let view (state: State) (dispatch: Message -> unit) =
                     BasicModal.OnDismiss (fun () -> CloseQuestionModal |> dispatch)
                     BasicModal.DisableBackgroundClick false
                     BasicModal.Header [ BasicModal.HeaderProp.Title "Instellingen van het gebouw" ]
-                    BasicModal.Body (ContractTypeQuestion.AllValues () |> Array.map renderQuestion |> Array.toList)
-                    BasicModal.Footer [ BasicModal.FooterProp.ShowDismissButton (Some "Sluiten") ]
+                    BasicModal.Body [ renderQuestions (ContractTypeQuestion.AllValues ()) ]
+                    BasicModal.Footer [ 
+                        BasicModal.FooterProp.Buttons [
+                            button [ 
+                                Type "button"
+                                classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
+                                OnClick (fun _ -> CloseQuestionModal |> dispatch)
+                            ] [ 
+                                str "Ok" 
+                            ]
+                        ]
+                    ]
                 ]
             |}
     ]

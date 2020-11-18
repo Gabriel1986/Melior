@@ -81,7 +81,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 valueOrDefault state.FinancialYear.Code
                 OnChange (fun e -> CodeChanged e.Value |> dispatch)
             ]
-            FormError (errorFor (nameof state.FinancialYear.Code))
+            FieldError (errorFor (nameof state.FinancialYear.Code))
         ]
         formGroup [
             Label "Begindatum"
@@ -93,7 +93,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 Flatpickr.Locale Flatpickr.Locales.dutch
                 Flatpickr.DateFormat "d/m/Y"
             ]
-            FormError (errorFor (nameof state.FinancialYear.StartDate))
+            FieldError (errorFor (nameof state.FinancialYear.StartDate))
         ]
         formGroup [
             Label "Einddatum"
@@ -105,6 +105,6 @@ let view (state: State) (dispatch: Message -> unit) =
                 Flatpickr.Locale Flatpickr.Locales.dutch
                 Flatpickr.DateFormat "d/m/Y"
             ]
-            FormError (errorFor (nameof state.FinancialYear.EndDate))
+            FieldError (errorFor (nameof state.FinancialYear.EndDate))
         ]
     ]

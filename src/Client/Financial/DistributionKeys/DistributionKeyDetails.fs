@@ -178,10 +178,10 @@ let view (model: Model) (dispatch: Msg -> unit) =
             div [] [
                 DistributionKeyEditComponent.view editState (EditComponentMsg >> dispatch)
 
-                div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+                div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
                     div [ Class Bootstrap.cardBody ] [
                         button [ 
-                            classes [ Bootstrap.btn; Bootstrap.btnSuccess ]
+                            classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
                             OnClick (fun _ -> Save |> dispatch) 
                         ] [
                             i [ classes [ FontAwesome.fa; FontAwesome.faSave ] ] []
@@ -199,10 +199,10 @@ let view (model: Model) (dispatch: Msg -> unit) =
                     AllLots = model.AllLots
                 |}
             if detail.CanBeEdited then
-                div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+                div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
                     div [ Class Bootstrap.cardBody ] [
                         button [ 
-                            classes [ Bootstrap.btn; Bootstrap.btnPrimary; Bootstrap.mr1 ]
+                            classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
                             OnClick (fun _ -> Edit detail |> dispatch)
                         ] [
                             i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []

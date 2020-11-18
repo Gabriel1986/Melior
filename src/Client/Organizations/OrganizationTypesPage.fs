@@ -249,13 +249,13 @@ let view (state: State) (dispatch: Message -> unit) =
                 yield! state.ListItems |> List.map toRow
             ]
         ]
-        div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+        div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
             div [ Class Bootstrap.cardBody ] [
                 button [ 
-                    classes [ Bootstrap.btn; Bootstrap.btnSm; Bootstrap.btnSuccess ]
+                    classes [ Bootstrap.btn; Bootstrap.btnSm; Bootstrap.btnPrimary ]
                     OnClick (fun _ -> CreateOrganizationType |> dispatch) 
                 ] [
-                    i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                    i [ classes [ FontAwesome.fa; FontAwesome.faSave ] ] []
                     str " "
                     str "Type aanmaken"
                 ]

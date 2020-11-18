@@ -27,7 +27,7 @@ let render (address: Address) (onChange: (Address -> unit) option) (basePath: st
                         | Some onChange -> OnChange (fun e -> { address with Street = e.Value |> String.toOption } |> onChange)
                         | None -> Disabled true
                     ] 
-                    FormError (findError (nameof address.Street))
+                    FieldError (findError (nameof address.Street))
                 ]
             ]
             div [ Class Bootstrap.colMd4 ] [
@@ -41,7 +41,7 @@ let render (address: Address) (onChange: (Address -> unit) option) (basePath: st
                         | Some onChange -> OnChange (fun e -> { address with MailboxNumber = e.Value |> String.toOption } |> onChange)
                         | None -> Disabled true
                     ] 
-                    FormError (findError (nameof address.MailboxNumber))
+                    FieldError (findError (nameof address.MailboxNumber))
                 ]
             ]
         ]
@@ -57,7 +57,7 @@ let render (address: Address) (onChange: (Address -> unit) option) (basePath: st
                         | Some onChange -> OnChange (fun e -> { address with ZipCode = e.Value |> String.toOption } |> onChange)
                         | None -> Disabled true                        
                     ] 
-                    FormError (findError (nameof address.ZipCode))
+                    FieldError (findError (nameof address.ZipCode))
                 ]
             ]
             div [ Class Bootstrap.col ] [
@@ -71,7 +71,7 @@ let render (address: Address) (onChange: (Address -> unit) option) (basePath: st
                         | Some onChange -> OnChange (fun e -> { address with Town = e.Value |> String.toOption } |> onChange)
                         | None -> Disabled true                        
                     ] 
-                    FormError (findError (nameof address.Town))
+                    FieldError (findError (nameof address.Town))
                 ]
             ]
             div [ Class Bootstrap.colMd3 ] [
@@ -85,7 +85,7 @@ let render (address: Address) (onChange: (Address -> unit) option) (basePath: st
                         | Some onChange -> OnChange (fun e -> { address with Country = e.Value |> String.toOption } |> onChange)
                         | None -> Disabled true
                     ]
-                    FormError (findError (nameof address.Country))
+                    FieldError (findError (nameof address.Country))
                 ]
             ]
         ]

@@ -180,10 +180,10 @@ let view (model: Model) (dispatch: Msg -> unit) =
             div [] [
                 ProfessionalSyndicEditComponent.view editState (ProfessionalSyndicEditComponentMsg >> dispatch)
 
-                div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+                div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
                     div [ Class Bootstrap.cardBody ] [
                         button [ 
-                            classes [ Bootstrap.btn; Bootstrap.btnSuccess ]
+                            classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
                             OnClick (fun _ -> Save |> dispatch) 
                         ] [
                             i [ classes [ FontAwesome.fa; FontAwesome.faSave ] ] []
@@ -196,7 +196,7 @@ let view (model: Model) (dispatch: Msg -> unit) =
     | Viewing detail ->
         div [] [
             ProfessionalSyndicViewComponent.render {| ProfessionalSyndic = detail |}
-            div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+            div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
                 div [ Class Bootstrap.cardBody ] [
                     button [ 
                         classes [ Bootstrap.btn; Bootstrap.btnPrimary ]

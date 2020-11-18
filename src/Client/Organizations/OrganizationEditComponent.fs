@@ -382,7 +382,7 @@ let private renderOtherContactMethods (otherContactMethods: ContactMethod list) 
         yield
             formGroup [
                 OtherChildren [
-                    button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> OtherContactMethodAdded |> dispatch) ] [
+                    button [ classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]; OnClick (fun _ -> OtherContactMethodAdded |> dispatch) ] [
                         i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
                         str " "
                         str "Ander contactmiddel toevoegen"
@@ -401,7 +401,7 @@ let renderContactPersons (contactPersons: ContactPerson list) dispatch =
         yield
             formGroup [
                 OtherChildren [
-                    button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> AddContactPerson |> dispatch) ] [
+                    button [ classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]; OnClick (fun _ -> AddContactPerson |> dispatch) ] [
                         i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
                         str " "
                         str "Contactpersoon toevoegen"
@@ -434,18 +434,26 @@ let basicRenderContactPersonModal (contactPersonEditComponentState: ContactPerso
 let renderCreateContactPersonModal (state: ContactPersonEditComponent.State) dispatch =
     let successButton = 
         button [ 
-            classes [ Bootstrap.btn; Bootstrap.btnSuccess ] 
+            classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
             OnClick (fun _ -> ContactPersonCreated state.ContactPerson |> dispatch)
-        ] [ str "Contactpersoon aanmaken" ]
+        ] [
+            i [ classes [ FontAwesome.fa; FontAwesome.faSave ] ] []
+            str " "
+            str "Contactpersoon aanmaken"
+        ]
 
     basicRenderContactPersonModal state dispatch successButton
 
 let renderEditContactPersonModal (state: ContactPersonEditComponent.State) dispatch =
     let successButton = 
         button [ 
-            classes [ Bootstrap.btn; Bootstrap.btnSuccess ] 
+            classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
             OnClick (fun _ -> ContactPersonEdited state.ContactPerson |> dispatch)
-        ] [ str "Bewaren" ]
+        ] [
+            i [ classes [ FontAwesome.fa; FontAwesome.faSave ] ] []
+            str " "
+            str "Bewaren" 
+        ]
 
     basicRenderContactPersonModal state dispatch successButton
 
@@ -540,7 +548,7 @@ let private renderOrganizationNumber state dispatch =
                             yield
                                 button [
                                     Type "button"
-                                    classes [ Bootstrap.btn; Bootstrap.btnSuccess ]
+                                    classes [ Bootstrap.btn; Bootstrap.btnOutlineSuccess ]
                                 ] [ 
                                     i [ classes [ FontAwesome.fa; FontAwesome.faThumbsUp ] ] [] 
                                 ]
@@ -550,7 +558,7 @@ let private renderOrganizationNumber state dispatch =
                                 yield
                                     button [ 
                                         Type "button"
-                                        classes [ Bootstrap.btn; Bootstrap.btnPrimary ] 
+                                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
                                     ] [
                                         i [ classes [ FontAwesome.fa; FontAwesome.faSpinner; FontAwesome.faSpin ] ] []
                                     ]
@@ -566,7 +574,7 @@ let private renderOrganizationNumber state dispatch =
                                 yield
                                     button [
                                         Type "button"
-                                        classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
+                                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
                                         OnClick (fun _ -> VerifyVatNumber |> dispatch)
                                     ] [
                                         i [ classes [ FontAwesome.fa; FontAwesome.faSearch ] ] []

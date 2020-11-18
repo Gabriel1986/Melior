@@ -46,7 +46,8 @@ module BasicModal =
                 |> Option.defaultValue false
 
             div [ Class Bootstrap.cardHeader ] [                
-                if title.IsSome then yield headerTitle title.Value (if showDismissButton then Some onDismiss else None)
+                if title.IsSome || showDismissButton then 
+                    yield headerTitle (title |> Option.defaultValue "") (if showDismissButton then Some onDismiss else None)
             ]
 
         let body children =

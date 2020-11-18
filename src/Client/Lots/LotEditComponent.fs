@@ -155,10 +155,14 @@ let renderEditLotOwners (basePath: string) (errors: (string * string) list) (lot
 
     let isLegalRepresentative (lotOwner: LotOwner) =
         if lotOwner.LotOwnerRole = LegalRepresentative then
-            button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary; Bootstrap.btnSm ] ] [ str "Ja" ]
+            button [ 
+                classes [ Bootstrap.btn; Bootstrap.btnSecondary; Bootstrap.btnSm ] 
+            ] [
+                str "Ja"
+            ]
         else
             button [ 
-                classes [ Bootstrap.btn; Bootstrap.btnLight; Bootstrap.btnSm ]
+                classes [ Bootstrap.btn; Bootstrap.btnOutlineSecondary; Bootstrap.btnSm ]
                 OnClick (fun _ -> SelectLegalRepresentative lotOwner |> dispatch)
             ] [
                 str "Nee"
@@ -195,7 +199,7 @@ let renderEditLotOwners (basePath: string) (errors: (string * string) list) (lot
                 div [ Class Bootstrap.inputGroupAppend ] [
                     button [
                         Type "reset"
-                        classes [ Bootstrap.btn; Bootstrap.btnDanger; Bootstrap.btnSm ] 
+                        classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger; Bootstrap.btnSm ] 
                         OnClick (fun _ -> EndDateChanged (index, None) |> dispatch)
                     ] [
                         str "×"
@@ -297,7 +301,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Helpers.valueOrDefault state.Lot.Code
                     OnChange (fun e -> CodeChanged e.Value |> dispatch)
                 ]
-                FormError (errorFor (nameof state.Lot.Code))
+                FieldError (errorFor (nameof state.Lot.Code))
             ]
             |> inColomn Bootstrap.colMd4
 
@@ -320,7 +324,7 @@ let view (state: State) (dispatch: Message -> unit) =
                                 Helpers.valueOrDefault state.Lot.Floor
                                 OnChange (fun e -> FloorChanged e.Value |> dispatch)
                             ]
-                            FormError (errorFor (nameof state.Lot.Floor))
+                            FieldError (errorFor (nameof state.Lot.Floor))
                         ]
                     ]
                 ]
@@ -333,7 +337,7 @@ let view (state: State) (dispatch: Message -> unit) =
                             Helpers.valueOrDefault state.Lot.Share
                             OnChange (fun e -> ShareChanged e.Value |> dispatch)
                         ]
-                        FormError (errorFor (nameof state.Lot.Share))
+                        FieldError (errorFor (nameof state.Lot.Share))
                     ]
                 ]
             ]
@@ -345,7 +349,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Helpers.valueOrDefault state.Lot.Description
                     OnChange (fun e -> DescriptionChanged e.Value |> dispatch)
                 ]
-                FormError (errorFor (nameof state.Lot.Description))
+                FieldError (errorFor (nameof state.Lot.Description))
             ]
             |> inColomn Bootstrap.col
         ]

@@ -179,10 +179,10 @@ let view (model: Model) (dispatch: Msg -> unit) =
             div [] [
                 LotEditComponent.view editState (LotEditMsg >> dispatch)
 
-                div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+                div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
                     div [ Class Bootstrap.cardBody ] [
                         button [ 
-                            classes [ Bootstrap.btn; Bootstrap.btnSuccess ]
+                            classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
                             OnClick (fun _ -> Save |> dispatch) 
                         ] [
                             i [ classes [ FontAwesome.fa; FontAwesome.faSave ] ] []
@@ -195,13 +195,13 @@ let view (model: Model) (dispatch: Msg -> unit) =
     | Viewing detail ->
         div [] [
             LotViewComponent.render {| Lot = detail |}
-            div [ classes [ Bootstrap.card; Bootstrap.bgLight ] ] [
+            div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
                 div [ Class Bootstrap.cardBody ] [
                     button [ 
                         classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
                         OnClick (fun _ -> Edit detail |> dispatch) 
                     ] [
-                        i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []
+                        i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []                        
                         str " "
                         str "Aanpassen"
                     ]
