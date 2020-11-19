@@ -169,3 +169,13 @@ module Helpers =
 
     let readonlyFormElement (lbl: string) (value: string) =
         readonlyFormElement' lbl value ""
+
+    let withPageHeader (pageHeader: string) (page: ReactElement) =
+        div [ Class Bootstrap.card ] [
+            div [ Class Bootstrap.cardHeader ] [
+                h3 [] [ str pageHeader ]
+            ]
+            div [ Class Bootstrap.cardBody ] [
+                page
+            ]
+        ]

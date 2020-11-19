@@ -204,9 +204,11 @@ let view (errors: (string * string) list) (state: State) (dispatch: Msg -> unit)
                         label [ Style [ Visibility "hidden" ]; classes [ Bootstrap.dNone; Bootstrap.dMdBlock ] ] [ str "_" ]
                         div [ Class Bootstrap.formGroup ] [
                             button [ 
-                                classes [ Bootstrap.btn; Bootstrap.btnDanger ]
+                                classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]
                                 OnClick (fun _ -> BankAccountRemoved index |> dispatch)
                             ] [
+                                i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
+                                str " "
                                 str "Verwijderen"
                             ]
                         ]

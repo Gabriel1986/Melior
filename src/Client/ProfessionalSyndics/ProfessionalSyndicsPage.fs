@@ -285,6 +285,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             ]
         ]
     ]
+    |> withPageHeader "Professionele syndici"
 
 let render (props: ProfessionalSyndicsPageProps) =
     React.elmishComponent ("ProfessionalSyndicsPage", init props, update, view)

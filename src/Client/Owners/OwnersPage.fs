@@ -300,6 +300,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             ]
         ]
     ]
+    |> withPageHeader "Eigenaars"
 
 let render (props: OwnersPageProps) =
     React.elmishComponent ("OwnersPage", init props, update, view)

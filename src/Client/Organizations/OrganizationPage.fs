@@ -299,6 +299,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             ]
         ]
     ]
+    |> withPageHeader "Leveranciers"
 
 let render (props: OrganizationPageProps) =
     React.elmishComponent ("OrganizationsPage", init props, update, view)

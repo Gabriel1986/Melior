@@ -468,14 +468,20 @@ module Client =
                         if runningState.CurrentUser.HasAccessToAdminMode () then
                             div [ classes [ Bootstrap.btnGroup; Bootstrap.btnGroupSm ] ] [
                                 button [ classes [ Bootstrap.btn; (if runningState.AdminModeEnabled then Bootstrap.btnSecondary else Bootstrap.btnOutlineSecondary) ]; OnClick (fun _ -> AdminModeChanged true |> dispatch) ] [
+                                    i [ classes [ FontAwesome.fa; FontAwesome.faUserCog ] ] []
+                                    str " "
                                     str "Admin"
                                 ]
                                 button [ classes [ Bootstrap.btn; (if runningState.AdminModeEnabled then Bootstrap.btnOutlineSecondary else Bootstrap.btnSecondary) ]; OnClick (fun _ -> AdminModeChanged false |> dispatch) ] [
+                                    i [ classes [ FontAwesome.fa; FontAwesome.faUser ] ] []
+                                    str " "
                                     str "Gebruiker"
                                 ]
                             ]
                             
                         a [ classes [ Bootstrap.btn; Bootstrap.btnSecondary; Bootstrap.btnSm; Bootstrap.ml3 ]; Href "/authentication/logout" ] [
+                            i [ classes [ FontAwesome.fa; FontAwesome.faSignOutAlt ] ] []
+                            str " "
                             str "Afmelden"
                         ]
                     ]

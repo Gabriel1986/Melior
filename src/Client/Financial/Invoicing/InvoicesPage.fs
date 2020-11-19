@@ -522,6 +522,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             ]
         ]
     ]
+    |> withPageHeader "Facturen"
 
 let render (props: InvoicesPageProps) =
     React.elmishComponent ("InvoicesPage", init props, update, view)

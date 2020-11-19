@@ -171,18 +171,20 @@ let view (state: State<'T, 'U>) (dispatch: Msg<'T> -> unit) =
     let deleteColumn, deleteHeader =
         if state.OnDelete.IsSome then
             fun li ->
-                td [ Style [ Width "30px" ] ] [
+                td [ Style [ Width "140px" ]] [
                     if (not state.IsDeletable.IsSome || state.IsDeletable.Value(li)) then
                         button [
                             classes [ Bootstrap.btn; Bootstrap.btnSm; Bootstrap.btnOutlineDanger ]
                             OnClick (fun e -> e.preventDefault(); e.stopPropagation(); state.OnDelete.Value (li)) 
                         ] [
+                            i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
+                            str " "
                             str "Verwijderen"
                         ]
                     else
                         null
                 ]
-            , th [ classes [ Bootstrap.borderTop0; Bootstrap.borderBottom0 ]; Style [ Width "30px" ] ] []
+            , th [ classes [ Bootstrap.borderTop0; Bootstrap.borderBottom0 ]; Style [ Width "140px" ] ] []
         else
             fun _ -> null
             , null

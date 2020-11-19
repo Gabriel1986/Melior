@@ -262,6 +262,7 @@ let view (state: State) (dispatch: Message -> unit) =
             ]
         ]
     ]
+    |> withPageHeader "Leverancier types"
 
 let render (props: OrganizationTypesPageProps) =
     React.elmishComponent ("OrganizationTypes", init props, update, view)

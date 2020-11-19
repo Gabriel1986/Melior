@@ -293,7 +293,9 @@ let private renderOtherAddresses (state: State) dispatch =
 
                 formGroup [
                     OtherChildren [
-                        button [ classes [ Bootstrap.btn; Bootstrap.btnDanger ]; OnClick (fun _ -> OtherAddressRemoved index |> dispatch) ] [
+                        button [ classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]; OnClick (fun _ -> OtherAddressRemoved index |> dispatch) ] [
+                            i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
+                            str " "
                             str "Verwijderen"
                         ]
                     ]
@@ -384,9 +386,11 @@ let private renderOtherContactMethods (otherContactMethods: ContactMethod list) 
                         label [ Style [ Visibility "hidden" ]; classes [ Bootstrap.dNone; Bootstrap.dMdBlock ] ] [ str "_" ]
                         div [] [
                             button [ 
-                                classes [ Bootstrap.btn; Bootstrap.btnDanger ]
+                                classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]
                                 OnClick (fun _ -> OtherContactMethodRemoved index |> dispatch) 
                             ] [
+                                i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
+                                str " "
                                 str "Verwijderen"
                             ] 
                         ]

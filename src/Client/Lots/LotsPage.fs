@@ -335,6 +335,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             ]
         ]
     ]
+    |> withPageHeader "Kavels"
 
 let render (props: LotsPageProps) =
     React.elmishComponent ("LotsPage", init props, update, view)

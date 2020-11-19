@@ -292,6 +292,7 @@ let view (state: State) (dispatch: Msg -> unit) =
             ]
         ]
     ]
+    |> withPageHeader "Verdeelsleutels"
 
 let render (props: DistributionKeysPageProps) =
     React.elmishComponent ("DistributionKeysPage", init props, update, view)

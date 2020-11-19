@@ -37,6 +37,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
 
 let view (state: State) (dispatch: Msg -> unit) =
     div [] [ str "Page under construction" ]
+    |> withPageHeader "Noticeboard"
 
 let render (props: NoticeBoardPageProps) =
     React.elmishComponent ("NoticeBoardPage", init props, update, view)

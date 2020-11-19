@@ -502,6 +502,7 @@ let view (state: State) (dispatch: Msg -> unit) =
         renderFinancialYearModal state dispatch
     ]
     |> React.fragment
+    |> withPageHeader "Instellingen boekhouding"
 
 let render (props: SettingsPageProps) =
     React.elmishComponent ("SettingsPage", init props, update, view)

@@ -254,7 +254,7 @@ let view (state: State) (dispatch: Message -> unit) =
         ]
 
     let renderQuestions (questions: ContractTypeQuestion array) =
-        table [ Class Bootstrap.table ] [
+        table [ classes [ Bootstrap.table ] ] [
             tbody [] [
                 for question in questions do
                     yield renderQuestion question
@@ -331,7 +331,7 @@ let view (state: State) (dispatch: Message -> unit) =
             contracts |> List.map (rowsForContract true)
 
     div [ Class Bootstrap.row ] [
-        table [ classes [ Bootstrap.table; Bootstrap.tableHover ] ] [
+        table [ classes [ Bootstrap.table; Bootstrap.tableHover; Bootstrap.tableStriped ] ] [
             thead [] [
                 tr [] [
                     th [] [ str "Naam" ]
@@ -418,6 +418,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 ]
             |}
     ]
+    |> withPageHeader "Contracten"
 
 let render (props: ContractsPageProps) =
     React.elmishComponent ("ContractsPage", init props, update, view)

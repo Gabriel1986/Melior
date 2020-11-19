@@ -262,9 +262,11 @@ let view (model: Model) (dispatch: Msg -> unit) =
                     if detail.Syndic.IsNone then
                         yield
                             button [
-                                classes [ Bootstrap.btn; Bootstrap.btnSecondary; Bootstrap.mr1 ]
+                                classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.mr1 ]
                                 OnClick (fun _ -> ChangeSyndic |> dispatch)
                             ] [
+                                i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                                str " "
                                 str "Syndicus toekennen"
                             ]
 
@@ -276,7 +278,7 @@ let view (model: Model) (dispatch: Msg -> unit) =
                             ] [
                                 i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
                                 str " "
-                                str "Concierge toevoegen"
+                                str "Concierge toekennen"
                             ]
                 ]
             ]
