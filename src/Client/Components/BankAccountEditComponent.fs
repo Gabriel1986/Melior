@@ -137,60 +137,54 @@ let view (errors: (string * string) list) (state: State) (dispatch: Msg -> unit)
                     ]
                 ]
                 div [ Class Bootstrap.colMd ] [
-                    div [ Class Bootstrap.formGroup ] [
-                        label [ HtmlFor "IBAN" ] [ str "IBAN" ]
-
-                        div [ Class Bootstrap.inputGroup ] [
-                            input [
-                                Type "text"
-                                Helpers.valueOrDefault bankAccount.IBAN
-                                OnChange (fun e -> IbanChanged (index, e.Value) |> dispatch)
-                            ]
-                            div [ Class Bootstrap.inputGroupAppend ] [
-                                match bankAccount.Validated with
-                                | Some true ->
-                                    yield
-                                        button [
-                                            Type "button"
-                                            classes [ Bootstrap.btn; Bootstrap.btnOutlineSuccess ]
-                                        ] [ 
-                                            i [ classes [ FontAwesome.fa; FontAwesome.faThumbsUp ] ] [] 
-                                        ]
-                                | Some false ->
-                                    match state.ValidatingIban with
-                                    | true ->
-                                        yield
-                                            button [ 
-                                                Type "button"
-                                                classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
-                                            ] [
-                                                i [ classes [ FontAwesome.fa; FontAwesome.faSpinner; FontAwesome.faSpin ] ] []
-                                            ]
-                                    | false ->
-                                        yield
-                                            button [
-                                                Type "button"
-                                                classes [ Bootstrap.btn; Bootstrap.btnDanger ]
-                                            ] [
-                                                i [ classes [ FontAwesome.fa; FontAwesome.faThumbsDown ] ] []
-                                            ]
-                                | None ->
-                                    yield
-                                        button [
-                                            Type "button"
-                                            classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
-                                            OnClick (fun _ -> ValidateIban (index, bankAccount.IBAN) |> dispatch)
-                                        ] [
-                                            i [ classes [ FontAwesome.fa; FontAwesome.faSearch ] ] []
-                                            str " "
-                                            str "Valideren"
-                                        ]
-                            ]
+                    formGroup [
+                        Label "IBAN"
+                        Input [
+                            Type "text"
+                            Helpers.valueOrDefault bankAccount.IBAN
+                            OnChange (fun e -> IbanChanged (index, e.Value) |> dispatch)
                         ]
-
-                        match errorFor (nameof bankAccount.IBAN) index with
-                        | Some error -> div [ Class Bootstrap.invalidFeedback ] [ str error ]
-                        | None -> null
+                        InputAppend [
+                            match bankAccount.Validated with
+                            | Some true ->
+                                yield
+                                    button [
+                                        Type "button"
+                                        classes [ Bootstrap.btn; Bootstrap.btnOutlineSuccess ]
+                                    ] [ 
+                                        i [ classes [ FontAwesome.fa; FontAwesome.faThumbsUp ] ] [] 
+                                    ]
+                            | Some false ->
+                                match state.ValidatingIban with
+                                | true ->
+                                    yield
+                                        button [ 
+                                            Type "button"
+                                            classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
+                                        ] [
+                                            i [ classes [ FontAwesome.fa; FontAwesome.faSpinner; FontAwesome.faSpin ] ] []
+                                        ]
+                                | false ->
+                                    yield
+                                        button [
+                                            Type "button"
+                                            classes [ Bootstrap.btn; Bootstrap.btnDanger ]
+                                        ] [
+                                            i [ classes [ FontAwesome.fa; FontAwesome.faThumbsDown ] ] []
+                                        ]
+                            | None ->
+                                yield
+                                    button [
+                                        Type "button"
+                                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
+                                        OnClick (fun _ -> ValidateIban (index, bankAccount.IBAN) |> dispatch)
+                                    ] [
+                                        i [ classes [ FontAwesome.fa; FontAwesome.faSearch ] ] []
+                                        str " "
+                                        str "Valideren"
+                                    ]
+                        ]
+                        FieldError (errorFor (nameof bankAccount.IBAN) index)
                     ]
                 ]
                 div [ Class Bootstrap.colMd ] [

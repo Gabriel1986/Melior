@@ -115,29 +115,38 @@ let renderContractEditView (contract: Contract) dispatch =
     div [] [
         yield! [
             match contract.ContractType with
-            | ContractContractType.PredefinedContractType predefined -> 
-                div [ Class Bootstrap.formGroup ] [
-                    label [] [ str "Naam" ]
-                    div [] [
-                        input [ Class Bootstrap.formControl; HTMLAttr.Disabled true; Value (translatePredefinedType predefined) ]
+            | ContractContractType.PredefinedContractType predefined ->
+                formGroup [
+                    Label "Naam"
+                    Input [
+                        HTMLAttr.Disabled true
+                        Value (translatePredefinedType predefined)
                     ]
                 ]
             | ContractContractType.OtherContractType name ->
-                div [ Class Bootstrap.formGroup ] [
-                    label [] [ str "Naam" ]
-                    div [] [
-                        input [ Class Bootstrap.formControl; Helpers.valueOrDefault name; OnChange (fun e -> ChangeContractName e.Value |> dispatch) ]
+                formGroup [
+                    Label "Naam"
+                    Input [
+                        Helpers.valueOrDefault name
+                        OnChange (fun e -> ChangeContractName e.Value |> dispatch)
                     ]
                 ]
 
-            div [ Class Bootstrap.formGroup ] [
-                label [] [ str "Leverancier" ]
-                div [ Class Bootstrap.inputGroup; OnClick (fun _ -> dispatch SearchOrganization) ] [
-                    input [ classes [ Bootstrap.formControl; "pointer" ]; Helpers.valueOrDefault orgName; ]
-                    div [ Class Bootstrap.inputGroupAppend ] [
-                        button [ classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]  ] [
-                            span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
-                        ]
+            formGroup [
+                Label "Leverancier"
+                Input [
+                    Type "text"
+                    Style [ Cursor "pointer"; BackgroundColor "unset" ]
+                    ReadOnly true
+                    OnClick (fun _ -> dispatch SearchOrganization)
+                    Helpers.valueOrDefault orgName
+                ]
+                InputAppend [
+                    button [ 
+                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
+                        OnClick (fun _ -> dispatch SearchOrganization)
+                    ] [
+                        span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
                     ]
                 ]
             ]

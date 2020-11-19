@@ -15,6 +15,7 @@ open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Library
 open Client.Components
+open Client.Components.BasicModal
 open Client.Upload
 open Client.Routing
 open Client.Contracts.Translations
@@ -224,6 +225,8 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
 let view (state: State) (dispatch: Message -> unit) =
     let renderQuestion (question: ContractTypeQuestion) =
         let answer = state.ContractTypeAnswers |> List.tryFind (fun answer -> answer.Payload.Question = question)
+        let btnStyle = Style [ MinWidth "60px" ]
+        let btnClasses = [ Bootstrap.btn; Bootstrap.btnSm; Bootstrap.ml2 ]
 
         tr [] [
             yield td [] [ str (translateQuestion question) ]
@@ -232,26 +235,26 @@ let view (state: State) (dispatch: Message -> unit) =
             | Some savable ->
                 let positiveClass = if savable.Payload.IsTrue then Bootstrap.btnSecondary else Bootstrap.btnOutlineSecondary
                 let negativeClass = if savable.Payload.IsTrue then Bootstrap.btnOutlineSecondary else Bootstrap.btnSecondary
-
+                
                 if savable.IsSaving then
-                    yield td [] [
-                        button [ Type "button"; classes [ Bootstrap.btn; positiveClass; Bootstrap.ml2 ]; HTMLAttr.Disabled true ] [ str "Ja" ]
-                        button [ Type "button"; classes [ Bootstrap.btn; negativeClass; Bootstrap.ml2 ]; HTMLAttr.Disabled true ] [ str "Nee" ]
+                    yield td [ Class Bootstrap.textRight ] [
+                        button [ Type "button"; btnStyle; classes (positiveClass::btnClasses); HTMLAttr.Disabled true ] [ str "Ja" ]
+                        button [ Type "button"; btnStyle; classes (negativeClass::btnClasses); HTMLAttr.Disabled true ] [ str "Nee" ]
                     ]
                 else
-                    yield td [] [
-                        button [ Type "button"; classes [ Bootstrap.btn; positiveClass; Bootstrap.ml2 ]; OnClick (fun _ -> SetAnswer (question, true) |> dispatch) ] [ str "Ja" ]
-                        button [ Type "button"; classes [ Bootstrap.btn; negativeClass; Bootstrap.ml2 ]; OnClick (fun _ -> SetAnswer (question, false) |> dispatch) ] [ str "Nee" ]                    
+                    yield td [ Class Bootstrap.textRight ] [
+                        button [ Type "button"; btnStyle; classes (positiveClass::btnClasses); OnClick (fun _ -> SetAnswer (question, true) |> dispatch) ] [ str "Ja" ]
+                        button [ Type "button"; btnStyle; classes (negativeClass::btnClasses); OnClick (fun _ -> SetAnswer (question, false) |> dispatch) ] [ str "Nee" ]                    
                     ]
             | None ->
-                yield td [] [
-                    button [ Type "button"; classes [ Bootstrap.btn; Bootstrap.btnLight; Bootstrap.ml2 ]; OnClick (fun _ -> SetAnswer (question, true) |> dispatch) ] [ str "Ja" ]
-                    button [ Type "button"; classes [ Bootstrap.btn; Bootstrap.btnLight; Bootstrap.ml2 ]; OnClick (fun _ -> SetAnswer (question, false) |> dispatch) ] [ str "Nee" ]                                    
+                yield td [ Class Bootstrap.textRight ] [
+                    button [ Type "button"; btnStyle; classes (Bootstrap.btnOutlineSecondary::btnClasses); OnClick (fun _ -> SetAnswer (question, true) |> dispatch) ] [ str "Ja" ]
+                    button [ Type "button"; btnStyle; classes (Bootstrap.btnOutlineSecondary::btnClasses); OnClick (fun _ -> SetAnswer (question, false) |> dispatch) ] [ str "Nee" ]                                    
                 ]
         ]
 
     let renderQuestions (questions: ContractTypeQuestion array) =
-        table [ Style [ BorderCollapse "separate"; BorderSpacing "0 5px" ] ] [
+        table [ Class Bootstrap.table ] [
             tbody [] [
                 for question in questions do
                     yield renderQuestion question
@@ -273,7 +276,7 @@ let view (state: State) (dispatch: Message -> unit) =
                         str mediaFile.FileName
                     ]
                     str " "
-                    span [ Title "Downloaden" ] [
+                    span [ HTMLAttr.Title "Downloaden" ] [
                         a [ Target "_blank"; Href (downloadUri Partitions.Contracts mediaFile.FileId) ] [
                             span [ classes [ FontAwesome.fas; FontAwesome.faCloudDownloadAlt ] ] []
                         ]
@@ -312,7 +315,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     td [] []
                     if (predefinedContractTypeIsMandatory) 
                     then
-                        td [ Title "Wettelijk verplicht"; Class Bootstrap.textDanger ] [ 
+                        td [ HTMLAttr.Title "Wettelijk verplicht"; Class Bootstrap.textDanger ] [ 
                             span [ classes [ FontAwesome.fas; FontAwesome.faExclamationTriangle ] ] []
                         ]
                     else
@@ -395,13 +398,13 @@ let view (state: State) (dispatch: Message -> unit) =
         BasicModal.render 
             {|
                 ModalProps = [
-                    BasicModal.IsOpen state.QuestionModalIsOpen
-                    BasicModal.OnDismiss (fun () -> CloseQuestionModal |> dispatch)
-                    BasicModal.DisableBackgroundClick false
-                    BasicModal.Header [ BasicModal.HeaderProp.Title "Instellingen van het gebouw" ]
-                    BasicModal.Body [ renderQuestions (ContractTypeQuestion.AllValues ()) ]
-                    BasicModal.Footer [ 
-                        BasicModal.FooterProp.Buttons [
+                    IsOpen state.QuestionModalIsOpen
+                    OnDismiss (fun () -> CloseQuestionModal |> dispatch)
+                    DisableBackgroundClick false
+                    Header [ BasicModal.HeaderProp.Title "Instellingen van het gebouw" ]
+                    Body [ renderQuestions (ContractTypeQuestion.AllValues ()) ]
+                    Footer [ 
+                        FooterProp.Buttons [
                             button [ 
                                 Type "button"
                                 classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
@@ -411,6 +414,7 @@ let view (state: State) (dispatch: Message -> unit) =
                             ]
                         ]
                     ]
+                    ModalSize SmallSize
                 ]
             |}
     ]

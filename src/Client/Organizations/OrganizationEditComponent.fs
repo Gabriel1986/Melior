@@ -519,30 +519,30 @@ let private renderOrganizationNumber state dispatch =
                         (fun useVatNumber -> if state.Organization.UsesVatNumber = useVatNumber then () else (UsesVatNumberChanged useVatNumber |> dispatch))
             }
         ]
-        if not state.Organization.UsesVatNumber then
-            formGroup [
-                Label "Ondernemingsnr."
-                Input [ 
-                    Type "text"
-                    Pattern "[0-9]{4}\.[0-9]{3}\.[0-9]{3}"
-                    MaxLength 12.0
-                    Placeholder "xxxx.xxx.xxx"
-                    Helpers.valueOrDefault state.Organization.OrganizationNumber
-                    OnChange (fun e -> OrganizationNumberChanged e.Value |> dispatch)
+        div [ Style [ MaxWidth "225px" ] ] [
+            if not state.Organization.UsesVatNumber then
+                formGroup [
+                    Label "Ondernemingsnr."
+                    Input [ 
+                        Type "text"
+                        Pattern "[0-9]{4}\.[0-9]{3}\.[0-9]{3}"
+                        MaxLength 12.0
+                        Placeholder "xxxx.xxx.xxx"
+                        Helpers.valueOrDefault state.Organization.OrganizationNumber
+                        OnChange (fun e -> OrganizationNumberChanged e.Value |> dispatch)
+                    ]
                 ]
-            ]
-        else
-            div [ Class Bootstrap.formGroup ] [
-                label [ HtmlFor "vatNumber" ] [ str "BTW nr." ]
-                div [ Class Bootstrap.inputGroup ] [
-                    input [
+            else
+                formGroup [
+                    Label "BTW nr."
+                    Input [
                         Type "text"
                         MinLength 4.0
                         MaxLength 15.0
                         Helpers.valueOrDefault state.Organization.VatNumber
                         OnChange (fun e -> VatNumberChanged e.Value |> dispatch)
                     ]
-                    div [ Class Bootstrap.inputGroupAppend ] [
+                    InputAppend [
                         match state.Organization.VatNumberVerifiedOn with
                         | Some _ ->
                             yield
@@ -582,7 +582,7 @@ let private renderOrganizationNumber state dispatch =
                                     ]
                     ]
                 ]
-            ]
+        ]
     ]
     |> React.fragment
 

@@ -20,22 +20,13 @@ module Helpers =
     open Fable.React.Props
 
     let classes (classList: string list) = Class (String.Join(" ", classList))
-
-    type InputGroupProp =
-        | Label of string
-        | Input of IHTMLProp seq
-        | InputPrepend of IHTMLProp seq
-        | InputAppend of IHTMLProp seq
-        | InputError of string option
-
-    let inputGroup (props: InputGroupProp list) =
-        //TODO!
-        div [] []
     
     type FormGroupProp =
         | Name of string
         | Label of string
+        | InputPrepend of ReactElement seq
         | Input of IHTMLProp seq
+        | InputAppend of ReactElement seq
         | TextArea of IHTMLProp seq
         | Select of FormSelect
         | Radio of FormRadio
@@ -117,7 +108,9 @@ module Helpers =
     let formGroup (props: FormGroupProp list) =
         let name = props |> List.tryPick (function | Name x -> Some x | _ -> None)
         let lbl = props |> List.tryPick (function | Label x -> Some x | _ -> None)
+        let inputPrepend = props |> List.tryPick (function | InputPrepend x -> Some x | _ -> None)
         let inputAttributes = props |> List.tryPick (function | Input x -> Some x | _ -> None)
+        let inputAppend = props |> List.tryPick (function | InputAppend x -> Some x | _ -> None)
         let textAreaAttributes = props |> List.tryPick (function | TextArea x -> Some x | _ -> None)
         let selectProps = props |> List.tryPick (function | Select x -> Some x | _ -> None)
         let radioProps = props |> List.tryPick (function | Radio x -> Some x | _ -> None)
@@ -131,7 +124,17 @@ module Helpers =
             if lbl.IsSome then
                 yield label [ HtmlFor theName ] [ str lbl.Value ]
             if inputAttributes.IsSome then
-                yield input (Seq.append inputAttributes.Value [ classes [ yield Bootstrap.formControl; if error.IsSome then yield Bootstrap.isInvalid ] ])
+                let inputElement = input (Seq.append inputAttributes.Value [ classes [ yield Bootstrap.formControl; if error.IsSome then yield Bootstrap.isInvalid ] ])
+                if inputPrepend.IsSome || inputAppend.IsSome then
+                    yield div [ Class Bootstrap.inputGroup ] [
+                        if inputPrepend.IsSome then
+                            div [ Class Bootstrap.inputGroupPrepend ] inputPrepend.Value
+                        inputElement 
+                        if inputAppend.IsSome then
+                            div [ Class Bootstrap.inputGroupAppend ] inputAppend.Value
+                    ]
+                else
+                    yield inputElement
             if textAreaAttributes.IsSome then
                 yield textarea (Seq.append textAreaAttributes.Value [ classes [ yield Bootstrap.formControl; if error.IsSome then yield Bootstrap.isInvalid ] ]) []
             if selectProps.IsSome then

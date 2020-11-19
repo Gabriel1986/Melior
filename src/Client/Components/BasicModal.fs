@@ -13,12 +13,17 @@ module BasicModal =
         | Header of HeaderProp list
         | Body of ReactElement list
         | Footer of FooterProp list
+        | ModalSize of ModalSize
     and HeaderProp =
         | Title of string
         | HasDismissButton of bool
     and FooterProp =
         | Buttons of ReactElement list
         | ShowDismissButton of string option
+    and ModalSize =
+        | SmallSize
+        | MediumSize
+        | LargeSize
 
     [<AutoOpen>]
     module private Internals =
@@ -95,6 +100,11 @@ module BasicModal =
                 |> List.tryPick (function | DisableBackgroundClick x -> Some x | _ -> None)
                 |> Option.defaultValue false
 
+            let size =
+                modalProps
+                |> List.tryPick (function | ModalSize x -> Some x | _ -> None)
+                |> Option.defaultValue MediumSize
+
             let onBackgroundClick =
                 if disableBackgroundClick then
                     OnClick (fun _ -> ())
@@ -102,7 +112,7 @@ module BasicModal =
                     OnClick (fun e -> if e.target = e.currentTarget then onDismiss())
 
             if isShowing then
-                div [ Class "melior-modal-grid" ] [
+                div [ classes [ "melior-modal-grid"; match size with | LargeSize -> "melior-modal-grid-lg" | SmallSize -> "melior-modal-grid-sm" | MediumSize -> null ] ] [
                     div [ Class "melior-modal-background-up"; onBackgroundClick ] []
                     div [ Class "melior-modal-background-left"; onBackgroundClick ] []
                     div [ Class "melior-modal" ] [

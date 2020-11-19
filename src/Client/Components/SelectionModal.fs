@@ -88,14 +88,18 @@ module SelectionList =
                 ]
 
             [
-                div [ classes [ Bootstrap.inputGroup; Bootstrap.inputGroupSm; Bootstrap.mb2 ]; Style [ MaxWidth "250px" ] ] [ 
-                    input [ Type "text"
+                div [ Style [ MaxWidth "250px" ] ] [
+                    formGroup [
+                        Input [
+                            Type "text"
                             Class Bootstrap.formControl
                             Placeholder ""
-                            OnChange (fun e -> FilterChanged e.Value |> dispatch) ]
-                    div [ Class Bootstrap.inputGroupAppend ] [
-                        span [ Class Bootstrap.inputGroupText ] [
-                            i [ classes [ FontAwesome.fa; FontAwesome.faSearch ] ] [ ] 
+                            OnChange (fun e -> FilterChanged e.Value |> dispatch)
+                        ]
+                        InputAppend [
+                            span [ Class Bootstrap.inputGroupText ] [
+                                i [ classes [ FontAwesome.fa; FontAwesome.faSearch ] ] [ ] 
+                            ]
                         ]
                     ]
                 ]

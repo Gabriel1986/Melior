@@ -256,9 +256,13 @@ let renderEditLotOwners (basePath: string) (errors: (string * string) list) (lot
                 ]
         yield div [ Class Bootstrap.formGroup ] [
             button [ 
-                classes [ Bootstrap.btn; Bootstrap.btnSecondary ]
+                classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
                 OnClick (fun _ -> ChangeLotOwners |> dispatch) 
-            ] [ str "Eigenaar(s) aanduiden" ]
+            ] [
+                i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                str " "
+                str "Eigenaar(s) toevoegen" 
+            ]
         ]
     ]
 

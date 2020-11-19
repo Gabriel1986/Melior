@@ -540,30 +540,36 @@ let view (state: State) (dispatch: Message -> unit) =
                     OnClick (fun _ -> ChangeCategory |> dispatch)
                     valueOrDefault shown
                 ]
+                InputAppend [
+                    button [ 
+                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
+                        OnClick (fun _ -> ChangeCategory |> dispatch)
+                    ] [
+                        span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
+                    ]
+                ]
             ]
             |> inColumn
         ]
-        div [ Class Bootstrap.row ] [            
-            div [ Class Bootstrap.formGroup ] [
-                let error = errorFor (nameof state.Invoice.Organization)
-                label [] [ str "Leverancier" ]
-                div [ Class Bootstrap.inputGroup; OnClick (fun _ -> dispatch ChangeOrganization) ] [
-                    input [
-                        Type "text"
-                        ReadOnly true
-                        Style [ BackgroundColor "unset"; Cursor "pointer" ]
-                        classes [ Bootstrap.formControl; if error.IsSome then Bootstrap.isInvalid ]
-                        Helpers.valueOrDefault (state.Invoice.Organization |> Option.map (fun o -> o.Name))
-                    ]
-                    div [ Class Bootstrap.inputGroupAppend ] [
-                        button [ classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]  ] [
-                            span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
-                        ]
-                    ]
-                    match error with
-                    | Some error -> div [ Class Bootstrap.invalidFeedback ] [ str error ]
-                    | None -> null
+        div [ Class Bootstrap.row ] [
+            formGroup [
+                Label "Leverancier"
+                Input [
+                    Type "text"
+                    ReadOnly true
+                    Style [ BackgroundColor "unset"; Cursor "pointer" ]
+                    OnClick (fun _ -> ChangeOrganization |> dispatch)
+                    Helpers.valueOrDefault (state.Invoice.Organization |> Option.map (fun o -> o.Name))
                 ]
+                InputAppend [
+                    button [ 
+                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
+                        OnClick (fun _ -> ChangeOrganization |> dispatch)
+                    ] [
+                        span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
+                    ]
+                ]
+                FieldError (errorFor (nameof state.Invoice.Organization))
             ]
             |> inColumn
 
@@ -683,6 +689,14 @@ let view (state: State) (dispatch: Message -> unit) =
                     ReadOnly true
                     OnClick (fun e -> ChangeDistributionKey |> dispatch)
                     valueOrDefault (state.Invoice.DistributionKey |> Option.map (fun dKey -> dKey.Name) |> Option.defaultValue "")
+                ]
+                InputAppend [
+                    button [ 
+                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
+                        OnClick (fun _ -> ChangeDistributionKey |> dispatch)
+                    ] [
+                        span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
+                    ]
                 ]
             ]
             |> inColumn
