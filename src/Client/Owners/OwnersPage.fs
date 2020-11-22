@@ -107,15 +107,6 @@ let init (props: OwnersPageProps) =
     state, cmd
 
 let update (msg: Msg) (state: State): State * Cmd<Msg> =
-    let toListItem (owner: Owner): OwnerListItem = {
-        BuildingId = owner.BuildingId
-        PersonId = owner.Person.PersonId
-        FirstName = owner.Person.FirstName
-        LastName = owner.Person.LastName
-        IsResident = owner.IsResident
-        BankAccounts = owner.Person.BankAccounts
-    }
-
     match msg with
     | AddDetailTab listItem ->
         let newlySelectedItems = 
@@ -192,7 +183,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | RemotingError e ->
         { state with ListItems = []; LoadingListItems = false }, showGenericErrorModalCmd e
     | Created owner ->
-        let listItem = toListItem owner
+        let listItem = owner.ToListItem()
         let newListItems = listItem :: state.ListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
         { state with 
@@ -204,7 +195,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             showSuccessToastCmd "De eigenaar is aangemaakt"
         ]
     | Edited owner ->
-        let listItem = toListItem owner
+        let listItem = owner.ToListItem()
         let newListItems = state.ListItems |> List.map (fun li -> if li.PersonId = listItem.PersonId then listItem else li)
         let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.PersonId = listItem.PersonId then listItem else li)
         { state with 

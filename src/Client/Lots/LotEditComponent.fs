@@ -11,6 +11,7 @@ open Shared.Library
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Library
+open Client.Routing
 
 type Message =
     | CodeChanged of string
@@ -22,22 +23,28 @@ type Message =
     | ChangeLotOwnersCanceled
     | RemoveLotOwner of LotOwner
     | ConfirmRemoveLotOwner of LotOwner
-    | SelectLegalRepresentative of LotOwner
     | ShareChanged of string
     | StartDateChanged of int * DateTimeOffset
     | EndDateChanged of int * DateTimeOffset option
+    | OpenContactModal of int * LotOwnerContactModal.CreateOrUpdate
+    | CloseContactModal
+    | SaveContactModal of LotOwnerContact
+    | RemoveContact of int * int
+    | ConfirmRemoveContact of int * int
     | NoOp
 
 type State = {
     Lot: Lot
     ShowingLotOwnerModal: bool
+    ShowingLotOwnerContactModalOn: (int * LotOwnerContactModal.CreateOrUpdate) option
     Errors: (string * string) list
 }
 
 let init (lot: Lot) =
     {
-        Lot = { lot with Owners = lot.Owners |> List.sortBy (fun owner -> owner.EndDate, owner.StartDate) }
+        Lot = lot
         ShowingLotOwnerModal = false
+        ShowingLotOwnerContactModalOn = None
         Errors = []
     }, Cmd.none
 
@@ -52,15 +59,6 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             if isParsed then Some parsed else None
         | None ->
             None
-
-    let ensureLegalRepresentative (lotOwners: LotOwner list) =
-        match lotOwners with
-        | [] -> []
-        | xs ->
-            if not (xs |> List.exists (fun o -> o.LotOwnerRole = LegalRepresentative)) then
-                { xs.[0] with LotOwnerRole = LegalRepresentative }::xs.[1..]
-            else
-                xs
 
     let recalculateValidationErrors (state: State) =
         match state.Errors with
@@ -88,11 +86,11 @@ let update (message: Message) (state: State): State * Cmd<Message> =
             LotId = state.Lot.LotId
             LotOwnerId = Guid.NewGuid()
             LotOwnerType = lotOwnerType
-            LotOwnerRole = LotOwnerRole.Other
             StartDate = DateTimeOffset.Now
             EndDate = None
+            Contacts = []
         }
-        let newState = changeLot (fun l -> { l with Owners = (newLotOwner::l.Owners) |> ensureLegalRepresentative })
+        let newState = changeLot (fun l -> { l with Owners = newLotOwner::l.Owners })
         { newState with ShowingLotOwnerModal = false }, Cmd.none
     | RemoveLotOwner toRemove ->
         state, 
@@ -104,20 +102,8 @@ let update (message: Message) (state: State): State * Cmd<Message> =
                     OnDismissed = (fun () -> NoOp)
                 |}
     | ConfirmRemoveLotOwner toRemove ->
-        let newLotOwners = state.Lot.Owners |> List.filter (fun o -> o <> toRemove) |> ensureLegalRepresentative
+        let newLotOwners = state.Lot.Owners |> List.filter ((<>) toRemove)
         changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
-    | SelectLegalRepresentative lotOwner ->
-        if (lotOwner.EndDate.IsSome && lotOwner.EndDate.Value < DateTimeOffset.Now) then
-            state, showErrorToastCmd "U kan deze eigenaar geen stemhouder maken van het kavel, de einddatum van de eigenaar is reeds verstreken"
-        else
-            let newLotOwners = 
-                state.Lot.Owners 
-                |> List.map (fun o ->
-                    if o = lotOwner
-                    then { o with LotOwnerRole = LotOwnerRole.LegalRepresentative }
-                    else { o with LotOwnerRole = LotOwnerRole.Other })
-
-            changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
     | ShareChanged x ->
         changeLot (fun l -> { l with Share = parseInt x }), Cmd.none
     | NoOp ->
@@ -128,13 +114,52 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | EndDateChanged (index, newEndDate) ->
         let newLotOwners = state.Lot.Owners |> List.mapi (fun idx o -> if idx = index then { o with EndDate = newEndDate } else o)
         changeLot (fun l -> { l with Owners = newLotOwners }), Cmd.none
+    | OpenContactModal (index, createOrUpdate) ->
+        { state with ShowingLotOwnerContactModalOn = Some (index, createOrUpdate) }, Cmd.none
+    | CloseContactModal ->
+        { state with ShowingLotOwnerContactModalOn = None }, Cmd.none
+    | SaveContactModal contact ->
+        let replaceContactIn (contacts: LotOwnerContact list) =
+            contacts
+            |> List.map (fun existing -> if existing.PersonId = contact.PersonId then contact else existing)
 
+        let updatedOwners =
+            match state.ShowingLotOwnerContactModalOn with
+            | Some (index, LotOwnerContactModal.Create) ->
+                state.Lot.Owners
+                |> List.mapi (fun idx owner -> if idx = index then { owner with Contacts = owner.Contacts@[contact] } else owner)
+            | Some (index, LotOwnerContactModal.Update _) ->
+                state.Lot.Owners
+                |> List.mapi (fun idx owner -> if idx = index then { owner with Contacts = replaceContactIn owner.Contacts } else owner)
+            | None ->
+                state.Lot.Owners
+        { state with Lot = { state.Lot with Owners = updatedOwners }; ShowingLotOwnerContactModalOn = None }, Cmd.none
+    | RemoveContact (index, otherIndex) ->
+        state, 
+            showConfirmationModal 
+                {| 
+                    Title = "Contact verwijderen"
+                    Message = "Bent u er zeker van dat u de contactpersoon wilt verwijderen?"
+                    OnConfirmed = (fun () -> ConfirmRemoveContact (index, otherIndex))
+                    OnDismissed = (fun () -> NoOp) 
+                |}
+    | ConfirmRemoveContact (index, otherIndex) ->
+        let removeContactFromLotOwner (lotOwner: LotOwner) =
+            let updatedContacts =
+                lotOwner.Contacts 
+                |> List.indexed 
+                |> List.choose (fun (otherIdx, contact) -> if otherIdx = otherIndex then None else Some contact)
+            { lotOwner with Contacts = updatedContacts }
+        let updatedOwners =
+            state.Lot.Owners
+            |> List.mapi (fun idx owner -> if idx = index then removeContactFromLotOwner owner else owner)
+        { state with Lot = { state.Lot with Owners = updatedOwners } }, Cmd.none
     |> (fun (state, cmd) -> state |> recalculateValidationErrors, cmd)
 
-let renderEditLotOwners (basePath: string) (errors: (string * string) list) (lotOwners: LotOwner list) (dispatch: Message -> unit) =
+let renderEditLotOwners (state: State) (dispatch: Message -> unit) =
     let errorMessageFor index s = 
-        let path = sprintf "%s.[%i].%s" basePath index s
-        match errors |> List.tryPick (fun (p, error) -> if p = path then Some error else None) with
+        let path = sprintf "%s.[%i].%s" (nameof (state.Lot.Owners)) index s
+        match state.Errors |> List.tryPick (fun (p, error) -> if p = path then Some error else None) with
         | Some error -> div [ Class Bootstrap.invalidFeedback ] [ str error ]
         | None -> null
 
@@ -152,21 +177,6 @@ let renderEditLotOwners (basePath: string) (errors: (string * string) list) (lot
         match lotOwner.LotOwnerType with
         | LotOwnerType.Owner o        -> str (if o.IsResident then "Ja" else "Nee")
         | LotOwnerType.Organization _ -> str ""
-
-    let isLegalRepresentative (lotOwner: LotOwner) =
-        if lotOwner.LotOwnerRole = LegalRepresentative then
-            button [ 
-                classes [ Bootstrap.btn; Bootstrap.btnSecondary; Bootstrap.btnSm ] 
-            ] [
-                str "Ja"
-            ]
-        else
-            button [ 
-                classes [ Bootstrap.btn; Bootstrap.btnOutlineSecondary; Bootstrap.btnSm ]
-                OnClick (fun _ -> SelectLegalRepresentative lotOwner |> dispatch)
-            ] [
-                str "Nee"
-            ]
 
     let startDateEditorFor (index: int) (lotOwner: LotOwner) =
         let errorMessage = errorMessageFor index (nameof lotOwner.StartDate)
@@ -210,7 +220,7 @@ let renderEditLotOwners (basePath: string) (errors: (string * string) list) (lot
 
     div [ Class Bootstrap.col12 ] [
         yield
-            match lotOwners with
+            match state.Lot.Owners with
             | [] ->
                 null
             | owners ->
@@ -221,36 +231,95 @@ let renderEditLotOwners (basePath: string) (errors: (string * string) list) (lot
                         str " "
                         str "Bij een overdracht moet de einddatum van de vorige eigenaar(s) gezet worden op de dag vóór het verlijden van de akte en de begindatum van de nieuwe eigenaar(s) op de dag van het verlijden van de akte." 
                     ]
-                    table [ classes [ Bootstrap.table; Bootstrap.tableStriped; Bootstrap.tableHover ] ] [
+                    table [ classes [ Bootstrap.table; Bootstrap.tableStriped ] ] [
                         thead [] [
                             tr [] [
-                                th [] [ str "Type(s)" ]
                                 th [] [ str "Naam" ]
-                                th [] [ str "Bewoner" ]
                                 th [] [ str "Begindatum" ]
                                 th [] [ str "Einddatum" ]
-                                th [] [ str "Stemhouder" ]
                                 th [] []
                             ]
                         ]
                         tbody [] [
                             yield! owners |> List.mapi (fun index owner ->
-                                tr [] [
-                                    td [] [ ownerTypes owner ]
-                                    td [] [ ownerName owner ]
-                                    td [] [ isResident owner ]
-                                    td [] [ startDateEditorFor index owner ]
-                                    td [] [ endDateEditorFor index owner ]
-                                    td [] [ isLegalRepresentative owner ]
-                                    td [] [ 
-                                        a [
-                                            Class "pointer"
-                                            OnClick (fun _ -> RemoveLotOwner owner |> dispatch)
-                                        ] [
-                                            i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
+                                [
+                                    tr [ Key (string owner.LotOwnerId) ] [
+                                        td [] [ ownerName owner ]
+                                        td [] [ startDateEditorFor index owner ]
+                                        td [] [ endDateEditorFor index owner ]
+                                        td [ Class Bootstrap.textRight ] [
+                                            button [
+                                                classes [ Bootstrap.btn; Bootstrap.btnSm; Bootstrap.btnOutlineDanger ]
+                                                OnClick (fun _ -> RemoveLotOwner owner |> dispatch)
+                                            ] [
+                                                i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
+                                                str " "
+                                                str "Verwijderen"
+                                            ]
                                         ]
                                     ]
-                                ])
+                                    tr [] [
+                                        h6 [ Class Bootstrap.ml4 ] [ str "Contactpersonen" ]
+                                        td [ ColSpan 4 ] [
+                                            ul [ classes [ Bootstrap.listGroup; Bootstrap.ml4 ] ] [
+                                                yield! owner.Contacts |> List.mapi (fun otherIndex contact ->
+                                                    li [ Key (string contact.PersonId); Class Bootstrap.listGroupItem ] [
+                                                        match contact with
+                                                        | LotOwnerContact.Owner o ->
+                                                            [
+                                                                str (o.FullName ())
+                                                                div [ Class Bootstrap.floatRight ] [
+                                                                    button [
+                                                                        classes [ Bootstrap.btn; Bootstrap.btnSm; Bootstrap.btnOutlineDanger ]
+                                                                        OnClick (fun _ -> RemoveContact (index, otherIndex) |> dispatch)
+                                                                    ] [
+                                                                        i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
+                                                                        str " "
+                                                                        str "Verwijderen"
+                                                                    ]
+                                                                ]
+                                                            ]
+                                                            |> fragment []
+                                                        | LotOwnerContact.NonOwner person ->
+                                                            [
+                                                                str (person.FullName())
+                                                                div [ Class Bootstrap.floatRight ] [
+                                                                    button [
+                                                                        classes [ Bootstrap.btn; Bootstrap.btnSm; Bootstrap.btnOutlinePrimary ]
+                                                                        OnClick (fun _ -> OpenContactModal (index, LotOwnerContactModal.Update (LotOwnerContact.NonOwner person)) |> dispatch)
+                                                                    ] [
+                                                                        i [ classes [ FontAwesome.fa; FontAwesome.faEdit; Bootstrap.textPrimary ] ] []
+                                                                        str " "
+                                                                        str "Aanpassen"
+                                                                    ]
+                                                                    str " "
+                                                                    button [
+                                                                        classes [ Bootstrap.btn; Bootstrap.btnSm; Bootstrap.btnOutlineDanger ]
+                                                                        OnClick (fun _ -> RemoveContact (index, otherIndex) |> dispatch)
+                                                                    ] [
+                                                                        i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
+                                                                        str " "
+                                                                        str "Verwijderen"
+                                                                    ]
+                                                                ]
+                                                            ]
+                                                            |> fragment []
+                                                    ]
+                                                )
+                                            ]
+                                            button [
+                                                classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.ml4; Bootstrap.mt2 ]
+                                                OnClick (fun _ -> OpenContactModal (index, LotOwnerContactModal.Create) |> dispatch)
+                                            ] [
+                                                i [ classes [ FontAwesome.fa; FontAwesome.faUserPlus ] ] []
+                                                str " "
+                                                str "Contactpersoon toevoegen"
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                                |> fragment []
+                            )
                         ]
                     ]
                 ]
@@ -358,7 +427,7 @@ let view (state: State) (dispatch: Message -> unit) =
             |> inColomn Bootstrap.col
         ]
 
-        renderEditLotOwners (nameof state.Lot.Owners) state.Errors state.Lot.Owners dispatch
+        renderEditLotOwners state dispatch
         |> inColomn Bootstrap.row
 
         LotOwnerTypeModal.render 
@@ -369,4 +438,17 @@ let view (state: State) (dispatch: Message -> unit) =
                 OnSelected = (fun owners -> AddLotOwnerOfType owners |> dispatch)
                 OnCanceled = (fun _ -> ChangeLotOwnersCanceled |> dispatch) 
             |}
+
+        match state.ShowingLotOwnerContactModalOn with
+        | Some (_, createOrUpdate) ->
+            LotOwnerContactModal.render
+                {|
+                    IsOpen = state.ShowingLotOwnerContactModalOn.IsSome
+                    BuildingId = state.Lot.BuildingId
+                    CreateOrUpdate = createOrUpdate
+                    OnContactChanged = fun contact -> SaveContactModal contact |> dispatch
+                    OnCanceled = fun () -> dispatch CloseContactModal
+                |}
+        | None -> 
+            null
     ]

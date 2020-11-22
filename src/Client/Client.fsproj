@@ -65,6 +65,7 @@
     <Compile Include="Owners\OwnerEditComponent.fs" />
     <Compile Include="Owners\OwnerDetails.fs" />
     <Compile Include="Owners\OwnersPage.fs" />
+    <Compile Include="Lots\LotOwnerContactModal.fs" />
     <Compile Include="Lots\LotOwnerTypeModal.fs" />
     <Compile Include="Lots\LotViewComponent.fs" />
     <Compile Include="Lots\LotEditComponent.fs" />

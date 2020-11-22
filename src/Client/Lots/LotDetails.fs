@@ -95,11 +95,11 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
     | View lot ->
         match lot with
         | Some lot ->
-            { model with State = Viewing lot }, Cmd.none
+            { model with State = Viewing { lot with Owners = lot.Owners |> List.sortBy (fun owner -> owner.EndDate, owner.StartDate) } }, Cmd.none
         | None ->
             { model with State = LotNotFound }, Cmd.none
     | Edit lot ->
-        let lotEditState, lotEditCmd = LotEditComponent.init lot
+        let lotEditState, lotEditCmd = LotEditComponent.init { lot with Owners = lot.Owners |> List.sortBy (fun owner -> owner.EndDate, owner.StartDate) }
         { model with State = Editing (false, lotEditState) }, lotEditCmd |> Cmd.map LotEditMsg
     | LotEditMsg componentMsg ->
         let updateComponentState s (isSaving, componentState) =
@@ -201,7 +201,7 @@ let view (model: Model) (dispatch: Msg -> unit) =
                         classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
                         OnClick (fun _ -> Edit detail |> dispatch) 
                     ] [
-                        i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []                        
+                        i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []
                         str " "
                         str "Aanpassen"
                     ]

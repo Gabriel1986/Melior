@@ -105,7 +105,7 @@ let view (props: Props) =
                             button [
                                 classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger; Bootstrap.btnSm ]
                                 OnClick (fun _ -> props.OnDeleteConcierge ())
-                            ] [ i [ classes [ FontAwesome.fa; FontAwesome.faTrash ] ] [] ]
+                            ] [ i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] [] ]
                         ]
                     ]
                 ]
@@ -134,7 +134,7 @@ let view (props: Props) =
                             button [
                                 classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger; Bootstrap.btnSm ]
                                 OnClick (fun _ -> props.OnDeleteSyndic ())
-                            ] [ i [ classes [ FontAwesome.fa; FontAwesome.faTrash ] ] [] ]
+                            ] [ i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] [] ]
                         ]
                     ]
                 ]

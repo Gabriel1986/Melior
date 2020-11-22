@@ -501,3 +501,24 @@ type AddPhotoIdAndSharesTotalToBuildings() =
                 ALTER TABLE Buildings ADD COLUMN IF NOT EXISTS SharesTotal INT;
             """
     override u.Down () = ()
+
+[<Migration(15L, "Remove Role from LotOwners and add LotOwnerContacts")>]
+type RemoveRoleFromLotOwnersAndAddLotOwnerContacts() =
+    inherit Migration ()
+    override u.Up () = 
+        u.Execute
+            """
+                ALTER TABLE LotOwners DROP COLUMN IF EXISTS Role;
+
+                CREATE TABLE IF NOT EXISTS LotOwnerContacts (
+                    LotOwnerId UUID REFERENCES LotOwners(LotOwnerId) ON DELETE CASCADE NOT NULL,
+                    BuildingId UUID,
+                    ContactOwnerId UUID,
+                    ContactPersonId UUID REFERENCES Persons(PersonId)
+                );
+                CREATE INDEX idx_LotOwnerContacts_LotOwnerId ON LotOwnerContacts(LotOwnerId);
+                ALTER TABLE LotOwnerContacts ADD CONSTRAINT fk_ContactOwnerId
+                    FOREIGN KEY (BuildingId, ContactOwnerId) 
+                    REFERENCES Owners(BuildingId, PersonId);
+            """
+    override u.Down () = ()

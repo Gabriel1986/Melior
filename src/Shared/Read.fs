@@ -242,7 +242,7 @@ and Lot =
     }
     member me.LegalRepresentative () =
         me.Owners
-        |> List.tryPick (fun owner -> if owner.LotOwnerRole = LegalRepresentative then Some owner else None)
+        |> List.tryFind (fun owner -> owner.StartDate < DateTimeOffset.Now && (owner.EndDate.IsNone || owner.EndDate.Value > DateTimeOffset.Now))
     static member Init (buildingId: BuildingId) = {
         LotId = Guid.NewGuid()
         BuildingId = buildingId
@@ -257,16 +257,20 @@ and LotOwner = {
     LotId: Guid
     LotOwnerId: Guid
     LotOwnerType: LotOwnerType
-    LotOwnerRole: LotOwnerRole
     StartDate: DateTimeOffset
     EndDate: DateTimeOffset option
+    Contacts: LotOwnerContact list
 }
+and LotOwnerContact =
+    | Owner of OwnerListItem
+    | NonOwner of Person
+    member me.PersonId =
+        match me with
+        | Owner o -> o.PersonId
+        | NonOwner p -> p.PersonId
 and LotOwnerType =
     | Owner of OwnerListItem
     | Organization of OrganizationListItem
-and LotOwnerRole =
-    | LegalRepresentative
-    | Other
 and LotType =
     | Appartment
     | Studio
@@ -447,6 +451,14 @@ and Owner =
         BuildingId = buildingId
         Person = Person.Init ()
         IsResident = true
+    }
+    member me.ToListItem (): OwnerListItem = {
+        BuildingId = me.BuildingId
+        PersonId = me.Person.PersonId
+        FirstName = me.Person.FirstName
+        LastName = me.Person.LastName
+        IsResident = me.IsResident
+        BankAccounts = me.Person.BankAccounts
     }
 
 and ProfessionalSyndic = 

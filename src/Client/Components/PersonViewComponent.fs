@@ -23,7 +23,7 @@ let private renderAddressesFor (person: Person) =
             readonlyFormElement otherAddressDescription (sprintf "%s - %A" otherAddress.Description otherAddress.Address))
     ]
 
-let view (showAddresses: bool) (showBankAccounts: bool) (person: Person) =
+let private view (showAddresses: bool) (showBankAccounts: bool) (person: Person) =
     [
         yield readonlyFormElement "Naam" (person.FullName ())
 

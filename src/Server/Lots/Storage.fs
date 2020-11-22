@@ -23,28 +23,62 @@ let private paramsFor (validated: ValidatedLot) =
         "@Share", Sql.intOrNone (validated.Share |> Option.map (fun s -> s.Value ()))
     ]
 
+let private generateInsertSqlForLotOwnerContacts (lotOwnerId: Guid) (contacts: ValidatedLotOwnerContact list) =
+    let persons = contacts |> List.choose (function | ValidatedLotOwnerContact.NonOwner person -> Some person | _ -> None)
+    [
+        yield (
+            """
+                DELETE FROM LotOwnerContacts WHERE LotOwnerId = @LotOwnerId
+            """, [
+                "@LotOwnerId", Sql.uuid lotOwnerId
+            ]
+        )
+
+        yield! persons |> List.map (fun person -> Server.Persons.Storage.upsertQuery, Server.Persons.Storage.paramsFor person)
+
+        yield! contacts |> List.map (fun contact -> 
+            let ownerId, buildingId, personId =
+                match contact with
+                | ValidatedLotOwnerContact.Owner o -> Some o.PersonId, Some o.BuildingId, None
+                | ValidatedLotOwnerContact.NonOwner p -> None, None, Some p.PersonId
+
+            """
+                INSERT INTO LotOwnerContacts (LotOwnerId, BuildingId, ContactOwnerId, ContactPersonId) 
+                VALUES (@LotOwnerId, @BuildingId, @ContactOwnerId, @ContactPersonId)
+            """, [
+                "@LotOwnerId", Sql.uuid lotOwnerId
+                "@BuildingId", Sql.uuidOrNone buildingId
+                "@ContactOwnerId", Sql.uuidOrNone ownerId
+                "@ContactPersonId", Sql.uuidOrNone personId
+            ])
+    ]
+
 let private generateInsertSqlForOwners (owners: ValidatedLotOwner list) =
     owners 
-    |> List.map (fun owner ->
-        let personId, orgId =
-            match owner.LotOwnerTypeId with
-            | (LotOwnerTypeId.OwnerId ownerId) ->
-                Some ownerId, None
-            | (LotOwnerTypeId.OrganizationId orgId) ->
-                None, Some orgId
-        """
-            INSERT INTO LotOwners
-                (LotId, LotOwnerId, Role, PersonId, OrganizationId, StartDate, EndDate)
-            VALUES 
-                (@LotId, @LotOwnerId, @Role, @PersonId, @OrganizationId, @StartDate, @EndDate)
-        """, [
-            "@LotId", Sql.uuid owner.LotId
-            "@LotOwnerId", Sql.uuid owner.LotOwnerId
-            "@Role", Sql.string (string owner.LotOwnerRole)
-            "@PersonId", Sql.uuidOrNone personId
-            "@OrganizationId", Sql.uuidOrNone orgId
-            "@StartDate", Sql.timestamp owner.StartDate.Date
-            "@EndDate", Sql.timestampOrNone (owner.EndDate |> Option.map (fun dt -> dt.Date))
+    |> List.collect (fun owner ->
+        [
+            let personId, orgId =
+                match owner.LotOwnerTypeId with
+                | (LotOwnerTypeId.OwnerId ownerId) ->
+                    Some ownerId, None
+                | (LotOwnerTypeId.OrganizationId orgId) ->
+                    None, Some orgId
+            yield (
+                """
+                    INSERT INTO LotOwners
+                        (LotId, LotOwnerId, Role, PersonId, OrganizationId, StartDate, EndDate)
+                    VALUES 
+                        (@LotId, @LotOwnerId, @Role, @PersonId, @OrganizationId, @StartDate, @EndDate)
+                """, [
+                    "@LotId", Sql.uuid owner.LotId
+                    "@LotOwnerId", Sql.uuid owner.LotOwnerId
+                    "@PersonId", Sql.uuidOrNone personId
+                    "@OrganizationId", Sql.uuidOrNone orgId
+                    "@StartDate", Sql.timestamp owner.StartDate.Date
+                    "@EndDate", Sql.timestampOrNone (owner.EndDate |> Option.map (fun dt -> dt.Date))
+                ])
+
+            yield! generateInsertSqlForLotOwnerContacts owner.LotOwnerId owner.Contacts
         ]
     )
 
@@ -61,19 +95,19 @@ let private generateDeleteSqlForOwners (deletedOwners: Guid list) = [
 
 let private generateUpdateSqlForOwners (owners: ValidatedLotOwner list) =
     owners
-    |> List.map (fun owner ->
-        """
-            UPDATE LotOwners SET Role = @Role, StartDate = @StartDate, EndDate = @EndDate 
-            WHERE LotOwnerId = @LotOwnerId
-        """
-        , [
-            yield "@Role", Sql.string (string owner.LotOwnerRole)
-            yield "@LotId", Sql.uuid owner.LotId
-            yield "@StartDate", Sql.timestamp (owner.StartDate.AddHours(2.0).Date)
-            yield "@EndDate", Sql.timestampOrNone (owner.EndDate |> Option.map (fun dt -> dt.AddHours(2.0).Date))
-            yield "@LotOwnerId", Sql.uuid owner.LotOwnerId
-        ]
-    )
+    |> List.collect (fun owner -> [
+        yield (
+            """
+                UPDATE LotOwners SET StartDate = @StartDate, EndDate = @EndDate 
+                WHERE LotOwnerId = @LotOwnerId
+            """
+            , [
+                "@StartDate", Sql.timestamp (owner.StartDate.AddHours(2.0).Date)
+                "@EndDate", Sql.timestampOrNone (owner.EndDate |> Option.map (fun dt -> dt.AddHours(2.0).Date))
+                "@LotOwnerId", Sql.uuid owner.LotOwnerId
+            ])
+        yield! generateInsertSqlForLotOwnerContacts owner.LotOwnerId owner.Contacts
+    ])
 
 
 let createLot (connectionString: string) (validated: ValidatedLot) =
@@ -105,7 +139,7 @@ let createLot (connectionString: string) (validated: ValidatedLot) =
     |> Async.Ignore
 
 let updateLot (connectionString: string) (validated: ValidatedLot) = async {
-    let! currentLotOwners = 
+    let! currentLotOwners =
         Sql.connect connectionString
         |> Sql.query "SELECT LotOwnerId FROM LotOwners WHERE LotId = @LotId"
         |> Sql.parameters [ "@LotId", Sql.uuid validated.LotId ]

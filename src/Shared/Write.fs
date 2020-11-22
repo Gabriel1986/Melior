@@ -238,14 +238,26 @@ let private mapLotOwnerTypeToId =
     | LotOwnerType.Owner owner -> OwnerId owner.PersonId
     | LotOwnerType.Organization organization -> OrganizationId organization.OrganizationId
 
+type ValidatedLotOwnerContact =
+    | Owner of OwnerListItem
+    | NonOwner of ValidatedPerson
+    static member BasicValidate (basePath: string) (contact: LotOwnerContact): Trial<ValidatedLotOwnerContact, string * string> =
+        match contact with
+        | LotOwnerContact.Owner o -> 
+            ValidatedLotOwnerContact.Owner o
+            |> Trial.Pass
+        | LotOwnerContact.NonOwner person ->
+            ValidatedPerson.BasicValidate basePath person
+            |> Trial.map ValidatedLotOwnerContact.NonOwner
+
 type ValidatedLotOwner = 
     {
         LotId: Guid
         LotOwnerId: Guid
         LotOwnerTypeId: LotOwnerTypeId
-        LotOwnerRole: LotOwnerRole
         StartDate: DateTimeOffset
         EndDate: DateTimeOffset option
+        Contacts: ValidatedLotOwnerContact list
     }
     static member BasicValidate (basePath: string) (lotOwner: LotOwner): Trial<ValidatedLotOwner, string * string> =
         let onBasePath (s: string) = if String.IsNullOrWhiteSpace basePath then s else sprintf "%s.%s" basePath s
@@ -254,15 +266,22 @@ type ValidatedLotOwner =
             | Some endDate when endDate < startDate -> Trial.ofError (path, "De begindatum moet vóór de einddatum vallen")
             | _ -> Trial.Pass startDate
 
+        let validateContacts (path: string) (contacts: LotOwnerContact list) =
+            contacts
+            |> List.mapi (fun index contact -> ValidatedLotOwnerContact.BasicValidate (sprintf "%s.[%i]" path index) contact)
+            |> Trial.sequence
+            |> Trial.map List.ofSeq
+
         trial {
             from startDate in validateStartDate (nameof lotOwner.StartDate |> onBasePath) (lotOwner.StartDate, lotOwner.EndDate)
+            also contacts in validateContacts (nameof lotOwner.Contacts |> onBasePath) lotOwner.Contacts
             yield {
                 LotId = lotOwner.LotId
                 LotOwnerId = lotOwner.LotOwnerId
                 LotOwnerTypeId = mapLotOwnerTypeToId lotOwner.LotOwnerType
-                LotOwnerRole = lotOwner.LotOwnerRole
                 StartDate = startDate
                 EndDate = lotOwner.EndDate
+                Contacts = contacts
             }
         }
     static member Validate (lotOwner: LotOwner): Result<ValidatedLotOwner, (string * string) list> =
