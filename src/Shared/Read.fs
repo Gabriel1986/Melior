@@ -253,14 +253,19 @@ and Lot =
         Floor = None
         Share = None
     }
-and LotOwner = {
-    LotId: Guid
-    LotOwnerId: Guid
-    LotOwnerType: LotOwnerType
-    StartDate: DateTimeOffset
-    EndDate: DateTimeOffset option
-    Contacts: LotOwnerContact list
-}
+and LotOwner = 
+    {
+        LotId: Guid
+        LotOwnerId: Guid
+        LotOwnerType: LotOwnerType
+        StartDate: DateTimeOffset
+        EndDate: DateTimeOffset option
+        Contacts: LotOwnerContact list
+    }
+    member me.FullName () =
+        match me.LotOwnerType with
+        | LotOwnerType.Organization org -> org.Name
+        | LotOwnerType.Owner owner -> owner.FullName ()
 and LotOwnerContact =
     | Owner of OwnerListItem
     | NonOwner of Person

@@ -170,8 +170,8 @@ let renderEditLotOwners (state: State) (dispatch: Message -> unit) =
 
     let ownerName (lotOwner: LotOwner) =
         match lotOwner.LotOwnerType with
-        | LotOwnerType.Owner o        -> str (o.FullName ())
-        | LotOwnerType.Organization o -> str o.Name
+        | LotOwnerType.Owner o        -> (o.FullName ())
+        | LotOwnerType.Organization o -> o.Name
 
     let isResident (lotOwner: LotOwner) =
         match lotOwner.LotOwnerType with
@@ -244,7 +244,7 @@ let renderEditLotOwners (state: State) (dispatch: Message -> unit) =
                             yield! owners |> List.mapi (fun index owner ->
                                 [
                                     tr [ Key (string owner.LotOwnerId) ] [
-                                        td [] [ ownerName owner ]
+                                        td [] [ str (ownerName owner) ]
                                         td [] [ startDateEditorFor index owner ]
                                         td [] [ endDateEditorFor index owner ]
                                         td [ Class Bootstrap.textRight ] [
@@ -259,8 +259,8 @@ let renderEditLotOwners (state: State) (dispatch: Message -> unit) =
                                         ]
                                     ]
                                     tr [] [
-                                        h6 [ Class Bootstrap.ml4 ] [ str "Contactpersonen" ]
                                         td [ ColSpan 4 ] [
+                                            if not owner.Contacts.IsEmpty then h6 [ Class Bootstrap.ml4 ] [ str "Contactpersonen" ]
                                             ul [ classes [ Bootstrap.listGroup; Bootstrap.ml4 ] ] [
                                                 yield! owner.Contacts |> List.mapi (fun otherIndex contact ->
                                                     li [ Key (string contact.PersonId); Class Bootstrap.listGroupItem ] [
@@ -313,7 +313,7 @@ let renderEditLotOwners (state: State) (dispatch: Message -> unit) =
                                             ] [
                                                 i [ classes [ FontAwesome.fa; FontAwesome.faUserPlus ] ] []
                                                 str " "
-                                                str "Contactpersoon toevoegen"
+                                                str (sprintf "Contactpersoon toevoegen voor %s" (ownerName owner))
                                             ]
                                         ]
                                     ]
@@ -330,7 +330,7 @@ let renderEditLotOwners (state: State) (dispatch: Message -> unit) =
             ] [
                 i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
                 str " "
-                str "Eigenaar(s) toevoegen" 
+                str "Nieuwe eigenaar toekennen" 
             ]
         ]
     ]
