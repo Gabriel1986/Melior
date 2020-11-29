@@ -28,7 +28,7 @@ module private Internals =
         YearOfDelivery: int option
         BankAccounts: string option
         PictureId: Guid option
-        SharesTotal: int
+        SharesTotal: int option
     }
 
     let readBuilding (reader: CaseInsensitiveRowReader): BuildingDbModel = {
@@ -49,7 +49,7 @@ module private Internals =
         YearOfDelivery = reader.intOrNone "YearOfDelivery"
         BankAccounts = reader.stringOrNone "BankAccounts"
         PictureId = reader.uuidOrNone "PictureId"
-        SharesTotal = reader.intOrNone "SharesTotal" |> Option.defaultValue 0
+        SharesTotal = reader.intOrNone "SharesTotal"
     }
 
     type BuildingListItemDbModel = {
@@ -60,7 +60,7 @@ module private Internals =
         OrganizationNumber: string option
         BankAccounts: string option
         PictureId: Guid option
-        SharesTotal: int
+        SharesTotal: int option
     }
 
     let readBuildingListItem (reader: CaseInsensitiveRowReader): BuildingListItemDbModel = {
@@ -71,7 +71,7 @@ module private Internals =
         OrganizationNumber = reader.stringOrNone "OrganizationNumber"
         BankAccounts = reader.stringOrNone "BankAccounts"
         PictureId = reader.uuidOrNone "PictureId"
-        SharesTotal = reader.intOrNone "SharesTotal" |> Option.defaultValue 0
+        SharesTotal = reader.intOrNone "SharesTotal"
     }
 
     let forceAddress str =

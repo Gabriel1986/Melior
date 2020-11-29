@@ -8,18 +8,23 @@ open Feliz.ElmishComponents
 open Fable.React
 open Fable.React.Props
 
+open Client.Library
 open ClientStyle
 open ClientStyle.Helpers
 open Routing
+open Shared.Library
 open Shared.Read
 open Shared.MediaLibrary
 
 type State = {
+    OnSetSidebarOpened: bool -> unit
     SidebarIsOpen: bool
     CurrentBuilding: BuildingListItem option
     CurrentUser: User
+    CurrentPage: Page option
     AdminModeEnabled: bool
     FinancialSubmenuIsOpen: bool
+    Warnings: Warning list
 }
 
 type Msg =
@@ -27,24 +32,36 @@ type Msg =
     | NavigateToPage of Page
     | ToggleFinancialSubmenu
 
-let init (isOpen: bool) (currentBuilding: BuildingListItem option) (currentUser: User) (adminModeEnabled: bool) =
+type SidebarProps =
+    {|
+        OnSetSidebarOpened: bool -> unit
+        SidebarIsOpen: bool
+        CurrentBuilding: BuildingListItem option
+        CurrentUser: User
+        CurrentPage: Page option
+        AdminModeEnabled: bool
+        Warnings: Warning list
+    |}
+
+let init (props: SidebarProps) =
     { 
-        SidebarIsOpen = isOpen 
-        CurrentBuilding = currentBuilding
-        CurrentUser = currentUser
-        AdminModeEnabled = adminModeEnabled
+        OnSetSidebarOpened = props.OnSetSidebarOpened
+        SidebarIsOpen = props.SidebarIsOpen
+        CurrentBuilding = props.CurrentBuilding
+        CurrentUser = props.CurrentUser
+        CurrentPage = props.CurrentPage
+        AdminModeEnabled = props.AdminModeEnabled
         FinancialSubmenuIsOpen = false
+        Warnings = props.Warnings
     }, Cmd.none
 
-let update onSetSidebarOpened (msg: Msg) (state: State): State * Cmd<Msg> =
+let update (msg: Msg) (state: State): State * Cmd<Msg> =
     match msg with
     | SetOpen opened ->
-        onSetSidebarOpened(opened)
+        state.OnSetSidebarOpened(opened)
         { state with SidebarIsOpen = opened }, Cmd.none
-
     | NavigateToPage page ->
         state, Routing.navigateToPage page
-
     | ToggleFinancialSubmenu ->
         { state with FinancialSubmenuIsOpen = not state.FinancialSubmenuIsOpen }, Cmd.none
 
@@ -89,6 +106,10 @@ let convertCurrentPageForNavigation page =
     | Some (Page.NotFound)
     | None                                    -> None
 
+let getWarningsForConcept (concept: Concept) (state: State) =
+    state.Warnings 
+    |> List.filter (fun warning -> warning.Concept = concept)
+
 let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> unit) =
     let userHasAccessToMultipleBuildings =
         state.CurrentUser.Roles |> List.exists (function | ProfessionalSyndicRole _ | SysAdminRole -> true | UserRole _ | SyndicRole _ -> false) 
@@ -121,10 +142,22 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
                 ] [ str "Eigenaars" ]
             ]
             yield li [ Class Bootstrap.navItem ] [
+                let warnings = getWarningsForConcept Concept.Lot state
                 a [
                     Class (determineStyle currentPage (Page.LotList buildingSpecificProps))
                     OnClick (fun _ -> NavigateToPage (Page.LotList buildingSpecificProps) |> dispatch)
-                ] [ str "Kavels" ]
+                    Title (warnings |> List.map (fun warning -> warning.Message) |> String.joinWith ", ")
+                ] [
+                    match warnings with
+                    | [] -> null
+                    | _ -> 
+                        [
+                            i [ classes [ FontAwesome.fa; FontAwesome.faExclamationTriangle ] ] []
+                            str " "
+                        ]
+                        |> fragment []
+                    str "Kavels"
+                ]
             ]
             yield li [ Class Bootstrap.navItem ] [
                 a [
@@ -253,10 +286,10 @@ let renderNavigation (state: State) (currentPage: Page option) (dispatch: Msg ->
             renderUserMode state currentPage dispatch
     ]
 
-let view (currentPage: Page option) (state: State) (dispatch: Msg -> unit) =
+let view (state: State) (dispatch: Msg -> unit) =
     ul [ classes [ Bootstrap.navbarNav; Bootstrap.flexColumn; Bootstrap.px2 ] ] [
-        yield! renderNavigation state (convertCurrentPageForNavigation currentPage) dispatch
+        yield! renderNavigation state (convertCurrentPageForNavigation state.CurrentPage) dispatch
     ]
 
-let render (props: {| OnSetSidebarOpened: bool -> unit; SidebarIsOpen: bool; CurrentBuilding: BuildingListItem option; CurrentUser: User; CurrentPage: Page option; AdminModeEnabled: bool |}) =
-    React.elmishComponent ("Sidebar", init props.SidebarIsOpen props.CurrentBuilding props.CurrentUser props.AdminModeEnabled, update props.OnSetSidebarOpened, view props.CurrentPage)
+let render (props: SidebarProps) =
+    React.elmishComponent ("Sidebar", init props, update, view)

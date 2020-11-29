@@ -35,6 +35,7 @@ module Application =
         let ownerSystem = Owners.OwnerSystem.build config
         let contractSystem = Contracts.ContractSystem.build config
         let financialSystem = Financial.FinancialSystem.build config
+        let warningSystem = Warnings.WarningSystem.build config
 
         {
             new IEnv with
@@ -47,6 +48,7 @@ module Application =
                 member _.OwnerSystem = ownerSystem
                 member _.ContractSystem = contractSystem
                 member _.FinancialSystem = financialSystem
+                member _.WarningSystem = warningSystem
         }
 
     let build (config: IConfiguration) next ctx =

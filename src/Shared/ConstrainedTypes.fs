@@ -136,11 +136,6 @@ type VatNumber =
             sprintf "%s %s" countryCode value
 
 module VatNumber =
-    let private parseInt (s: string) = 
-        match Int32.TryParse(s) with
-        | true, integer -> integer
-        | false, _      -> 0
-
     let Of path (countryCode: string) (vatNumber: string) =
         let vatNumberDigits = vatNumber |> String.filter Char.IsDigit
         let lengthError =
@@ -159,8 +154,8 @@ module VatNumber =
                 let digits = vatNumber |> String.filter Char.IsDigit
                 let validateBelgianCheckNumber (str: string) =
                     let digits = str.PadLeft(10, '0')
-                    let number = parseInt (digits.[0..7])
-                    let checkNumber = parseInt (digits.[8..])
+                    let number = parseInt (digits.[0..7]) |> Option.defaultValue 0
+                    let checkNumber = parseInt (digits.[8..]) |> Option.defaultValue 0
                     (number + checkNumber) % 97 = 0
                 if (digits.Length >= 9 && digits.Length <= 10 && validateBelgianCheckNumber digits)
                 then

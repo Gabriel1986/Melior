@@ -66,6 +66,8 @@ let view (props: Props) =
                         | _ ->
                             ()
 
+                        yield readonlyFormElement "Totale quotiteit van de kavels" (detail.SharesTotal |> Option.defaultValue 0 |> string)
+
                         yield!
                             detail.BankAccounts
                             |> List.mapi (fun i bankAccount -> 
@@ -76,7 +78,6 @@ let view (props: Props) =
                                         "Bankrekening"
                                 readonlyFormElement bankAccountDescription (string bankAccount))
 
-                        yield readonlyFormElement "Totale quotiteit van de kavels" (string detail.SharesTotal)
                     ]
                 ]
         ]

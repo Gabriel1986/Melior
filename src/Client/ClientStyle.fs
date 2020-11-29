@@ -1,7 +1,7 @@
 ﻿module Client.ClientStyle
 
 open Zanaptak.TypedCssClasses
-open Fable.Core
+open Shared.Read
 
 type Bootstrap = CssClasses<"public/styles/bootstrap.min.css", Naming.CamelCase, resolutionFolder=__SOURCE_DIRECTORY__>
 type FontAwesome = CssClasses<"public/styles/fontawesome.all.min.css", Naming.CamelCase, resolutionFolder=__SOURCE_DIRECTORY__>
@@ -179,3 +179,17 @@ module Helpers =
                 page
             ]
         ]
+
+    let renderWarnings (warnings: Warning list) =
+        let determineWarningTypeClass warningType =
+            match warningType with
+            | WarningType.ErrorType -> Bootstrap.alertDanger
+            | WarningType.WarningType -> Bootstrap.alertWarning
+
+        match warnings with
+        | [] -> null
+        | warnings ->
+            div [ Class Bootstrap.col12 ] [
+                for warning in warnings do
+                    yield div [ classes [ Bootstrap.alert; (determineWarningTypeClass warning.Type) ] ] [ str warning.Message ]
+            ]

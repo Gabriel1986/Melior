@@ -25,6 +25,8 @@ type State = {
     SelectedTab: Tab
     LoadingListItems: bool
     ListItems: LotListItem list
+    OnLotsChanged: LotListItem list -> unit
+    Warnings: Warning list
 }
 and Tab =
     | List
@@ -47,6 +49,8 @@ type LotsPageProps = {|
     CurrentUser: User
     CurrentBuilding: BuildingListItem
     LotId: Guid option
+    OnLotsChanged: LotListItem list -> unit
+    Warnings: Warning list
 |}
 
 type SortableLotListItemAttribute =
@@ -123,6 +127,8 @@ let init (props: LotsPageProps) =
             | None -> List
         ListItems = []
         LoadingListItems = true
+        OnLotsChanged = props.OnLotsChanged
+        Warnings = props.Warnings
     }
     
     let cmd =
@@ -230,6 +236,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let listItem = toListItem lot
         let newListItems = listItem :: state.ListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
+        state.OnLotsChanged newListItems
         { state with 
             ListItems = newListItems
             SelectedListItems = newSelectedListItems
@@ -242,6 +249,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let listItem = toListItem lot
         let newListItems = state.ListItems |> List.map (fun li -> if li.LotId = lot.LotId then listItem else li)
         let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.LotId = lot.LotId then listItem else li)
+        
+        state.OnLotsChanged newListItems        
         { state with 
             ListItems = newListItems
             SelectedListItems = newSelectedListItems
@@ -264,6 +273,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
         String.Join(" ", Bootstrap.navLink::extraClasses)
 
     div [ Class Bootstrap.row ] [
+        Helpers.renderWarnings state.Warnings
         let list (state: State) =
             [
                 SortableTable.render 

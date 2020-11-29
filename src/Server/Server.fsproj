@@ -69,6 +69,8 @@
     <Compile Include="Financial\Query.fs" />
     <Compile Include="Financial\Workflow.fs" />
     <Compile Include="Financial\FinancialSystem.fs" />
+    <Compile Include="Warnings\Query.fs" />
+    <Compile Include="Warnings\WarningSystem.fs" />
     <Compile Include="Remoting.fs" />
     <Compile Include="Application.fs" />
     <Compile Include="Seedings.fs" />

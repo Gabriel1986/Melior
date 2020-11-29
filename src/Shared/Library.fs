@@ -31,6 +31,14 @@ module String =
         |> Seq.chunkBySize length 
         |> Seq.map String
 
+let parseInt str =
+    match str |> String.toOption with
+    | Some s ->
+        let isParsed, parsed = s |> String.filter Char.IsDigit |> Int32.TryParse
+        if isParsed then Some parsed else None
+    | None ->
+        None
+
 type CreateOrUpdate = Create | Update
 
 module Option =

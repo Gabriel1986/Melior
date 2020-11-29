@@ -198,6 +198,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         let listItem = building.ToListItem()
         let newListItems = state.ListItems |> List.map (fun li -> if li.BuildingId = building.BuildingId then listItem else li)
         let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.BuildingId = building.BuildingId then listItem else li)
+        if Some building.BuildingId = state.CurrentBuildingId then
+            state.OnCurrentBuildingChanged (building.ToListItem())
         { state with 
             ListItems = newListItems
             SelectedListItems = newSelectedListItems

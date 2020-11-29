@@ -209,4 +209,8 @@
             DeleteUser = fun input ->
                 createMsg input
                 |> environment.AuthenticationSystem.DeleteUser
+            GetAllWarnings = fun buildingId ->
+                environment.WarningSystem.GetWarnings buildingId
+            GetWarningsForConcept = fun (buildingId, concept) ->
+                environment.WarningSystem.GetWarningsForConcept (buildingId, concept)
         }

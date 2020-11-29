@@ -23,6 +23,7 @@ type Message =
     | GeneralMeetingPeriodChanged of (DateTime * DateTime) option
     | YearOfConstructionChanged of string
     | YearOfDeliveryChanged of string
+    | SharesTotalChanged of string
     | ShowDefaultImage
     | OpenImageUploadDialog
     | CloseImageUploadDialog
@@ -78,14 +79,6 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     let changeBuilding f =
         { state with Building = f state.Building }
 
-    let parseInt str =
-        match str |> String.toOption with
-        | Some s ->
-            let isParsed, parsed = s |> String.filter Char.IsDigit |> Int32.TryParse
-            if isParsed then Some parsed else None
-        | None ->
-            None
-
     let recalculateValidationErrors (state: State) =
         match state.Errors with
         | [] -> state
@@ -123,6 +116,8 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         changeBuilding (fun b -> { b with YearOfConstruction = parseInt s }), Cmd.none
     | YearOfDeliveryChanged s ->
         changeBuilding (fun b -> { b with YearOfDelivery = parseInt s }), Cmd.none
+    | SharesTotalChanged s ->
+        changeBuilding (fun b -> { b with SharesTotal = parseInt s }), Cmd.none
     | ShowDefaultImage ->
         { state with ShowingDefaultImage = true }, Cmd.none
     | OpenImageUploadDialog ->
@@ -328,6 +323,18 @@ let view (state: State) (dispatch: Message -> unit) =
                             match dates with
                             | [ fromDate; toDate ] -> GeneralMeetingPeriodChanged (Some (fromDate, toDate)) |> dispatch
                             | _ -> GeneralMeetingPeriodChanged None |> dispatch)
+                ]
+            ]
+        ]
+
+        div [ Class Bootstrap.row ] [
+            formGroup [
+                Label "Totale quotiteit van de kavels"
+                Input [
+                    Type "number"
+                    valueOrDefault state.Building.SharesTotal
+                    OnChange (fun e -> SharesTotalChanged e.Value |> dispatch)
+                    Style [ Width "120px" ]
                 ]
             ]
         ]

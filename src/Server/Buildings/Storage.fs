@@ -61,7 +61,7 @@ let private paramsFor (validated: ValidatedBuilding) =
         "@YearOfDelivery"     , Sql.intOrNone (validated.YearOfDelivery |> Option.map (fun x -> x.Value ()))
         "@BankAccounts"       , Sql.jsonb (validated.BankAccounts |> ValidatedBankAccount.listToJson)
         "@PictureId"          , Sql.uuidOrNone validated.PictureId
-        "@SharesTotal"        , Sql.int (validated.SharesTotal.Value ())
+        "@SharesTotal"        , Sql.intOrNone (validated.SharesTotal |> Option.map (fun x -> x.Value ()))
     ]
 
 let updateBuildingSyndic (connectionString: string) (buildingId: BuildingId, syndicId: ValidatedSyndicInput option) =

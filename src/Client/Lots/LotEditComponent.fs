@@ -52,14 +52,6 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     let changeLot f =
         { state with Lot = f state.Lot }
 
-    let parseInt str =
-        match str |> String.toOption with
-        | Some s ->
-            let isParsed, parsed = s |> String.filter Char.IsDigit |> Int32.TryParse
-            if isParsed then Some parsed else None
-        | None ->
-            None
-
     let recalculateValidationErrors (state: State) =
         match state.Errors with
         | [] -> state

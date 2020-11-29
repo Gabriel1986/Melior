@@ -185,6 +185,12 @@ module Financial =
         abstract SeedFinancialCategories: FinancialCategorySeedRow seq -> Async<unit>
         abstract SeedDistributionKeys: DistributionKeySeedRow seq -> Async<unit>
 
+module Warnings =
+    [<NoComparison; NoEquality>]
+    type IWarningSystem =
+        abstract GetWarnings: BuildingId -> Async<Warning list>
+        abstract GetWarningsForConcept: BuildingId * Concept -> Async<Warning list>
+
 [<NoComparison; NoEquality>]
 type IEnv =
     abstract AuthenticationSystem: Authentication.IAuthenticationSystem
@@ -196,3 +202,4 @@ type IEnv =
     abstract OwnerSystem: Owners.IOwnerSystem
     abstract ContractSystem: Contracts.IContractSystem
     abstract FinancialSystem: Financial.IFinancialSystem
+    abstract WarningSystem: Warnings.IWarningSystem

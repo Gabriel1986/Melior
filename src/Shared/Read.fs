@@ -117,7 +117,7 @@ type Building =
         YearOfDelivery: int option
         BankAccounts: BankAccount list
         PictureId: Guid option
-        SharesTotal: int
+        SharesTotal: int option
     }
     static member Init () = {
         BuildingId = Guid.NewGuid()
@@ -133,7 +133,7 @@ type Building =
         YearOfDelivery = None
         BankAccounts = []
         PictureId = None
-        SharesTotal = 0
+        SharesTotal = None
     }
     member me.ToListItem (): BuildingListItem = {
         BuildingId = me.BuildingId
@@ -229,7 +229,7 @@ and BuildingListItem = {
     OrganizationNumber: string option
     BankAccounts: BankAccount list
     PictureId: Guid option
-    SharesTotal: int
+    SharesTotal: int option
 }
 and Lot = 
     {
@@ -716,3 +716,16 @@ type Invoice =
         MediaFiles: MediaFile list
     }
     member me.LocalInvoiceNumber = Invoice.calculateLocalInvoiceNumber (me.FinancialYear.Code, me.InvoiceNumber)
+
+[<RequireQualifiedAccess>]
+type Concept =
+    | Lot
+
+type Warning = {
+    Concept: Concept
+    Type: WarningType
+    Message: string
+}
+and WarningType =
+    | ErrorType
+    | WarningType

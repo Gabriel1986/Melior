@@ -15,6 +15,7 @@ open Shared.Read
 
 open Routing
 open Client
+open Client.Library
 open Client.Buildings
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
@@ -42,6 +43,7 @@ module Client =
         CurrentPage: Page
         SidebarIsOpen: bool
         AdminModeEnabled: bool
+        Warnings: Warning list
     }
     type ClientMessage =
         | CurrentUserFetched of User
@@ -52,7 +54,17 @@ module Client =
         | AdminModeChanged of bool
         | ChangeCurrentBuildingAndPage of BuildingListItem * Routing.Page
         | SetSidebarDocked of bool
+        | ReloadWarnings
+        | WarningsLoaded of Warning list
+        | RemotingException of exn
 
+    module Server =
+        let loadWarnings buildingId =
+            Cmd.OfAsync.either
+                (Remoting.getRemotingApi()).GetAllWarnings buildingId
+                WarningsLoaded
+                RemotingException
+    
     let init () =
         let cmd =
             Cmd.OfAsync.either
@@ -120,6 +132,10 @@ module Client =
             state, newCmd
         | StartApplication (currentUser, currentBuilding, adminModeEnabled) ->
             let currentPage = Routing.parseUrl (Router.currentUrl ())
+            let cmd =
+                match currentBuilding with
+                | Some currentBuilding -> Server.loadWarnings currentBuilding.BuildingId
+                | None -> Cmd.none
 
             Running {
                 CurrentUser = currentUser
@@ -127,7 +143,8 @@ module Client =
                 CurrentBuilding = currentBuilding
                 SidebarIsOpen = true
                 AdminModeEnabled = adminModeEnabled
-            }, Cmd.none
+                Warnings = []
+            }, cmd
         | StopApplication e ->
             Stopped e, Cmd.none
         | PageNotFound ->
@@ -167,14 +184,26 @@ module Client =
             match state with
             | Running running ->
                 let newRunningState = setCurrentBuilding running newBuilding
-                Running { newRunningState with CurrentPage = newPage }, Cmd.none
+
+                Running { newRunningState with CurrentPage = newPage }
+                , Server.loadWarnings newBuilding.BuildingId
             | _ ->
                 state, Cmd.none
         | SetSidebarDocked opened ->
             match state with
             | Running runningState -> Running { runningState with SidebarIsOpen = opened }, Cmd.none
             | _ -> state, Cmd.none
-
+        | WarningsLoaded warnings ->
+            match state with
+            | Running runningState -> Running { runningState with Warnings = warnings }, Cmd.none
+            | _ -> state, Cmd.none
+        | RemotingException err ->
+            state, showGenericErrorModalCmd err
+        | ReloadWarnings ->
+            match state with
+            | Running runningState when runningState.CurrentBuilding.IsSome -> 
+                state, Server.loadWarnings runningState.CurrentBuilding.Value.BuildingId
+            | _ -> state, Cmd.none
 
 
     let private shouldChangePage (oldPage: Page) (newPage: Page) =
@@ -226,6 +255,8 @@ module Client =
                 div [ Class Bootstrap.py3 ] [ h2 [] [ str "De app wordt gestart" ] ] 
             ]
         | Running runningState ->
+            let warningsForConcept (concept: Concept) =
+                runningState.Warnings |> List.filter (fun warning -> warning.Concept = concept)
             let currentPage =
                 match runningState.CurrentPage, runningState.CurrentBuilding with
                 | Page.Portal, _ -> 
@@ -271,6 +302,8 @@ module Client =
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
                             LotId = None
+                            OnLotsChanged = fun _ -> dispatch ReloadWarnings
+                            Warnings = warningsForConcept Concept.Lot
                         |}
                 | Page.LotDetails props, Some building ->
                     LotsPage.render 
@@ -278,6 +311,8 @@ module Client =
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
                             LotId = Some props.DetailId
+                            OnLotsChanged = fun _ -> dispatch ReloadWarnings
+                            Warnings = warningsForConcept Concept.Lot
                         |}                    
                 | Page.OrganizationList _, Some building ->
                     OrganizationsPage.render 
@@ -422,6 +457,7 @@ module Client =
                             CurrentBuilding = runningState.CurrentBuilding
                             CurrentUser = runningState.CurrentUser
                             AdminModeEnabled = runningState.AdminModeEnabled
+                            Warnings = runningState.Warnings
                         |}
                 ]
                 div [ classes [ "melior-content" ] ] [

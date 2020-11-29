@@ -210,6 +210,9 @@ type RemotingApi = {
     CreateUser: User -> Async<Result<unit, SaveUserError>>
     UpdateUser: User -> Async<Result<unit, SaveUserError>>
     DeleteUser: Guid -> Async<Result<unit, DeleteUserError>>
+
+    GetAllWarnings: BuildingId -> Async<Warning list>
+    GetWarningsForConcept: BuildingId * Concept -> Async<Warning list>
 }
 
 let routeBuilder = sprintf "/remoting/%s/%s"
