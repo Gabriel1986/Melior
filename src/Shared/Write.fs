@@ -202,6 +202,7 @@ type ValidatedBuilding =
         YearOfDelivery: PositiveInt option
         BankAccounts: ValidatedBankAccount list
         PictureId: Guid option
+        SharesTotal: PositiveInt
     }
     static member Validate (building: Building): Result<ValidatedBuilding, (string * string) list> =
         trial {
@@ -212,6 +213,7 @@ type ValidatedBuilding =
             also address in ValidatedAddress.BasicValidate (nameof building.Address) building.Address
             also orgNr in validateOptional (OrganizationNumber.OfString (nameof building.OrganizationNumber)) building.OrganizationNumber
             also bankAccounts in building.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.BasicValidate (sprintf "%s.[%i]" (nameof building.BankAccounts) index) b) |> Trial.sequence
+            also sharesTotal in validatePositiveInt (nameof building.SharesTotal) building.SharesTotal
             yield {
                 BuildingId = building.BuildingId
                 Code = code
@@ -224,6 +226,7 @@ type ValidatedBuilding =
                 YearOfDelivery = yearOfDelivery
                 BankAccounts = bankAccounts |> List.ofSeq
                 PictureId = building.PictureId
+                SharesTotal = sharesTotal
             }
         }
         |> Trial.toResult

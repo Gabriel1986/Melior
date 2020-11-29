@@ -57,13 +57,6 @@ let view (props: Props) =
                         yield readonlyFormElement "Bouwjaar" (detail.YearOfConstruction |> Option.map string |> Option.defaultValue "")
                         yield readonlyFormElement "Opleveringsjaar" (detail.YearOfDelivery |> Option.map string |> Option.defaultValue "")
 
-            
-                        //match detail.Remarks with
-                        //| Some remarks ->
-                        //    yield readonlyFormElement "Opmerkingen" remarks
-                        //| None ->
-                        //    ()
-
                         match detail.GeneralMeetingPeriod with
                         | Some period ->
                             let currentYear = DateTime.Today.Year
@@ -82,6 +75,8 @@ let view (props: Props) =
                                     else
                                         "Bankrekening"
                                 readonlyFormElement bankAccountDescription (string bankAccount))
+
+                        yield readonlyFormElement "Totale quotiteit van de kavels" (string detail.SharesTotal)
                     ]
                 ]
         ]

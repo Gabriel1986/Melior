@@ -117,6 +117,7 @@ type Building =
         YearOfDelivery: int option
         BankAccounts: BankAccount list
         PictureId: Guid option
+        SharesTotal: int
     }
     static member Init () = {
         BuildingId = Guid.NewGuid()
@@ -132,6 +133,7 @@ type Building =
         YearOfDelivery = None
         BankAccounts = []
         PictureId = None
+        SharesTotal = 0
     }
     member me.ToListItem (): BuildingListItem = {
         BuildingId = me.BuildingId
@@ -141,6 +143,7 @@ type Building =
         OrganizationNumber = me.OrganizationNumber
         BankAccounts = me.BankAccounts
         PictureId = me.PictureId
+        SharesTotal = me.SharesTotal
     }
 and Address =
     {
@@ -226,6 +229,7 @@ and BuildingListItem = {
     OrganizationNumber: string option
     BankAccounts: BankAccount list
     PictureId: Guid option
+    SharesTotal: int
 }
 and Lot = 
     {

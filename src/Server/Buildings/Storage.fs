@@ -61,6 +61,7 @@ let private paramsFor (validated: ValidatedBuilding) =
         "@YearOfDelivery"     , Sql.intOrNone (validated.YearOfDelivery |> Option.map (fun x -> x.Value ()))
         "@BankAccounts"       , Sql.jsonb (validated.BankAccounts |> ValidatedBankAccount.listToJson)
         "@PictureId"          , Sql.uuidOrNone validated.PictureId
+        "@SharesTotal"        , Sql.int (validated.SharesTotal.Value ())
     ]
 
 let updateBuildingSyndic (connectionString: string) (buildingId: BuildingId, syndicId: ValidatedSyndicInput option) =
@@ -190,7 +191,8 @@ let createBuilding (connectionString: string) (validated: ValidatedBuilding) = a
                     YearOfConstruction,
                     YearOfDelivery,
                     BankAccounts,
-                    PictureId
+                    PictureId,
+                    SharesTotal
                 ) VALUES (
                     @BuildingId,
                     @Code,
@@ -203,7 +205,8 @@ let createBuilding (connectionString: string) (validated: ValidatedBuilding) = a
                     @YearOfConstruction,
                     @YearOfDelivery,
                     @BankAccounts,
-                    @PictureId
+                    @PictureId,
+                    @SharesTotal
                 )
             """, (paramsFor validated)
 
@@ -227,7 +230,8 @@ let updateBuilding (connectionString: string) (validated: ValidatedBuilding) =
                 YearOfConstruction = @YearOfConstruction,
                 YearOfDelivery = @YearOfDelivery,
                 BankAccounts = @BankAccounts,
-                PictureId = @PictureId
+                PictureId = @PictureId,
+                SharesTotal = @SharesTotal
             WHERE BuildingId = @BuildingId
         """
     |> Sql.parameters (paramsFor validated)
