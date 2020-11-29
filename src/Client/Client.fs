@@ -40,22 +40,17 @@ module Client =
         CurrentUser: User
         CurrentBuilding: BuildingListItem option
         CurrentPage: Page
-        CurrentState: PageState option
         SidebarIsOpen: bool
         AdminModeEnabled: bool
     }
-    and PageState =
-        | BuildingPageState of BuildingsPage.State
     type ClientMessage =
         | CurrentUserFetched of User
         | StartApplication of User * BuildingListItem option * adminModeEnabled: bool
         | StopApplication of exn
         | PageNotFound
         | ChangePage of Routing.Page
-        | CurrentBuildingChanged of BuildingListItem
         | AdminModeChanged of bool
         | ChangeCurrentBuildingAndPage of BuildingListItem * Routing.Page
-        | BuildingPageMsg of BuildingsPage.Msg
         | SetSidebarDocked of bool
 
     let init () =
@@ -84,10 +79,6 @@ module Client =
     let private setAdminMode (running: RunningState) (adminModeEnabled: bool) =
         Browser.WebStorage.localStorage.setItem("adminModeEnabled", string adminModeEnabled)
         Running { running with AdminModeEnabled = adminModeEnabled }, Cmd.ofMsg (ChangePage Page.Portal)
-
-    let private initializeBuildingsPage props =
-        let s, cmd = BuildingsPage.init props
-        s |> BuildingPageState |> Some, cmd |> Cmd.map BuildingPageMsg |> Some
 
     let update (message: ClientMessage) (state: ClientState) =
         let getFirstBuildingId =            
@@ -129,34 +120,14 @@ module Client =
             state, newCmd
         | StartApplication (currentUser, currentBuilding, adminModeEnabled) ->
             let currentPage = Routing.parseUrl (Router.currentUrl ())
-            let currentPageState, currentPageCmd =
-                match currentPage with
-                | Page.BuildingList ->
-                    initializeBuildingsPage 
-                        {| 
-                            CurrentUser = currentUser
-                            BuildingId = None
-                            CurrentBuildingId = currentBuilding |> Option.map (fun b -> b.BuildingId)
-                        |}
-                | Page.BuildingDetails buildingId ->
-                    initializeBuildingsPage
-                        {| 
-                            CurrentUser = currentUser
-                            BuildingId = Some buildingId
-                            CurrentBuildingId = currentBuilding |> Option.map (fun b -> b.BuildingId)
-                        |}
-                | _ ->
-                    None, None
-
 
             Running {
                 CurrentUser = currentUser
                 CurrentPage = currentPage
                 CurrentBuilding = currentBuilding
-                CurrentState = currentPageState
                 SidebarIsOpen = true
                 AdminModeEnabled = adminModeEnabled
-            }, match currentPageCmd with | Some cmd -> cmd | None -> Cmd.none
+            }, Cmd.none
         | StopApplication e ->
             Stopped e, Cmd.none
         | PageNotFound ->
@@ -182,37 +153,8 @@ module Client =
                 | Page.DistributionKeyDetails props when currentBuildingId <> props.BuildingId ->
                     //Fetch building and set it as current building, then go to page.
                     state, fetchBuildingAndChangePage props.BuildingId newPage
-                | Page.BuildingDetails buildingId ->
-                    let currentPageState, currentPageCmd =
-                        initializeBuildingsPage 
-                            {| 
-                                CurrentUser = running.CurrentUser
-                                BuildingId = Some buildingId
-                                CurrentBuildingId = running.CurrentBuilding |> Option.map (fun b -> b.BuildingId)
-                            |}
-                    Running { running with CurrentPage = newPage; CurrentState = currentPageState }, currentPageCmd |> Option.defaultValue Cmd.none
-                | Page.BuildingList ->
-                    let currentPageState, currentPageCmd =
-                        initializeBuildingsPage 
-                            {| 
-                                CurrentUser = running.CurrentUser
-                                BuildingId = None
-                                CurrentBuildingId = running.CurrentBuilding |> Option.map (fun b -> b.BuildingId)
-                            |}
-                    Running { running with CurrentPage = newPage; CurrentState = currentPageState }, currentPageCmd |> Option.defaultValue Cmd.none
                 | newPage ->
                     Running { running with CurrentPage = newPage }, Cmd.none
-            | _ ->
-                state, Cmd.none
-        | CurrentBuildingChanged newBuilding ->
-            match state with
-            | Running running ->
-                match running.CurrentBuilding with
-                | Some currentBuilding when currentBuilding.BuildingId = newBuilding.BuildingId ->
-                    state, Cmd.none
-                | _ ->
-                    let newState = setCurrentBuilding running newBuilding
-                    Running newState, Cmd.none
             | _ ->
                 state, Cmd.none
         | AdminModeChanged adminModeEnabled ->
@@ -226,33 +168,6 @@ module Client =
             | Running running ->
                 let newRunningState = setCurrentBuilding running newBuilding
                 Running { newRunningState with CurrentPage = newPage }, Cmd.none
-            | _ ->
-                state, Cmd.none
-        | BuildingPageMsg msg ->
-            match state with
-            | Running running ->
-                let newState, newCmd =
-                    match running.CurrentState with
-                    | Some (BuildingPageState s) ->
-                        let updatedPageState, pageCommand = BuildingsPage.update msg s
-
-                        let updatedRunningState =
-                            match msg with
-                            | BuildingsPage.Msg.CurrentBuildingChanged newCurrentBuilding -> 
-                                setCurrentBuilding running newCurrentBuilding
-                            | BuildingsPage.Msg.Edited building ->
-                                match s.CurrentBuildingId with
-                                | Some buildingId when building.BuildingId = buildingId ->
-                                    setCurrentBuilding running (building.ToListItem())
-                                | _ ->
-                                    running
-                            | _ -> 
-                                running
-
-                        { updatedRunningState with CurrentState = updatedPageState |> BuildingPageState |> Some }, pageCommand |> Cmd.map BuildingPageMsg |> Some
-                    | _ ->
-                        running, None
-                Running newState, match newCmd with | Some cmd -> cmd | None -> Cmd.none
             | _ ->
                 state, Cmd.none
         | SetSidebarDocked opened ->
@@ -311,138 +226,150 @@ module Client =
                 div [ Class Bootstrap.py3 ] [ h2 [] [ str "De app wordt gestart" ] ] 
             ]
         | Running runningState ->
-            let currentPage =                
-                match runningState.CurrentPage, runningState.CurrentState, runningState.CurrentBuilding with
-                | Page.Portal, _, _ -> 
+            let currentPage =
+                match runningState.CurrentPage, runningState.CurrentBuilding with
+                | Page.Portal, _ -> 
                     PortalPage.render 
                         {| 
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = runningState.CurrentBuilding
                             AdminModeEnabled = runningState.AdminModeEnabled
                         |}
-                | Page.BuildingList, Some (BuildingPageState s), _ ->
-                    BuildingsPage.view s (BuildingPageMsg >> dispatch)
-                | Page.BuildingDetails _, Some (BuildingPageState s), _ ->
-                    BuildingsPage.view s (BuildingPageMsg >> dispatch)
-                | Page.OwnerList _, _, Some building ->
+                | Page.BuildingList, _ ->
+                    BuildingsPage.render
+                        {|
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuildingId = runningState.CurrentBuilding |> Option.map (fun b -> b.BuildingId)
+                            BuildingId = None
+                            OnCurrentBuildingChanged = fun building -> ChangeCurrentBuildingAndPage (building, Page.BuildingList) |> dispatch
+                        |}
+                | Page.BuildingDetails buildingId, _  ->
+                    BuildingsPage.render
+                        {|
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuildingId = runningState.CurrentBuilding |> Option.map (fun b -> b.BuildingId)
+                            BuildingId = Some buildingId
+                            OnCurrentBuildingChanged = fun building -> ChangeCurrentBuildingAndPage (building, Page.BuildingList) |> dispatch
+                        |}
+                | Page.OwnerList _, Some building ->
                     OwnersPage.render 
                         {| 
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
                             OwnerId = None
                         |}
-                | Page.OwnerDetails props, _, Some building ->
+                | Page.OwnerDetails props, Some building ->
                     OwnersPage.render 
                         {| 
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
                             OwnerId = Some props.DetailId
                         |}
-                | Page.LotList _, _, Some building ->
+                | Page.LotList _, Some building ->
                     LotsPage.render 
                         {| 
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
                             LotId = None
                         |}
-                | Page.LotDetails props, _, Some building ->
+                | Page.LotDetails props, Some building ->
                     LotsPage.render 
                         {| 
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
                             LotId = Some props.DetailId
                         |}                    
-                | Page.OrganizationList _, _, Some building ->
+                | Page.OrganizationList _, Some building ->
                     OrganizationsPage.render 
                         {| 
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
                             OrganizationId = None
                         |}
-                | Page.OrganizationDetails props, _, Some building ->
+                | Page.OrganizationDetails props, Some building ->
                     OrganizationsPage.render 
                         {| 
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
                             OrganizationId = Some props.DetailId
                         |}
-                | Page.ProfessionalSyndicList, _, _ ->
+                | Page.ProfessionalSyndicList, _ ->
                     ProfessionalSyndicsPage.render 
                         {|
                             CurrentUser = runningState.CurrentUser
                             ProfessionalSyndicId = None
                         |}
-                | Page.ProfessionalSyndicDetails proSyndicId, _, _ ->
+                | Page.ProfessionalSyndicDetails proSyndicId, _ ->
                     ProfessionalSyndicsPage.render
                         {|
                             CurrentUser = runningState.CurrentUser
                             ProfessionalSyndicId = Some proSyndicId
                         |}
-                | Page.OrganizationTypeList, _, _ ->
+                | Page.OrganizationTypeList, _ ->
                     OrganizationTypesPage.render 
                         {|
                             CurrentUser = runningState.CurrentUser
                         |}
-                | Page.Contracts _, _, Some building ->
+                | Page.Contracts _, Some building ->
                     ContractsPage.render 
                         {|
                             CurrentUser = runningState.CurrentUser
                             CurrentBuildingId = building.BuildingId
                         |}
-                | Page.FinancialSettings _, _, Some building ->
+                | Page.FinancialSettings _, Some building ->
                     Financial.Settings.render
                         {|
                             CurrentUser = runningState.CurrentUser
                             CurrentBuildingId = building.BuildingId
                         |}
-                | Page.DistributionKeyList _, _, Some building ->
+                | Page.DistributionKeyList _, Some building ->
                     DistributionKeysPage.render
                         {|
                             CurrentUser = runningState.CurrentUser
                             CurrentBuildingId = building.BuildingId
                             DistributionKeyId = None
                         |}
-                | Page.DistributionKeyDetails props, _, Some building ->
+                | Page.DistributionKeyDetails props, Some building ->
                     DistributionKeysPage.render 
                         {| 
                             CurrentUser = runningState.CurrentUser
                             CurrentBuildingId = building.BuildingId
                             DistributionKeyId = Some props.DetailId
                         |}
-                | Page.Invoices _, _, Some building ->
+                | Page.Invoices _, Some building ->
                     InvoicesPage.render
                         {|
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
                             InvoiceId = None
                         |}
-                | Page.InvoiceDetails props, _, Some building ->
+                | Page.InvoiceDetails props, Some building ->
                     InvoicesPage.render
                         {|
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
                             InvoiceId = Some props.DetailId
                         |}
-                | Page.UserList _, _, _ ->
+                | Page.UserList _, _ ->
                     UsersPage.render
                         {|
                             CurrentUser = runningState.CurrentUser
                             UserId = None
                         |}
-                | Page.UserDetails userId, _, _ ->
+                | Page.UserDetails userId, _ ->
                     UsersPage.render
                         {|
                             CurrentUser = runningState.CurrentUser
                             UserId = Some userId
                         |}
-                | Page.NoticeBoard, _, _
-                | Page.MyEvents, _, _
-                | Page.MyLots, _, _
-                | Page.MyContracts, _, _
-                | Page.MyFinancials, _, _
-                | Page.InvoiceDetails _, _, _
-                | Page.Provisions _, _, _
-                | Page.BankNotes _, _, _ ->
+                | Page.NoticeBoard, _
+                | Page.MyEvents, _
+                | Page.MyLots, _
+                | Page.MyContracts, _
+                | Page.MyFinancials, _
+                | Page.InvoiceDetails _, _
+                | Page.Provisions _, _
+                | Page.BankNotes _, _ ->
                     div [] [
                         str "Deze pagina is nog niet beschikbaar"
                     ]

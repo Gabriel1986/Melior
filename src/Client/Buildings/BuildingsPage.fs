@@ -6,9 +6,11 @@ open Fable
 open Fable.React
 open Fable.React.Props
 open Feliz
+open Feliz.ElmishComponents
 
 open Shared.Read
 open Shared.Remoting
+open Shared.Library
 open Client
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
@@ -52,6 +54,8 @@ type State = {
     CurrentBuildingId: Guid option
     LoadingListItems: bool
     ListItems: BuildingListItem list
+
+    OnCurrentBuildingChanged: BuildingListItem -> unit
 }
 and Tab =
     | List
@@ -73,8 +77,9 @@ type Msg =
 
 type BuildingsPageProps = {|
     CurrentUser: User
-    BuildingId: Guid option
     CurrentBuildingId: Guid option
+    BuildingId: Guid option
+    OnCurrentBuildingChanged: BuildingListItem -> unit
 |}
 
 let init (props: BuildingsPageProps) =
@@ -88,6 +93,8 @@ let init (props: BuildingsPageProps) =
         ListItems = []
         LoadingListItems = true
         CurrentBuildingId = props.CurrentBuildingId
+
+        OnCurrentBuildingChanged = props.OnCurrentBuildingChanged
     }
     
     let cmd =
@@ -138,14 +145,18 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             | None -> Cmd.none
         newState, cmd
     | RemoveListItem building ->
-        state, 
-            showConfirmationModal
-                {|
-                    Title = "Gebouw verwijderen?"
-                    Message = sprintf "Bent u er zeker van dat u %s wilt verwijderen?" building.Name
-                    OnConfirmed = fun () -> ConfirmRemoveListItem building
-                    OnDismissed = fun () -> NoOp
-                |}
+        if Some building.BuildingId = state.CurrentBuildingId then
+            state,
+                showErrorToastCmd "U kan het huidig geselecteerde gebouw niet verwijderen... Gelieve eerst een ander gebouw te selecteren"
+        else
+            state, 
+                showConfirmationModal
+                    {|
+                        Title = "Gebouw verwijderen?"
+                        Message = sprintf "Bent u er zeker van dat u %s wilt verwijderen?" building.Name
+                        OnConfirmed = fun () -> ConfirmRemoveListItem building
+                        OnDismissed = fun () -> NoOp
+                    |}
     | ConfirmRemoveListItem building ->
         let cmd =
             Cmd.OfAsync.either
@@ -195,6 +206,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             showSuccessToastCmd "Het gebouw is gewijzigd"
         ]
     | CurrentBuildingChanged building ->
+        state.OnCurrentBuildingChanged building
         { state with CurrentBuildingId = Some building.BuildingId }, Cmd.none
     | NoOp ->
         state, Cmd.none
@@ -282,3 +294,6 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
         ]
     ]
     |> withPageHeader "Gebouwen"
+
+let render (props: BuildingsPageProps) =
+    React.elmishComponent ("BuildingsPage", init props, update, view)
