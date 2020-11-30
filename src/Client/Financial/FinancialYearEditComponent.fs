@@ -83,28 +83,32 @@ let view (state: State) (dispatch: Message -> unit) =
             ]
             FieldError (errorFor (nameof state.FinancialYear.Code))
         ]
-        formGroup [
-            Label "Begindatum"
-            Date [
-                Flatpickr.OnChange (fun e -> StartDateChanged e |> dispatch)
-                Flatpickr.Value (state.FinancialYear.StartDate)
-                Flatpickr.SelectionMode Flatpickr.Mode.Single
-                Flatpickr.EnableTimePicker false
-                Flatpickr.Locale Flatpickr.Locales.dutch
-                Flatpickr.DateFormat "d/m/Y"
+        div [ Style [ Width "120px" ] ] [
+            formGroup [
+                Label "Begindatum"
+                Date [
+                    Flatpickr.OnChange (fun e -> StartDateChanged e |> dispatch)
+                    Flatpickr.Value (state.FinancialYear.StartDate)
+                    Flatpickr.SelectionMode Flatpickr.Mode.Single
+                    Flatpickr.EnableTimePicker false
+                    Flatpickr.Locale Flatpickr.Locales.dutch
+                    Flatpickr.DateFormat "d/m/Y"
+                ]
+                FieldError (errorFor (nameof state.FinancialYear.StartDate))
             ]
-            FieldError (errorFor (nameof state.FinancialYear.StartDate))
         ]
-        formGroup [
-            Label "Einddatum"
-            Date [
-                Flatpickr.OnChange (fun e -> EndDateChanged e |> dispatch)
-                Flatpickr.Value (state.FinancialYear.EndDate)
-                Flatpickr.SelectionMode Flatpickr.Mode.Single
-                Flatpickr.EnableTimePicker false
-                Flatpickr.Locale Flatpickr.Locales.dutch
-                Flatpickr.DateFormat "d/m/Y"
+        div [ Style [ Width "120px" ] ] [
+            formGroup [
+                Label "Einddatum"
+                Date [
+                    Flatpickr.OnChange (fun e -> EndDateChanged e |> dispatch)
+                    Flatpickr.Value (state.FinancialYear.EndDate)
+                    Flatpickr.SelectionMode Flatpickr.Mode.Single
+                    Flatpickr.EnableTimePicker false
+                    Flatpickr.Locale Flatpickr.Locales.dutch
+                    Flatpickr.DateFormat "d/m/Y"
+                ]
+                FieldError (errorFor (nameof state.FinancialYear.EndDate))
             ]
-            FieldError (errorFor (nameof state.FinancialYear.EndDate))
         ]
     ]

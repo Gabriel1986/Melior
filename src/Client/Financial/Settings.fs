@@ -16,9 +16,9 @@ open Client.Library
 open Client.Components
 open Client.Components.BasicModal
 
-type CreateOrUpdate'<'T> =
-    | Create' of 'T
-    | Update' of 'T
+type CreateOrUpdate<'T> =
+    | Create of 'T
+    | Update of 'T
 
 type State = {
     CurrentUser: User
@@ -47,7 +47,7 @@ and FinancialYearModalState =
 and FinancialCategoryModalState = 
     {
         IsSaving: bool
-        FinancialCategory: CreateOrUpdate'<FinancialCategory>
+        FinancialCategory: CreateOrUpdate<FinancialCategory>
         Errors: (string * string) list
     }
     static member Init (createOrUpdate) = {
@@ -230,10 +230,10 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         , Cmd.none
     | OpenCreateFinancialCategory ->
         let newCategory = FinancialCategory.Init state.CurrentBuildingId
-        state |> updateFinancialCategoryModalState (fun _ -> Some (FinancialCategoryModalState.Init (Create' newCategory)))
+        state |> updateFinancialCategoryModalState (fun _ -> Some (FinancialCategoryModalState.Init (Create newCategory)))
         , Cmd.none
     | CreateFinancialCategory category ->
-        state |> updateFinancialCategoryModalState (Option.map (fun s -> { s with FinancialCategory = Create' category; IsSaving = true }))
+        state |> updateFinancialCategoryModalState (Option.map (fun s -> { s with FinancialCategory = Create category; IsSaving = true }))
         , Server.createFinancialCategory category
     | FinancialCategoryCreated (Ok(category)) ->
         let updatedCategories = category::state.FinancialCategories
@@ -242,11 +242,11 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         , showSuccessToastCmd "De boekhoudkundige rekening is aangemaakt"
     | OpenUpdateFinancialCategory category ->
         state
-        |> updateFinancialCategoryModalState (fun _ -> Some (FinancialCategoryModalState.Init (Update' category)))
+        |> updateFinancialCategoryModalState (fun _ -> Some (FinancialCategoryModalState.Init (Update category)))
         , Cmd.none
     | UpdateFinancialCategory category ->
         state
-        |> updateFinancialCategoryModalState (Option.map (fun s -> { s with FinancialCategory = Update' category; IsSaving = true }))
+        |> updateFinancialCategoryModalState (Option.map (fun s -> { s with FinancialCategory = Update category; IsSaving = true }))
         , Server.updateFinancialCategory category
     | FinancialCategoryUpdated (Ok(category)) ->
         let updatedCategories = 
@@ -315,22 +315,26 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         | None ->
             state, Cmd.none
 
-let renderYearHeader () =
-    div [ Class Bootstrap.row ] [
-        div [ Class Bootstrap.col3 ] [ str "Code" ]
-        div [ Class Bootstrap.col3 ] [ str "Begindatum" ]
-        div [ Class Bootstrap.col3 ] [ str "Einddatum" ]
-        div [ Class Bootstrap.col3 ] [ str "" ]
-    ]
-
-let renderYear (year: FinancialYear) (state: State) (dispatch: Msg -> unit) =
+let renderYear (state: State) (dispatch: Msg -> unit) (totalYears: int) (index: int) (year: FinancialYear) =
     div [ Class Bootstrap.row ] [
         div [ Class Bootstrap.col ] [
+            h5 [] [
+                if totalYears = 1 || index = 0 then 
+                    str "Huidig boekjaar " 
+                else
+                    str "Vorig boekjaar "
+                button [ 
+                    classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm ]
+                    OnClick (fun _ -> dispatch (OpenUpdateFinancialYear year))
+                ] [
+                    i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []
+                ]
+            ]
             readonlyFormElement "Code" year.Code
             readonlyFormElement "Startdatum" (year.StartDate.ToString("dd/MM/yyyy"))
             readonlyFormElement "Einddatum" (year.EndDate.ToString("dd/MM/yyyy"))
         ]
-        div [] [            
+        //div [] [
             //TODO: When the year is closed, flatten and copy invoices and deposits
             //if state.FinancialYearIsClosing.Contains(year.FinancialYearId) then
             //    button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; Disabled true ] [ 
@@ -344,7 +348,7 @@ let renderYear (year: FinancialYear) (state: State) (dispatch: Msg -> unit) =
             //    button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary ]; OnClick (fun _ -> CloseFinancialYear year |> dispatch) ] [ 
             //        str "Afsluiten" 
             //    ]
-        ]
+        //]
     ]
 
 let private renderFinancialYearModal (state: State) (dispatch: Msg -> unit) =
@@ -376,8 +380,8 @@ let private renderFinancialYearModal (state: State) (dispatch: Msg -> unit) =
                                 OnClick (fun _ -> 
                                     let componentState = modalState.ComponentState
                                     match componentState.CreateOrUpdate with
-                                    | Create -> CreateFinancialYear componentState.FinancialYear
-                                    | Update -> UpdateFinancialYear componentState.FinancialYear 
+                                    | Shared.Library.CreateOrUpdate.Create -> CreateFinancialYear componentState.FinancialYear
+                                    | Shared.Library.CreateOrUpdate.Update -> UpdateFinancialYear componentState.FinancialYear 
                                     |> dispatch)
                             ] [ str "Bewaren" ]
                         | None ->
@@ -403,12 +407,11 @@ let view (state: State) (dispatch: Msg -> unit) =
     [
         div [ Class Bootstrap.row ] [
             fieldset [ Class Bootstrap.col ] [
-                legend [] [ h4 [] [ str "Boekjaren (voorlopig wordt maar 1 jaar ondersteund)" ] ]
+                legend [] [ h4 [] [ str "Boekjaren " ] ]
                 div [] [
-                    yield! shownFinancialYears |> List.map (fun year -> renderYear year state dispatch)
+                    yield! shownFinancialYears |> List.mapi (renderYear state dispatch shownFinancialYears.Length)
                 ]
-                //TODO: add ability to have multiple financial years
-                if shownFinancialYears.Length = 0 then
+                if shownFinancialYears.Length < 2 then
                     div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
                         div [ Class Bootstrap.cardBody ] [
                             button [
@@ -419,25 +422,6 @@ let view (state: State) (dispatch: Msg -> unit) =
                                 str " "
                                 str "Nieuw boekjaar beginnen"
                             ]
-                            //str " "
-                            //button [
-                            //    classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
-                            //    OnClick (fun _ -> ToggleShowEndedFinancialYears |> dispatch)
-                            //] [
-                            //    if state.ShowEndedFinancialYears
-                            //    then 
-                            //        [ 
-                            //            i [ classes [ FontAwesome.fa; FontAwesome.faEyeSlash ] ] []
-                            //            str " "
-                            //            str "Alle boekjaren verbergen" 
-                            //        ] |> React.fragment
-                            //    else 
-                            //        [ 
-                            //            i [ classes [ FontAwesome.fa; FontAwesome.faEye ] ] []
-                            //            str " "
-                            //            str "Alle boekjaren tonen" 
-                            //        ] |> React.fragment
-                            //]
                         ]
                     ]
                 else
@@ -501,7 +485,7 @@ let view (state: State) (dispatch: Msg -> unit) =
 
         renderFinancialYearModal state dispatch
     ]
-    |> React.fragment
+    |> fragment []
     |> withPageHeader "Instellingen boekhouding"
 
 let render (props: SettingsPageProps) =
