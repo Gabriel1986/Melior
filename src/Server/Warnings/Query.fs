@@ -37,6 +37,14 @@ let private warningsForLots (conn: string) (buildingId: Guid) = async {
 
 let private warningsForContracts (conn: string) (buildingId: Guid) = async {
     let! contractAnswers = Server.Contracts.Query.getContractTypeAnswers conn buildingId
+    let allContractTypeQuestions = 
+        ContractTypeQuestion.AllValues ()
+        |> Set.ofArray
+    let answeredQuestions =
+        contractAnswers
+        |> List.map (fun a -> a.Question)
+        |> Set.ofList
+
     let mandatoryTypes = 
         contractAnswers
         |> List.toArray
@@ -48,6 +56,11 @@ let private warningsForContracts (conn: string) (buildingId: Guid) = async {
         |> Async.map Set.ofList
 
     return [
+        if allContractTypeQuestions - answeredQuestions <> Set.empty then
+            {
+                Concept = Concept.Contract
+                Message = "Gelieve de instellingen van het gebouw te vervolledigen"
+            }
         if mandatoryTypes - filledInTypes <> Set.empty then
             {
                 Concept = Concept.Contract
