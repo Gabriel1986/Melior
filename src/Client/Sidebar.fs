@@ -106,9 +106,19 @@ let convertCurrentPageForNavigation page =
     | Some (Page.NotFound)
     | None                                    -> None
 
-let getWarningsForConcept (concept: Concept) (state: State) =
+let private getWarningsForConcept (concept: Concept) (state: State) =
     state.Warnings 
     |> List.filter (fun warning -> warning.Concept = concept)
+
+let private renderWarningIconIfNecessary (warnings: Warning list) =
+    match warnings with
+    | [] -> null
+    | _ -> 
+        [
+            i [ classes [ FontAwesome.fa; FontAwesome.faExclamationTriangle ] ] []
+            str " "
+        ]
+        |> fragment []
 
 let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> unit) =
     let userHasAccessToMultipleBuildings =
@@ -148,14 +158,7 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
                     OnClick (fun _ -> NavigateToPage (Page.LotList buildingSpecificProps) |> dispatch)
                     Title (warnings |> List.map (fun warning -> warning.Message) |> String.joinWith ", ")
                 ] [
-                    match warnings with
-                    | [] -> null
-                    | _ -> 
-                        [
-                            i [ classes [ FontAwesome.fa; FontAwesome.faExclamationTriangle ] ] []
-                            str " "
-                        ]
-                        |> fragment []
+                    renderWarningIconIfNecessary warnings
                     str "Kavels"
                 ]
             ]
@@ -166,10 +169,15 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
                 ] [ str "Leveranciers" ]
             ]
             yield li [ Class Bootstrap.navItem ] [
+                let warnings = getWarningsForConcept Concept.Contract state
                 a [
                     Class (determineStyle currentPage (Page.Contracts buildingSpecificProps))
-                    OnClick (fun _ -> NavigateToPage (Page.Contracts buildingSpecificProps) |> dispatch)                
-                ] [ str "Contracten" ]
+                    OnClick (fun _ -> NavigateToPage (Page.Contracts buildingSpecificProps) |> dispatch)
+                    Title (warnings |> List.map (fun warning -> warning.Message) |> String.joinWith ", ")
+                ] [
+                    renderWarningIconIfNecessary warnings
+                    str "Contracten" 
+                ]
             ]
             yield li [ Class Bootstrap.navItem ] [
                 a [

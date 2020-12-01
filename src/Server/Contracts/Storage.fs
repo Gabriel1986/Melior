@@ -12,7 +12,7 @@ type IContractStorage =
     abstract CreateContract: Message<ValidatedContract> -> Async<unit>
     abstract UpdateContract: Message<ValidatedContract> -> Async<int>
     abstract DeleteContract: Message<BuildingId * Guid> -> Async<int>
-    abstract SaveContractTypeAnswer: ContractTypeAnswer -> Async<int>
+    abstract SaveContractTypeAnswers: ContractTypeAnswer list -> Async<int>
 
 let private toContractType (validated: ValidatedContractContractType): ContractContractType =
     match validated with
@@ -95,24 +95,26 @@ let deleteContract conn (msg: Message<BuildingId * Guid>) =
     ]
     |> Async.map (List.skip 1 >> List.head)
 
-let saveContractTypeAnswer conn (answer: ContractTypeAnswer) =
+let saveContractTypeAnswers conn (answers: ContractTypeAnswer list) =
     Sql.connect conn
-    |> Sql.query 
-        """
-            INSERT INTO ContractTypeAnswers (BuildingId, Question, IsTrue) VALUES (@BuildingId, @Question, @IsTrue)
-            ON CONFLICT ON CONSTRAINT contracttypeanswers_pkey DO UPDATE SET IsTrue = @IsTrue
-        """
-    |> Sql.parameters [
-        "@BuildingId", Sql.uuid answer.BuildingId
-        "@Question", Sql.string (string answer.Question)
-        "@IsTrue", Sql.bool answer.IsTrue
+    |> Sql.writeBatchAsync [
+        yield! answers |> List.map (fun answer ->
+            """
+                INSERT INTO ContractTypeAnswers (BuildingId, Question, IsTrue) VALUES (@BuildingId, @Question, @IsTrue)
+                ON CONFLICT ON CONSTRAINT contracttypeanswers_pkey DO UPDATE SET IsTrue = @IsTrue
+            """, [
+                "@BuildingId", Sql.uuid answer.BuildingId
+                "@Question", Sql.string (string answer.Question)
+                "@IsTrue", Sql.bool answer.IsTrue
+            ]
+        )
     ]
-    |> Sql.writeAsync
+    |> Async.map (List.tryHead >> Option.defaultValue 0)
 
 let makeStorage conn = {
     new IContractStorage with
         member _.CreateContract msg = createContract conn msg
         member _.UpdateContract msg = updateContract conn msg
         member _.DeleteContract msg = deleteContract conn msg
-        member _.SaveContractTypeAnswer answer = saveContractTypeAnswer conn answer
+        member _.SaveContractTypeAnswers answer = saveContractTypeAnswers conn answer
 }

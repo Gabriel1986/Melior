@@ -61,7 +61,7 @@ module Client =
     module Server =
         let loadWarnings buildingId =
             Cmd.OfAsync.either
-                (Remoting.getRemotingApi()).GetAllWarnings buildingId
+                (Remoting.getRemotingApi()).GetWarnings buildingId
                 WarningsLoaded
                 RemotingException
     
@@ -350,6 +350,9 @@ module Client =
                         {|
                             CurrentUser = runningState.CurrentUser
                             CurrentBuildingId = building.BuildingId
+                            Warnings = warningsForConcept Concept.Contract
+                            OnAnswersChanged = fun _ -> dispatch ReloadWarnings
+                            OnContractsChanged = fun _ -> dispatch ReloadWarnings
                         |}
                 | Page.FinancialSettings _, Some building ->
                     Financial.Settings.render

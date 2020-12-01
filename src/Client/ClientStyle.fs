@@ -181,15 +181,14 @@ module Helpers =
         ]
 
     let renderWarnings (warnings: Warning list) =
-        let determineWarningTypeClass warningType =
-            match warningType with
-            | WarningType.ErrorType -> Bootstrap.alertDanger
-            | WarningType.WarningType -> Bootstrap.alertWarning
-
         match warnings with
         | [] -> null
         | warnings ->
             div [ Class Bootstrap.col12 ] [
                 for warning in warnings do
-                    yield div [ classes [ Bootstrap.alert; (determineWarningTypeClass warning.Type) ] ] [ str warning.Message ]
+                    yield div [ classes [ Bootstrap.alert; Bootstrap.alertWarning ] ] [ 
+                        i [ classes [ FontAwesome.fa; FontAwesome.faExclamationTriangle ] ] []
+                        str " "
+                        str warning.Message 
+                    ]
             ]

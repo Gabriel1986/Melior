@@ -13,11 +13,6 @@ type GeneralMeetingPeriod = {
     UntilMonth: int
 }
 
-type Savable<'T> = {
-    IsSaving: bool
-    Payload: 'T
-}
-
 type BankAccount = 
     {
         Description: string
@@ -558,6 +553,10 @@ type ContractType = {
 type ContractContractType =
     | PredefinedContractType of PredefinedContractType
     | OtherContractType of string
+    member me.Translate (translatePredefinedType: PredefinedContractType -> string) =
+        match me with
+        | PredefinedContractType cType -> translatePredefinedType cType
+        | OtherContractType name -> name
 type Contract = {
     ContractId: Guid
     BuildingId: Guid
@@ -720,12 +719,9 @@ type Invoice =
 [<RequireQualifiedAccess>]
 type Concept =
     | Lot
+    | Contract
 
 type Warning = {
     Concept: Concept
-    Type: WarningType
     Message: string
 }
-and WarningType =
-    | ErrorType
-    | WarningType

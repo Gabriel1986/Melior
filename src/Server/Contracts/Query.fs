@@ -14,6 +14,18 @@ type ContractDbType = {
     ContractType: ContractContractType
 }
 
+let getFilledInPredefinedContractTypes (conn: string) (buildingId: BuildingId) =
+    Sql.connect conn
+    |> Sql.query
+        """
+            SELECT ContractType
+            FROM Contracts
+            WHERE BuildingId = @BuildingId AND IsActive = TRUE
+        """
+    |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
+    |> Sql.read (fun reader -> reader.string "ContractType" |> Thoth.Json.Net.Decode.Auto.unsafeFromString<ContractContractType>)
+    |> Async.map (List.choose (function | PredefinedContractType predefined -> Some predefined | _ -> None))
+
 let getContracts conn (buildingId: BuildingId) = async {
     let! contracts = 
         Sql.connect conn
@@ -29,7 +41,7 @@ let getContracts conn (buildingId: BuildingId) = async {
             BuildingId = reader.uuid "BuildingId"
             ContractFileId = reader.uuidOrNone "ContractFileId"
             ContractOrganizationId = reader.uuidOrNone "ContractOrganizationId"
-            ContractType = reader.string "ContractType" |> (fun strType -> Thoth.Json.Net.Decode.Auto.unsafeFromString<ContractContractType>(strType))
+            ContractType = reader.string "ContractType" |> Thoth.Json.Net.Decode.Auto.unsafeFromString<ContractContractType>
         })
 
     let! mediaFiles = 

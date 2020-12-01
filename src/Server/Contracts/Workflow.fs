@@ -48,13 +48,10 @@ let deleteContract (store: IContractStorage) (msg: Message<BuildingId * Guid>) =
         return Error DeleteContractError.AuthorizationError
 }
 
-let saveContractTypeAnswer (store: IContractStorage) (msg: Message<ContractTypeAnswer>) = async {
-    if msg.CurrentUser.HasAdminAccessToBuilding msg.Payload.BuildingId then
-        let! nbRows = store.SaveContractTypeAnswer msg.Payload
-        if nbRows = 0 then
-            return Error SaveAnswerError.NotFound
-        else
-            return Ok ()
+let saveContractTypeAnswer (store: IContractStorage) (msg: Message<ContractTypeAnswer list>) = async {
+    if msg.Payload |> List.forall (fun answer -> msg.CurrentUser.HasAdminAccessToBuilding answer.BuildingId) then
+        let! _ = store.SaveContractTypeAnswers msg.Payload
+        return Ok ()
     else
         return Error SaveAnswerError.AuthorizationError
 }

@@ -40,7 +40,7 @@ module BasicModal =
 
         let footerClose onClose label =
             button 
-                [ Type "button"; classes [ Bootstrap.btn; Bootstrap.btnDanger ]; OnClick onClose ] 
+                [ Type "button"; classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]; OnClick onClose ] 
                 [ str label ]
 
         let header (onDismiss: unit -> unit) (headerProps: HeaderProp list) =

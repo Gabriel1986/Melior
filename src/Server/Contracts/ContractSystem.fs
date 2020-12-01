@@ -15,7 +15,7 @@ let build (config: IConfiguration) =
             member _.CreateContract msg = Workflow.createContract store msg
             member _.UpdateContract msg = Workflow.updateContract store msg
             member _.DeleteContract msg = Workflow.deleteContract store msg
-            member _.SaveContractTypeAnswer msg = Workflow.saveContractTypeAnswer store msg
+            member _.SaveContractTypeAnswers msg = Workflow.saveContractTypeAnswer store msg
 
             member _.GetContracts msg = async {
                 if msg.CurrentUser.HasAccessToBuilding msg.Payload

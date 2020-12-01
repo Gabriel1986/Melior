@@ -89,7 +89,7 @@ let createFinancialYear (store: IFinancialStorage) (msg: Message<FinancialYear>)
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedFinancialYear.Validate msg.Payload with
-        | Ok validated -> 
+        | Ok validated ->
             do! store.CreateFinancialYear (msg |> Message.map validated)
             return Ok ()
         | Error validationErrors ->

@@ -19,42 +19,49 @@ open Client.Components.BasicModal
 open Client.Upload
 open Client.Routing
 open Client.Contracts.Translations
+open Fable.SimpleJson
 
 type State = {
     CurrentBuildingId: BuildingId
     CurrentUser: User
     IsLoading: bool
-    ContractTypeAnswers: Savable<ContractTypeAnswer> list
+    ContractTypeAnswers: ContractTypeAnswer list
     Contracts: Contract list
     ContractModalIsOpenOn: (Contract * bool) option
     QuestionModalIsOpen: bool
-    Debouncer: Debouncer.State
+    Warnings: Warning list
+
+    OnAnswersChanged: ContractTypeAnswer list -> unit
+    OnContractsChanged: Contract list -> unit
 }
 
 type Message =
     | ContractsRetrieved of Contract list
     | ContractTypeAnswersRetrieved of ContractTypeAnswer list
-    | SetAnswer of ContractTypeQuestion * isTrue: bool
-    | SaveAnswer of Savable<ContractTypeAnswer>
-    | AnswerSaved of Result<ContractTypeAnswer, SaveAnswerError>
+    | SaveAnswers of ContractTypeAnswer list
+    | AnswersSaved of Result<ContractTypeAnswer list, SaveAnswerError>
     | ShowOrganizationDetails of organizationId: Guid
     | CreateNewContract
     | CreateMandatoryContract of PredefinedContractType
     | EditContract of Contract
     | DeleteContract of Contract
+    | ConfirmDeleteContract of Contract
     | ContractDeleted of Result<unit, DeleteContractError>
     | CloseContractModal
     | SaveContract of Contract * isNew: bool
     | ContractSaved of Result<unit, SaveContractError>
-    | DebouncerSelfMsg  of Debouncer.SelfMessage<Message>
     | RemotingException of exn
     | OpenQuestionModal
     | CloseQuestionModal
+    | NoOp
 
 type ContractsPageProps = 
     {|
         CurrentBuildingId: Guid
         CurrentUser: User
+        Warnings: Warning list
+        OnAnswersChanged: ContractTypeAnswer list -> unit
+        OnContractsChanged: Contract list -> unit
     |}
 
 //TODO: get contracts, get answers
@@ -79,7 +86,9 @@ let init (props: ContractsPageProps) =
         Contracts = []
         ContractModalIsOpenOn = None
         QuestionModalIsOpen = false
-        Debouncer = Debouncer.create()
+        Warnings = props.Warnings
+        OnAnswersChanged = props.OnAnswersChanged
+        OnContractsChanged = props.OnContractsChanged
     }, Cmd.batch [ cmd1; cmd2 ]
 
 let private unansweredQuestionsExist (answeredQuestions: ContractTypeAnswer list): bool =
@@ -103,49 +112,21 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
             if unansweredQuestionsExist answers
             then Cmd.ofMsg OpenQuestionModal
             else Cmd.none
-        { state with ContractTypeAnswers = answers |> List.map (fun a -> { IsSaving = false; Payload = a  }) }, cmd
-    | DebouncerSelfMsg debouncerMsg ->
-        let (debouncerModel, debouncerCmd) = Debouncer.update debouncerMsg state.Debouncer
-        { state with Debouncer = debouncerModel }, debouncerCmd
-    | SetAnswer (question, isTrue) ->
-        let answer: Savable<ContractTypeAnswer> = {
-            IsSaving = false
-            Payload = {
-                BuildingId = state.CurrentBuildingId
-                Question = question
-                IsTrue = isTrue
-            }
-        }
+        { state with ContractTypeAnswers = answers }, cmd
 
-        let (debouncerModel, debouncerCmd) =
-            Debouncer.create ()
-            |> Debouncer.bounce (TimeSpan.FromSeconds 2.0) (sprintf "answer_to_%A" question) (SaveAnswer answer)
-
-        let newAnswers = answer::(state.ContractTypeAnswers |> List.filter (fun a -> a.Payload.Question <> answer.Payload.Question))
-
-        { state with ContractTypeAnswers = newAnswers;  Debouncer = debouncerModel }, Cmd.map DebouncerSelfMsg debouncerCmd
-
-    | SaveAnswer (savable) ->
+    | SaveAnswers answers ->
         let cmd =
             Cmd.OfAsync.either
-                (Client.Remoting.getRemotingApi()).SaveContractTypeAnswer (savable.Payload)
-                (fun result -> result |> Result.map (fun _ -> savable.Payload) |> AnswerSaved)
+                (Client.Remoting.getRemotingApi()).SetContractTypeAnswers answers
+                (Result.map (fun () -> answers) >> AnswersSaved)
                 RemotingException
-        let newAnswers = state.ContractTypeAnswers |> List.map (fun a -> if a = savable then { a with IsSaving = true } else a)
-
-        { state with ContractTypeAnswers = newAnswers }, cmd
-    | AnswerSaved (Ok answer) ->
-        //No need to show a toast here, let the user assume it worked.
-        let newAnswers = state.ContractTypeAnswers |> List.map (fun a -> if a.Payload = answer then { a with IsSaving = false } else a)
-        { state with ContractTypeAnswers = newAnswers }, Cmd.none
-    | AnswerSaved (Error e) ->
+        { state with ContractTypeAnswers = answers; QuestionModalIsOpen = false }, cmd
+    | AnswersSaved (Ok answers) ->
+        state, showSuccessToastCmd "De instellingen werden bewaard"
+    | AnswersSaved (Error e) ->
         match e with
         | SaveAnswerError.AuthorizationError ->
             state, showErrorToastCmd "U heeft geen toestemming om een antwoord te geven op de vragen"
-        | SaveAnswerError.NotFound ->
-            printf "We should not be getting this error -> Could not save the answer, the answer was not found? O_o"
-            state, Cmd.none
-    
     | ShowOrganizationDetails organizationId ->
         state, Client.Routing.navigateToPage (Page.OrganizationDetails { BuildingId = state.CurrentBuildingId; DetailId = organizationId })
     | CreateNewContract ->
@@ -169,6 +150,18 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
     | EditContract contract ->
         { state with ContractModalIsOpenOn = Some (contract, false) }, Cmd.none
     | DeleteContract contract ->
+        state
+        , showConfirmationModal
+            {|
+                Title = "Contract verwijderen?"
+                Message =
+                    sprintf
+                        "Bent u er zeker van dat u %s wilt verwijderen?"
+                        (contract.ContractType.Translate(Translations.translatePredefinedType))
+                OnConfirmed = fun () -> ConfirmDeleteContract contract
+                OnDismissed = fun () -> NoOp
+            |}
+    | ConfirmDeleteContract contract ->
         let newContracts = state.Contracts |> List.filter (fun c -> c.ContractId <> contract.ContractId)
         let cmd =
             Cmd.OfAsync.either
@@ -177,6 +170,7 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
                 RemotingException
         { state with Contracts = newContracts }, cmd
     | ContractDeleted (Ok ()) ->
+        state.OnContractsChanged state.Contracts
         state, showSuccessToastCmd "Contract verwijderd"
     | ContractDeleted (Error e) ->
         match e with
@@ -205,6 +199,7 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
 
         { state with Contracts = newContracts; ContractModalIsOpenOn = None }, cmd
     | ContractSaved (Ok ()) ->
+        state.OnContractsChanged state.Contracts
         state, showSuccessToastCmd "Uw contract is bewaard"
     | ContractSaved (Error e) ->
         match e with
@@ -221,10 +216,19 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
         { state with QuestionModalIsOpen = true }, Cmd.none
     | CloseQuestionModal ->
         { state with QuestionModalIsOpen = false }, Cmd.none
-        
+    | NoOp ->
+        state, Cmd.none
+
+type QuestionProps =
+    {|
+        BuildingId: Guid
+        Questions: ContractTypeQuestion array
+        Answers: ContractTypeAnswer list
+        IsOpen: bool
+    |}
+
 let view (state: State) (dispatch: Message -> unit) =
-    let renderQuestion (question: ContractTypeQuestion) =
-        let answer = state.ContractTypeAnswers |> List.tryFind (fun answer -> answer.Payload.Question = question)
+    let renderQuestion (question: ContractTypeQuestion) (answer: ContractTypeAnswer option) (updateAnswer: (ContractTypeQuestion * bool) -> unit) =        
         let btnStyle = Style [ MinWidth "60px" ]
         let btnClasses = [ Bootstrap.btn; Bootstrap.btnSm; Bootstrap.ml2 ]
 
@@ -232,34 +236,81 @@ let view (state: State) (dispatch: Message -> unit) =
             yield td [] [ str (translateQuestion question) ]
 
             match answer with
-            | Some savable ->
-                let positiveClass = if savable.Payload.IsTrue then Bootstrap.btnSecondary else Bootstrap.btnOutlineSecondary
-                let negativeClass = if savable.Payload.IsTrue then Bootstrap.btnOutlineSecondary else Bootstrap.btnSecondary
+            | Some answer ->
+                let positiveClass = if answer.IsTrue then Bootstrap.btnSecondary else Bootstrap.btnOutlineSecondary
+                let negativeClass = if answer.IsTrue then Bootstrap.btnOutlineSecondary else Bootstrap.btnSecondary
                 
-                if savable.IsSaving then
-                    yield td [ Class Bootstrap.textRight ] [
-                        button [ Type "button"; btnStyle; classes (positiveClass::btnClasses); HTMLAttr.Disabled true ] [ str "Ja" ]
-                        button [ Type "button"; btnStyle; classes (negativeClass::btnClasses); HTMLAttr.Disabled true ] [ str "Nee" ]
-                    ]
-                else
-                    yield td [ Class Bootstrap.textRight ] [
-                        button [ Type "button"; btnStyle; classes (positiveClass::btnClasses); OnClick (fun _ -> SetAnswer (question, true) |> dispatch) ] [ str "Ja" ]
-                        button [ Type "button"; btnStyle; classes (negativeClass::btnClasses); OnClick (fun _ -> SetAnswer (question, false) |> dispatch) ] [ str "Nee" ]                    
-                    ]
+                yield td [ Class Bootstrap.textRight ] [
+                    button [ Type "button"; btnStyle; classes (positiveClass::btnClasses); OnClick (fun _ -> (question, true) |> updateAnswer) ] [ str "Ja" ]
+                    button [ Type "button"; btnStyle; classes (negativeClass::btnClasses); OnClick (fun _ -> (question, false) |> updateAnswer) ] [ str "Nee" ]                    
+                ]
             | None ->
                 yield td [ Class Bootstrap.textRight ] [
-                    button [ Type "button"; btnStyle; classes (Bootstrap.btnOutlineSecondary::btnClasses); OnClick (fun _ -> SetAnswer (question, true) |> dispatch) ] [ str "Ja" ]
-                    button [ Type "button"; btnStyle; classes (Bootstrap.btnOutlineSecondary::btnClasses); OnClick (fun _ -> SetAnswer (question, false) |> dispatch) ] [ str "Nee" ]                                    
+                    button [ Type "button"; btnStyle; classes (Bootstrap.btnOutlineSecondary::btnClasses); OnClick (fun _ -> (question, true) |> updateAnswer) ] [ str "Ja" ]
+                    button [ Type "button"; btnStyle; classes (Bootstrap.btnOutlineSecondary::btnClasses); OnClick (fun _ -> (question, false) |> updateAnswer) ] [ str "Nee" ]                                    
                 ]
         ]
 
-    let renderQuestions (questions: ContractTypeQuestion array) =
+    let renderQuestions (questions: ContractTypeQuestion array) (answers: ContractTypeAnswer list) (onUpdateAnswer: (ContractTypeQuestion * bool) -> unit) =
+        let answerToQuestion question =
+            answers |> List.tryFind (fun answer -> answer.Question = question)
+
         table [ classes [ Bootstrap.table ] ] [
             tbody [] [
                 for question in questions do
-                    yield renderQuestion question
+                    yield renderQuestion question (answerToQuestion question) onUpdateAnswer
             ]
         ]
+
+    let renderQuestionsModal (props: QuestionProps) =
+        let answersState = Hooks.useState props.Answers
+
+        let addOrUpdateAnswer (question: ContractTypeQuestion, isTrue: bool) =
+            if answersState.current |> List.exists (fun existing -> existing.Question = question) then
+                answersState.current 
+                |> List.map (fun existing -> if existing.Question = question then { existing with IsTrue = isTrue } else existing)
+            else
+                { Question = question; IsTrue = isTrue; BuildingId = props.BuildingId }::answersState.current
+
+        BasicModal.render 
+            {|
+                ModalProps = [
+                    IsOpen props.IsOpen
+                    OnDismiss (fun () -> dispatch CloseQuestionModal)
+                    DisableBackgroundClick false
+                    Header [ BasicModal.HeaderProp.Title "Instellingen van het gebouw" ]
+                    Body [ 
+                        renderQuestions 
+                            props.Questions 
+                            answersState.current 
+                            (fun answer -> answersState.update (addOrUpdateAnswer answer)) 
+                    ]
+                    Footer [
+                        FooterProp.ShowDismissButton (Some "Annuleren")
+                        FooterProp.Buttons [                            
+                            button [ 
+                                Type "button"
+                                classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
+                                OnClick (fun _ -> SaveAnswers answersState.current |> dispatch)
+                            ] [
+                                i [ classes [ FontAwesome.fa; FontAwesome.faSave ] ] []
+                                str " "
+                                str "Bewaren" 
+                            ]
+                        ]
+                    ]
+                    ModalSize SmallSize
+                ]
+            |}
+
+    let renderQuestionsModalComponent () =
+        FunctionComponent.Of((fun props -> renderQuestionsModal props), "QuestionsComponent", equalsButFunctions)
+            {|
+                BuildingId = state.CurrentBuildingId
+                Questions = ContractTypeQuestion.AllValues ()
+                Answers = state.ContractTypeAnswers
+                IsOpen = state.QuestionModalIsOpen
+            |}
 
     let translateContractType (c: Contract) =
         match c.ContractType with
@@ -331,6 +382,7 @@ let view (state: State) (dispatch: Message -> unit) =
             contracts |> List.map (rowsForContract true)
 
     div [ Class Bootstrap.row ] [
+        Helpers.renderWarnings state.Warnings
         table [ classes [ Bootstrap.table; Bootstrap.tableHover; Bootstrap.tableStriped ] ] [
             thead [] [
                 tr [] [
@@ -350,7 +402,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 yield!
                     state.ContractTypeAnswers 
                     |> List.collect (fun answer ->
-                        mandatoryContractTypesFor answer.Payload
+                        mandatoryContractTypesFor answer
                         |> Array.toList
                         |> List.collect (rowsForPredefinedContractType true)
                     )
@@ -395,28 +447,7 @@ let view (state: State) (dispatch: Message -> unit) =
         | None ->
             ()
 
-        BasicModal.render 
-            {|
-                ModalProps = [
-                    IsOpen state.QuestionModalIsOpen
-                    OnDismiss (fun () -> CloseQuestionModal |> dispatch)
-                    DisableBackgroundClick false
-                    Header [ BasicModal.HeaderProp.Title "Instellingen van het gebouw" ]
-                    Body [ renderQuestions (ContractTypeQuestion.AllValues ()) ]
-                    Footer [ 
-                        FooterProp.Buttons [
-                            button [ 
-                                Type "button"
-                                classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
-                                OnClick (fun _ -> CloseQuestionModal |> dispatch)
-                            ] [ 
-                                str "Ok" 
-                            ]
-                        ]
-                    ]
-                    ModalSize SmallSize
-                ]
-            |}
+        if state.QuestionModalIsOpen then renderQuestionsModalComponent ()
     ]
     |> withPageHeader "Contracten"
 

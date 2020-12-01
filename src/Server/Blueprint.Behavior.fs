@@ -142,7 +142,7 @@ module Contracts =
     [<NoComparison; NoEquality>]
     type IContractSystem =
         //Commands
-        abstract SaveContractTypeAnswer: Message<ContractTypeAnswer> -> Async<Result<unit, SaveAnswerError>>
+        abstract SaveContractTypeAnswers: Message<ContractTypeAnswer list> -> Async<Result<unit, SaveAnswerError>>
         abstract CreateContract: Message<Contract> -> Async<Result<unit, SaveContractError>>
         abstract UpdateContract: Message<Contract> -> Async<Result<unit, SaveContractError>>
         abstract DeleteContract: Message<BuildingId * Guid> -> Async<Result<unit, DeleteContractError>>
@@ -189,7 +189,6 @@ module Warnings =
     [<NoComparison; NoEquality>]
     type IWarningSystem =
         abstract GetWarnings: BuildingId -> Async<Warning list>
-        abstract GetWarningsForConcept: BuildingId * Concept -> Async<Warning list>
 
 [<NoComparison; NoEquality>]
 type IEnv =

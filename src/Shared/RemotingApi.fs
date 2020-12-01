@@ -72,7 +72,6 @@ type DeleteOrganizationError =
 
 type SaveAnswerError =    
     | AuthorizationError
-    | NotFound
 
 type SaveContractError =
     | AuthorizationError
@@ -176,7 +175,7 @@ type RemotingApi = {
     DeleteOrganizationType: Guid -> Async<Result<unit, DeleteOrganizationTypeError>>
 
     GetContractTypeAnswers: BuildingId -> Async<ContractTypeAnswer list>
-    SaveContractTypeAnswer: ContractTypeAnswer -> Async<Result<unit, SaveAnswerError>>
+    SetContractTypeAnswers: ContractTypeAnswer list -> Async<Result<unit, SaveAnswerError>>
     GetContracts: BuildingId -> Async<Contract list>
     CreateContract: Contract -> Async<Result<unit, SaveContractError>>
     UpdateContract: Contract -> Async<Result<unit, SaveContractError>>
@@ -211,8 +210,7 @@ type RemotingApi = {
     UpdateUser: User -> Async<Result<unit, SaveUserError>>
     DeleteUser: Guid -> Async<Result<unit, DeleteUserError>>
 
-    GetAllWarnings: BuildingId -> Async<Warning list>
-    GetWarningsForConcept: BuildingId * Concept -> Async<Warning list>
+    GetWarnings: BuildingId -> Async<Warning list>
 }
 
 let routeBuilder = sprintf "/remoting/%s/%s"

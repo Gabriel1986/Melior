@@ -26,7 +26,6 @@ let private warningsForLots (conn: string) (buildingId: Guid) = async {
         if lotShareCount <> expectedTotal then 
             {
                 Concept = Concept.Lot
-                Type = WarningType
                 Message =
                     sprintf
                         "De som van de quotiteiten van de kavels (%i) komt niet overeen met het verwachte totaal gedefinieerd op het gebouw (%i)" 
@@ -36,14 +35,33 @@ let private warningsForLots (conn: string) (buildingId: Guid) = async {
     ]
 }
 
-let getAllWarnings (conn: string) (buildingId: Guid) = async {
-    let! warningsForLots = warningsForLots conn buildingId
+let private warningsForContracts (conn: string) (buildingId: Guid) = async {
+    let! contractAnswers = Server.Contracts.Query.getContractTypeAnswers conn buildingId
+    let mandatoryTypes = 
+        contractAnswers
+        |> List.toArray
+        |> Array.collect mandatoryContractTypesFor
+        |> Array.append MandatoryContractTypes
+        |> Set.ofArray
+    let! filledInTypes = 
+        Server.Contracts.Query.getFilledInPredefinedContractTypes conn buildingId
+        |> Async.map Set.ofList
+
     return [
-        yield! warningsForLots
+        if mandatoryTypes - filledInTypes <> Set.empty then
+            {
+                Concept = Concept.Contract
+                Message = "Niet alle verplichte contracten werden ingevuld"
+            }
     ]
+        
 }
 
-let getWarningsForConcept (conn: string) (buildingId: Guid, concept: Concept) = async {
-    match concept with
-    | Concept.Lot -> return! warningsForLots conn buildingId
+let getWarnings (conn: string) (buildingId: Guid) = async {
+    let! warningsForLots = warningsForLots conn buildingId
+    let! warningsForContracts = warningsForContracts conn buildingId
+    return [
+        yield! warningsForLots
+        yield! warningsForContracts
+    ]
 }

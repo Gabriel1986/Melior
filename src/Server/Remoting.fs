@@ -117,9 +117,9 @@
             GetContractTypeAnswers = fun buildingId ->
                 createMsg buildingId
                 |> environment.ContractSystem.GetContractTypeAnswers
-            SaveContractTypeAnswer = fun arg ->
+            SetContractTypeAnswers = fun arg ->
                 createMsg arg
-                |> environment.ContractSystem.SaveContractTypeAnswer
+                |> environment.ContractSystem.SaveContractTypeAnswers
             GetContracts = fun buildingId ->
                 createMsg buildingId
                 |> environment.ContractSystem.GetContracts
@@ -209,8 +209,6 @@
             DeleteUser = fun input ->
                 createMsg input
                 |> environment.AuthenticationSystem.DeleteUser
-            GetAllWarnings = fun buildingId ->
+            GetWarnings = fun buildingId ->
                 environment.WarningSystem.GetWarnings buildingId
-            GetWarningsForConcept = fun (buildingId, concept) ->
-                environment.WarningSystem.GetWarningsForConcept (buildingId, concept)
         }
