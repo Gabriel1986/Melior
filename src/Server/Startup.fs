@@ -49,9 +49,6 @@ type Startup private () =
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     member this.Configure(app: IApplicationBuilder, env: IWebHostEnvironment) =
         let appSettings = this.Configuration.Get<AppSettings>()
-        let s3Client = Media.HttpHandler.createAmazonS3ServiceClient (this.Configuration)
-        s3Client.EnsureBucketExistsAsync("meliordigital") |> Async.AwaitTask |> Async.RunSynchronously
-
         let migratedFrom, migratedTo = Migrations.run Log.Logger appSettings.Database.Connection
         Seedings.run Log.Logger this.Configuration (migratedFrom, migratedTo)
 
