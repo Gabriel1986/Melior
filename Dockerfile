@@ -1,5 +1,5 @@
 # Build temporary image
-FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build-env
+FROM mcr.microsoft.com/dotnet/sdk:3.1 AS build-env
 WORKDIR /app
 COPY . .
 RUN apt-get update -y
@@ -11,7 +11,7 @@ RUN dotnet fake build target publish
 WORKDIR /app
 
 # Build runtime image
-FROM mcr.microsoft.com/dotnet/sdk:5.0
+FROM mcr.microsoft.com/dotnet/sdk:3.1
 RUN apt-get update -y
 RUN apt-get install libgdiplus -yq
 COPY --from=build-env /app/deploy /app
