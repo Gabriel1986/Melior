@@ -4,7 +4,7 @@ group Shared
     framework: netstandard2.0
     storage: none
 
-    nuget FSharp.Core
+    nuget FSharp.Core 4.7.2
 
 group Client
     source https://api.nuget.org/v3/index.json
@@ -12,7 +12,7 @@ group Client
     framework: netstandard2.0
     storage: none
 
-    nuget FSharp.Core
+    nuget FSharp.Core 4.7.2
     nuget Fable.Core
     nuget Fable.Elmish
     nuget Fable.Elmish.Debugger
@@ -36,7 +36,7 @@ group Server
     framework: netcoreapp3.1
     storage: none
 
-	nuget FSharp.Core
+    nuget FSharp.Core 4.7.2
 	nuget Fable.Remoting.Giraffe
 	nuget FsConfig
 	nuget Giraffe
@@ -73,7 +73,7 @@ group Test
     storage: none
 
     nuget FsConfig
-    nuget FSharp.Core
+    nuget FSharp.Core 4.7.2
     nuget Microsoft.NET.Test.Sdk
     nuget Microsoft.Extensions.Configuration.FileExtensions
     nuget Microsoft.Extensions.Configuration.Json
@@ -91,7 +91,7 @@ group Build
     framework: netstandard2.0
     storage: none
 
-    nuget FSharp.Core
+    nuget FSharp.Core 4.7.2
     nuget Fake.Core.ReleaseNotes
     nuget Fake.Core.Target
     nuget Fake.DotNet.Cli
