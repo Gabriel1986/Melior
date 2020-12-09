@@ -1,54 +1,90 @@
-source https://api.nuget.org/v3/index.json
-source https://www.nuget.org/api/v2
-framework: netstandard2.0, netcoreapp3.1
-storage: none
+group Shared
+    source https://api.nuget.org/v3/index.json
+    source https://www.nuget.org/api/v2
+    framework: netstandard2.0
+    storage: none
 
-nuget FSharp.Core
-nuget Fable.Remoting.Giraffe
-nuget FsConfig
-nuget Giraffe
-nuget IdentityModel
-nuget Microsoft.AspNetCore
-nuget Microsoft.AspNetCore.Authentication.Cookies
-nuget Microsoft.AspNetCore.Authentication.JwtBearer
-nuget Microsoft.AspNetCore.Authentication.OpenIdConnect
-nuget Microsoft.AspNetCore.StaticFiles
-nuget Microsoft.Extensions.Logging
-nuget Simple.Migrations
-nuget Serilog
-nuget Serilog.AspNetCore
-nuget Serilog.Sinks.ColoredConsole
-nuget Serilog.Sinks.RollingFile
-nuget Thoth.Json.Net
-nuget Thoth.Json.Giraffe
-nuget Npgsql.FSharp
-nuget Fable.Core
-nuget Fable.Elmish
-nuget Fable.Elmish.Debugger
-nuget Fable.Elmish.HMR
-nuget Fable.Elmish.React
-nuget Fable.React
-nuget Fable.Remoting.Client
-nuget Feliz.ElmishComponents
-nuget Feliz.Router
-nuget Zanaptak.TypedCssClasses
-nuget Thoth.Fetch
-nuget FSharp.Data
-nuget NodaTime
-nuget Elmish.SweetAlert
-nuget Fable.React.Flatpickr
-nuget vies-dotnet-api 1.0.0-beta-0010 beta
-nuget SixLabors.ImageSharp 1.0.0-rc0003 rc
-nuget AWSSDK.S3
-nuget AWSSDK.Extensions.NETCore.Setup 3.3.101
-nuget Giraffe.Antiforgery
-nuget BCrypt.Net-Next 4.0.0
-nuget GoogleAuthenticator
-nuget Thoth.Elmish.Debouncer
-nuget MailKit 2.9.0
-nuget HaemmerElectronics.SeppPenner.Serilog.Sinks.AmazonS3 1.0.12
-nuget Fable.SimpleHttp
-nuget Fable.DateFunctions
+    nuget FSharp.Core
+
+group Client
+    source https://api.nuget.org/v3/index.json
+    source https://www.nuget.org/api/v2
+    framework: netstandard2.0
+    storage: none
+
+    nuget FSharp.Core
+    nuget Fable.Core
+    nuget Fable.Elmish
+    nuget Fable.Elmish.Debugger
+    nuget Fable.Elmish.HMR
+    nuget Fable.Elmish.React
+    nuget Fable.React
+    nuget Fable.Remoting.Client
+    nuget Feliz.ElmishComponents
+    nuget Feliz.Router
+    nuget Zanaptak.TypedCssClasses
+    nuget Thoth.Fetch
+    nuget Elmish.SweetAlert
+    nuget Fable.React.Flatpickr
+    nuget Thoth.Elmish.Debouncer
+    nuget Fable.SimpleHttp
+    nuget Fable.DateFunctions
+
+group Server
+    source https://api.nuget.org/v3/index.json
+    source https://www.nuget.org/api/v2
+    framework: netcoreapp3.1
+    storage: none
+
+	nuget FSharp.Core
+	nuget Fable.Remoting.Giraffe
+	nuget FsConfig
+	nuget Giraffe
+	nuget Microsoft.AspNetCore
+	nuget Microsoft.AspNetCore.Authentication.Cookies
+	nuget Microsoft.AspNetCore.Authentication.JwtBearer 3.1.10
+	nuget Microsoft.AspNetCore.Authentication.OpenIdConnect 3.1.10
+	nuget Microsoft.AspNetCore.StaticFiles
+	nuget Microsoft.Extensions.Logging
+	nuget Simple.Migrations
+	nuget Serilog
+	nuget Serilog.AspNetCore
+	nuget Serilog.Sinks.ColoredConsole
+	nuget Serilog.Sinks.RollingFile
+	nuget Thoth.Json.Net
+	nuget Thoth.Json.Giraffe
+	nuget Npgsql.FSharp
+	nuget FSharp.Data
+	nuget NodaTime
+    nuget vies-dotnet-api 1.0.0-beta-0010 beta
+	nuget SixLabors.ImageSharp 1.0.0-rc0003 rc
+	nuget AWSSDK.S3
+	nuget AWSSDK.Extensions.NETCore.Setup 3.3.101
+	nuget Giraffe.Antiforgery
+	nuget BCrypt.Net-Next 4.0.0
+	nuget GoogleAuthenticator
+	nuget MailKit 2.9.0
+	nuget HaemmerElectronics.SeppPenner.Serilog.Sinks.AmazonS3 1.0.12
+
+group Test
+    source https://api.nuget.org/v3/index.json
+    source https://www.nuget.org/api/v2
+    framework: netstandard2.0
+    storage: none
+
+    nuget FsConfig
+    nuget FSharp.Core
+    nuget Microsoft.NET.Test.Sdk
+    nuget Microsoft.Extensions.Configuration.FileExtensions
+    nuget Microsoft.Extensions.Configuration.Json
+
+    nuget Expecto
+    nuget Expecto.BenchmarkDotNet
+    nuget Expecto.FsCheck
+    nuget Expecto.Hopac
+    nuget ThrowawayDb
+    nuget FsCheck
+    nuget Expecto.VisualStudio.TestAdapter 10.0.2
 
 group Build
     source https://api.nuget.org/v3/index.json

@@ -2,14 +2,14 @@
 
 open Microsoft.Extensions.Configuration
 open Server.Blueprint.Behavior.Contracts
+open Server.Blueprint.Behavior.Storage
 open Server.AppSettings
 open Server.Library
 open Server.LibraryExtensions
 
-let build (config: IConfiguration) =
+let build (config: IConfiguration) (store: IStorageEngine) =
     let settings = config.Get<AppSettings>()
     let conn = settings.Database.Connection
-    let store = Storage.makeStorage conn
     {
         new IContractSystem with
             member _.CreateContract msg = Workflow.createContract store msg

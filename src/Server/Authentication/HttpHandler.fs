@@ -2,7 +2,6 @@
 
 open System
 open System.Security.Claims
-open System.Text.RegularExpressions
 open System.IdentityModel.Tokens.Jwt
 open Microsoft.AspNetCore.Authentication
 open Microsoft.AspNetCore.Authentication.Cookies
@@ -18,6 +17,7 @@ open MimeKit
 open MimeKit.Text
 
 open Shared.Read
+open Server
 open Server.AppSettings
 open Server.Blueprint.Behavior.Authentication
 open Server.Blueprint.Data.Authentication
@@ -92,7 +92,7 @@ let createAuthenticationHandler (settings: AppSettings) (system: IAuthentication
 
     let createMessage (ctx: HttpContext) (payload: 'T): Message<'T> = {
         CreatedAt = DateTimeOffset.UtcNow
-        Context = ctx
+        Context = Some ctx
         Payload = payload
     }
 

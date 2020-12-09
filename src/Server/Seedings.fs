@@ -9,6 +9,8 @@ open Shared.Read
 open Server.Blueprint.Data.Authentication
 open Server.Blueprint.Behavior
 open Server.SeedData
+open Server.Library
+open Shared.MediaLibrary
 
 //This seeding should always occur, in case the main admin accidently removes its admin role :D
 let private seedAdmin (logger: Serilog.ILogger) (appSettings: AppSettings) (environment: IEnv) =
@@ -35,21 +37,6 @@ let private seedAdmin (logger: Serilog.ILogger) (appSettings: AppSettings) (envi
                 logger.Error(sprintf "Could not add system user '%s': '%A'" sysAdmin.EmailAddress error)
     )
 
-let private seedFinancialCategories (logger: ILogger) (environment: IEnv) (migratedFrom: int64, migratedTo: int64) =
-    if (migratedFrom < 10L && migratedTo >= 10L) then
-        logger.Debug("Seeding financial categories")
-        async {
-            try
-                let! financialCategories = FinancialCategories.readPredefined ()
-                do! environment.FinancialSystem.SeedFinancialCategories financialCategories
-                logger.Debug("Finished seeding financial categories")
-            with error ->
-                logger.Error(error, "Something went wrong while seeding the financial categories")
-        }
-        |> Async.RunSynchronously
-    else
-        ()
-
 let private seedDistributionKeys (logger: ILogger) (environment: IEnv) (migratedFrom: int64, migratedTo: int64) =
     if (migratedFrom < 10L && migratedTo >= 10L) then
         logger.Debug("Seeding distribution keys")
@@ -65,12 +52,40 @@ let private seedDistributionKeys (logger: ILogger) (environment: IEnv) (migrated
     else
         ()
 
+let private copyS3ObjectToNewLocation (logger: ILogger) (client: Amazon.S3.IAmazonS3) (size: string option, mediaFile: MediaFile) = async {
+    try
+        logger.Debug(sprintf "Copying media file '%A' to new location in S3" mediaFile.FileId)
+        do!
+            client.CopyObjectAsync("meliordigital", sprintf "%s/%O" mediaFile.Partition mediaFile.FileId, "meliordigital", Media.HttpHandler.s3BucketRoute (mediaFile, size))
+            |> Async.AwaitTask
+            |> Async.Ignore
+        logger.Debug(sprintf "Media file: '%A' was copied to new location in S3" mediaFile.FileId)
+    with error ->
+        logger.Error(error, sprintf "Something went wrong while copying media file '%A'" mediaFile.FileId)
+}
+
+let private copyMediaFilesToNewLocation (logger: ILogger) (config: IConfiguration) (environment: IEnv) (migratedFrom: int64, migratedTo: int64) =   
+    if (migratedFrom < 16L && migratedTo >= 16L) then
+        logger.Debug("Copying media files from the old location to the new location")
+        async {
+            let copyS3ObjectToNewLocation = copyS3ObjectToNewLocation logger (Media.HttpHandler.createAmazonS3ServiceClient config)
+            let! allMediaFiles = environment.MediaSystem.GetAllMediaFiles ()
+            for mediaFile in allMediaFiles do
+                do! copyS3ObjectToNewLocation (None, mediaFile)
+                if mediaFile.IsImage() then
+                    do! copyS3ObjectToNewLocation (Some "large", mediaFile)
+                    do! copyS3ObjectToNewLocation (Some "small", mediaFile)
+        }
+        |> Async.RunSynchronously
+    else
+        ()
+
 let run (logger: ILogger) (config: IConfiguration) (migratedFrom: int64, migratedTo: int64): unit =
     logger.Debug(sprintf "Running seeding from version %i to version %i" migratedFrom migratedTo)
     let appSettings = config.Get<AppSettings>()
     let environment = Application.createEnvironment config
 
     seedAdmin logger appSettings environment
-    seedFinancialCategories logger environment (migratedFrom, migratedTo)
     seedDistributionKeys logger environment (migratedFrom, migratedTo)
+    copyMediaFilesToNewLocation logger config environment (migratedFrom, migratedTo)
     logger.Debug("Seeding completed")

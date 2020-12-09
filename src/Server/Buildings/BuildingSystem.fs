@@ -3,20 +3,20 @@
 open Microsoft.Extensions.Configuration
 open Server.AppSettings
 open Server.Blueprint.Behavior.Buildings
+open Server.Blueprint.Behavior.Storage
 open Server.LibraryExtensions
 open Shared.Library
 
-let build (config: IConfiguration): IBuildingSystem =
+let build (config: IConfiguration) (storageEngine: IStorageEngine): IBuildingSystem =
     let settings = config.Get<AppSettings>()
     let conn = settings.Database.Connection
-    let store = Storage.makeStorage conn
     {
         new IBuildingSystem with
-            member _.CreateBuilding msg = Workflow.createBuilding store msg
-            member _.UpdateBuilding msg = Workflow.updateBuilding store msg
-            member _.DeleteBuilding msg = Workflow.deleteBuilding store msg
-            member _.UpdateBuildingSyndic msg = Workflow.updateBuildingSyndic store msg
-            member _.UpdateBuildingConcierge msg = Workflow.updateBuildingConcierge store msg
+            member _.CreateBuilding msg = Workflow.createBuilding storageEngine msg
+            member _.UpdateBuilding msg = Workflow.updateBuilding storageEngine msg
+            member _.DeleteBuilding msg = Workflow.deleteBuilding storageEngine msg
+            member _.UpdateBuildingSyndic msg = Workflow.updateBuildingSyndic storageEngine msg
+            member _.UpdateBuildingConcierge msg = Workflow.updateBuildingConcierge storageEngine msg
             member _.GetBuilding msg = 
                 if msg.CurrentUser.HasAccessToBuilding msg.Payload 
                 then Query.getBuilding conn msg.Payload

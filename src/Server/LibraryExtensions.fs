@@ -30,6 +30,16 @@ module User =
     let [<Literal>] private LocaleClaimType = "locale"
     let [<Literal>] private UseTwoFacClaimType = "use2fac"
 
+    let OfNone (): User =
+        {
+            UserId = Guid.Empty
+            EmailAddress = "system@syndicusassistent.be"
+            DisplayName = "System"
+            Roles = []
+            PreferredLanguageCode = "nl-BE"
+            UseTwoFac = false
+        }
+
     let OfContext (context: HttpContext): User = 
         let claimsPrincipal = context.User
         let professionalSyndicCache = context.GetService<IProfessionalSyndicCache>()
@@ -61,8 +71,18 @@ module User =
         |> toClaimsIdentity authSchema
         |> toClaimsPrincipal
 
+[<NoComparison; NoEquality>]
+type EmptyProfessionalSyndicCache () =
+    interface IProfessionalSyndicCache with
+        override _.ClearCache () = ()
+        override _.GetBuildingIdsForProfessionalSyndic _ = []
+
 type Message<'T> with
     member me.CurrentUser =
-        User.OfContext me.Context
+        match me.Context with
+        | Some context -> User.OfContext context
+        | None -> User.OfNone ()
     member me.ProfessionalSyndicCache =
-        me.Context.GetService<IProfessionalSyndicCache>()
+        match me.Context with
+        | Some context -> context.GetService<IProfessionalSyndicCache>()
+        | None -> new EmptyProfessionalSyndicCache () :> IProfessionalSyndicCache

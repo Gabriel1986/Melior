@@ -7,6 +7,7 @@ open Npgsql.FSharp
 open Server.Addresses.Library
 open Server.PostgreSQL
 open Server.PostgreSQL.Sql
+open Server.Blueprint.Data.Financial
 
 [<AutoOpen>]
 module private Internals =

@@ -19,25 +19,29 @@ open Server.LibraryExtensions
 open Server.Blueprint.Behavior.Media
 open Amazon.Runtime
 
-[<AutoOpen>]
-module private Internals =
-    let createAmazonS3ServiceClient (config: IConfiguration) =
+let createAmazonS3ServiceClient (config: IConfiguration) =
 #if DEBUG
-        let awsConfig = new Amazon.S3.AmazonS3Config()
-        awsConfig.ServiceURL <- "http://localhost:4572"
-        awsConfig.UseHttp <- true
-        awsConfig.ForcePathStyle <- true //Can't set this using the GetAWSOptions... Needed to do this manually for development....
-        awsConfig.AuthenticationRegion <- "us-east-1"
-        let awsCredentials = new EnvironmentVariablesAWSCredentials();
-        new AmazonS3Client (awsCredentials, awsConfig) :> IAmazonS3
+    let awsConfig = new Amazon.S3.AmazonS3Config()
+    awsConfig.ServiceURL <- "http://localhost:4572"
+    awsConfig.UseHttp <- true
+    awsConfig.ForcePathStyle <- true //Can't set this using the GetAWSOptions... Needed to do this manually for development....
+    awsConfig.AuthenticationRegion <- "us-east-1"
+    let awsCredentials = new EnvironmentVariablesAWSCredentials();
+    new AmazonS3Client (awsCredentials, awsConfig) :> IAmazonS3
 #else
-        let awsConfig = config.GetAWSOptions()
-        awsConfig.Credentials <- new EnvironmentVariablesAWSCredentials()
-        awsConfig.CreateServiceClient<IAmazonS3>()
+    let awsConfig = config.GetAWSOptions()
+    awsConfig.Credentials <- new EnvironmentVariablesAWSCredentials()
+    awsConfig.CreateServiceClient<IAmazonS3>()
 #endif
 
+let s3BucketRoute (file: MediaFile, size: string option) =
+    let size = match size with | Some size -> size + "_" | None -> ""
+    sprintf "syndicusassistent/%O/%s/%O_%O_%s%s" (file.BuildingId |> Option.either string "public") file.Partition file.EntityId file.FileId size file.FileName
+
+[<AutoOpen>]
+module Internals =
     let createMessage (ctx: HttpContext) (data: 'T) : Message<'T> = { 
-        Context = ctx
+        Context = Some ctx
         Payload = data
         CreatedAt = DateTimeOffset.Now
     }
@@ -94,6 +98,10 @@ module private Internals =
 
                         let openReadStreams =
                             temporaryFiles
+                            |> Array.filter (fun fileInfo -> 
+                                match (fileInfo.Extension.Split(".") |> Array.last |> Int32.TryParse) with
+                                | true, _ -> true
+                                | false, _ -> false)
                             |> Array.sortBy
                                 (fun fileInfo ->
                                     fileInfo.Extension.Split(".")
@@ -122,7 +130,7 @@ module private Internals =
                                 FileId = fileId
                                 BuildingId = buildingId
                                 FileName = uploadName
-                                FileSize = uploadLength |> int
+                                FileSize = int uploadLength
                                 MimeType = MimeTypes.getMimeType(fileExtension)
                                 UploadedOn = DateTimeOffset.Now
                             }
@@ -154,18 +162,18 @@ module private Internals =
 
                             use client = createAmazonS3ServiceClient config
                             printfn "Uploading object from filePath: %A" combinedPath
-                            do! client.UploadObjectFromFilePathAsync("meliordigital", sprintf "%s/%O" partition fileId, combinedPath, [] |> dict)
+                            do! client.UploadObjectFromFilePathAsync("meliordigital", s3BucketRoute (file, None), combinedPath, [] |> dict)
                             printfn "Uploading large thumbnail"
-                            do! client.UploadObjectFromStreamAsync("meliordigital", sprintf "%s/%O_%s" partition fileId "large", largeThumbnailStream, [] |> dict)
+                            do! client.UploadObjectFromStreamAsync("meliordigital", s3BucketRoute (file, Some "large"), largeThumbnailStream, [] |> dict)
                             printfn "Uploading small thumbnail"
-                            do! client.UploadObjectFromStreamAsync("meliordigital", sprintf "%s/%O_%s" partition fileId "small", smallThumbnailStream, [] |> dict)
+                            do! client.UploadObjectFromStreamAsync("meliordigital", s3BucketRoute (file, Some "small"), smallThumbnailStream, [] |> dict)
                         else
                             printfn "Uploading file to S3 -> creating client"
                             use client = createAmazonS3ServiceClient config
                             printfn "Uploading object from file path async."
                             printfn "Service url: %s" client.Config.ServiceURL
                             printfn "Using HTTP: %O" client.Config.UseHttp
-                            do! client.UploadObjectFromFilePathAsync("meliordigital", sprintf "%s/%O" partition fileId, combinedPath, [] |> dict)
+                            do! client.UploadObjectFromFilePathAsync("meliordigital", s3BucketRoute (file, None), combinedPath, [] |> dict)
 
                         //Store the file metadata
                         printfn "Storing file metadata in the database"
@@ -184,7 +192,7 @@ module private Internals =
                     return! setStatusCode (Net.HttpStatusCode.Forbidden |> int) nxt ctx
             }
 
-    let delete (config: IConfiguration) (system: IMediaSystem)  (partition: string, _entityId: Guid) =
+    let delete (config: IConfiguration) (system: IMediaSystem) (partition: string, _entityId: Guid) =
         fun nxt (ctx: HttpContext) ->
             task {
                 let! body = ctx.ReadBodyFromRequestAsync()
@@ -202,23 +210,25 @@ module private Internals =
 
                         use client = createAmazonS3ServiceClient config
                         let deleteObjectsRequest = new DeleteObjectsRequest(BucketName = "meliordigital")
-                        deleteObjectsRequest.AddKey(sprintf "%s/%O"    partition fileId)
-                        deleteObjectsRequest.AddKey(sprintf "%s/%O_%s" partition fileId "large")
-                        deleteObjectsRequest.AddKey(sprintf "%O_%s" fileId "small")
+                        deleteObjectsRequest.AddKey(s3BucketRoute (mediaFile, None))
+
+                        if mediaFile.IsImage() then
+                            deleteObjectsRequest.AddKey(s3BucketRoute (mediaFile, Some "large"))
+                            deleteObjectsRequest.AddKey(s3BucketRoute (mediaFile, Some "small"))
 
                         //TODO: do something with the response? do we care about the response?
                         let! response = client.DeleteObjectsAsync(deleteObjectsRequest)
-                    
+
                         do!
                             fileId
                             |> createMessage ctx
-                            |> system.DeleteMediaFile  
+                            |> system.RemoveTemporaryMediaFile  
                         if (chunkDirectoryInfo.Exists) then chunkDirectoryInfo.Delete(true)
                         return! setStatusCode (Net.HttpStatusCode.OK |> int) nxt ctx
                     else
                         return! setStatusCode 403 nxt ctx
                 | None ->
-                    return! (setStatusCode 404 >=> text "Media file not found") nxt ctx    
+                    return! (setStatusCode 404 >=> text "Media file not found") nxt ctx
             }
 
     //See FilePond docs -> server responds with Upload-Offset set to the next expected chunk offset in bytes.
@@ -250,7 +260,7 @@ module private Internals =
                         use s3Client = createAmazonS3ServiceClient config
                         use transferUtility = new TransferUtility(s3Client)
                         try
-                            use! readStream = transferUtility.OpenStreamAsync("meliordigital", sprintf "%s/%O" partition fileId)
+                            use! readStream = transferUtility.OpenStreamAsync("meliordigital", s3BucketRoute (mediaFile, None))
                             let assembled =
                                 setHttpHeader "Content-Type" mediaFile.MimeType
                                 >=> streamData true readStream None (Some mediaFile.UploadedOn)
@@ -260,7 +270,7 @@ module private Internals =
                     else
                         return! setStatusCode 403 nxt ctx
                 | None ->
-                    return! (setStatusCode 404 >=> text "Media file not found") nxt ctx                    
+                    return! (setStatusCode 404 >=> text "Media file not found") nxt ctx
             }
 
     let thumbnail (config: IConfiguration) (system: IMediaSystem) (size: string, partition: string, fileId: Guid) =
@@ -277,7 +287,7 @@ module private Internals =
                         use s3Client = createAmazonS3ServiceClient config
                         use transferUtility = new TransferUtility(s3Client)
                         try
-                            use! readStream = transferUtility.OpenStreamAsync("meliordigital", sprintf "%s/%O_%s" partition fileId size)
+                            use! readStream = transferUtility.OpenStreamAsync("meliordigital", s3BucketRoute (mediaFile, Some size))
                             let assembled =
                                 setHttpHeader "Content-Type" mediaFile.MimeType
                                 >=> streamData true readStream None (Some mediaFile.UploadedOn)

@@ -8,7 +8,6 @@ open Shared.Write
 open Shared.Remoting
 open Shared.ConstrainedTypes
 open Server.Library
-open Server.Blueprint.Data.SeedData
 
 module Authentication =
     open Server.Blueprint.Data.Authentication
@@ -23,7 +22,7 @@ module Authentication =
         abstract UpdateTwoFacAuthentication: UpdateTwoFacAuthentication -> Async<unit>
         abstract ValidateRecoveryCode: userId: Guid * code: string -> Async<bool>
         abstract RemoveUsedRecoveryCode: userId: Guid * code: string -> Async<unit>
-        abstract GenerateNewRecoveryCodes: userId: Guid * email: string -> Async<string list>
+        abstract GenerateNewRecoveryCodes: userId: Guid -> Async<string list>
         abstract AddFailedTwoFacAttempt: FailedTwoFacAttempt -> Async<unit>
 
         abstract UpdatePassword: Message<Guid * string> -> Async<Result<unit, exn>>
@@ -55,10 +54,12 @@ module Media =
         abstract CreateMediaFile: Message<MediaFile> -> Async<unit>
         abstract DeleteMediaFilesForEntity: Message<Guid> -> Async<unit>
         abstract DeleteMediaFile: Message<Guid> -> Async<unit>
+        abstract RemoveTemporaryMediaFile: Message<Guid> -> Async<unit>
 
         //Queries
         abstract GetMediaFile: partition: string -> fileId: Guid -> Async<MediaFile option>
         abstract GetMediaFilesForEntities: partition: string -> entityIds: Guid list -> Async<MediaFile list>
+        abstract GetAllMediaFiles: unit -> Async<MediaFile list>
         abstract HttpHandler: HttpHandler
 
 module Buildings =
@@ -182,13 +183,22 @@ module Financial =
         abstract GetFinancialCategories: Message<BuildingId> -> Async<FinancialCategory list>
 
         //Seeding
-        abstract SeedFinancialCategories: FinancialCategorySeedRow seq -> Async<unit>
-        abstract SeedDistributionKeys: DistributionKeySeedRow seq -> Async<unit>
+        abstract SeedDistributionKeys: DistributionKey list -> Async<unit>
 
 module Warnings =
     [<NoComparison; NoEquality>]
     type IWarningSystem =
         abstract GetWarnings: BuildingId -> Async<Warning list>
+
+module Storage =
+    open Server.Blueprint.Data.Storage
+
+    [<NoComparison; NoEquality>]
+    type IReactiveBehavior =
+        abstract ReactTo: Message<StorageEvent> -> Async<StorageEvent list>
+
+    type IStorageEngine =
+        abstract PersistTransactional: Message<StorageEvent> list -> Async<int>
 
 [<NoComparison; NoEquality>]
 type IEnv =

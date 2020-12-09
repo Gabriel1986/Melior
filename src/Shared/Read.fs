@@ -545,23 +545,24 @@ type ContractTypeAnswer = {
     IsTrue: bool
 }
 
-type ContractType = {
-    ContractTypeId: Guid
-    Name: string
-}
-
-type ContractContractType =
+type ContractType =
     | PredefinedContractType of PredefinedContractType
+    | InsuranceContractType of InsuranceContract
     | OtherContractType of string
     member me.Translate (translatePredefinedType: PredefinedContractType -> string) =
         match me with
         | PredefinedContractType cType -> translatePredefinedType cType
         | OtherContractType name -> name
+        | InsuranceContractType insuranceDetails -> insuranceDetails.Name
+and InsuranceContract = {
+    Name: string
+    Broker: OrganizationListItem option
+}
 type Contract = {
     ContractId: Guid
     BuildingId: Guid
-    ContractType: ContractContractType
-    ContractFile: MediaFile option
+    ContractType: ContractType
+    ContractFiles: MediaFile list
     ContractOrganization: OrganizationListItem option
 }
 
@@ -650,13 +651,13 @@ type FinancialYear =
 type FinancialCategory = 
     {
         FinancialCategoryId: Guid
-        BuildingId: Guid option
+        BuildingId: Guid
         Code: string
         Description: string
     }
     static member Init (buildingId: Guid) = {
         FinancialCategoryId = Guid.NewGuid()
-        BuildingId = Some buildingId
+        BuildingId = buildingId
         Code = ""
         Description = ""
     }

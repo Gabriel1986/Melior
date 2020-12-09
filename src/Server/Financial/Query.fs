@@ -7,7 +7,7 @@ open Npgsql.FSharp
 open Server.PostgreSQL
 open Server.PostgreSQL.Sql
 open Shared.MediaLibrary
-open System.Globalization
+open Server.Blueprint.Data.Financial
 
 type DistributionKeyRow = {
     DistributionKeyId: Guid
@@ -118,7 +118,7 @@ let readFinancialYear (reader: CaseInsensitiveRowReader): FinancialYear = {
 
 let readFinancialCategory (reader: CaseInsensitiveRowReader): FinancialCategory = {
     FinancialCategoryId = reader.uuid "FinancialCategoryId"
-    BuildingId = reader.uuidOrNone "BuildingId"
+    BuildingId = reader.uuid "BuildingId"
     Code = reader.string "Code"
     Description = reader.string "Description"
 }

@@ -146,7 +146,7 @@ module Helpers =
                     Flatpickr.flatpickr ([
                         Flatpickr.DateFormat "j F, Y"
                         Flatpickr.ClassName (sprintf "%s %s %s" Bootstrap.formControl (if error.IsSome then Bootstrap.isInvalid else "") "flatpickr-input")
-                        Flatpickr.Locale Flatpickr.Locales.dutch 
+                        //Flatpickr.Locale Flatpickr.Locales.dutch 
                         Flatpickr.TimeTwentyFour true
                     ] @ dateProps.Value)
             if otherChildren.IsSome then

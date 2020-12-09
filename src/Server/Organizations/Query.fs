@@ -1,5 +1,6 @@
 ﻿module Server.Organizations.Query
 
+open FSharp.Data.Runtime
 open System
 open Npgsql.FSharp
 open Server.PostgreSQL
@@ -8,7 +9,7 @@ open Server.Library
 open Shared.Read
 open Server.Addresses.Library
 open Server.ContactMethods.Library
-open FSharp.Data.Runtime
+open Server.Blueprint.Data.Financial
 
 [<AutoOpen>]
 module private Readers =
@@ -115,25 +116,12 @@ let getContactPersonsForOrganization (connectionString: string) (organizationId:
         })
 }
 
-let private inMemoryCache = Caching.createInMemoryCache (TimeSpan.FromMinutes 15.0) 
-
-let clearCache () =
-    inMemoryCache.Remove ("OrganizationTypes")
-
-let getOrganizationTypes (connectionString: string) () =
-    match inMemoryCache.TryRetrieve ("OrganizationTypes") with
-    | Some organizationTypes -> Async.lift organizationTypes
-    | None -> 
-        async {
-            let! organizationTypes =
-                Sql.connect connectionString
-                |> Sql.query "SELECT OrganizationTypeId, Name FROM OrganizationTypes"
-                |> Sql.parameters []
-                |> Sql.read (fun reader -> { OrganizationTypeId = reader.uuid "OrganizationTypeId"; Name = reader.string "Name" })
-                |> Async.map (List.map (fun organizationType -> organizationType.OrganizationTypeId, organizationType) >> dict)
-            inMemoryCache.Set ("OrganizationTypes", organizationTypes)
-            return organizationTypes
-        }
+let getOrganizationTypes (connectionString: string) () =    
+    Sql.connect connectionString
+    |> Sql.query "SELECT OrganizationTypeId, Name FROM OrganizationTypes"
+    |> Sql.parameters []
+    |> Sql.read (fun reader -> { OrganizationTypeId = reader.uuid "OrganizationTypeId"; Name = reader.string "Name" })
+    |> Async.map (List.map (fun organizationType -> organizationType.OrganizationTypeId, organizationType) >> dict)
 
 let getOrganizationTypesForOrganizations (connectionString: string) (organizationIds: Guid list) = async {
     let! allOrganizationTypes = getOrganizationTypes connectionString ()

@@ -26,11 +26,12 @@ module private Readers =
         """
             SELECT Partition, EntityId, FileId, BuildingId, FileName, FileSize, MimeType, UploadedOn
             FROM MediaFiles
+            WHERE Status = 'Persisted'
         """
 
 let getMediaFilesForEntities (connectionString: string) (partition: string) (entityIds: Guid list) =
     Sql.connect connectionString
-    |> Sql.query (sprintf "%s WHERE Partition = @Partition AND EntityId = ANY (@EntityIds)" selectQuery)
+    |> Sql.query (sprintf "%s AND Partition = @Partition AND EntityId = ANY (@EntityIds)" selectQuery)
     |> Sql.parameters [ 
         "@EntityIds", Sql.uuidArray (entityIds |> List.toArray) 
         "@Partition", Sql.string partition
@@ -39,7 +40,7 @@ let getMediaFilesForEntities (connectionString: string) (partition: string) (ent
 
 let getMediaFilesByIds (conn: string) (partition: string) (fileIds: Guid list) =
     Sql.connect conn
-    |> Sql.query (sprintf "%s WHERE FileId = ANY (@FileIds) AND Partition = @Partition" selectQuery)
+    |> Sql.query (sprintf "%s AND FileId = ANY (@FileIds) AND Partition = @Partition" selectQuery)
     |> Sql.parameters [ 
         "@FileIds", Sql.uuidArray (fileIds |> Array.ofList)
         "@Partition", Sql.string partition
@@ -49,3 +50,8 @@ let getMediaFilesByIds (conn: string) (partition: string) (fileIds: Guid list) =
 let getMediaFileById (conn: string) (partition: string) (fileId: Guid) =
     getMediaFilesByIds conn partition [ fileId ]
     |> Async.map List.tryHead
+
+let getAllMediaFiles (conn: string) =
+    Sql.connect conn
+    |> Sql.query selectQuery
+    |> Sql.read readMediaFile

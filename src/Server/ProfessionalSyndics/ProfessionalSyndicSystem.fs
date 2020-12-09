@@ -1,16 +1,16 @@
 ﻿module Server.ProfessionalSyndics.ProfessionalSyndicSystem
 
 open Microsoft.Extensions.Configuration
-open Server.AppSettings
 open Server.Blueprint.Behavior.ProfessionalSyndics
+open Server.Blueprint.Behavior.Storage
+open Server.AppSettings
 open Server.Library
 open Server.LibraryExtensions
 open Shared.Read
 
-let build (config: IConfiguration): IProfessionalSyndicSystem =
+let build (config: IConfiguration) (store: IStorageEngine): IProfessionalSyndicSystem =
     let settings = config.Get<AppSettings>()
     let conn = settings.Database.Connection
-    let store = Storage.makeStorage conn
     {
         new IProfessionalSyndicSystem with
             member _.CreateProfessionalSyndic msg = Workflow.createProfessionalSyndic store msg

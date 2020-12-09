@@ -149,7 +149,7 @@ module private Server =
 
     let deleteFinancialCategory (category: FinancialCategory) =
         Cmd.OfAsync.either
-            (Client.Remoting.getRemotingApi()).DeleteFinancialCategory (category.BuildingId.Value, category.FinancialCategoryId)
+            (Client.Remoting.getRemotingApi()).DeleteFinancialCategory (category.BuildingId, category.FinancialCategoryId)
             (fun result -> FinancialCategoryDeleted (result |> Result.map (fun () -> category)))
             RemotingError
 

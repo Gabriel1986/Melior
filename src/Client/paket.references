@@ -1,17 +1,18 @@
-FSharp.Core
-Fable.Core
-Fable.Elmish
-Fable.Elmish.Debugger
-Fable.Elmish.HMR
-Fable.Elmish.React
-Fable.React
-Fable.Remoting.Client
-Feliz.ElmishComponents
-Feliz.Router
-Zanaptak.TypedCssClasses
-Thoth.Fetch
-Elmish.SweetAlert
-Fable.React.Flatpickr
-Thoth.Elmish.Debouncer
-Fable.SimpleHttp
-Fable.DateFunctions
+group Client
+	FSharp.Core
+	Fable.Core
+	Fable.Elmish
+	Fable.Elmish.Debugger
+	Fable.Elmish.HMR
+	Fable.Elmish.React
+	Fable.React
+	Fable.Remoting.Client
+	Feliz.ElmishComponents
+	Feliz.Router
+	Zanaptak.TypedCssClasses
+	Thoth.Fetch
+	Elmish.SweetAlert
+	Fable.React.Flatpickr
+	Thoth.Elmish.Debouncer
+	Fable.SimpleHttp
+	Fable.DateFunctions

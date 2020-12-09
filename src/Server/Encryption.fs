@@ -1,4 +1,4 @@
-﻿module Server.Authentication.Encryption
+﻿module Server.Encryption
     //Based on https://tomrucki.com/posts/aes-encryption-in-csharp/
 
     open System

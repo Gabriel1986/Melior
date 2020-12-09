@@ -1,29 +1,30 @@
-FSharp.Core
-Fable.Remoting.Giraffe
-FsConfig
-Giraffe
-Microsoft.AspNetCore
-Microsoft.AspNetCore.Authentication.Cookies
-Microsoft.AspNetCore.Authentication.JwtBearer
-Microsoft.AspNetCore.Authentication.OpenIdConnect
-Microsoft.AspNetCore.StaticFiles
-Microsoft.Extensions.Logging
-Simple.Migrations
-Serilog
-Serilog.AspNetCore
-Serilog.Sinks.ColoredConsole
-Serilog.Sinks.RollingFile
-Thoth.Json.Net
-Thoth.Json.Giraffe
-Npgsql.FSharp
-FSharp.Data
-NodaTime
-vies-dotnet-api
-AWSSDK.S3
-AWSSDK.Extensions.NETCore.Setup
-SixLabors.ImageSharp
-Giraffe.Antiforgery
-BCrypt.Net-Next
-GoogleAuthenticator
-MailKit
-HaemmerElectronics.SeppPenner.Serilog.Sinks.AmazonS3
+group Server
+	FSharp.Core
+	Fable.Remoting.Giraffe
+	FsConfig
+	Giraffe
+	Microsoft.AspNetCore
+	Microsoft.AspNetCore.Authentication.Cookies
+	Microsoft.AspNetCore.Authentication.JwtBearer
+	Microsoft.AspNetCore.Authentication.OpenIdConnect
+	Microsoft.AspNetCore.StaticFiles
+	Microsoft.Extensions.Logging
+	Simple.Migrations
+	Serilog
+	Serilog.AspNetCore
+	Serilog.Sinks.ColoredConsole
+	Serilog.Sinks.RollingFile
+	Thoth.Json.Net
+	Thoth.Json.Giraffe
+	Npgsql.FSharp
+	FSharp.Data
+	NodaTime
+	vies-dotnet-api
+	AWSSDK.S3
+	AWSSDK.Extensions.NETCore.Setup
+	SixLabors.ImageSharp
+	Giraffe.Antiforgery
+	BCrypt.Net-Next
+	GoogleAuthenticator
+	MailKit
+	HaemmerElectronics.SeppPenner.Serilog.Sinks.AmazonS3

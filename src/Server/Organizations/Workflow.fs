@@ -4,17 +4,23 @@ open System
 open Shared.Read
 open Shared.Write
 open Shared.Remoting
+open Server.Blueprint.Behavior.Storage
+open Server.Blueprint.Data.Storage
 open Server.Library
 open Server.LibraryExtensions
-open Storage
 
-let createContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPerson>): Async<Result<unit, SaveContactPersonError>> = async {
+let createContactPerson (storage: IStorageEngine) (msg: Message<ContactPerson>): Async<Result<unit, SaveContactPersonError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
         let validated = ValidatedContactPerson.Validate msg.Payload
         match validated with
         | Ok validated ->
-            do! storage.CreateContactPerson validated
+            let! _ = storage.PersistTransactional [
+                validated
+                |> OrganizationEvent.ContactPersonWasCreated
+                |> StorageEvent.OrganizationEvent
+                |> inMsg msg
+            ]
             return Ok ()
         | Error validationErrors ->
             return Error (SaveContactPersonError.Validation validationErrors)
@@ -22,13 +28,18 @@ let createContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPer
         return Error SaveContactPersonError.AuthorizationError
 }
 
-let updateContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPerson>): Async<Result<unit, SaveContactPersonError>> = async {
+let updateContactPerson (storage: IStorageEngine) (msg: Message<ContactPerson>): Async<Result<unit, SaveContactPersonError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
         let validated = ValidatedContactPerson.Validate msg.Payload
         match validated with
-        | Ok validated -> 
-            let! nbRowsAffected = storage.UpdateContactPerson validated
+        | Ok validated ->            
+            let! nbRowsAffected = storage.PersistTransactional [
+                validated
+                |> OrganizationEvent.ContactPersonWasUpdated
+                |> StorageEvent.OrganizationEvent
+                |> inMsg msg
+            ]
             if nbRowsAffected = 0
             then return Error SaveContactPersonError.NotFound
             else return Ok ()
@@ -38,10 +49,15 @@ let updateContactPerson (storage: IOrganizationStorage) (msg: Message<ContactPer
         return Error SaveContactPersonError.AuthorizationError
 }
 
-let deleteContactPerson (storage: IOrganizationStorage) (msg: Message<BuildingId option * Guid>): Async<Result<unit, DeleteContactPersonError>> = async {
+let deleteContactPerson (storage: IStorageEngine) (msg: Message<BuildingId option * Guid>): Async<Result<unit, DeleteContactPersonError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (fst msg.Payload |> Option.defaultValue Guid.Empty)
     then
-        let! nbRowsAffected = storage.DeleteContactPerson msg.Payload
+        let! nbRowsAffected = storage.PersistTransactional [
+            msg.Payload
+            |> OrganizationEvent.ContactPersonWasDeleted
+            |> StorageEvent.OrganizationEvent
+            |> inMsg msg
+        ]
         if nbRowsAffected = 0
         then return Error DeleteContactPersonError.NotFound
         else return Ok ()
@@ -49,13 +65,18 @@ let deleteContactPerson (storage: IOrganizationStorage) (msg: Message<BuildingId
         return Error DeleteContactPersonError.AuthorizationError
 }
 
-let createOrganization (storage: IOrganizationStorage) (msg: Message<Organization>): Async<Result<unit, SaveOrganizationError>> = async {
+let createOrganization (storage: IStorageEngine) (msg: Message<Organization>): Async<Result<unit, SaveOrganizationError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
         let validated = ValidatedOrganization.Validate msg.Payload
         match validated with
         | Ok validated ->
-            do! storage.CreateOrganization validated
+            let! _ = storage.PersistTransactional [
+                validated
+                |> OrganizationEvent.OrganizationWasCreated
+                |> StorageEvent.OrganizationEvent
+                |> inMsg msg
+            ]
             return Ok ()
         | Error validationErrors ->
             return Error (SaveOrganizationError.Validation validationErrors)
@@ -63,13 +84,18 @@ let createOrganization (storage: IOrganizationStorage) (msg: Message<Organizatio
         return Error SaveOrganizationError.AuthorizationError
 }
 
-let updateOrganization (storage: IOrganizationStorage) (msg: Message<Organization>): Async<Result<unit, SaveOrganizationError>> = async {
+let updateOrganization (storage: IStorageEngine) (msg: Message<Organization>): Async<Result<unit, SaveOrganizationError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId |> Option.defaultValue Guid.Empty)
     then
         let validated = ValidatedOrganization.Validate msg.Payload
         match validated with
         | Ok validated -> 
-            let! nbRowsAffected = storage.UpdateOrganization validated
+            let! nbRowsAffected = storage.PersistTransactional [
+                validated
+                |> OrganizationEvent.OrganizationWasUpdated
+                |> StorageEvent.OrganizationEvent
+                |> inMsg msg
+            ]
             if nbRowsAffected = 0
             then return Error SaveOrganizationError.NotFound
             else return Ok ()
@@ -79,10 +105,15 @@ let updateOrganization (storage: IOrganizationStorage) (msg: Message<Organizatio
         return Error SaveOrganizationError.AuthorizationError
 }
 
-let deleteOrganization (storage: IOrganizationStorage) (msg: Message<BuildingId option * Guid>): Async<Result<unit, DeleteOrganizationError>> = async {
+let deleteOrganization (storage: IStorageEngine) (msg: Message<BuildingId option * Guid>): Async<Result<unit, DeleteOrganizationError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (fst msg.Payload |> Option.defaultValue Guid.Empty)
     then
-        let! nbRowsAffected = storage.DeleteOrganization msg.Payload
+        let! nbRowsAffected = storage.PersistTransactional [
+            msg.Payload
+            |> OrganizationEvent.OrganizationWasDeleted
+            |> StorageEvent.OrganizationEvent
+            |> inMsg msg
+        ]
         if nbRowsAffected = 0
         then return Error DeleteOrganizationError.NotFound
         else return Ok ()
@@ -90,13 +121,19 @@ let deleteOrganization (storage: IOrganizationStorage) (msg: Message<BuildingId 
         return Error DeleteOrganizationError.AuthorizationError
 }
 
-let createOrganizationType (storage: IOrganizationStorage) (msg: Message<OrganizationType>): Async<Result<unit, SaveOrganizationTypeError>> = async {
+let createOrganizationType (storage: IStorageEngine) (msg: Message<OrganizationType>): Async<Result<unit, SaveOrganizationTypeError>> = async {
     if msg.CurrentUser.IsSysAdmin ()
     then
         let validated = ValidatedOrganizationType.Validate msg.Payload
         match validated with
         | Ok validated ->
-            do! storage.CreateOrganizationType validated
+            let! _ = storage.PersistTransactional [
+                validated
+                |> CUDEvent.Created
+                |> OrganizationEvent.OrganizationTypeEvent
+                |> StorageEvent.OrganizationEvent
+                |> inMsg msg
+            ]
             return Ok ()
         | Error validationErrors ->
             return Error (SaveOrganizationTypeError.Validation validationErrors)
@@ -104,13 +141,19 @@ let createOrganizationType (storage: IOrganizationStorage) (msg: Message<Organiz
         return Error SaveOrganizationTypeError.AuthorizationError
 }
 
-let updateOrganizationType (storage: IOrganizationStorage) (msg: Message<OrganizationType>): Async<Result<unit, SaveOrganizationTypeError>> = async {
+let updateOrganizationType (storage: IStorageEngine) (msg: Message<OrganizationType>): Async<Result<unit, SaveOrganizationTypeError>> = async {
     if msg.CurrentUser.IsSysAdmin ()
     then
         let validated = ValidatedOrganizationType.Validate msg.Payload
         match validated with
         | Ok validated -> 
-            let! nbRowsAffected = storage.UpdateOrganizationType validated
+            let! nbRowsAffected = storage.PersistTransactional [
+                validated
+                |> CUDEvent.Updated
+                |> OrganizationEvent.OrganizationTypeEvent
+                |> StorageEvent.OrganizationEvent
+                |> inMsg msg
+            ]
             if nbRowsAffected = 0
             then return Error SaveOrganizationTypeError.NotFound
             else return Ok ()
@@ -120,10 +163,16 @@ let updateOrganizationType (storage: IOrganizationStorage) (msg: Message<Organiz
         return Error SaveOrganizationTypeError.AuthorizationError
 }
 
-let deleteOrganizationType (storage: IOrganizationStorage) (msg: Message<Guid>): Async<Result<unit, DeleteOrganizationTypeError>> = async {
+let deleteOrganizationType (storage: IStorageEngine) (msg: Message<Guid>): Async<Result<unit, DeleteOrganizationTypeError>> = async {
     if msg.CurrentUser.IsSysAdmin ()
     then
-        let! nbRowsAffected = storage.DeleteOrganizationType msg.Payload
+        let! nbRowsAffected = storage.PersistTransactional [
+            msg.Payload
+            |> CUDEvent.Deleted
+            |> OrganizationEvent.OrganizationTypeEvent
+            |> StorageEvent.OrganizationEvent
+            |> inMsg msg
+        ]
         if nbRowsAffected = 0
         then return Error DeleteOrganizationTypeError.NotFound
         else return Ok ()

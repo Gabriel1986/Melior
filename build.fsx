@@ -74,6 +74,8 @@ Target.create "Build" (fun _ ->
        ("let app = \"" + release.NugetVersion + "\"")
         System.Text.Encoding.UTF8
         (Path.combine clientPath "Version.fs")
+
+    runDotNet "fable" clientPath
     runTool npxTool "webpack-cli -p" __SOURCE_DIRECTORY__
 )
 
@@ -99,27 +101,18 @@ Target.create "Run" (fun _ ->
         runDotNet "watch run -c Debug" serverPath
     }
     let client = async {
+        runDotNet "fable watch" clientPath
+    }
+
+    let webpack = async {
         runTool npxTool "webpack-dev-server" __SOURCE_DIRECTORY__
     }
 
     let tasks =
         [ yield server
-          yield client ]
-
-    tasks
-    |> Async.Parallel
-    |> Async.RunSynchronously
-    |> ignore
-)
-
-Target.create "RunHeadless" (fun _ ->
-    let server = async {
-        Environment.setEnvironVar "ASPNETCORE_ENVIRONMENT" aspnetEnv
-        runDotNet "watch run -c Debug" serverPath
-    }
-
-    let tasks =
-        [ yield server ]
+          yield client
+          yield webpack
+        ]
 
     tasks
     |> Async.Parallel
@@ -137,8 +130,5 @@ open Fake.Core.TargetOperators
 "Clean"
     ==> "InstallClient"
     ==> "Run"
-
-"Clean"
-    ==> "RunHeadless"
 
 Target.runOrDefaultWithArguments "Build"

@@ -16,3 +16,4 @@ settings.json
 .ionide/
 .vs/Melior/v16/.suo
 src/Server/*.txt
+*.fs.js

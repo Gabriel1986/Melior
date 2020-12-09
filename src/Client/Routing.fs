@@ -65,13 +65,13 @@
     let [<Literal>] private UsersPage = "users"
 
     let private navigateToDetailsPage (identifier: Guid) (page: string) =
-        Router.navigate(page, string identifier)
+        Cmd.navigate(page, string identifier)
 
     let private navigateToBuildingSpecificPage (props: BuildingSpecificProps) (page: string) =
-        Router.navigate(BuildingsPage, string props.BuildingId, page)
+        Cmd.navigate(BuildingsPage, string props.BuildingId, page)
 
     let private navigateToBuildingSpecificDetailsPage (props: BuildingSpecificDetailProps) (page: string) =
-        Router.navigate(BuildingsPage, string props.BuildingId, page, string props.DetailId)
+        Cmd.navigate(BuildingsPage, string props.BuildingId, page, string props.DetailId)
 
     let private routeToSpecificDetailsPage (page: string, specifics: BuildingSpecificDetailProps) =
         Router.format(BuildingsPage, string specifics.BuildingId, page, string specifics.DetailId)
@@ -141,9 +141,9 @@
     let navigateToPage =
         function
         | Page.Portal -> 
-            Router.navigate(PortalPage)
+            Cmd.navigate(PortalPage)
         | Page.BuildingList -> 
-            Router.navigate(BuildingsPage)
+            Cmd.navigate(BuildingsPage)
         | Page.BuildingDetails props ->
             BuildingsPage |> navigateToDetailsPage props
         | Page.OwnerList props ->
@@ -159,23 +159,23 @@
         | Page.OrganizationDetails props ->
             OrganizationsPage |> navigateToBuildingSpecificDetailsPage props
         | Page.ProfessionalSyndicList ->
-            Router.navigate(ProfessionalSyndicsPage)
+            Cmd.navigate(ProfessionalSyndicsPage)
         | Page.ProfessionalSyndicDetails props ->
             ProfessionalSyndicsPage |> navigateToDetailsPage props
         | Page.OrganizationTypeList ->
-            Router.navigate(OrganizationTypesPage)
+            Cmd.navigate(OrganizationTypesPage)
         | Page.Contracts props ->
             ContractsPage |> navigateToBuildingSpecificPage props
         | Page.MyContracts ->
-            Router.navigate(MyContractsPage)
+            Cmd.navigate(MyContractsPage)
         | Page.MyEvents ->
-            Router.navigate(MyEventsPage)
+            Cmd.navigate(MyEventsPage)
         | Page.MyLots ->
-            Router.navigate(MyLotsPage)
+            Cmd.navigate(MyLotsPage)
         | Page.MyFinancials ->
-            Router.navigate(MyFinancialsPage)
+            Cmd.navigate(MyFinancialsPage)
         | Page.NoticeBoard ->
-            Router.navigate(NoticeBoardPage)
+            Cmd.navigate(NoticeBoardPage)
         | Page.FinancialSettings props ->
             FinancialSettingsPage |> navigateToBuildingSpecificPage props
         | Page.DistributionKeyList props ->
@@ -191,7 +191,7 @@
         | Page.BankNotes props ->
             BankNotesPage |> navigateToBuildingSpecificPage props
         | Page.UserList ->
-            Router.navigate(UsersPage)
+            Cmd.navigate(UsersPage)
         | Page.UserDetails props ->
             UsersPage |> navigateToDetailsPage props
         | Page.NotFound ->

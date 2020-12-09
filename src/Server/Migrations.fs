@@ -522,3 +522,28 @@ type RemoveRoleFromLotOwnersAndAddLotOwnerContacts() =
                     REFERENCES Owners(BuildingId, PersonId);
             """
     override u.Down () = ()
+
+[<Migration(16L, "Remove column ContractFileId from contracts")>]
+type RemoveContractFileIdFromContacts() =
+    inherit Migration ()
+    override u.Up () =
+        u.Execute
+            """
+                ALTER TABLE Contracts DROP COLUMN IF EXISTS ContractFileId;
+                DROP TABLE IF EXISTS Contracts_History;
+            """
+    override u.Down () = ()
+
+[<Migration(17L, "Add column IsDeleted to MediaFiles and Persons")>]
+type AddColumnDeletedToMediaFilesAndPersons() =
+    inherit Migration ()
+    override u.Up () =
+        u.Execute
+            """
+                ALTER TABLE MediaFiles ADD COLUMN IF NOT EXISTS Status VARCHAR(64) DEFAULT 'Temporary';
+                UPDATE MediaFiles SET Status = 'Persisted';
+
+                ALTER TABLE Persons ADD COLUMN IF NOT EXISTS IsDeleted BOOLEAN DEFAULT FALSE;
+                UPDATE Persons SET IsDeleted = FALSE;
+            """
+    override u.Down () = ()

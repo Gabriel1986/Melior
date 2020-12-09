@@ -1,15 +1,24 @@
 ﻿module Server.Financial.FinancialSystem
 
+open System
 open Microsoft.Extensions.Configuration
 open Server.Library
 open Server.LibraryExtensions
 open Server.AppSettings
 open Server.Blueprint.Behavior.Financial
+open Server.Blueprint.Behavior.Storage
+open Server.Blueprint.Data.Storage
+open Server.SeedData
 
-let build (config: IConfiguration): IFinancialSystem = 
+let createMessage payload = {
+    Payload = payload
+    Context = None
+    CreatedAt = DateTimeOffset.Now
+}
+
+let build (config: IConfiguration) (store: IStorageEngine): IFinancialSystem = 
     let settings = config.Get<AppSettings>()
     let conn = settings.Database.Connection
-    let store = Storage.makeStorage conn
     {
         new IFinancialSystem with
             member _.CreateDistributionKey msg = Workflow.createDistributionKey store msg
@@ -24,6 +33,7 @@ let build (config: IConfiguration): IFinancialSystem =
                     return None
             }
             member _.GetDistributionKeyListItems msg = Query.getDistributionKeyListItems conn msg.Payload
+            member _.SeedDistributionKeys keys = Workflow.seedDistributionKeys store (keys |> createMessage)
 
             member _.CreateInvoice msg = Workflow.createInvoice store msg
             member _.UpdateInvoice msg = Workflow.updateInvoice store msg
@@ -42,7 +52,7 @@ let build (config: IConfiguration): IFinancialSystem =
 
             member _.CreateFinancialYear msg = Workflow.createFinancialYear store msg
             member _.UpdateFinancialYear msg = Workflow.updateFinancialYear store msg
-            member _.CloseFinancialYear msg = Workflow.closeFinancialYear store msg
+            member _.CloseFinancialYear msg = Workflow.closeFinancialYear store conn msg
             member _.DeleteFinancialYear msg = Workflow.deleteFinancialYear store msg
             member _.GetFinancialYears msg = Query.getAllFinancialYears conn msg.Payload
 
@@ -50,7 +60,16 @@ let build (config: IConfiguration): IFinancialSystem =
             member _.UpdateFinancialCategory msg = Workflow.updateFinancialCategory store msg
             member _.DeleteFinancialCategory msg = Workflow.deleteFinancialCategory store msg
             member _.GetFinancialCategories msg = Query.getAllFinancialCategories conn msg.Payload
-
-            member _.SeedFinancialCategories cats = Workflow.seedFinancialCategories store cats
-            member _.SeedDistributionKeys keys = Workflow.seedDistributionKeys store keys
     }
+
+type ReactiveBehavior (config: IConfiguration) =
+    interface IReactiveBehavior with
+        override _.ReactTo message =
+            match message.Payload with
+            | StorageEvent.BuildingEvent (BuildingEvent.BuildingEvent (CUDEvent.Created validated)) -> 
+                async {
+                    let! categories = FinancialCategories.readPredefined (validated.BuildingId)
+                    return Workflow.seedFinancialCategories (categories |> inMsg message)
+                }
+            | _ -> 
+                Async.lift []

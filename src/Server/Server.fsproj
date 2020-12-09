@@ -2,11 +2,11 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
-    <LangVersion>preview</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Library.fs" />
+    <Compile Include="Encryption.fs" />
     <Compile Include="Blueprint.Data.fs" />
+    <Compile Include="Library.fs" />
     <Compile Include="Blueprint.Behavior.fs" />
     <Compile Include="LibraryExtensions.fs" />
     <Compile Include="AppSettings.fs" />
@@ -17,44 +17,33 @@
     <None Include="SeedData\FinancialCategories.csv" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="SeedData\FinancialCategories.fs" />
     <Compile Include="Addresses\Library.fs" />
-    <Compile Include="Addresses\Workflow.fs" />
     <Compile Include="ContactMethods\Library.fs" />
     <Compile Include="ContactMethods\Workflow.fs" />
-    <Compile Include="Persons\Library.fs" />
     <Compile Include="Persons\Query.fs" />
-    <Compile Include="Persons\Storage.fs" />
     <Compile Include="Owners\Query.fs" />
-    <Compile Include="Owners\Storage.fs" />
     <Compile Include="Owners\Workflow.fs" />
     <Compile Include="Owners\OwnerSystem.fs" />
     <Compile Include="Organizations\GoogleGeocodingApi.fs" />
     <Compile Include="Organizations\ViesService.fs" />
     <Compile Include="Organizations\Query.fs" />
-    <Compile Include="Organizations\Storage.fs" />
     <Compile Include="Organizations\Workflow.fs" />
     <Compile Include="Organizations\OrganizationSystem.fs" />
     <Compile Include="ProfessionalSyndics\Query.fs" />
-    <Compile Include="ProfessionalSyndics\Storage.fs" />
     <Compile Include="ProfessionalSyndics\Workflow.fs" />
     <Compile Include="ProfessionalSyndics\ProfessionalSyndicCache.fs" />
     <Compile Include="ProfessionalSyndics\ProfessionalSyndicSystem.fs" />
     <Compile Include="Lots\Query.fs" />
-    <Compile Include="Lots\Storage.fs" />
     <Compile Include="Lots\Workflow.fs" />
     <Compile Include="Lots\LotSystem.fs" />
     <Compile Include="Buildings\Query.fs" />
-    <Compile Include="Buildings\Storage.fs" />
     <Compile Include="Buildings\Workflow.fs" />
     <Compile Include="Buildings\BuildingSystem.fs" />
     <Compile Include="Media\Query.fs" />
-    <Compile Include="Media\Storage.fs" />
     <Compile Include="Media\Workflow.fs" />
     <Compile Include="Media\HttpHandler.fs" />
     <Compile Include="Media\MediaSystem.fs" />
     <Compile Include="Authentication\Configuration.fs" />
-    <Compile Include="Authentication\Encryption.fs" />
     <Compile Include="Authentication\CommonPasswords.fs" />
-    <Compile Include="Authentication\Storage.fs" />
     <Compile Include="Authentication\Query.fs" />
     <Compile Include="Authentication\Workflows.fs" />
     <Compile Include="Authentication\Pages.fs" />
@@ -62,13 +51,22 @@
     <Compile Include="Authentication\HttpHandler.fs" />
     <Compile Include="Authentication\AuthenticationSystem.fs" />
     <Compile Include="Contracts\Query.fs" />
-    <Compile Include="Contracts\Storage.fs" />
     <Compile Include="Contracts\Workflow.fs" />
     <Compile Include="Contracts\ContractSystem.fs" />
-    <Compile Include="Financial\Storage.fs" />
     <Compile Include="Financial\Query.fs" />
     <Compile Include="Financial\Workflow.fs" />
     <Compile Include="Financial\FinancialSystem.fs" />
+    <Compile Include="StorageEngine\StorageEngine.Users.fs" />
+    <Compile Include="StorageEngine\StorageEngine.Persons.fs" />
+    <Compile Include="StorageEngine\StorageEngine.Organization.fs" />
+    <Compile Include="StorageEngine\StorageEngine.Media.fs" />
+    <Compile Include="StorageEngine\StorageEngine.Contracts.fs" />
+    <Compile Include="StorageEngine\StorageEngine.Financial.fs" />
+    <Compile Include="StorageEngine\StorageEngine.ProfessionalSyndics.fs" />
+    <Compile Include="StorageEngine\StorageEngine.Lots.fs" />
+    <Compile Include="StorageEngine\StorageEngine.Owners.fs" />
+    <Compile Include="StorageEngine\StorageEngine.Buildings.fs" />
+    <Compile Include="StorageEngine\StorageEngine.fs" />
     <Compile Include="Warnings\Query.fs" />
     <Compile Include="Warnings\WarningSystem.fs" />
     <Compile Include="Remoting.fs" />

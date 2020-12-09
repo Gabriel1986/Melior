@@ -4,16 +4,15 @@ open Microsoft.Extensions.Configuration
 open Server.AppSettings
 open Server.Blueprint.Behavior.Lots
 open Server.LibraryExtensions
+open Server.Blueprint.Behavior.Storage
 
-let build (config: IConfiguration): ILotSystem =
+let build (config: IConfiguration) (store: IStorageEngine): ILotSystem =
     let settings = config.Get<AppSettings>()
     let conn = settings.Database.Connection
-    let store = Storage.makeStorage conn
-
     {
         new ILotSystem with
             member _.CreateLot msg = Workflow.createLot store msg   
-            member _.UpdateLot msg = Workflow.updateLot store msg
+            member _.UpdateLot msg = Workflow.updateLot store conn msg
             member _.DeleteLot msg = Workflow.deleteLot store msg
             member _.GetLot msg = async {
                 match! Query.getLot conn msg.Payload with

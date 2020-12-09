@@ -7,8 +7,9 @@ open Server.Blueprint.Behavior.Authentication
 open Server.AppSettings
 open Server.Library
 open Server.LibraryExtensions
+open Server.Blueprint.Behavior.Storage
 
-let build (config: IConfiguration) =
+let build (config: IConfiguration) (storage: IStorageEngine) =
     let settings = config.Get<AppSettings>()
     let conn = settings.Database.Connection
     let changePasswordSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(settings.Authentication.ChangePasswordSigningKey))
@@ -17,7 +18,11 @@ let build (config: IConfiguration) =
     let twoFacPepper = settings.Authentication.TwoFacPepper
     let passwordPepper = settings.Authentication.PasswordPepper
 
-    let storage = Storage.makeStorage settings
+    let createMessage payload = {
+        Message.Payload = payload
+        Message.Context = None
+        Message.CreatedAt = DateTimeOffset.Now
+    }
 
     {
         new IAuthenticationSystem with
@@ -35,19 +40,19 @@ let build (config: IConfiguration) =
                 Workflows.JwtTokens.validateToken usernamePasswordSigningKey token
             
             member _.UpdateTwoFacAuthentication update = 
-                Workflows.TwoFac.updateTwoFactorAuthentication storage twoFacPassword twoFacPepper update
+                Workflows.TwoFac.updateTwoFactorAuthentication storage twoFacPassword twoFacPepper (update |> createMessage)
             
             member _.RemoveUsedRecoveryCode (userId, code) = 
-                Workflows.TwoFac.removeUsedRecoveryCode storage twoFacPepper (userId, code)
+                Workflows.TwoFac.removeUsedRecoveryCode storage twoFacPepper ((userId, code) |> createMessage)
             
-            member _.GenerateNewRecoveryCodes (userId, email) = 
-                Workflows.TwoFac.generateNewRecoveryCodes storage twoFacPepper (userId, email)
+            member _.GenerateNewRecoveryCodes userId = 
+                Workflows.TwoFac.generateNewRecoveryCodes storage twoFacPepper (userId |> createMessage)
             
             member _.AddFailedTwoFacAttempt failedAttempt = 
-                Workflows.TwoFac.addFailedTwoFacAttempt storage failedAttempt
+                Workflows.TwoFac.addFailedTwoFacAttempt storage (failedAttempt |> createMessage)
 
             member _.AddUser user =
-                Workflows.addUser storage passwordPepper user
+                Workflows.addUser storage passwordPepper (user |> createMessage)
 
             member _.UpdatePassword msg =
                 Workflows.updatePassword storage passwordPepper msg

@@ -6,7 +6,6 @@ open Fable.React
 open Fable.React.Props
 open Feliz
 open Feliz.ElmishComponents
-open Thoth.Elmish
 
 open Shared.Read
 open Shared.MediaLibrary
@@ -19,7 +18,6 @@ open Client.Components.BasicModal
 open Client.Upload
 open Client.Routing
 open Client.Contracts.Translations
-open Fable.SimpleJson
 
 type State = {
     CurrentBuildingId: BuildingId
@@ -136,7 +134,7 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
             BuildingId = state.CurrentBuildingId
             ContractType = OtherContractType ""
             ContractOrganization = None
-            ContractFile = None
+            ContractFiles = []
         }
         { state with ContractModalIsOpenOn = Some (contract, true) }, Cmd.none
     | CreateMandatoryContract predefinedType ->
@@ -145,7 +143,7 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
             BuildingId = state.CurrentBuildingId
             ContractType = PredefinedContractType predefinedType
             ContractOrganization = None
-            ContractFile = None
+            ContractFiles = []
         }
         { state with ContractModalIsOpenOn = Some (contract, true) }, Cmd.none
     | EditContract contract ->
@@ -319,23 +317,30 @@ let view (state: State) (dispatch: Message -> unit) =
         match c.ContractType with
         | PredefinedContractType predefined -> translatePredefinedType predefined
         | OtherContractType name -> name
+        | InsuranceContractType insurance -> insurance.Name
 
     let rowsForContract (isMandatory: bool) (c: Contract)  =
         tr [] [
             td [] [ str (translateContractType c) ]
             td [] [ 
-                match c.ContractFile with 
-                | Some mediaFile -> 
-                    span [] [
-                        str mediaFile.FileName
-                    ]
-                    str " "
-                    span [ HTMLAttr.Title "Downloaden" ] [
-                        a [ Target "_blank"; Href (downloadUri Partitions.Contracts mediaFile.FileId) ] [
-                            span [ classes [ FontAwesome.fas; FontAwesome.faCloudDownloadAlt ] ] []
+                match c.ContractFiles with 
+                | [] -> yield str "Geen bestand"
+                | mediaFiles ->
+                    yield! mediaFiles |> List.map (fun mediaFile ->
+                        [
+                            span [] [
+                                str mediaFile.FileName
+                            ]
+                            str " "
+                            span [ HTMLAttr.Title "Downloaden" ] [
+                                a [ Target "_blank"; Href (downloadUri Partitions.Contracts mediaFile.FileId) ] [
+                                    span [ classes [ FontAwesome.fas; FontAwesome.faCloudDownloadAlt ] ] []
+                                ]
+                            ]
                         ]
-                    ]
-                | None -> str "Geen bestand" ]
+                        |> fragment []
+                    )
+            ]
             td [] [ 
                 match c.ContractOrganization with 
                 | Some org -> 
@@ -344,6 +349,16 @@ let view (state: State) (dispatch: Message -> unit) =
                         |> wrapInLink (Page.OrganizationDetails { BuildingId = state.CurrentBuildingId; DetailId = org.OrganizationId })
                     ]
                 | None ->
+                    null
+            ]
+            td [] [
+                match c.ContractType with
+                | InsuranceContractType insuranceContract when insuranceContract.Broker.IsSome ->
+                    span [] [
+                        str insuranceContract.Broker.Value.Name
+                        |> wrapInLink (Page.OrganizationDetails { BuildingId = state.CurrentBuildingId; DetailId = insuranceContract.Broker.Value.OrganizationId })
+                    ]
+                | _ ->
                     null
             ]
             td [] [
@@ -366,6 +381,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 tr [] [
                     td [] [ str (translatePredefinedType predefined ) ]
                     td [] [ str "Geen bestand" ]
+                    td [] []
                     td [] []
                     if (predefinedContractTypeIsMandatory) 
                     then
@@ -391,7 +407,8 @@ let view (state: State) (dispatch: Message -> unit) =
                 tr [] [
                     th [] [ str "Naam" ]
                     th [] [ str "Bestand" ]
-                    th [] [ str "Leverancier" ]
+                    th [] [ str "Leverancier / Maatschappij" ]
+                    th [] [ str "Makelaar" ]
                     th [] []
                     th [] []
                 ]
@@ -419,7 +436,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     state.Contracts
                     |> List.choose (fun c -> 
                         match c.ContractType with 
-                        | ContractContractType.OtherContractType _ -> Some (rowsForContract false c) 
+                        | ContractType.OtherContractType _ -> Some (rowsForContract false c) 
                         | _ -> None)
             ]
         ]

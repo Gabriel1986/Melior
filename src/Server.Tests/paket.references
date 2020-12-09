@@ -1,0 +1,13 @@
+group Test
+    FsConfig
+    FSharp.Core
+    Microsoft.NET.Test.Sdk
+    Microsoft.Extensions.Configuration.FileExtensions
+    Microsoft.Extensions.Configuration.Json
+
+    Expecto
+    Expecto.BenchmarkDotNet
+    Expecto.FsCheck
+    Expecto.Hopac
+    ThrowawayDb
+    FsCheck

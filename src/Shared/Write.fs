@@ -6,6 +6,7 @@ open ConstrainedTypes
 open Library
 open Trial.Control
 open Trial
+open MediaLibrary
 
 type ValidatedAddress = 
     {
@@ -231,6 +232,27 @@ type ValidatedBuilding =
         }
         |> Trial.toResult
 
+type ValidatedSyndic =
+    | ProfessionalSyndicId of Guid
+    | OwnerId of Guid
+    | Other of ValidatedPerson
+    static member Validate =
+        function
+        | SyndicInput.ProfessionalSyndicId proId -> Ok (ValidatedSyndic.ProfessionalSyndicId proId)
+        | SyndicInput.OwnerId ownerId -> Ok (ValidatedSyndic.OwnerId ownerId)
+        | SyndicInput.Other person ->
+            ValidatedPerson.Validate person
+            |> Result.map ValidatedSyndic.Other
+
+type ValidatedConcierge =
+    | OwnerId of Guid
+    | NonOwner of ValidatedPerson
+    static member Validate =
+        function
+        | ConciergeInput.OwnerId ownerId -> Ok (ValidatedConcierge.OwnerId ownerId)
+        | ConciergeInput.NonOwner person ->
+            ValidatedPerson.Validate person
+            |> Result.map ValidatedConcierge.NonOwner
 
 type LotOwnerTypeId =
     | OwnerId of Guid
@@ -432,17 +454,27 @@ type ValidatedContract =
         ContractId: Guid
         BuildingId: Guid
         ContractType: ValidatedContractContractType
-        ContractFileId: Guid option
         ContractOrganizationId: Guid option
+        ContractFileIds: Guid list
     }
     static member Validate (contract: Contract) =
         let validatedContractType =
             match contract.ContractType with
             | PredefinedContractType predefined -> 
                 Trial.Pass (ValidatedPredefinedContractType predefined)
-            | OtherContractType other -> 
-                String255.Of (nameof contract.ContractType) other 
-                |> Trial.map ValidatedOtherContractType
+            | InsuranceContractType insuranceContract ->
+                trial {
+                    from name in String255.Of (nameof contract.ContractType) insuranceContract.Name
+                    yield ValidatedInsuranceContractType {
+                        Name = name
+                        BrokerId = insuranceContract.Broker |> Option.map (fun broker -> broker.OrganizationId)
+                    }
+                }
+            | OtherContractType other ->
+                trial {
+                    from name in String255.Of (nameof contract.ContractType) other
+                    yield ValidatedOtherContractType name
+                }
 
         trial {
             from contractType in validatedContractType
@@ -450,15 +482,20 @@ type ValidatedContract =
                 ContractId = contract.ContractId
                 BuildingId = contract.BuildingId
                 ContractType = contractType
-                ContractFileId = contract.ContractFile |> Option.map (fun f -> f.FileId)
                 ContractOrganizationId = contract.ContractOrganization |> Option.map (fun o -> o.OrganizationId) 
+                ContractFileIds = contract.ContractFiles |> List.map (fun file -> file.FileId)
             }
         }
         |> Trial.toResult
 
 and ValidatedContractContractType =
     | ValidatedPredefinedContractType of PredefinedContractType
+    | ValidatedInsuranceContractType of ValidatedInsuranceContractType
     | ValidatedOtherContractType of String255
+and ValidatedInsuranceContractType = {
+    Name: String255
+    BrokerId: Guid option
+}
 
 type ValidatedDistributionKey = 
     {
@@ -541,6 +578,7 @@ type ValidatedInvoice =
         OrganizationInvoiceNumber: String64 option //Number @ supplier
         InvoiceDate: DateTimeOffset //Date on the invoice
         DueDate: DateTimeOffset //Due date of the invoice
+        MediaFileIds: Guid list
     }
     static member Validate (invoice: Invoice) =
         trial {
@@ -562,6 +600,7 @@ type ValidatedInvoice =
                 OrganizationBankAccount = organizationBankAccount
                 InvoiceDate = invoice.InvoiceDate
                 DueDate = invoice.DueDate
+                MediaFileIds = invoice.MediaFiles |> List.map (fun file -> file.FileId)
             }
         }        
         |> Trial.toResult
@@ -599,7 +638,7 @@ type ValidatedFinancialYear =
 type ValidatedFinancialCategory =
     {
         FinancialCategoryId: Guid
-        BuildingId: Guid option
+        BuildingId: Guid
         Code: String32
         Description: String255
     }

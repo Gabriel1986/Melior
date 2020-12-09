@@ -28,20 +28,29 @@ type Model = {
     BuildingId: Guid
     State: State
     AllOrganizations: OrganizationListItem list
+    OnOk: (Contract * bool) -> unit
+    OnCanceled: unit -> unit
 }
 and State =
     | EditingContract
-    | SelectingOrganization
+    | SelectingSupplier
+    | SelectingBroker of InsuranceContract
     | RemotingError of exn
 
 type Message =
-    | DeleteContractFile
     | LoadOrganizations
     | OrganizationsLoaded of OrganizationListItem list
-    | SearchOrganization
-    | CancelSelectOrganization
+
+    | SearchSupplier
+    | CancelSelectSupplier
+    | SelectSupplier of OrganizationListItem
+
+    | SearchBroker of InsuranceContract
+    | CancelSelectBroker
+    | SelectBroker of InsuranceContract * OrganizationListItem
+
     | ContractFileUploaded of MediaFile
-    | SelectOrganization of OrganizationListItem
+    | ContractFileRemoved of fileId: Guid
     | ChangeContractName of string
     | CloseModal
     | SaveModal
@@ -61,17 +70,17 @@ let init (props: ContractModalProps) =
         Contract = match props.IsOpenOn with | Some (contract) -> Some contract | None -> None
         State = EditingContract
         AllOrganizations = []
+        OnOk = props.OnOk
+        OnCanceled = props.OnCanceled
     }, Cmd.ofMsg LoadOrganizations
 
-let update (onOk: Contract * bool -> unit) (onCanceled: unit -> unit) (msg: Message) (model: Model) =
+let update (msg: Message) (model: Model) =
     let withContractDo (f: Contract -> Contract) =
         match model.Contract with
         | Some (contract, isNew) -> { model with Contract = Some (f contract, isNew) }
         | None -> model
 
     match msg with
-    | DeleteContractFile ->
-        withContractDo (fun c -> { c with ContractFile = None }), Cmd.none
     | LoadOrganizations ->
         let cmd =
             Cmd.OfAsync.either
@@ -81,28 +90,38 @@ let update (onOk: Contract * bool -> unit) (onCanceled: unit -> unit) (msg: Mess
         model, cmd
     | OrganizationsLoaded orgs ->
         { model with AllOrganizations = orgs }, Cmd.none
-    | SearchOrganization ->
-        { model with State = State.SelectingOrganization }, Cmd.none
-    | CancelSelectOrganization ->
+    | SearchSupplier ->
+        { model with State = State.SelectingSupplier }, Cmd.none
+    | CancelSelectSupplier ->
         { model with State = State.EditingContract }, Cmd.none
-    | ContractFileUploaded mediaFile ->
-        withContractDo (fun c -> { c with ContractFile = Some mediaFile }), Cmd.none
-    | SelectOrganization organization ->
+    | SelectSupplier organization ->
         let newState = withContractDo (fun c -> { c with ContractOrganization = Some organization })
         { newState with State = State.EditingContract }, Cmd.none
+    | SearchBroker insuranceContract ->
+        { model with State = State.SelectingBroker insuranceContract }, Cmd.none
+    | CancelSelectBroker ->
+        { model with State = State.EditingContract }, Cmd.none
+    | SelectBroker (insuranceContract, organization) ->
+        let newState = withContractDo (fun c -> { c with ContractType = InsuranceContractType { insuranceContract with Broker = Some organization } })
+        { newState with State = State.EditingContract }, Cmd.none
+    | ContractFileUploaded mediaFile ->
+        withContractDo (fun c -> { c with ContractFiles = mediaFile::c.ContractFiles }), Cmd.none
+    | ContractFileRemoved mediaFileId ->
+        withContractDo (fun c -> { c with ContractFiles = c.ContractFiles |> List.filter (fun contractFile -> contractFile.FileId <> mediaFileId) }), Cmd.none
     | ChangeContractName newName ->
         withContractDo (fun c -> 
             match c.ContractType with
             | OtherContractType _oldName -> { c with ContractType = OtherContractType newName }
+            | InsuranceContractType contract -> { c with ContractType = InsuranceContractType { contract with Name = newName } }
             | PredefinedContractType _ -> c
         ), Cmd.none
     | CloseModal ->
-        do onCanceled ()
+        do model.OnCanceled ()
         model, Cmd.none
     | SaveModal ->
         match model.Contract with
         | Some contract ->
-            do onOk (contract)
+            do model.OnOk (contract)
         | None ->
             do ()
         model, Cmd.none
@@ -110,12 +129,10 @@ let update (onOk: Contract * bool -> unit) (onCanceled: unit -> unit) (msg: Mess
         { model with State = RemotingError exn }, Cmd.none
 
 let renderContractEditView (contract: Contract) dispatch =
-    let orgName = contract.ContractOrganization |> Option.map (fun org -> org.Name)
-
     div [] [
         yield! [
             match contract.ContractType with
-            | ContractContractType.PredefinedContractType predefined ->
+            | ContractType.PredefinedContractType predefined ->
                 formGroup [
                     Label "Naam"
                     Input [
@@ -123,7 +140,7 @@ let renderContractEditView (contract: Contract) dispatch =
                         Value (translatePredefinedType predefined)
                     ]
                 ]
-            | ContractContractType.OtherContractType name ->
+            | ContractType.OtherContractType name ->
                 formGroup [
                     Label "Naam"
                     Input [
@@ -131,68 +148,95 @@ let renderContractEditView (contract: Contract) dispatch =
                         OnChange (fun e -> ChangeContractName e.Value |> dispatch)
                     ]
                 ]
+            | ContractType.InsuranceContractType insuranceContract ->
+                [
+                    formGroup [
+                        Label "Naam"
+                        Input [
+                            Helpers.valueOrDefault insuranceContract.Name
+                            OnChange (fun e -> ChangeContractName e.Value |> dispatch)
+                        ]
+                    ]
+                    let brokerName = insuranceContract.Broker |> Option.map (fun broker -> broker.Name) |> Option.defaultValue ""
+                    formGroup [
+                        Label "Verzekeringsmakelaar"
+                        Input [
+                            Type "text"
+                            Style [ Cursor "pointer"; BackgroundColor "unset" ]
+                            ReadOnly true
+                            OnClick (fun _ -> dispatch (SearchBroker insuranceContract))
+                            Helpers.valueOrDefault brokerName
+                        ]
+                        InputAppend [
+                            button [ 
+                                classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
+                                OnClick (fun _ -> dispatch (SearchBroker insuranceContract))
+                            ] [
+                                span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
+                            ]
+                        ]
+                    ]
+                ]
+                |> fragment []
+
+            let supplierLabel =
+                match contract.ContractType with
+                | ContractType.InsuranceContractType _ -> "Verzekeringsmaatschappij"
+                | _ -> "Leverancier"
+
+            let orgName = contract.ContractOrganization |> Option.map (fun org -> org.Name)
 
             formGroup [
-                Label "Leverancier"
+                Label supplierLabel
                 Input [
                     Type "text"
                     Style [ Cursor "pointer"; BackgroundColor "unset" ]
                     ReadOnly true
-                    OnClick (fun _ -> dispatch SearchOrganization)
+                    OnClick (fun _ -> dispatch SearchSupplier)
                     Helpers.valueOrDefault orgName
                 ]
                 InputAppend [
                     button [ 
                         classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
-                        OnClick (fun _ -> dispatch SearchOrganization)
+                        OnClick (fun _ -> dispatch SearchSupplier)
                     ] [
                         span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
                     ]
                 ]
             ]
 
-            match contract.ContractFile with
-            | None ->
-                filePond 
-                    {| 
-                        BuildingId = Some contract.BuildingId
-                        Partition = Partitions.Contracts
-                        EntityId = contract.ContractId
-                        Options = [
-                            AllowMultiple false
-                            MaxFiles 1
-                            OnProcessFile (fun error filepondfile ->
-                                if String.IsNullOrWhiteSpace(error) then
-                                    filepondfile
-                                    |> FilePondFile.toMediaFile Partitions.Contracts (Some contract.BuildingId) contract.ContractId
-                                    |> ContractFileUploaded
-                                    |> dispatch)
-                        ]
-                    |}
-            | Some mediaFile ->
-                div [ Class Bootstrap.formGroup ] [
-                    label [] [ str "Bestand" ]
-                    div [ Class Bootstrap.inputGroup ] [
-                        a [ Href (downloadUri Partitions.Contracts mediaFile.FileId); Target "_blank"; Class Bootstrap.formControl ] [
-                            str (sprintf "%s (%s)" mediaFile.FileName (mediaFile.FileSizeString ()))
-                        ]
-                        div [ Class Bootstrap.inputGroupAppend ] [
-                            button [ classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]; Type "button"; OnClick (fun _ -> dispatch DeleteContractFile) ] [
-                                span [ classes [ FontAwesome.fas; FontAwesome.faTrashAlt ] ] []
-                            ]
-                        ]
+            filePond
+                {|
+                    BuildingId = Some contract.BuildingId
+                    Partition = Partitions.Contracts
+                    EntityId = contract.ContractId
+                    Options = [
+                        AllowMultiple true
+                        MaxFiles 10
+                        InitialFiles (contract.ContractFiles |> List.map (fun file -> file.FileId))
+                        OnProcessFile (fun error filepondfile ->
+                            if String.IsNullOrWhiteSpace(error) then
+                                filepondfile
+                                |> FilePondFile.toMediaFile Partitions.Contracts (Some contract.BuildingId) contract.ContractId
+                                |> ContractFileUploaded
+                                |> dispatch)
+                        OnRemoveFile (fun error filepondfile ->
+                            if String.IsNullOrWhiteSpace(error) then
+                                Guid.Parse(filepondfile.serverId)
+                                |> ContractFileRemoved
+                                |> dispatch)
                     ]
-                ]
+                |}
         ]
     ]
 
-let renderOrganizationSelectionList (list: OrganizationListItem list) (selected: OrganizationListItem option) dispatch =
+let renderOrganizationSelectionList (list: OrganizationListItem list) (selected: OrganizationListItem option) (onSelected: OrganizationListItem -> unit) =
     SelectionList.render (
         {|
             SelectionMode = SelectionMode.SingleSelect
             AllItems = list |> List.sortBy (fun o -> o.Name)
             SelectedItems = match selected with | Some s -> [ s ] | None -> []
-            OnSelectionChanged = fun selection -> SelectOrganization (selection |> List.head) |> dispatch
+            OnSelectionChanged = List.head >> onSelected
             ListItemToString = (fun org -> org.Name)
         |}, "OrganizationSelectionList")
 
@@ -200,24 +244,22 @@ let modalContent model dispatch =
     match model.State, model.Contract with
     | EditingContract, Some (contract, _isNew) ->
         renderContractEditView contract dispatch
-    | SelectingOrganization, Some (contract, _isNew) ->
+    | SelectingSupplier, Some (contract, _isNew) ->
         renderOrganizationSelectionList 
             model.AllOrganizations 
             contract.ContractOrganization
-            dispatch
+            (fun org -> SelectSupplier org |> dispatch)
+    | SelectingBroker insuranceContract, _ ->
+        renderOrganizationSelectionList
+            model.AllOrganizations
+            insuranceContract.Broker
+            (fun org -> SelectBroker (insuranceContract, org) |> dispatch)
     | EditingContract, _
-    | SelectingOrganization, _
+    | SelectingSupplier, _
     | State.RemotingError _, _ ->
         div [] [ str "Er is iets misgelopen bij het ophalen van de gegevens. Gelieve de pagine te verversen en opnieuw te proberen." ]
 
 let renderModalButtons model dispatch =
-    let closeButton =
-        button [ 
-            classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]; OnClick (fun _ -> dispatch CloseModal) 
-        ] [
-            str "Annuleren" 
-        ]
-
     let saveButton =
         button [ 
             classes [ Bootstrap.btn; Bootstrap.btnPrimary ]
@@ -228,21 +270,23 @@ let renderModalButtons model dispatch =
             str "Bewaren"
         ]
 
-    let cancelButton =
+    let cancelButton (onClick: unit -> unit)=
         button [ 
             classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]
-            OnClick (fun _ -> dispatch CancelSelectOrganization) 
+            OnClick (fun _ -> onClick ()) 
         ] [ 
             str "Annuleren" 
         ]
 
     match model.State with
     | EditingContract ->
-        [ closeButton; saveButton ]
-    | SelectingOrganization ->
-        [ cancelButton ]
+        [ cancelButton (fun () -> dispatch CloseModal); saveButton ]
+    | SelectingSupplier ->
+        [ cancelButton (fun () -> dispatch CancelSelectSupplier) ]
+    | SelectingBroker _ ->
+        [ cancelButton (fun () -> dispatch CancelSelectBroker) ]
     | _ ->
-        [ closeButton ]
+        [ cancelButton (fun () -> dispatch CloseModal) ]
 
 
 let view (model: Model) dispatch =
@@ -266,4 +310,4 @@ let view (model: Model) dispatch =
         |}
 
 let render (props: ContractModalProps) =
-    React.elmishComponent ("ContractModal", init props, update props.OnOk props.OnCanceled, view)
+    React.elmishComponent ("ContractModal", init props, update, view)

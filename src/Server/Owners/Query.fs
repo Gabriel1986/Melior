@@ -2,10 +2,11 @@
 
 open System
 open Npgsql.FSharp
+open Shared.Read
 open Server.Library
 open Server.PostgreSQL
 open Server.PostgreSQL.Sql
-open Shared.Read
+open Server.Blueprint.Data.Financial
 
 [<AutoOpen>]
 module private Readers =

@@ -9,6 +9,7 @@ open Fable
 open Fable.React
 open Fable.React.Props
 open Fable.Core.JsInterop
+open Feliz
 open Feliz.Router
 
 open Shared.Read
@@ -464,14 +465,14 @@ module Client =
                         |}
                 ]
                 div [ classes [ "melior-content" ] ] [
-                    Router.router [
-                        Router.onUrlChanged (fun urlParts ->
+                    React.router [
+                        router.onUrlChanged (fun urlParts ->
                             let newPage = Routing.parseUrl urlParts
                             if runningState.CurrentPage = newPage then ()
                             elif shouldChangePage runningState.CurrentPage newPage then ChangePage newPage |> dispatch
                             else ()
                         )
-                        Router.application currentPage
+                        router.children [ currentPage ]
                     ]
                 ]
             ]

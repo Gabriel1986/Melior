@@ -1,15 +1,15 @@
 ﻿module Server.Organizations.OrganizationSystem
 
 open Microsoft.Extensions.Configuration
-open Server.AppSettings
 open Server.Blueprint.Behavior.Organizations
+open Server.Blueprint.Behavior.Storage
+open Server.AppSettings
 open Server.Library
 open Server.LibraryExtensions
 
-let build (config: IConfiguration): IOrganizationSystem =
+let build (config: IConfiguration) (store: IStorageEngine): IOrganizationSystem =
     let settings = config.Get<AppSettings>()
     let conn = settings.Database.Connection
-    let store = Storage.makeStorage conn
     {
         new IOrganizationSystem with
             member _.CreateOrganization msg = Workflow.createOrganization store msg

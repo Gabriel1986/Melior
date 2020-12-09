@@ -6,27 +6,41 @@ open Shared.Write
 open Shared.Remoting
 open Server.Library
 open Server.LibraryExtensions
-open Storage
+open Server.Blueprint.Behavior.Storage
+open Server.Blueprint.Data.Storage
 
-let createContract (store: IContractStorage) (msg: Message<Contract>) = async {
+let createContract (store: IStorageEngine) (msg: Message<Contract>) = async {
     if msg.CurrentUser.HasAdminAccessToBuilding msg.Payload.BuildingId then
         let validated = ValidatedContract.Validate msg.Payload
         match validated with
-        | Ok validated -> 
-            let! ok = store.CreateContract (msg |> Message.map validated)
-            return Ok ok
+        | Ok validated ->
+            let! _ = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Created
+                |> ContractEvent.ContractEvent
+                |> StorageEvent.ContractEvent
+                |> inMsg msg
+            ]
+            return Ok ()
         | Error validationErrors ->
             return Error (SaveContractError.Validation validationErrors)
     else
         return Error SaveContractError.AuthorizationError
 }
 
-let updateContract (store: IContractStorage) (msg: Message<Contract>) = async {
+let updateContract (store: IStorageEngine) (msg: Message<Contract>) = async {
     if msg.CurrentUser.HasAdminAccessToBuilding msg.Payload.BuildingId then
         let validated = ValidatedContract.Validate msg.Payload
         match validated with
         | Ok validated ->
-            let! nbRows = store.UpdateContract (msg |> Message.map validated)
+            let! nbRows = 
+                store.PersistTransactional [
+                    validated
+                    |> BuildingSpecificCUDEvent.Updated
+                    |> ContractEvent.ContractEvent
+                    |> StorageEvent.ContractEvent
+                    |> inMsg msg
+                ]
             if nbRows = 0 then
                 return Error SaveContractError.NotFound
             else
@@ -37,9 +51,16 @@ let updateContract (store: IContractStorage) (msg: Message<Contract>) = async {
         return Error SaveContractError.AuthorizationError
 }
 
-let deleteContract (store: IContractStorage) (msg: Message<BuildingId * Guid>) = async {
+let deleteContract (store: IStorageEngine) (msg: Message<BuildingId * Guid>) = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (fst msg.Payload) then
-        let! nbRows = store.DeleteContract msg
+        let! nbRows = 
+            store.PersistTransactional [
+                (msg.Payload)
+                |> BuildingSpecificCUDEvent.Deleted
+                |> ContractEvent.ContractEvent
+                |> StorageEvent.ContractEvent
+                |> inMsg msg
+            ]
         if nbRows = 0 then
             return Error DeleteContractError.NotFound
         else
@@ -48,9 +69,15 @@ let deleteContract (store: IContractStorage) (msg: Message<BuildingId * Guid>) =
         return Error DeleteContractError.AuthorizationError
 }
 
-let saveContractTypeAnswer (store: IContractStorage) (msg: Message<ContractTypeAnswer list>) = async {
+let saveContractTypeAnswer (store: IStorageEngine) (msg: Message<ContractTypeAnswer list>) = async {
     if msg.Payload |> List.forall (fun answer -> msg.CurrentUser.HasAdminAccessToBuilding answer.BuildingId) then
-        let! _ = store.SaveContractTypeAnswers msg.Payload
+        let! _ = 
+            store.PersistTransactional [
+                msg.Payload
+                |> ContractEvent.ContractTypeAnswersWereUpdated
+                |> StorageEvent.ContractEvent
+                |> inMsg msg
+            ]
         return Ok ()
     else
         return Error SaveAnswerError.AuthorizationError

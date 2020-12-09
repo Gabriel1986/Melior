@@ -5,13 +5,13 @@ open Npgsql.FSharp
 open Server.PostgreSQL
 open Shared.Read
 open Shared.MediaLibrary
+open Server.Blueprint.Data.Contracts
 
-type ContractDbType = {
+type DbContract = {
     ContractId: Guid
     BuildingId: Guid
-    ContractFileId: Guid option
     ContractOrganizationId: Guid option
-    ContractType: ContractContractType
+    ContractType: DbContractType
 }
 
 let getFilledInPredefinedContractTypes (conn: string) (buildingId: BuildingId) =
@@ -23,7 +23,7 @@ let getFilledInPredefinedContractTypes (conn: string) (buildingId: BuildingId) =
             WHERE BuildingId = @BuildingId AND IsActive = TRUE
         """
     |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
-    |> Sql.read (fun reader -> reader.string "ContractType" |> Thoth.Json.Net.Decode.Auto.unsafeFromString<ContractContractType>)
+    |> Sql.read (fun reader -> reader.string "ContractType" |> Thoth.Json.Net.Decode.Auto.unsafeFromString<DbContractType>)
     |> Async.map (List.choose (function | PredefinedContractType predefined -> Some predefined | _ -> None))
 
 let getContracts conn (buildingId: BuildingId) = async {
@@ -31,7 +31,7 @@ let getContracts conn (buildingId: BuildingId) = async {
         Sql.connect conn
         |> Sql.query 
             """
-                SELECT ContractId, BuildingId, ContractFileId, ContractOrganizationId, ContractType 
+                SELECT ContractId, BuildingId, ContractOrganizationId, ContractType 
                 FROM Contracts 
                 WHERE BuildingId = @BuildingId AND IsActive = TRUE
             """
@@ -39,23 +39,31 @@ let getContracts conn (buildingId: BuildingId) = async {
         |> Sql.read (fun reader -> {
             ContractId = reader.uuid "ContractId"
             BuildingId = reader.uuid "BuildingId"
-            ContractFileId = reader.uuidOrNone "ContractFileId"
             ContractOrganizationId = reader.uuidOrNone "ContractOrganizationId"
-            ContractType = reader.string "ContractType" |> Thoth.Json.Net.Decode.Auto.unsafeFromString<ContractContractType>
+            ContractType = reader.string "ContractType" |> Thoth.Json.Net.Decode.Auto.unsafeFromString<DbContractType>
         })
 
     let! mediaFiles = 
         contracts 
-        |> List.choose (fun c -> c.ContractFileId) 
-        |> (Server.Media.Query.getMediaFilesByIds conn Partitions.Contracts)
+        |> List.map (fun c -> c.ContractId)
+        |> (Server.Media.Query.getMediaFilesForEntities conn Partitions.Contracts)
 
-    let getMediaFileById mediaFileId = 
-        mediaFileId 
-        |> Option.bind (fun mediaFileId -> mediaFiles |> List.tryFind (fun m -> m.FileId = mediaFileId))
+    let getMediaFilesByEntityId entityId = 
+        mediaFiles |> List.filter (fun m -> m.EntityId = entityId)
 
-    let! organizations = 
-        contracts 
-        |> List.choose (fun c -> c.ContractOrganizationId) |> (Server.Organizations.Query.getOrganizationsByIds conn)
+    let organizationIds =
+        contracts
+        |> List.collect (fun contract -> [
+            match contract.ContractOrganizationId with
+            | Some orgId -> yield orgId
+            | None -> ()
+
+            match contract.ContractType with
+            | InsuranceContractType insuranceContract when insuranceContract.BrokerId.IsSome -> yield insuranceContract.BrokerId.Value
+            | _ -> ()
+        ])
+
+    let! organizations = Server.Organizations.Query.getOrganizationsByIds conn organizationIds
 
     let getOrganizationById organizationId = 
         organizationId 
@@ -64,9 +72,17 @@ let getContracts conn (buildingId: BuildingId) = async {
     return contracts |> List.map (fun c -> {
         ContractId = c.ContractId
         BuildingId = c.BuildingId
-        ContractFile = getMediaFileById c.ContractFileId
+        ContractFiles = getMediaFilesByEntityId c.ContractId
         ContractOrganization = getOrganizationById c.ContractOrganizationId
-        ContractType = c.ContractType    
+        ContractType = 
+            match c.ContractType with
+            | OtherContractType name -> ContractType.OtherContractType name
+            | PredefinedContractType pre -> ContractType.PredefinedContractType pre
+            | InsuranceContractType contractType ->
+                ContractType.InsuranceContractType {
+                    Name = contractType.Name
+                    Broker = getOrganizationById contractType.BrokerId
+                }
     })
 }
 

@@ -1,13 +1,13 @@
 ﻿module Server.Financial.Workflow
 
 open System
-open Storage
 open Shared.Read
 open Shared.Write
 open Shared.Remoting
 open Server.Library
 open Server.LibraryExtensions
-open Server.Blueprint.Data.SeedData
+open Server.Blueprint.Behavior.Storage
+open Server.Blueprint.Data.Storage
 
 let (|Authorized|Unauthorized|) (currentUser: User, buildingId: BuildingId option) =
     match buildingId with
@@ -15,12 +15,18 @@ let (|Authorized|Unauthorized|) (currentUser: User, buildingId: BuildingId optio
     | None when currentUser.IsSysAdmin() -> Authorized
     | _ -> Unauthorized
 
-let createDistributionKey (store: IFinancialStorage) (msg: Message<DistributionKey>) = async {
+let createDistributionKey (store: IStorageEngine) (msg: Message<DistributionKey>) = async {
     match (msg.CurrentUser, msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedDistributionKey.Validate msg.Payload with
         | Ok validated -> 
-            do! store.CreateDistributionKey (msg |> Message.map validated)
+            let! _ = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Created
+                |> FinancialEvent.DistributionKeyEvent
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg
+            ]
             return Ok ()
         | Error validationErrors ->
             return Error (SaveDistributionKeyError.Validation validationErrors)
@@ -28,12 +34,18 @@ let createDistributionKey (store: IFinancialStorage) (msg: Message<DistributionK
         return Error SaveDistributionKeyError.AuthorizationError
 }
 
-let updateDistributionKey (store: IFinancialStorage) (msg: Message<DistributionKey>) = async {
+let updateDistributionKey (store: IStorageEngine) (msg: Message<DistributionKey>) = async {
     match (msg.CurrentUser, msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedDistributionKey.Validate msg.Payload with
         | Ok validated ->
-            let! nbUpdated = store.UpdateDistributionKey (msg |> Message.map validated)
+            let! nbUpdated = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Updated
+                |> FinancialEvent.DistributionKeyEvent
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg
+            ]
             return if nbUpdated > 0 then Ok () else Error (SaveDistributionKeyError.NotFound)
         | Error validationErrors ->
             return Error (SaveDistributionKeyError.Validation validationErrors)
@@ -41,21 +53,51 @@ let updateDistributionKey (store: IFinancialStorage) (msg: Message<DistributionK
         return Error SaveDistributionKeyError.AuthorizationError
 }
 
-let deleteDistributionKey (store: IFinancialStorage) (msg: Message<BuildingId * Guid>) = async {
+let deleteDistributionKey (store: IStorageEngine) (msg: Message<BuildingId * Guid>) = async {
     match (msg.CurrentUser, Some (fst msg.Payload)) with
     | Authorized ->
-        let! nbRows = store.DeleteDistributionKey msg
+        let! nbRows = store.PersistTransactional [
+            msg.Payload
+            |> BuildingSpecificCUDEvent.Deleted
+            |> FinancialEvent.DistributionKeyEvent
+            |> StorageEvent.FinancialEvent
+            |> inMsg msg
+        ]
         return if nbRows > 0 then Ok () else Error DeleteDistributionKeyError.NotFound
     | Unauthorized ->
         return Error DeleteDistributionKeyError.AuthorizationError
 }
 
-let createInvoice (store: IFinancialStorage) (msg: Message<Invoice>) = async {
+let seedDistributionKeys (store: IStorageEngine) (msg: Message<DistributionKey list>) =
+    store.PersistTransactional [
+        yield!
+            msg.Payload
+            |> List.map (fun dKey ->
+                match dKey |> ValidatedDistributionKey.Validate with
+                | Ok validated ->
+                    validated
+                    |> BuildingSpecificCUDEvent.Created
+                    |> FinancialEvent.DistributionKeyEvent
+                    |> StorageEvent.FinancialEvent
+                    |> inMsg msg
+                | Error e ->
+                    failwithf "Precondition failed: An error occured while seeding distribution keys: %A" e
+            )
+    ]
+    |> Async.Ignore
+
+let createInvoice (store: IStorageEngine) (msg: Message<Invoice>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedInvoice.Validate msg.Payload with
         | Ok validated -> 
-            do! store.CreateInvoice (msg |> Message.map validated)
+            let! _ = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Created
+                |> FinancialEvent.InvoiceEvent
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg
+            ]
             return Ok ()
         | Error validationErrors ->
             return Error (SaveInvoiceError.Validation validationErrors)
@@ -63,12 +105,18 @@ let createInvoice (store: IFinancialStorage) (msg: Message<Invoice>) = async {
         return Error SaveInvoiceError.AuthorizationError
 }
 
-let updateInvoice (store: IFinancialStorage) (msg: Message<Invoice>) = async {
+let updateInvoice (store: IStorageEngine) (msg: Message<Invoice>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedInvoice.Validate msg.Payload with
         | Ok validated ->
-            let! nbUpdated = store.UpdateInvoice (msg |> Message.map validated)
+            let! nbUpdated = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Updated
+                |> FinancialEvent.InvoiceEvent
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg
+            ]
             return if nbUpdated > 0 then Ok () else Error (SaveInvoiceError.NotFound)
         | Error validationErrors ->
             return Error (SaveInvoiceError.Validation validationErrors)
@@ -76,21 +124,33 @@ let updateInvoice (store: IFinancialStorage) (msg: Message<Invoice>) = async {
         return Error SaveInvoiceError.AuthorizationError
 }
 
-let deleteInvoice (store: IFinancialStorage) (msg: Message<BuildingId * Guid>) = async {
+let deleteInvoice (store: IStorageEngine) (msg: Message<BuildingId * Guid>) = async {
     match (msg.CurrentUser, Some (fst msg.Payload)) with
     | Authorized ->
-        let! nbRows = store.DeleteInvoice msg
+        let! nbRows = store.PersistTransactional [
+            msg.Payload
+            |> BuildingSpecificCUDEvent.Deleted
+            |> FinancialEvent.InvoiceEvent
+            |> StorageEvent.FinancialEvent
+            |> inMsg msg
+        ]
         return if nbRows > 0 then Ok () else Error DeleteInvoiceError.NotFound
     | Unauthorized ->
         return Error DeleteInvoiceError.AuthorizationError
 }
 
-let createFinancialYear (store: IFinancialStorage) (msg: Message<FinancialYear>) = async {
+let createFinancialYear (store: IStorageEngine) (msg: Message<FinancialYear>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedFinancialYear.Validate msg.Payload with
         | Ok validated ->
-            do! store.CreateFinancialYear (msg |> Message.map validated)
+            let! _ = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Created
+                |> FinancialEvent.FinancialYearEvent
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg
+            ]
             return Ok ()
         | Error validationErrors ->
             return Error (SaveFinancialYearError.Validation validationErrors)
@@ -98,12 +158,18 @@ let createFinancialYear (store: IFinancialStorage) (msg: Message<FinancialYear>)
         return Error SaveFinancialYearError.AuthorizationError
 }
 
-let updateFinancialYear (store: IFinancialStorage) (msg: Message<FinancialYear>) = async {
+let updateFinancialYear (store: IStorageEngine) (msg: Message<FinancialYear>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedFinancialYear.Validate msg.Payload with
         | Ok validated ->
-            let! nbUpdated = store.UpdateFinancialYear (msg |> Message.map validated)
+            let! nbUpdated = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Updated
+                |> FinancialEvent.FinancialYearEvent
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg
+            ]
             return if nbUpdated > 0 then Ok () else Error (SaveFinancialYearError.NotFound)
         | Error validationErrors ->
             return Error (SaveFinancialYearError.Validation validationErrors)
@@ -111,30 +177,54 @@ let updateFinancialYear (store: IFinancialStorage) (msg: Message<FinancialYear>)
         return Error SaveFinancialYearError.AuthorizationError
 }
 
-let closeFinancialYear (store: IFinancialStorage) (msg: Message<BuildingId * Guid>) = async {
+let closeFinancialYear (store: IStorageEngine) (conn: string) (msg: Message<BuildingId * Guid>) = async {
     match (msg.CurrentUser, Some (fst msg.Payload)) with
     | Authorized ->
-        let! nbRows = store.CloseFinancialYear msg
-        return if nbRows > 0 then Ok () else Error SaveFinancialYearError.NotFound
+        let! financialYears = Query.getFinancialYearsByIds conn (fst msg.Payload, [ snd msg.Payload ])
+        match financialYears |> List.map ValidatedFinancialYear.Validate with
+        | [] -> 
+            return Error SaveFinancialYearError.NotFound
+        | (Ok validated)::_ ->
+            let! nbRows = store.PersistTransactional [
+                validated
+                |> FinancialEvent.FinancialYearWasClosed
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg
+            ]
+            return if nbRows > 0 then Ok () else Error SaveFinancialYearError.NotFound
+        | (Error e)::_ ->
+            return failwithf "Precondition failed, could not validate an already stored financial year: %A" e
     | Unauthorized ->
         return Error SaveFinancialYearError.AuthorizationError
 }
 
-let deleteFinancialYear (store: IFinancialStorage) (msg: Message<BuildingId * Guid>) = async {
+let deleteFinancialYear (store: IStorageEngine) (msg: Message<BuildingId * Guid>) = async {
     match (msg.CurrentUser, Some (fst msg.Payload)) with
     | Authorized ->
-        let! nbRows = store.DeleteFinancialYear msg
+        let! nbRows = store.PersistTransactional [
+            msg.Payload
+            |> BuildingSpecificCUDEvent.Deleted
+            |> FinancialEvent.FinancialYearEvent
+            |> StorageEvent.FinancialEvent
+            |> inMsg msg
+        ]
         return if nbRows > 0 then Ok () else Error DeleteFinancialYearError.NotFound
     | Unauthorized ->
         return Error DeleteFinancialYearError.AuthorizationError
 }
 
-let createFinancialCategory (store: IFinancialStorage) (msg: Message<FinancialCategory>) = async {
-    match (msg.CurrentUser, msg.Payload.BuildingId) with
+let createFinancialCategory (store: IStorageEngine) (msg: Message<FinancialCategory>) = async {
+    match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedFinancialCategory.Validate msg.Payload with
         | Ok validated -> 
-            do! store.CreateFinancialCategory (msg |> Message.map validated)
+            let! _ = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Created
+                |> FinancialEvent.FinancialCategoryEvent
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg
+            ]
             return Ok ()
         | Error validationErrors ->
             return Error (SaveFinancialCategoryError.Validation validationErrors)
@@ -142,12 +232,18 @@ let createFinancialCategory (store: IFinancialStorage) (msg: Message<FinancialCa
         return Error SaveFinancialCategoryError.AuthorizationError
 }
 
-let updateFinancialCategory (store: IFinancialStorage) (msg: Message<FinancialCategory>) = async {
-    match (msg.CurrentUser, msg.Payload.BuildingId) with
+let updateFinancialCategory (store: IStorageEngine) (msg: Message<FinancialCategory>) = async {
+    match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedFinancialCategory.Validate msg.Payload with
         | Ok validated ->
-            let! nbUpdated = store.UpdateFinancialCategory (msg |> Message.map validated)
+            let! nbUpdated = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Updated
+                |> FinancialEvent.FinancialCategoryEvent
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg            
+            ]
             return if nbUpdated > 0 then Ok () else Error (SaveFinancialCategoryError.NotFound)
         | Error validationErrors ->
             return Error (SaveFinancialCategoryError.Validation validationErrors)
@@ -155,19 +251,33 @@ let updateFinancialCategory (store: IFinancialStorage) (msg: Message<FinancialCa
         return Error SaveFinancialCategoryError.AuthorizationError
 }
 
-let deleteFinancialCategory (store: IFinancialStorage) (msg: Message<BuildingId * Guid>) = async {
+let deleteFinancialCategory (store: IStorageEngine) (msg: Message<BuildingId * Guid>) = async {
     match (msg.CurrentUser, Some (fst msg.Payload)) with
     | Authorized ->
-        let! nbRows = store.DeleteFinancialCategory msg
+        let! nbRows = store.PersistTransactional [
+            msg.Payload
+            |> BuildingSpecificCUDEvent.Deleted
+            |> FinancialEvent.FinancialCategoryEvent
+            |> StorageEvent.FinancialEvent
+            |> inMsg msg
+        ]
         return if nbRows > 0 then Ok () else Error DeleteFinancialCategoryError.NotFound
     | Unauthorized ->
         return Error DeleteFinancialCategoryError.AuthorizationError
 }
 
-let seedFinancialCategories (store: IFinancialStorage) (cats: FinancialCategorySeedRow seq) =
-    store.SeedFinancialCategories cats
-    |> Async.Ignore
-
-let seedDistributionKeys (store: IFinancialStorage) (keys: DistributionKeySeedRow seq) =
-    store.SeedDistributionKeys keys
-    |> Async.Ignore
+let seedFinancialCategories (msg: Message<FinancialCategory list>) =
+    [
+        yield!
+            msg.Payload
+            |> List.map (fun cat ->
+                match cat |> ValidatedFinancialCategory.Validate with
+                | Ok validated ->
+                    validated
+                    |> BuildingSpecificCUDEvent.Created
+                    |> FinancialEvent.FinancialCategoryEvent
+                    |> StorageEvent.FinancialEvent
+                | Error e ->
+                    failwithf "Precondition failed: An error occured while seeding financial categories: %A" e
+            )
+    ]

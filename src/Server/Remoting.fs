@@ -10,7 +10,7 @@
     let syndicusAssistentBff (environment: IEnv) (ctx: HttpContext): RemotingApi = 
         let createMsg payload: Message<'T> = {
             CreatedAt = DateTimeOffset.Now
-            Context = ctx
+            Context = Some ctx
             Payload = payload
         } 
 

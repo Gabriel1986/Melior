@@ -6,16 +6,23 @@ open Shared.Read
 open Shared.Write
 open Server.Library
 open Server.LibraryExtensions
-open Storage
+open Server.Blueprint.Behavior.Storage
+open Server.Blueprint.Data.Storage
 
-let createProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<ProfessionalSyndic>): Async<Result<unit, SaveProfessionalSyndicError>> = async {
+let createProfessionalSyndic (storage: IStorageEngine) (msg: Message<ProfessionalSyndic>): Async<Result<unit, SaveProfessionalSyndicError>> = async {
     //Only a systems admin can create a professional syndic
     if msg.CurrentUser.IsSysAdmin ()
     then
         let validated = ValidatedProfessionalSyndic.Validate msg.Payload
         match validated with
         | Ok validated ->
-            do! storage.CreateProfessionalSyndic validated
+            let! _ = storage.PersistTransactional [
+                validated
+                |> CUDEvent.Created
+                |> ProfessionalSyndicEvent.ProfessionalSyndicEvent
+                |> StorageEvent.ProfessionalSyndicEvent
+                |> inMsg msg
+            ]
             return Ok ()
         | Error validationErrors ->
             return Error (SaveProfessionalSyndicError.Validation validationErrors)
@@ -23,13 +30,19 @@ let createProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message
         return Error SaveProfessionalSyndicError.AuthorizationError
 }
 
-let updateProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<ProfessionalSyndic>): Async<Result<unit, SaveProfessionalSyndicError>> = async {
+let updateProfessionalSyndic (storage: IStorageEngine) (msg: Message<ProfessionalSyndic>): Async<Result<unit, SaveProfessionalSyndicError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding(msg.Payload.Organization.OrganizationId)
     then
         let validated = ValidatedProfessionalSyndic.Validate msg.Payload
         match validated with
         | Ok validated -> 
-            let! nbRowsAffected = storage.UpdateProfessionalSyndic validated
+            let! nbRowsAffected = storage.PersistTransactional [
+                validated
+                |> CUDEvent.Updated
+                |> ProfessionalSyndicEvent.ProfessionalSyndicEvent
+                |> StorageEvent.ProfessionalSyndicEvent
+                |> inMsg msg
+            ]
             if nbRowsAffected = 0
             then return Error (SaveProfessionalSyndicError.NotFound)
             else return Ok ()
@@ -39,10 +52,16 @@ let updateProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message
         return Error SaveProfessionalSyndicError.AuthorizationError
 }
 
-let deleteProfessionalSyndic (storage: IProfessionalSyndicStorage) (msg: Message<Guid>): Async<Result<unit, DeleteProfessionalSyndicError>> = async {
+let deleteProfessionalSyndic (storage: IStorageEngine) (msg: Message<Guid>): Async<Result<unit, DeleteProfessionalSyndicError>> = async {
     if msg.CurrentUser.HasAdminAccessToBuilding msg.Payload
     then
-        let! nbRowsAffected = storage.DeleteProfessionalSyndic msg.Payload
+        let! nbRowsAffected = storage.PersistTransactional [
+            msg.Payload
+            |> CUDEvent.Deleted
+            |> ProfessionalSyndicEvent.ProfessionalSyndicEvent
+            |> StorageEvent.ProfessionalSyndicEvent
+            |> inMsg msg
+        ]
         if nbRowsAffected = 0
         then return Error DeleteProfessionalSyndicError.NotFound
         else return Ok ()

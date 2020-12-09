@@ -13,6 +13,7 @@ open Serilog
 
 open Server.Remoting
 open Server.Blueprint.Behavior
+open Server.Blueprint.Behavior.Storage
 
 module Application =
     let errorHandler (ex: System.Exception) (routeInfo: RouteInfo<HttpContext>) =
@@ -26,15 +27,20 @@ module Application =
         requiresAuthentication (challenge CookieAuthenticationDefaults.AuthenticationScheme) 
 
     let createEnvironment (config: IConfiguration) =
-        let authenticationSystem = Authentication.AuthenticationSystem.build config
-        let mediaSystem = Media.MediaSystem.build config
-        let buildingSystem = Buildings.BuildingSystem.build config
-        let professionalSyndicSystem = ProfessionalSyndics.ProfessionalSyndicSystem.build config
-        let lotSystem = Lots.LotSystem.build config
-        let organizationSystem = Organizations.OrganizationSystem.build config
-        let ownerSystem = Owners.OwnerSystem.build config
-        let contractSystem = Contracts.ContractSystem.build config
-        let financialSystem = Financial.FinancialSystem.build config
+        let reactiveBehaviors: IReactiveBehavior list = [
+            new Financial.FinancialSystem.ReactiveBehavior (config)
+            new Media.MediaSystem.ReactiveBehavior (config)
+        ]
+        let storageEngine = StorageEngine.StorageEngine.StorageEngine(config, reactiveBehaviors)
+        let authenticationSystem = Authentication.AuthenticationSystem.build config storageEngine
+        let mediaSystem = Media.MediaSystem.build config storageEngine
+        let buildingSystem = Buildings.BuildingSystem.build config storageEngine
+        let professionalSyndicSystem = ProfessionalSyndics.ProfessionalSyndicSystem.build config storageEngine
+        let lotSystem = Lots.LotSystem.build config storageEngine
+        let organizationSystem = Organizations.OrganizationSystem.build config storageEngine
+        let ownerSystem = Owners.OwnerSystem.build config storageEngine
+        let contractSystem = Contracts.ContractSystem.build config storageEngine
+        let financialSystem = Financial.FinancialSystem.build config storageEngine
         let warningSystem = Warnings.WarningSystem.build config
 
         {

@@ -2,9 +2,8 @@
 
 open System
 open Shared.Read
-open Server.Blueprint.Data.SeedData
 
-let predefinedDistributionKeys: DistributionKeySeedRow seq = seq {
+let predefinedDistributionKeys: DistributionKey list = [
     {
         DistributionKeyId = Guid.NewGuid()
         BuildingId = None
@@ -85,4 +84,4 @@ let predefinedDistributionKeys: DistributionKeySeedRow seq = seq {
         LotsOrLotTypes = LotsOrLotTypes.LotTypes [ LotType.Storage; LotType.Garage ]
         IncludeGroundFloor = true
     }
-}
+]

@@ -1,15 +1,15 @@
 ﻿module Server.Owners.OwnerSystem
 
 open Microsoft.Extensions.Configuration
-open Server.AppSettings
 open Server.Blueprint.Behavior.Owners
+open Server.Blueprint.Behavior.Storage
+open Server.AppSettings
 open Server.Library
 open Server.LibraryExtensions
 
-let build (config: IConfiguration): IOwnerSystem =
+let build (config: IConfiguration) (store: IStorageEngine): IOwnerSystem =
     let settings = config.Get<AppSettings>()
     let conn = settings.Database.Connection
-    let store = Storage.makeStorage conn
     {
         new IOwnerSystem with
             member _.CreateOwner msg = Workflow.createOwner store msg
