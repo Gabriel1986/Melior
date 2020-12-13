@@ -519,7 +519,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Flatpickr.Value (state.Invoice.BookingDate)
                     Flatpickr.SelectionMode Flatpickr.Mode.Single
                     Flatpickr.EnableTimePicker false
-                    Flatpickr.Locale Flatpickr.Locales.dutch
+                    //Flatpickr.Locale Flatpickr.Locales.dutch
                     Flatpickr.DateFormat "d/m/Y"
                 ]
                 FieldError (errorFor (nameof state.Invoice.BookingDate))
@@ -635,7 +635,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Flatpickr.Value (state.Invoice.InvoiceDate.LocalDateTime)
                     Flatpickr.SelectionMode Flatpickr.Mode.Single
                     Flatpickr.EnableTimePicker false
-                    Flatpickr.Locale Flatpickr.Locales.dutch
+                    //Flatpickr.Locale Flatpickr.Locales.dutch
                     Flatpickr.DateFormat "d/m/Y"
                 ]
                 FieldError (errorFor (nameof state.Invoice.InvoiceDate))
@@ -648,9 +648,10 @@ let view (state: State) (dispatch: Message -> unit) =
                     Flatpickr.Value (state.Invoice.DueDate.LocalDateTime)
                     Flatpickr.SelectionMode Flatpickr.Mode.Single
                     Flatpickr.EnableTimePicker false
-                    Flatpickr.Locale Flatpickr.Locales.dutch
+                    //Flatpickr.Locale Flatpickr.Locales.dutch
                     Flatpickr.DateFormat "d/m/Y"
                 ]
+                FieldError (errorFor (nameof state.Invoice.DueDate))
             ]
             |> inColumn
         ]

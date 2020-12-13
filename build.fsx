@@ -101,18 +101,12 @@ Target.create "Run" (fun _ ->
         runDotNet "watch run -c Debug" serverPath
     }
     let client = async {
-        runDotNet "fable watch" clientPath
-    }
-
-    let webpack = async {
-        runTool npxTool "webpack-dev-server" __SOURCE_DIRECTORY__
+        runDotNet (sprintf "fable watch %s --run webpack-dev-server" clientPath) __SOURCE_DIRECTORY__
     }
 
     let tasks =
         [ yield server
-          yield client
-          yield webpack
-        ]
+          yield client ]
 
     tasks
     |> Async.Parallel
