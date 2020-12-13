@@ -178,7 +178,7 @@ let renderEditLotOwners (state: State) (dispatch: Message -> unit) =
                 Flatpickr.Value lotOwner.StartDate.DateTime
                 Flatpickr.SelectionMode Flatpickr.Mode.Single
                 Flatpickr.EnableTimePicker false
-                //Flatpickr.Locale Flatpickr.Locales.dutch
+                Flatpickr.Locale Flatpickr.Locales.dutch
                 Flatpickr.DateFormat "d/m/Y"
                 Flatpickr.ClassName (if errorMessage <> null then (sprintf "%s %s" Bootstrap.isInvalid Bootstrap.formControl) else "")
             ]
@@ -195,7 +195,7 @@ let renderEditLotOwners (state: State) (dispatch: Message -> unit) =
                     | None -> Flatpickr.custom "key" owner.EndDate false
                     Flatpickr.SelectionMode Flatpickr.Mode.Single
                     Flatpickr.EnableTimePicker false
-                    //Flatpickr.Locale Flatpickr.Locales.dutch
+                    Flatpickr.Locale Flatpickr.Locales.dutch
                     Flatpickr.DateFormat "d/m/Y"
                 ]
                 div [ Class Bootstrap.inputGroupAppend ] [

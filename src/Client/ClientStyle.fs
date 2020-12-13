@@ -6,13 +6,28 @@ open Shared.Read
 type Bootstrap = CssClasses<"public/styles/bootstrap.min.css", Naming.CamelCase, resolutionFolder=__SOURCE_DIRECTORY__>
 type FontAwesome = CssClasses<"public/styles/fontawesome.all.min.css", Naming.CamelCase, resolutionFolder=__SOURCE_DIRECTORY__>
 
+module DateTime =
+    open Fable.Core
+    open Fable.DateFunctions
+
+    /// Hack
+    module Locales =
+        [<Import("nl", "date-fns/locale")>]
+        let Dutch: ILocale = jsNative
+
 module Flatpickr =
     open System
+    open Fable.Core
 
     /// Sets the initial value for the Flatpickr component
     let Values (dates: DateTime array) = 
         {| Value = dates; IsConfig = false; Key = "value" |}
         |> unbox<Flatpickr.IFlatpickrOption>
+
+    /// Hack
+    module Locales =
+        [<Import("Dutch", "flatpickr/dist/l10n/nl.js")>]
+        let dutch: Flatpickr.IFlatpickrLocale = jsNative
 
 module Helpers =
     open System
@@ -146,7 +161,7 @@ module Helpers =
                     Flatpickr.flatpickr ([
                         Flatpickr.DateFormat "j F, Y"
                         Flatpickr.ClassName (sprintf "%s %s %s" Bootstrap.formControl (if error.IsSome then Bootstrap.isInvalid else "") "flatpickr-input")
-                        //Flatpickr.Locale Flatpickr.Locales.dutch
+                        Flatpickr.Locale Flatpickr.Locales.dutch
                         Flatpickr.TimeTwentyFour true
                     ] @ dateProps.Value)
             if otherChildren.IsSome then

@@ -3,7 +3,7 @@
 open System
 open Fable.React
 open Fable.React.Props
-//open Fable.DateFunctions
+open Fable.DateFunctions
 open Shared.Read
 open Client.Components
 open Client.ClientStyle
@@ -62,7 +62,7 @@ let view (props: Props) =
                             let currentYear = DateTime.Today.Year
                             let from = new DateTime(currentYear, period.FromMonth, period.FromDay)
                             let until = new DateTime(currentYear, period.UntilMonth, period.UntilDay)
-                            yield readonlyFormElement "Periode algemene vergadering " (sprintf "%s tot %s" (from.ToString("dd/MM")(* from.Format("dd MMMM", DateTime.Locales.Dutch)*)) (until.ToString("dd/MM")(* .Format("dd MMMM", DateTime.Locales.Dutch)*)))
+                            yield readonlyFormElement "Periode algemene vergadering " (sprintf "%s tot %s" (from.Format("dd MMMM", DateTime.Locales.Dutch)) (until.Format("dd MMMM", DateTime.Locales.Dutch)))
                         | _ ->
                             ()
 

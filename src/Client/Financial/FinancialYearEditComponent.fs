@@ -91,7 +91,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Flatpickr.Value (state.FinancialYear.StartDate)
                     Flatpickr.SelectionMode Flatpickr.Mode.Single
                     Flatpickr.EnableTimePicker false
-                    //Flatpickr.Locale Flatpickr.Locales.dutch
+                    Flatpickr.Locale Flatpickr.Locales.dutch
                     Flatpickr.DateFormat "d/m/Y"
                 ]
                 FieldError (errorFor (nameof state.FinancialYear.StartDate))
@@ -105,7 +105,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Flatpickr.Value (state.FinancialYear.EndDate)
                     Flatpickr.SelectionMode Flatpickr.Mode.Single
                     Flatpickr.EnableTimePicker false
-                    //Flatpickr.Locale Flatpickr.Locales.dutch
+                    Flatpickr.Locale Flatpickr.Locales.dutch
                     Flatpickr.DateFormat "d/m/Y"
                 ]
                 FieldError (errorFor (nameof state.FinancialYear.EndDate))
