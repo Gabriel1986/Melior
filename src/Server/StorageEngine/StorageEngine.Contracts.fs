@@ -12,9 +12,12 @@ open Server.Blueprint.Data.Contracts
 
 let private toDBContractType (validated: ValidatedContractContractType): DbContractType =
     match validated with
-    | ValidatedOtherContractType name -> OtherContractType (string name)
-    | ValidatedInsuranceContractType validated -> InsuranceContractType {| Name = string validated.Name; BrokerId = validated.BrokerId |}
-    | ValidatedPredefinedContractType predefined -> PredefinedContractType predefined
+    | ValidatedOtherContractType name ->
+        OtherContractType (string name)
+    | ValidatedInsuranceContractType validated ->
+        InsuranceContractType {| Name = string validated.Name; BrokerId = validated.BrokerId |}
+    | ValidatedPredefinedContractType validated ->
+        PredefinedContractType {| Type = validated.Type; BrokerId = validated.BrokerId |}
 
 let private contractToSqlProps (msg: Message<ValidatedContract>) =
     let validated = msg.Payload

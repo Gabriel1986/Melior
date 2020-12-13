@@ -40,6 +40,7 @@ type Message =
     | AnswersSaved of Result<ContractTypeAnswer list, SaveAnswerError>
     | ShowOrganizationDetails of organizationId: Guid
     | CreateNewContract
+    | CreateNewInsuranceContract
     | CreateMandatoryContract of PredefinedContractType
     | EditContract of Contract
     | DeleteContract of Contract
@@ -101,7 +102,16 @@ let private unansweredQuestionsExist (answeredQuestions: ContractTypeAnswer list
 
     (allQuestions - answeredQuestions) |> Set.count > 0 
 
+let private createContract (buildingId: Guid) (contractType: ContractType) = {
+    ContractId = Guid.NewGuid()
+    BuildingId = buildingId
+    ContractType = contractType
+    ContractOrganization = None
+    ContractFiles = []
+}
+
 let update (msg: Message) (state: State): State * Cmd<Message> =
+    let createContract = createContract state.CurrentBuildingId
     match msg with
     | ContractsRetrieved contracts ->
         { state with Contracts = contracts }, Cmd.none
@@ -129,23 +139,11 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
     | ShowOrganizationDetails organizationId ->
         state, Client.Routing.navigateToPage (Page.OrganizationDetails { BuildingId = state.CurrentBuildingId; DetailId = organizationId })
     | CreateNewContract ->
-        let contract: Contract = {
-            ContractId = Guid.NewGuid()
-            BuildingId = state.CurrentBuildingId
-            ContractType = OtherContractType ""
-            ContractOrganization = None
-            ContractFiles = []
-        }
-        { state with ContractModalIsOpenOn = Some (contract, true) }, Cmd.none
+        { state with ContractModalIsOpenOn = Some (createContract (Other ""), true) }, Cmd.none
     | CreateMandatoryContract predefinedType ->
-        let contract: Contract = {
-            ContractId = Guid.NewGuid()
-            BuildingId = state.CurrentBuildingId
-            ContractType = PredefinedContractType predefinedType
-            ContractOrganization = None
-            ContractFiles = []
-        }
-        { state with ContractModalIsOpenOn = Some (contract, true) }, Cmd.none
+        { state with ContractModalIsOpenOn = Some (createContract (Predefined { Type = predefinedType; Broker = None }), true) }, Cmd.none
+    | CreateNewInsuranceContract ->
+        { state with ContractModalIsOpenOn = Some (createContract (Insurance { Name = ""; Broker = None }), true) }, Cmd.none
     | EditContract contract ->
         { state with ContractModalIsOpenOn = Some (contract, false) }, Cmd.none
     | DeleteContract contract ->
@@ -315,9 +313,9 @@ let private renderQuestionsModalComponent (state: State) (dispatch: Message -> u
 let view (state: State) (dispatch: Message -> unit) =
     let translateContractType (c: Contract) =
         match c.ContractType with
-        | PredefinedContractType predefined -> translatePredefinedType predefined
-        | OtherContractType name -> name
-        | InsuranceContractType insurance -> insurance.Name
+        | Predefined predefined -> translatePredefinedType predefined.Type
+        | Other name -> name
+        | Insurance insurance -> insurance.Name
 
     let rowsForContract (isMandatory: bool) (c: Contract)  =
         tr [] [
@@ -353,10 +351,11 @@ let view (state: State) (dispatch: Message -> unit) =
             ]
             td [] [
                 match c.ContractType with
-                | InsuranceContractType insuranceContract when insuranceContract.Broker.IsSome ->
+                | Insurance { Broker = Some broker }
+                | Predefined { Broker = Some broker } ->
                     span [] [
-                        str insuranceContract.Broker.Value.Name
-                        |> wrapInLink (Page.OrganizationDetails { BuildingId = state.CurrentBuildingId; DetailId = insuranceContract.Broker.Value.OrganizationId })
+                        str broker.Name
+                        |> wrapInLink (Page.OrganizationDetails { BuildingId = state.CurrentBuildingId; DetailId = broker.OrganizationId })
                     ]
                 | _ ->
                     null
@@ -374,7 +373,7 @@ let view (state: State) (dispatch: Message -> unit) =
         ]
 
     let rowsForPredefinedContractType (predefinedContractTypeIsMandatory: bool) (predefined: PredefinedContractType)  =
-        let contracts = state.Contracts |> List.filter (fun contract -> contract.ContractType = PredefinedContractType predefined)
+        let contracts = state.Contracts |> List.filter (fun contract -> match contract.ContractType with | Predefined { Type = x } -> x = predefined | _ -> false)
         match contracts with
         | [] ->
             [
@@ -383,8 +382,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     td [] [ str "Geen bestand" ]
                     td [] []
                     td [] []
-                    if (predefinedContractTypeIsMandatory) 
-                    then
+                    if predefinedContractTypeIsMandatory then
                         td [ HTMLAttr.Title "Wettelijk verplicht"; Class Bootstrap.textDanger ] [ 
                             span [ classes [ FontAwesome.fas; FontAwesome.faExclamationTriangle ] ] []
                         ]
@@ -436,8 +434,9 @@ let view (state: State) (dispatch: Message -> unit) =
                     state.Contracts
                     |> List.choose (fun c -> 
                         match c.ContractType with 
-                        | ContractType.OtherContractType _ -> Some (rowsForContract false c) 
-                        | _ -> None)
+                        | ContractType.Other _
+                        | ContractType.Insurance _ -> Some (rowsForContract false c)
+                        | ContractType.Predefined _ -> None)
             ]
         ]
         div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
@@ -446,6 +445,11 @@ let view (state: State) (dispatch: Message -> unit) =
                     i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
                     str " "
                     str "Contract aanmaken"
+                ]
+                button [ classes [ Bootstrap.btn; Bootstrap.btnPrimary; Bootstrap.ml2 ]; Type "button"; OnClick (fun _ -> CreateNewInsuranceContract |> dispatch) ] [
+                    i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                    str " "
+                    str "Verzekeringscontract aanmaken"
                 ]
                 button [ classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.ml2 ]; Type "button"; OnClick (fun _ -> OpenQuestionModal |> dispatch) ] [
                     i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []
@@ -471,5 +475,9 @@ let view (state: State) (dispatch: Message -> unit) =
     ]
     |> withPageHeader "Contracten"
 
-let render (props: ContractsPageProps) =
-    React.elmishComponent ("ContractsPage", init props, update, view)
+let render =
+    FunctionComponent.Of (
+        (fun (props: ContractsPageProps) -> React.elmishComponent ("ContractsPage", init props, update, view))
+        , "ContractsPageComponent"
+        , equalsButFunctions
+    )

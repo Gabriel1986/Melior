@@ -24,7 +24,7 @@ let getFilledInPredefinedContractTypes (conn: string) (buildingId: BuildingId) =
         """
     |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
     |> Sql.read (fun reader -> reader.string "ContractType" |> Thoth.Json.Net.Decode.Auto.unsafeFromString<DbContractType>)
-    |> Async.map (List.choose (function | PredefinedContractType predefined -> Some predefined | _ -> None))
+    |> Async.map (List.choose (function | PredefinedContractType predefined -> Some predefined.Type | _ -> None))
 
 let getContracts conn (buildingId: BuildingId) = async {
     let! contracts = 
@@ -53,15 +53,14 @@ let getContracts conn (buildingId: BuildingId) = async {
 
     let organizationIds =
         contracts
-        |> List.collect (fun contract -> [
-            match contract.ContractOrganizationId with
-            | Some orgId -> yield orgId
-            | None -> ()
-
-            match contract.ContractType with
-            | InsuranceContractType insuranceContract when insuranceContract.BrokerId.IsSome -> yield insuranceContract.BrokerId.Value
-            | _ -> ()
-        ])
+        |> List.collect (fun contract ->
+            List.choose id [
+                yield contract.ContractOrganizationId
+                match contract.ContractType with
+                | InsuranceContractType insuranceContract -> yield insuranceContract.BrokerId
+                | PredefinedContractType predefinedContract -> yield predefinedContract.BrokerId
+                | _ -> ()
+            ])
 
     let! organizations = Server.Organizations.Query.getOrganizationsByIds conn organizationIds
 
@@ -76,10 +75,14 @@ let getContracts conn (buildingId: BuildingId) = async {
         ContractOrganization = getOrganizationById c.ContractOrganizationId
         ContractType = 
             match c.ContractType with
-            | OtherContractType name -> ContractType.OtherContractType name
-            | PredefinedContractType pre -> ContractType.PredefinedContractType pre
+            | OtherContractType name -> ContractType.Other name
+            | PredefinedContractType pre -> 
+                ContractType.Predefined {
+                    Type = pre.Type
+                    Broker = getOrganizationById pre.BrokerId
+                }
             | InsuranceContractType contractType ->
-                ContractType.InsuranceContractType {
+                ContractType.Insurance {
                     Name = contractType.Name
                     Broker = getOrganizationById contractType.BrokerId
                 }

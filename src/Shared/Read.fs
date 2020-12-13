@@ -546,14 +546,18 @@ type ContractTypeAnswer = {
 }
 
 type ContractType =
-    | PredefinedContractType of PredefinedContractType
-    | InsuranceContractType of InsuranceContract
-    | OtherContractType of string
+    | Predefined of PredefinedContract
+    | Insurance of InsuranceContract
+    | Other of string
     member me.Translate (translatePredefinedType: PredefinedContractType -> string) =
         match me with
-        | PredefinedContractType cType -> translatePredefinedType cType
-        | OtherContractType name -> name
-        | InsuranceContractType insuranceDetails -> insuranceDetails.Name
+        | Predefined cType -> translatePredefinedType cType.Type
+        | Other name -> name
+        | Insurance insuranceDetails -> insuranceDetails.Name
+and PredefinedContract = {
+    Type: PredefinedContractType
+    Broker: OrganizationListItem option
+}
 and InsuranceContract = {
     Name: string
     Broker: OrganizationListItem option

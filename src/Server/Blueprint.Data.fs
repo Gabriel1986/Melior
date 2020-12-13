@@ -16,7 +16,7 @@ module Contracts =
     type DbContractType =
         | OtherContractType of string
         | InsuranceContractType of {| Name: string; BrokerId: Guid option |}
-        | PredefinedContractType of PredefinedContractType
+        | PredefinedContractType of {| Type: PredefinedContractType; BrokerId: Guid option |}
 
 module Financial =
     [<RequireQualifiedAccess>]

@@ -1,9 +1,11 @@
 ﻿module rec Server.Migrations
 
+open System
 open System.Reflection
 open Npgsql
 open SimpleMigrations
 open SimpleMigrations.DatabaseProvider
+open Shared.Library
 
 let run (logger: Serilog.ILogger) (connectionString: string) : int64 * int64 =
     using (new NpgsqlConnection(connectionString)) (fun connection ->
@@ -546,4 +548,35 @@ type AddColumnDeletedToMediaFilesAndPersons() =
                 ALTER TABLE Persons ADD COLUMN IF NOT EXISTS IsDeleted BOOLEAN DEFAULT FALSE;
                 UPDATE Persons SET IsDeleted = FALSE;
             """
+    override u.Down () = ()
+
+[<Migration(18L, "Convert predefined contracts to new format")>]
+type ConvertPredefinedContractsToNewFormat() =
+    inherit Migration ()
+    override u.Up () = 
+        let sql =
+            [
+                "ElevatorMaintenance"
+                "ElevatorInspection"
+                "CommonCentralHeatingInspection"
+                "FireAlarmInspection"
+                "FireExtinguisherInspection"
+                "FireHoseReelInspection"
+                "FireInsurance"
+                "LiabilityInsurance"
+                "CivilLiabilityForCoOwnerCouncil"
+                "ElectricitySupplier"
+                "WaterSupplier"
+            ]
+            |> List.map (fun predefined ->
+                String.Format(
+                    """
+                        UPDATE Contracts SET ContractType = '["PredefinedContractType",{{"Type":"{0}"}}]'
+                        WHERE ContractType like '%{0}%';
+                    """
+                    , (predefined)
+                )
+            )
+            |> String.joinWith ""
+        u.Execute sql
     override u.Down () = ()

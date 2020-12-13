@@ -460,9 +460,14 @@ type ValidatedContract =
     static member Validate (contract: Contract) =
         let validatedContractType =
             match contract.ContractType with
-            | PredefinedContractType predefined -> 
-                Trial.Pass (ValidatedPredefinedContractType predefined)
-            | InsuranceContractType insuranceContract ->
+            | ContractType.Predefined { Type = predefined; Broker = broker } -> 
+                trial {
+                    yield ValidatedPredefinedContractType {
+                        Type = predefined
+                        BrokerId = broker |> Option.map (fun broker -> broker.OrganizationId)
+                    }
+                }
+            | ContractType.Insurance insuranceContract ->
                 trial {
                     from name in String255.Of (nameof contract.ContractType) insuranceContract.Name
                     yield ValidatedInsuranceContractType {
@@ -470,7 +475,7 @@ type ValidatedContract =
                         BrokerId = insuranceContract.Broker |> Option.map (fun broker -> broker.OrganizationId)
                     }
                 }
-            | OtherContractType other ->
+            | ContractType.Other other ->
                 trial {
                     from name in String255.Of (nameof contract.ContractType) other
                     yield ValidatedOtherContractType name
@@ -489,10 +494,14 @@ type ValidatedContract =
         |> Trial.toResult
 
 and ValidatedContractContractType =
-    | ValidatedPredefinedContractType of PredefinedContractType
-    | ValidatedInsuranceContractType of ValidatedInsuranceContractType
+    | ValidatedPredefinedContractType of ValidatedPredefinedContract
+    | ValidatedInsuranceContractType of ValidatedInsuranceContract
     | ValidatedOtherContractType of String255
-and ValidatedInsuranceContractType = {
+and ValidatedPredefinedContract = {
+    Type: PredefinedContractType
+    BrokerId: Guid option
+}
+and ValidatedInsuranceContract = {
     Name: String255
     BrokerId: Guid option
 }

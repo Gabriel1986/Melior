@@ -202,9 +202,10 @@ module Client =
             state, showGenericErrorModalCmd err
         | ReloadWarnings ->
             match state with
-            | Running runningState when runningState.CurrentBuilding.IsSome -> 
+            | Running runningState when runningState.CurrentBuilding.IsSome ->
                 state, Server.loadWarnings runningState.CurrentBuilding.Value.BuildingId
-            | _ -> state, Cmd.none
+            | _ ->
+                state, Cmd.none
 
 
     let private shouldChangePage (oldPage: Page) (newPage: Page) =

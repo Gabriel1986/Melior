@@ -34,7 +34,7 @@ type Model = {
 and State =
     | EditingContract
     | SelectingSupplier
-    | SelectingBroker of InsuranceContract
+    | SelectingBroker of OrganizationListItem option
     | RemotingError of exn
 
 type Message =
@@ -45,9 +45,9 @@ type Message =
     | CancelSelectSupplier
     | SelectSupplier of OrganizationListItem
 
-    | SearchBroker of InsuranceContract
+    | SearchBroker of OrganizationListItem option
     | CancelSelectBroker
-    | SelectBroker of InsuranceContract * OrganizationListItem
+    | SelectBroker of OrganizationListItem
 
     | ContractFileUploaded of MediaFile
     | ContractFileRemoved of fileId: Guid
@@ -97,12 +97,19 @@ let update (msg: Message) (model: Model) =
     | SelectSupplier organization ->
         let newState = withContractDo (fun c -> { c with ContractOrganization = Some organization })
         { newState with State = State.EditingContract }, Cmd.none
-    | SearchBroker insuranceContract ->
-        { model with State = State.SelectingBroker insuranceContract }, Cmd.none
+    | SearchBroker currentBroker ->
+        { model with State = State.SelectingBroker currentBroker }, Cmd.none
     | CancelSelectBroker ->
         { model with State = State.EditingContract }, Cmd.none
-    | SelectBroker (insuranceContract, organization) ->
-        let newState = withContractDo (fun c -> { c with ContractType = InsuranceContractType { insuranceContract with Broker = Some organization } })
+    | SelectBroker broker ->
+        let newState = withContractDo (fun c -> 
+            match c.ContractType with
+            | Insurance insuranceContract ->
+                { c with ContractType = Insurance { insuranceContract with Broker = Some broker } }
+            | Predefined predefinedContract ->
+                { c with ContractType = Predefined { predefinedContract with Broker = Some broker } }
+            | _ -> 
+                c)
         { newState with State = State.EditingContract }, Cmd.none
     | ContractFileUploaded mediaFile ->
         withContractDo (fun c -> { c with ContractFiles = mediaFile::c.ContractFiles }), Cmd.none
@@ -111,9 +118,9 @@ let update (msg: Message) (model: Model) =
     | ChangeContractName newName ->
         withContractDo (fun c -> 
             match c.ContractType with
-            | OtherContractType _oldName -> { c with ContractType = OtherContractType newName }
-            | InsuranceContractType contract -> { c with ContractType = InsuranceContractType { contract with Name = newName } }
-            | PredefinedContractType _ -> c
+            | Other _oldName -> { c with ContractType = Other newName }
+            | Insurance contract -> { c with ContractType = Insurance { contract with Name = newName } }
+            | Predefined _ -> c
         ), Cmd.none
     | CloseModal ->
         do model.OnCanceled ()
@@ -128,63 +135,74 @@ let update (msg: Message) (model: Model) =
     | RemotingErrorOccured exn ->
         { model with State = RemotingError exn }, Cmd.none
 
+let private PredefinedInsuranceContractTypes = [
+    PredefinedContractType.FireInsurance
+    PredefinedContractType.LiabilityInsurance
+    PredefinedContractType.CivilLiabilityForCoOwnerCouncil
+]
+
+let private renderName (name: string) (dispatch: (Message -> unit) option) =
+    formGroup [
+        Label "Naam"
+        Input [
+            yield Helpers.valueOrDefault name
+            match dispatch with
+            | Some dispatch -> yield OnChange (fun e -> ChangeContractName e.Value |> dispatch)
+            | None -> ()
+        ]
+    ]
+
+let private renderBroker (broker: OrganizationListItem option) (dispatch: Message -> unit) =
+    let brokerName = broker |> Option.map (fun broker -> broker.Name) |> Option.defaultValue ""
+    formGroup [
+        Label "Verzekeringsmakelaar"
+        Input [
+            Type "text"
+            Style [ Cursor "pointer"; BackgroundColor "unset" ]
+            ReadOnly true
+            OnClick (fun _ -> dispatch (SearchBroker broker))
+            Helpers.valueOrDefault brokerName
+        ]
+        InputAppend [
+            button [ 
+                classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
+                OnClick (fun _ -> dispatch (SearchBroker broker))
+            ] [
+                span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
+            ]
+        ]
+    ]
+
 let renderContractEditView (contract: Contract) dispatch =
     div [] [
         yield! [
             match contract.ContractType with
-            | ContractType.PredefinedContractType predefined ->
-                formGroup [
-                    Label "Naam"
-                    Input [
-                        HTMLAttr.Disabled true
-                        Value (translatePredefinedType predefined)
-                    ]
-                ]
-            | ContractType.OtherContractType name ->
-                formGroup [
-                    Label "Naam"
-                    Input [
-                        Helpers.valueOrDefault name
-                        OnChange (fun e -> ChangeContractName e.Value |> dispatch)
-                    ]
-                ]
-            | ContractType.InsuranceContractType insuranceContract ->
+            | ContractType.Other name ->
+                renderName name (Some dispatch)
+            | ContractType.Insurance insuranceContract ->
                 [
-                    formGroup [
-                        Label "Naam"
-                        Input [
-                            Helpers.valueOrDefault insuranceContract.Name
-                            OnChange (fun e -> ChangeContractName e.Value |> dispatch)
-                        ]
-                    ]
-                    let brokerName = insuranceContract.Broker |> Option.map (fun broker -> broker.Name) |> Option.defaultValue ""
-                    formGroup [
-                        Label "Verzekeringsmakelaar"
-                        Input [
-                            Type "text"
-                            Style [ Cursor "pointer"; BackgroundColor "unset" ]
-                            ReadOnly true
-                            OnClick (fun _ -> dispatch (SearchBroker insuranceContract))
-                            Helpers.valueOrDefault brokerName
-                        ]
-                        InputAppend [
-                            button [ 
-                                classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
-                                OnClick (fun _ -> dispatch (SearchBroker insuranceContract))
-                            ] [
-                                span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
-                            ]
-                        ]
-                    ]
+                    renderName insuranceContract.Name (Some dispatch)
+                    renderBroker insuranceContract.Broker dispatch
+                ]
+                |> fragment []
+            | ContractType.Predefined predefinedContract ->
+                [
+                    renderName (translatePredefinedType predefinedContract.Type) None
+                    if (PredefinedInsuranceContractTypes |> List.contains predefinedContract.Type) then 
+                        renderBroker predefinedContract.Broker dispatch
                 ]
                 |> fragment []
 
             let supplierLabel =
                 match contract.ContractType with
-                | ContractType.InsuranceContractType _ -> "Verzekeringsmaatschappij"
-                | _ -> "Leverancier"
+                | ContractType.Insurance _ ->
+                    "Verzekeringsmaatschappij"
+                | ContractType.Predefined p when PredefinedInsuranceContractTypes |> List.contains p.Type -> 
+                    "Verzekeringsmaatschappij"
+                | _ -> 
+                    "Leverancier"
 
-            let orgName = contract.ContractOrganization |> Option.map (fun org -> org.Name)
+            let orgName = contract.ContractOrganization |> Option.either (fun org -> org.Name) ""
 
             formGroup [
                 Label supplierLabel
@@ -249,11 +267,11 @@ let modalContent model dispatch =
             model.AllOrganizations 
             contract.ContractOrganization
             (fun org -> SelectSupplier org |> dispatch)
-    | SelectingBroker insuranceContract, _ ->
+    | SelectingBroker broker, _ ->
         renderOrganizationSelectionList
             model.AllOrganizations
-            insuranceContract.Broker
-            (fun org -> SelectBroker (insuranceContract, org) |> dispatch)
+            broker
+            (fun org -> SelectBroker org |> dispatch)
     | EditingContract, _
     | SelectingSupplier, _
     | State.RemotingError _, _ ->
