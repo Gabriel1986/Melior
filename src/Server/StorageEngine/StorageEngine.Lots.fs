@@ -20,11 +20,11 @@ let private lotToSqlProps (validated: ValidatedLot) = [
 
 let private paramsForLotOwner (validated: ValidatedLotOwner) =
     let personId, orgId =
-        match validated.LotOwnerTypeId with
-        | (LotOwnerTypeId.OwnerId ownerId) ->
-            Some ownerId, None
-        | (LotOwnerTypeId.OrganizationId orgId) ->
-            None, Some orgId
+        match validated.LotOwnerType with
+        | (LotOwnerType.Owner owner) ->
+            Some owner.PersonId, None
+        | (LotOwnerType.Organization org) ->
+            None, Some org.OrganizationId
     [[
         "@LotId", Sql.uuid validated.LotId
         "@LotOwnerId", Sql.uuid validated.LotOwnerId
@@ -113,28 +113,26 @@ let transformEventToSql (msg: Message<LotEvent>) =
                     "@BuildingId", Sql.uuid buildingId
                 ] ]
             ]
-    | LotOwnerEvent event ->
-        match event with
-        | CUDEvent.Created validated ->
-            [
-                """
-                    INSERT INTO LotOwners
-                        (LotId, LotOwnerId, Role, PersonId, OrganizationId, StartDate, EndDate)
-                    VALUES 
-                        (@LotId, @LotOwnerId, @Role, @PersonId, @OrganizationId, @StartDate, @EndDate)
-                """, paramsForLotOwner validated
+    | LotOwnerWasAdded (_, validated) ->
+        [
+            """
+                INSERT INTO LotOwners
+                    (LotId, LotOwnerId, Role, PersonId, OrganizationId, StartDate, EndDate)
+                VALUES
+                    (@LotId, @LotOwnerId, @Role, @PersonId, @OrganizationId, @StartDate, @EndDate)
+            """, paramsForLotOwner validated
 
-                yield! setLotOwnerContactsFor (validated |> inMsg msg)
-            ]
-        | CUDEvent.Updated validated ->
-            [
-                "UPDATE LotOwners SET StartDate = @StartDate, EndDate = @EndDate WHERE LotOwnerId = @LotOwnerId"
-                , paramsForLotOwner validated
+            yield! setLotOwnerContactsFor (validated |> inMsg msg)
+        ]
+    | LotOwnerWasUpdated (_, validated) ->
+        [
+            "UPDATE LotOwners SET StartDate = @StartDate, EndDate = @EndDate WHERE LotOwnerId = @LotOwnerId"
+            , paramsForLotOwner validated
 
-                yield! setLotOwnerContactsFor (validated |> inMsg msg)
-            ]
-        | CUDEvent.Deleted lotOwnerId ->
-            [
-                "UPDATE LotOwners SET ISDELETED = TRUE WHERE LotOwnerId = @LotOwnerId"
-                , [[ "@LotOwnerId", Sql.uuid lotOwnerId ]]
-            ]
+            yield! setLotOwnerContactsFor (validated |> inMsg msg)
+        ]
+    | LotOwnerWasDeleted (buildingId, lotOwnerId) ->
+        [
+            "UPDATE LotOwners SET ISDELETED = TRUE WHERE LotOwnerId = @LotOwnerId"
+            , [[ "@LotOwnerId", Sql.uuid lotOwnerId ]]
+        ]

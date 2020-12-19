@@ -178,7 +178,9 @@ module Storage =
 
     type LotEvent =
         | LotEvent of BuildingSpecificCUDEvent<ValidatedLot>
-        | LotOwnerEvent of CUDEvent<ValidatedLotOwner>
+        | LotOwnerWasAdded of ValidatedLot * ValidatedLotOwner
+        | LotOwnerWasUpdated of ValidatedLot * ValidatedLotOwner
+        | LotOwnerWasDeleted of buildingId: BuildingId * lotOwnerId: Guid
 
     type ProfessionalSyndicEvent =
         | ProfessionalSyndicEvent of CUDEvent<ValidatedProfessionalSyndic>

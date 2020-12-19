@@ -580,3 +580,18 @@ type ConvertPredefinedContractsToNewFormat() =
             |> String.joinWith ""
         u.Execute sql
     override u.Down () = ()
+
+
+[<Migration(19L, "Add a link between a financial category and a lot owner")>]
+type AddLinkBetweenFinancialCategoryAndLotOwner() =
+    inherit Migration ()
+    override u.Up () = 
+        u.Execute
+            """
+                ALTER TABLE FinancialCategories ADD COLUMN IF NOT EXISTS LotOwnerId UUID;
+                ALTER TABLE FinancialCategories ADD CONSTRAINT fk_LotOwnerId
+                    FOREIGN KEY (LotOwnerId)
+                    REFERENCES LotOwners(LotOwnerId);
+            """
+    override u.Down () =
+        ()

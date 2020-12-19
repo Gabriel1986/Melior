@@ -77,6 +77,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         let newLotOwner: LotOwner = {
             LotId = state.Lot.LotId
             LotOwnerId = Guid.NewGuid()
+            BuildingId = state.Lot.BuildingId
             LotOwnerType = lotOwnerType
             StartDate = DateTimeOffset.Now
             EndDate = None

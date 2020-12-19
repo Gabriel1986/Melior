@@ -254,15 +254,6 @@ type ValidatedConcierge =
             ValidatedPerson.Validate person
             |> Result.map ValidatedConcierge.NonOwner
 
-type LotOwnerTypeId =
-    | OwnerId of Guid
-    | OrganizationId of Guid
-
-let private mapLotOwnerTypeToId =
-    function
-    | LotOwnerType.Owner owner -> OwnerId owner.PersonId
-    | LotOwnerType.Organization organization -> OrganizationId organization.OrganizationId
-
 type ValidatedLotOwnerContact =
     | Owner of OwnerListItem
     | NonOwner of ValidatedPerson
@@ -279,7 +270,7 @@ type ValidatedLotOwner =
     {
         LotId: Guid
         LotOwnerId: Guid
-        LotOwnerTypeId: LotOwnerTypeId
+        LotOwnerType: LotOwnerType
         StartDate: DateTimeOffset
         EndDate: DateTimeOffset option
         Contacts: ValidatedLotOwnerContact list
@@ -303,7 +294,7 @@ type ValidatedLotOwner =
             yield {
                 LotId = lotOwner.LotId
                 LotOwnerId = lotOwner.LotOwnerId
-                LotOwnerTypeId = mapLotOwnerTypeToId lotOwner.LotOwnerType
+                LotOwnerType = lotOwner.LotOwnerType
                 StartDate = startDate
                 EndDate = lotOwner.EndDate
                 Contacts = contacts
@@ -650,6 +641,7 @@ type ValidatedFinancialCategory =
         BuildingId: Guid
         Code: String32
         Description: String255
+        LotOwnerId: Guid option
     }
     static member Validate (category: FinancialCategory): Result<ValidatedFinancialCategory, (string * string) list> =
         trial {
@@ -660,6 +652,7 @@ type ValidatedFinancialCategory =
                 BuildingId = category.BuildingId
                 Code = code
                 Description = description
+                LotOwnerId = category.LotOwnerId
             }
         }
         |> Trial.toResult

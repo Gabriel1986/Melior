@@ -8,6 +8,7 @@ open Server.PostgreSQL
 open Server.PostgreSQL.Sql
 open Shared.MediaLibrary
 open Server.Blueprint.Data.Financial
+open Shared.Write
 
 type DistributionKeyRow = {
     DistributionKeyId: Guid
@@ -121,6 +122,7 @@ let readFinancialCategory (reader: CaseInsensitiveRowReader): FinancialCategory 
     BuildingId = reader.uuid "BuildingId"
     Code = reader.string "Code"
     Description = reader.string "Description"
+    LotOwnerId = reader.uuidOrNone "LotOwnerId"
 }
 
 let getDistributionKeyListItems (conn: string) (buildingId: BuildingId): Async<DistributionKeyListItem list> =
@@ -311,7 +313,8 @@ let getAllFinancialCategories (conn: string) (buildingId: BuildingId) =
                 FinancialCategoryId,
                 BuildingId,
                 Code,
-                Description
+                Description,
+                LotOwnerId
             FROM FinancialCategories WHERE BuildingId = @BuildingId AND IsDeleted = FALSE
         """
     |> Sql.parameters [
@@ -327,7 +330,8 @@ let getFinancialCategoriesByIds (conn: string) (buildingId: BuildingId, financia
                 FinancialCategoryId,
                 BuildingId,
                 Code,
-                Description
+                Description,
+                LotOwnerId
             FROM FinancialCategories WHERE BuildingId = @BuildingId AND FincialCategoryId = ANY (@FinancialCategoryIds) AND IsDeleted = FALSE
         """
     |> Sql.parameters [
@@ -396,4 +400,42 @@ let getInvoice (conn: string) (invoiceId: Guid): Async<Invoice option> = async {
         }
     | None ->
         return None
+}
+
+let getFinancialCategoryByLotOwnerId (conn: string) (buildingId: BuildingId, lotOwnerId: Guid) =
+    Sql.connect conn
+    |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId; "@LotOwnerId", Sql.uuid lotOwnerId ]
+    |> Sql.query 
+        """
+            SELECT FinancialCategoryId, BuildingId, Code, Description, LotOwnerId 
+            FROM FinancialCategories
+            WHERE BuildingId = @BuildingId AND LotOwnerId = @LotOwnerId
+        """
+    |> Sql.readSingle readFinancialCategory
+
+let getNewFinancialCategoryCodeForLotOwner (conn: string) (buildingId: BuildingId, lotOwner: ValidatedLotOwner): Async<string option> = async {
+    match! getFinancialCategoryByLotOwnerId conn (buildingId, lotOwner.LotOwnerId) with
+    | Some category -> 
+        return None
+    | None ->
+        let! currentMaxCode =
+            Sql.connect conn
+            |> Sql.query
+                """
+                    SELECT MAX(Code) as MaxCode FROM FinancialCategories
+                    WHERE Code like '400%'
+                """
+            |> Sql.readSingle (fun reader -> reader.stringOrNone "MaxCode")
+            |> Async.map Option.flatten
+
+        match currentMaxCode with
+        | Some max -> 
+            match Int32.TryParse(max.Substring(1)) with
+            | true, parsed -> 
+                return Some (string (parsed + 1 + 40000000))
+            | false, _ -> 
+                failwithf "Invalid value for financial category: %s" max
+                return None
+        | None ->
+            return Some "40000001"
 }

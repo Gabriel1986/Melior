@@ -61,6 +61,7 @@ let private paramsForFinancialCategory (category: ValidatedFinancialCategory) = 
     "@BuildingId", Sql.uuid category.BuildingId
     "@Code", Sql.string (string category.Code)
     "@Description", Sql.string (string category.Description)
+    "@LotOwnerId", Sql.uuidOrNone category.LotOwnerId
 ]
 
 let private setLotsOrLotTypesFor (distributionKey: ValidatedDistributionKey) =
@@ -284,12 +285,14 @@ let transformEventToSql (msg: Message<FinancialEvent>) =
                         FinancialCategoryId,
                         BuildingId,
                         Code,
-                        Description
+                        Description,
+                        LotOwnerId
                     ) VALUES (
                         @FinancialCategoryId,
                         @BuildingId,
                         @Code,
-                        @Description
+                        @Description,
+                        @LotOwnerId
                     )
                 """, [ paramsForFinancialCategory validated ]
             ]

@@ -658,12 +658,14 @@ type FinancialCategory =
         BuildingId: Guid
         Code: string
         Description: string
+        LotOwnerId: Guid option
     }
     static member Init (buildingId: Guid) = {
         FinancialCategoryId = Guid.NewGuid()
         BuildingId = buildingId
         Code = ""
         Description = ""
+        LotOwnerId = None
     }
 
 module Invoice =

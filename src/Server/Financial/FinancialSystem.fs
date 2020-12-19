@@ -2,6 +2,8 @@
 
 open System
 open Microsoft.Extensions.Configuration
+open Shared.Read
+open Shared.Write
 open Server.Library
 open Server.LibraryExtensions
 open Server.AppSettings
@@ -63,6 +65,9 @@ let build (config: IConfiguration) (store: IStorageEngine): IFinancialSystem =
     }
 
 type ReactiveBehavior (config: IConfiguration) =
+    let settings = config.Get<AppSettings>()
+    let conn = settings.Database.Connection
+
     interface IReactiveBehavior with
         override _.ReactTo message =
             match message.Payload with
@@ -70,6 +75,40 @@ type ReactiveBehavior (config: IConfiguration) =
                 async {
                     let! categories = FinancialCategories.readPredefined (validated.BuildingId)
                     return Workflow.seedFinancialCategories (categories |> inMsg message)
+                }
+            | StorageEvent.LotEvent (LotEvent.LotOwnerWasAdded (validatedLot, validatedLotOwner)) ->                
+                async {
+                    match! Query.getNewFinancialCategoryCodeForLotOwner conn (validatedLot.BuildingId, validatedLotOwner) with
+                    | Some financialCategoryCode ->
+                        let newFinancialCategory: FinancialCategory = {
+                            FinancialCategoryId = Guid.NewGuid()
+                            BuildingId = validatedLot.BuildingId
+                            Code = financialCategoryCode
+                            Description =
+                                let name =
+                                    match validatedLotOwner.LotOwnerType with
+                                    | LotOwnerType.Organization org -> org.Name
+                                    | LotOwnerType.Owner owner -> owner.FullName ()
+                                let lotName = string validatedLot.Code
+                                sprintf "%s - %s" name lotName
+                            LotOwnerId = Some validatedLotOwner.LotOwnerId
+                        }
+                        match ValidatedFinancialCategory.Validate (newFinancialCategory) with
+                        | Ok validated ->
+                            return [ StorageEvent.FinancialEvent (FinancialEvent.FinancialCategoryEvent (BuildingSpecificCUDEvent.Created validated)) ]
+                        | Error e ->
+                            Serilog.Log.Logger.Error(sprintf "A validation error occured while trying to create a financial category for lotowner '%A': %A" validatedLotOwner.LotOwnerId e)
+                            return []
+                    | None ->
+                        return []
+                }
+            | StorageEvent.LotEvent (LotEvent.LotOwnerWasDeleted (buildingId: BuildingId, lotOwnerId: Guid)) ->
+                async {
+                    match! Query.getFinancialCategoryByLotOwnerId conn (buildingId, lotOwnerId) with
+                    | Some financialCategory ->
+                        return [ StorageEvent.FinancialEvent (FinancialEvent.FinancialCategoryEvent (BuildingSpecificCUDEvent.Deleted (buildingId, financialCategory.FinancialCategoryId))) ]
+                    | None ->
+                        return []
                 }
             | _ -> 
                 Async.lift []
