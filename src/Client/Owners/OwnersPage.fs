@@ -74,7 +74,6 @@ type SortableOwnerListItemAttribute =
             fun li otherLi -> 
                 if li.IsResident = otherLi.IsResident then 0 
                 elif li.IsResident && not otherLi.IsResident then 1 else -1
-
         | _     -> 
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
     static member All = [ FirstName; LastName; IsResident ]

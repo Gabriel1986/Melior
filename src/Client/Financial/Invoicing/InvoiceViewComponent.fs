@@ -17,15 +17,15 @@ let view (props: Props) =
     let detail = props.Invoice
     div [] [
         fieldset [] [
-            legend [] [ h2 [] [ str "Algemeen" ] ]
-            readonlyFormElement "BoekingsNummer" detail.LocalInvoiceNumber
+            legend [] [ h4 [] [ str "Algemeen" ] ]
+            readonlyFormElement "Boekingsnummer" detail.LocalInvoiceNumber
             readonlyFormElement "Boekingsdatum" (detail.BookingDate.ToString("dd/MM/yyyy"))
             readonlyFormElement "Boekhoudkundige rekening" (sprintf "%s - %s" detail.FinancialCategory.Code detail.FinancialCategory.Description)
             readonlyFormElement "Omschrijving" (detail.Description |> Option.defaultValue "")
             readonlyFormElement "Met verdeelsleutel" detail.DistributionKey.Name
         ]
         fieldset [] [            
-            legend [] [ h2 [] [ str "Leverancier" ] ]
+            legend [] [ h4 [] [ str "Leverancier" ] ]
             readonlyFormElement "Naam" detail.Organization.Name
             match detail.Organization.OrganizationNumber, detail.Organization.VatNumber with
             | Some orgNr, _ ->
@@ -36,11 +36,11 @@ let view (props: Props) =
                 null
         ]
         fieldset [] [
-            legend [] [ h2 [] [ str "Factuur" ] ]
+            legend [] [ h4 [] [ str "Factuur" ] ]
             readonlyFormElement "Nr." (detail.OrganizationInvoiceNumber |> Option.defaultValue "")
-            readonlyFormElement "OpmaakDatum" (detail.InvoiceDate.ToString("dd/MM/yyyy"))
+            readonlyFormElement "Opmaakdatum" (detail.InvoiceDate.ToString("dd/MM/yyyy"))
             readonlyFormElement "Einddatum betaling" (detail.DueDate.ToString("dd/MM/yyyy"))
-            readonlyFormElement "Bedrag" (String.Format("{0:0.00}", detail.Cost).Replace('.', ','))
+            readonlyFormElement "Bedrag" (String.Format("€{0:0.00}", detail.Cost).Replace('.', ','))
             readonlyFormElement "Naar rekening" (string detail.OrganizationBankAccount)
         ]
         match detail.MediaFiles with
@@ -48,7 +48,7 @@ let view (props: Props) =
             null
         | mediaFiles ->
             fieldset [] [
-                yield legend [] [ h2 [] [ str "Gekoppelde documenten" ] ]
+                yield legend [] [ h4 [] [ str "Gekoppelde documenten" ] ]
                 yield!
                     mediaFiles
                     |> List.map (fun mediaFile -> 

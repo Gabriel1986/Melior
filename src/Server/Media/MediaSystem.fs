@@ -1,5 +1,6 @@
 ﻿module Server.Media.MediaSystem
 
+open System
 open Microsoft.Extensions.Configuration
 open Server.Blueprint.Behavior.Media
 open Server.Blueprint.Behavior.Storage
@@ -26,6 +27,24 @@ let build (config: IConfiguration) (store: IStorageEngine): IMediaSystem =
 type ReactiveBehavior (config: IConfiguration) =
     let settings = config.Get<AppSettings>()
     let conn = settings.Database.Connection
+
+    let generateMediaFileEvents (currentMediaFiles: MediaFile list, updatedMediaFileIds: Guid list) =
+        let currentMediaFileSet = currentMediaFiles |> List.map (fun file -> file.FileId) |> Set.ofList
+        let updatedMediaFileSet = updatedMediaFileIds |> Set.ofList
+
+        let deletedFileIds = currentMediaFileSet - updatedMediaFileSet |> Set.toList
+        let newFileIds = updatedMediaFileSet - currentMediaFileSet |> Set.toList
+
+        printf "Deleted file identifiers: %A" deletedFileIds
+        printf "New file identifiers: %A" newFileIds
+
+        let deleteEvents =
+            deletedFileIds
+            |> List.map (fun fileId -> StorageEvent.MediaEvent (MediaEvent.MediaFileWasDeleted fileId))
+        let persistEvents = 
+            newFileIds
+            |> List.map (fun fileId -> StorageEvent.MediaEvent (MediaEvent.MediaFileWasPersisted fileId))
+        deleteEvents @ persistEvents
 
     interface IReactiveBehavior with
         override _.ReactTo message =
@@ -57,29 +76,23 @@ type ReactiveBehavior (config: IConfiguration) =
 
                     let deleteEvents =
                         deletedFileIds
-                        |> List.map (fun fileId -> StorageEvent.MediaEvent (MediaEvent.MediaFileWasDeleted fileId))
+                        |> List.map (fun fileId -> StorageEvent.MediaEvent (MediaFileWasDeleted fileId))
                     let persistEvents = 
                         newFileIds
-                        |> List.map (fun fileId -> StorageEvent.MediaEvent (MediaEvent.MediaFileWasPersisted fileId))
+                        |> List.map (fun fileId -> StorageEvent.MediaEvent (MediaFileWasPersisted fileId))
                     return deleteEvents @ persistEvents
                 }
-            | StorageEvent.FinancialEvent (FinancialEvent.InvoiceEvent (Created validated))
-            | StorageEvent.FinancialEvent (FinancialEvent.InvoiceEvent (Updated validated)) ->
+            | StorageEvent.FinancialEvent (InvoiceEvent (Created validated))
+            | StorageEvent.FinancialEvent (InvoiceEvent (Updated validated)) ->
                 async {
                     let! currentMediaFiles = Query.getMediaFilesForEntities conn Partitions.Invoices [ validated.InvoiceId ]
-                    let currentMediaFileSet = currentMediaFiles |> List.map (fun file -> file.FileId) |> Set.ofList
-                    let updatedMediaFileSet = validated.MediaFileIds |> Set.ofList
-
-                    let deletedFileIds = currentMediaFileSet - updatedMediaFileSet |> Set.toList
-                    let newFileIds = updatedMediaFileSet - currentMediaFileSet |> Set.toList
-
-                    let deleteEvents =
-                        deletedFileIds
-                        |> List.map (fun fileId -> StorageEvent.MediaEvent (MediaEvent.MediaFileWasDeleted fileId))
-                    let persistEvents = 
-                        newFileIds
-                        |> List.map (fun fileId -> StorageEvent.MediaEvent (MediaEvent.MediaFileWasPersisted fileId))
-                    return deleteEvents @ persistEvents
+                    return generateMediaFileEvents (currentMediaFiles, validated.MediaFileIds)
+                }
+            | StorageEvent.FinancialEvent (InvoicePaymentEvent (Created validated))
+            | StorageEvent.FinancialEvent (InvoicePaymentEvent (Updated validated)) ->
+                async {
+                    let! currentMediaFiles = Query.getMediaFilesForEntities conn Partitions.InvoicePayments [ validated.InvoicePaymentId ]
+                    return generateMediaFileEvents (currentMediaFiles, validated.MediaFileIds)
                 }
             | _ ->
                 Async.lift []

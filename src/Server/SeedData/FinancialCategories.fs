@@ -15,6 +15,7 @@ let readPredefined (buildingId: Guid) = async {
             FinancialCategory.Code = row.Code
             FinancialCategory.Description = row.Description
             FinancialCategory.BuildingId = buildingId
+            FinancialCategory.LotOwnerId = None
         })
         |> List.ofSeq
 }

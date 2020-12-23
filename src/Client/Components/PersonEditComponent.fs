@@ -1,5 +1,6 @@
 ﻿module Client.Components.PersonEditComponent
 
+open System
 open Elmish
 open Elmish.React
 open Fable.React
@@ -50,8 +51,10 @@ let init (person: Person option) =
     let componentState, componentCmd =
         BankAccountEditComponent.init
             {|
+                CurrentBuildingId = None
                 BankAccounts = person.BankAccounts
                 BasePath = nameof (person.BankAccounts)
+                ShowFinancialCategorySelection = false
             |}
 
     { 
@@ -288,7 +291,7 @@ let private renderOtherAddresses (state: State) dispatch =
                 renderAddress 
                     a.Address 
                     (Some (fun updated -> OtherAddressAddressChanged (index, updated) |> dispatch))
-                    (sprintf "%s.[%i]"  (nameof (state.Person.OtherAddresses)) index)
+                    (sprintf "%s[%i]"  (nameof (state.Person.OtherAddresses)) index)
                     state.Errors
 
                 formGroup [
@@ -421,7 +424,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
             Input [ 
                 Type "text"
                 MaxLength 255.0
-                Helpers.valueOrDefault state.Person.FirstName 
+                Helpers.valueOrDefault (state.Person.FirstName  |> Option.defaultValue "")
                 OnChange (fun e -> FirstNameChanged e.Value |> dispatch)
                 Required true
             ]
@@ -432,7 +435,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
             Input [ 
                 Type "text"
                 MaxLength 255.0
-                Helpers.valueOrDefault state.Person.LastName
+                Helpers.valueOrDefault (state.Person.LastName |> Option.defaultValue "")
                 OnChange (fun e -> LastNameChanged e.Value |> dispatch)
                 Required true
             ]
@@ -458,7 +461,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
             Input [ 
                 Type "text"
                 MaxLength 32.0
-                Helpers.valueOrDefault state.Person.Title
+                Helpers.valueOrDefault (state.Person.Title |> Option.defaultValue "")
                 OnChange (fun e -> TitleChanged e.Value |> dispatch)
             ]
             FieldError (errorFor (nameof state.Person.Title))
@@ -474,7 +477,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
             Input [ 
                 Type "tel"
                 MaxLength 32.0 
-                Helpers.valueOrDefault state.Person.MainTelephoneNumber
+                Helpers.valueOrDefault (state.Person.MainTelephoneNumber |> Option.defaultValue "")
                 OnChange (fun e -> MainTelephoneNumberChanged e.Value |> dispatch)
             ]
             FieldError (errorFor (nameof state.Person.MainTelephoneNumber))
@@ -484,7 +487,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
             Input [ 
                 Type "text"
                 MaxLength 255.0 
-                Helpers.valueOrDefault state.Person.MainTelephoneNumberComment
+                Helpers.valueOrDefault (state.Person.MainTelephoneNumberComment |> Option.defaultValue "")
                 OnChange (fun e -> MainTelephoneNumberCommentChanged e.Value |> dispatch)
             ] 
             FieldError (errorFor (nameof state.Person.MainTelephoneNumberComment))
@@ -494,7 +497,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
             Input [ 
                 Type "email"
                 MaxLength 255.0 
-                Helpers.valueOrDefault state.Person.MainEmailAddress
+                Helpers.valueOrDefault (state.Person.MainEmailAddress |> Option.defaultValue "")
                 OnChange (fun e -> MainEmailAddressChanged e.Value |> dispatch)
             ]
             FieldError (errorFor (nameof state.Person.MainEmailAddress))
@@ -504,7 +507,7 @@ let view (state: State) (dispatch: Message -> unit) (props: {| ShowAddresses: bo
             Input [
                 Type "text"
                 MaxLength 255.0
-                Helpers.valueOrDefault state.Person.MainEmailAddressComment
+                Helpers.valueOrDefault (state.Person.MainEmailAddressComment |> Option.defaultValue "")
                 OnChange (fun e -> MainEmailAddressCommentChanged e.Value |> dispatch)
             ]
             FieldError (errorFor (nameof state.Person.MainEmailAddressComment))

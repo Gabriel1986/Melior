@@ -54,8 +54,10 @@ let init (building: Building) =
     let componentState, componentCmd = 
         BankAccountEditComponent.init 
             {|
+                CurrentBuildingId = Some building.BuildingId
                 BankAccounts = building.BankAccounts
                 BasePath = nameof (building.BankAccounts)
+                ShowFinancialCategorySelection = true
             |}
 
     { 
@@ -266,7 +268,7 @@ let view (state: State) (dispatch: Message -> unit) =
                             MaxLength 12.0
                             Placeholder "xxxx.xxx.xxx"
                             Style [ Width "120px" ]
-                            Helpers.valueOrDefault state.Building.OrganizationNumber
+                            valueOrDefault (state.Building.OrganizationNumber |> Option.defaultValue "")
                             OnChange (fun e -> OrganizationNumberChanged e.Value |> dispatch)
                         ] 
                         FieldError (errorFor (nameof state.Building.OrganizationNumber))
@@ -285,7 +287,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 Label "Bouwjaar"
                 Input [
                     Type "number"
-                    Helpers.valueOrDefault state.Building.YearOfConstruction
+                    valueOrDefault state.Building.YearOfConstruction
                     OnChange (fun e -> YearOfConstructionChanged e.Value |> dispatch)
                     Style [ Width "120px" ]
                 ]

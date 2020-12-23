@@ -28,25 +28,42 @@ let private paramsForInvoice (msg: Message<ValidatedInvoice>) =
     let invoice = msg.Payload
     let currentUser = msg.CurrentUser
     [
-           "@InvoiceId", Sql.uuid invoice.InvoiceId
-           "@BuildingId", Sql.uuid invoice.BuildingId
-           "@FinancialYearId", Sql.uuid invoice.FinancialYearId
-           "@Description", Sql.stringOrNone invoice.Description
-           "@Cost", Sql.decimal invoice.Cost
-           "@VatRate", Sql.int (invoice.VatRate.Value ())
-           "@FinancialCategoryId", Sql.string (string invoice.FinancialCategoryId)
-           "@BookingDate", Sql.timestamp invoice.BookingDate
-           "@DistributionKeyId", Sql.uuid invoice.DistributionKeyId
-           "@OrganizationId", Sql.uuid invoice.OrganizationId
-           "@OrganizationBankAccount", Sql.jsonb (ValidatedBankAccount.toJson invoice.OrganizationBankAccount)
-           "@OrganizationInvoiceNumber", Sql.stringOrNone (invoice.OrganizationInvoiceNumber |> Option.map string)
-           "@InvoiceDate", Sql.timestamp (invoice.InvoiceDate.AddHours(2.0).Date)
-           "@DueDate", Sql.timestamp (invoice.DueDate.AddHours(2.0).Date)
-           "@CreatedBy", Sql.string (currentUser.Principal ())
-           "@CreatedAt", Sql.timestamp DateTime.UtcNow
-           "@LastUpdatedBy", Sql.string (currentUser.Principal ())
-           "@LastUpdatedAt", Sql.timestamp (DateTime.UtcNow)
-       ]
+        "@InvoiceId", Sql.uuid invoice.InvoiceId
+        "@BuildingId", Sql.uuid invoice.BuildingId
+        "@FinancialYearId", Sql.uuid invoice.FinancialYearId
+        "@Description", Sql.stringOrNone invoice.Description
+        "@Cost", Sql.decimal invoice.Cost
+        "@VatRate", Sql.int (invoice.VatRate.Value ())
+        "@FinancialCategoryId", Sql.uuid invoice.FinancialCategoryId
+        "@BookingDate", Sql.timestamp invoice.BookingDate
+        "@DistributionKeyId", Sql.uuid invoice.DistributionKeyId
+        "@OrganizationId", Sql.uuid invoice.OrganizationId
+        "@OrganizationBankAccount", Sql.jsonb (ValidatedBankAccount.toJson invoice.OrganizationBankAccount)
+        "@OrganizationInvoiceNumber", Sql.stringOrNone (invoice.OrganizationInvoiceNumber |> Option.map string)
+        "@InvoiceDate", Sql.timestamp (invoice.InvoiceDate.AddHours(2.0).Date)
+        "@DueDate", Sql.timestamp (invoice.DueDate.AddHours(2.0).Date)
+        "@CreatedBy", Sql.string (currentUser.Principal ())
+        "@CreatedAt", Sql.timestamp DateTime.UtcNow
+        "@LastUpdatedBy", Sql.string (currentUser.Principal ())
+        "@LastUpdatedAt", Sql.timestamp DateTime.UtcNow
+    ]
+
+let private paramsForInvoicePayment (msg: Message<ValidatedInvoicePayment>) =
+    let payment = msg.Payload
+    let currentUser = msg.CurrentUser
+    [
+        "@InvoiceId", Sql.uuid payment.InvoiceId
+        "@BuildingId", Sql.uuid payment.BuildingId
+        "@InvoicePaymentId", Sql.uuid payment.InvoicePaymentId
+        "@Amount", Sql.decimal payment.Amount
+        "@Date", Sql.timestamp payment.Date
+        "@FromBankAccount", Sql.jsonb (ValidatedBankAccount.toJson payment.FromBankAccount)
+        "@FinancialCategoryId", Sql.uuid payment.FinancialCategoryId
+        "@CreatedBy", Sql.string (currentUser.Principal ())
+        "@CreatedAt", Sql.timestamp DateTime.UtcNow
+        "@LastUpdatedBy", Sql.string (currentUser.Principal ())
+        "@LastUpdatedAt", Sql.timestamp (DateTime.UtcNow)
+    ]
 
 let private paramsForFinancialYear (year: ValidatedFinancialYear) = [
     "@FinancialYearId", Sql.uuid year.FinancialYearId
@@ -90,7 +107,7 @@ let private setLotsOrLotTypesFor (distributionKey: ValidatedDistributionKey) =
 
     deleteAll::[ insertAll ]
 
-let private writeHistoricalInvoiceEntry (invoiceId: Guid, buildingId: Guid) = [
+let private writeHistoricalInvoiceEntry (invoiceId: Guid, buildingId: BuildingId) = [
     """
         INSERT INTO Invoices_History (
             InvoiceId,
@@ -111,7 +128,7 @@ let private writeHistoricalInvoiceEntry (invoiceId: Guid, buildingId: Guid) = [
             LastUpdatedBy,
             LastUpdatedAt
         )
-        SELECT (
+        SELECT
             InvoiceId,
             BuildingId,
             FinancialYearId,
@@ -120,19 +137,50 @@ let private writeHistoricalInvoiceEntry (invoiceId: Guid, buildingId: Guid) = [
             Cost,
             VatRate,
             FinancialCategoryId,
-            BookingDate,
             DistributionKeyId,
             OrganizationId,
             OrganizationBankAccount,
             OrganizationInvoiceNumber,
+            BookingDate,
             InvoiceDate,
             DueDate,
             LastUpdatedBy,
             LastUpdatedAt
-        ) FROM Invoices WHERE InvoiceId = @InvoiceId AND BuildingId = @BuildingId
+        FROM Invoices WHERE InvoiceId = @InvoiceId AND BuildingId = @BuildingId
     """
     , [[
         "@InvoiceId", Sql.uuid invoiceId
+        "@BuildingId", Sql.uuid buildingId
+    ]]
+]
+
+let private writeHistoricalInvoicePaymentEntry (invoiceId: Guid, buildingId: BuildingId) = [
+    """
+        INSERT INTO InvoicePayments_History (
+            InvoiceId,
+            BuildingId,
+            InvoicePaymentId,
+            Amount,
+            Date,
+            FromBankAccount,
+            FinancialCategoryId,
+            LastUpdatedAt,
+            LastUpdatedBy
+        ) 
+        SELECT
+            InvoiceId,
+            BuildingId,
+            InvoicePaymentId,
+            Amount,
+            Date,
+            FromBankAccount,
+            FinancialCategoryId,
+            LastUpdatedAt,
+            LastUpdatedBy
+        FROM InvoicePayments WHERE InvoicePaymentId = @InvoicePaymentId AND BuildingId = @BuildingId
+    """
+    , [[
+        "@InvoicePaymentId", Sql.uuid invoiceId
         "@BuildingId", Sql.uuid buildingId
     ]]
 ]
@@ -241,9 +289,9 @@ let transformEventToSql (msg: Message<FinancialEvent>) =
                         @LastUpdatedAt
                     )
                 """, [ validated |> inMsg msg |> paramsForInvoice ]
-            ] @ writeHistoricalInvoiceEntry (validated.InvoiceId, validated.BuildingId)
+            ]
         | BuildingSpecificCUDEvent.Updated validated ->
-            [
+            writeHistoricalInvoiceEntry (validated.InvoiceId, validated.BuildingId) @ [
                 """
                     UPDATE Invoices SET
                         Description = @Description,
@@ -261,21 +309,84 @@ let transformEventToSql (msg: Message<FinancialEvent>) =
                         LastUpdatedAt = @LastUpdatedAt
                     WHERE InvoiceId = @InvoiceId AND BuildingId = @BuildingId
                 """, [ validated |> inMsg msg |> paramsForInvoice ]
-            ] @ writeHistoricalInvoiceEntry (validated.InvoiceId, validated.BuildingId)
+            ]
         | BuildingSpecificCUDEvent.Deleted (buildingId: BuildingId, invoiceId: Guid) ->
-            [
+             writeHistoricalInvoiceEntry (invoiceId, buildingId) @ [
                 """
                     UPDATE Invoices 
                     SET 
-                        IsActive = FALSE,
+                        IsDeleted = TRUE,
                         LastUpdatedBy = @LastUpdatedBy,
                         LastUpdatedAt = @LastUpdatedAt
                     WHERE InvoiceId = @InvoiceId AND BuildingId = @BuildingId
                 """, [[
                     "@InvoiceId", Sql.uuid invoiceId
                     "@BuildingId", Sql.uuid buildingId
+                    "@LastUpdatedBy", Sql.string (msg.CurrentUser.Principal ())
+                    "@LastUpdatedAt", Sql.timestamp DateTime.UtcNow
                 ]]
-            ] @ writeHistoricalInvoiceEntry (invoiceId, buildingId)
+            ]
+    | InvoicePaymentEvent event ->
+        match event with
+        | BuildingSpecificCUDEvent.Created validated ->
+            [
+                """
+                    INSERT INTO InvoicePayments (
+                        InvoiceId,
+                        BuildingId,
+                        InvoicePaymentId,
+                        Amount,
+                        Date,
+                        FromBankAccount,
+                        FinancialCategoryId,
+                        CreatedAt,
+                        CreatedBy,
+                        LastUpdatedAt,
+                        LastUpdatedBy
+                    ) VALUES (
+                        @InvoiceId,
+                        @BuildingId,
+                        @InvoicePaymentId,
+                        @Amount,
+                        @Date,
+                        @FromBankAccount,
+                        @FinancialCategoryId,
+                        @CreatedAt,
+                        @CreatedBy,
+                        @LastUpdatedAt,
+                        @LastUpdatedBy
+                    )
+                """, [ validated |> inMsg msg |> paramsForInvoicePayment ]
+            ]
+        | BuildingSpecificCUDEvent.Updated validated ->
+            writeHistoricalInvoicePaymentEntry (validated.InvoicePaymentId, validated.BuildingId) @ [
+                """
+                    UPDATE InvoicePayments SET
+                        Amount = @Amount,
+                        Date = @Date,
+                        FromBankAccount = @FromBankAccount,
+                        FinancialCategoryId = @FinancialCategoryId,
+                        LastUpdatedAt = @LastUpdatedAt,
+                        LastUpdatedBy = @LastUpdatedBy
+                    WHERE InvoicePaymentId = @InvoicePaymentId AND BuildingId = @BuildingId
+                """, [ validated |> inMsg msg |> paramsForInvoicePayment ]
+            ]
+        | BuildingSpecificCUDEvent.Deleted (buildingId: BuildingId, invoicePaymentId: Guid) ->
+            writeHistoricalInvoicePaymentEntry (invoicePaymentId, buildingId) @ [
+                """
+                    UPDATE InvoicePayments 
+                    SET 
+                        IsDeleted = TRUE,
+                        LastUpdatedBy = @LastUpdatedBy,
+                        LastUpdatedAt = @LastUpdatedAt
+                    WHERE InvoicePaymentId = @InvoicePaymentId AND BuildingId = @BuildingId
+                """, [[
+                    "@InvoicePaymentId", Sql.uuid invoicePaymentId
+                    "@BuildingId", Sql.uuid buildingId
+                    "@LastUpdatedBy", Sql.string (msg.CurrentUser.Principal ())
+                    "@LastUpdatedAt", Sql.timestamp DateTime.UtcNow
+                ]]
+            ]
     | FinancialCategoryEvent event ->
         match event with
         | BuildingSpecificCUDEvent.Created validated ->

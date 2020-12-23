@@ -26,9 +26,8 @@ let createLot (storage: IStorageEngine) (msg: Message<Lot>) = async {
                 yield!
                     validated.Owners
                     |> List.collect (fun owner -> [
-                        owner
-                        |> CUDEvent.Created
-                        |> LotEvent.LotOwnerEvent
+                        (validated, owner)
+                        |> LotEvent.LotOwnerWasAdded
                         |> StorageEvent.LotEvent
                         |> inMsg msg
                     ])
@@ -78,9 +77,8 @@ let updateLot (storage: IStorageEngine) (conn: string) (msg: Message<Lot>) = asy
                     yield!
                         createdLotOwners
                         |> List.collect (fun owner -> [
-                            owner
-                            |> CUDEvent.Created
-                            |> LotEvent.LotOwnerEvent
+                            (validated, owner)
+                            |> LotEvent.LotOwnerWasAdded
                             |> StorageEvent.LotEvent
                             |> inMsg msg
                         ])
@@ -88,9 +86,8 @@ let updateLot (storage: IStorageEngine) (conn: string) (msg: Message<Lot>) = asy
                     yield!
                         updatedLotOwners
                         |> List.collect (fun owner -> [
-                            owner
-                            |> CUDEvent.Updated
-                            |> LotEvent.LotOwnerEvent
+                            (validated, owner)
+                            |> LotEvent.LotOwnerWasUpdated
                             |> StorageEvent.LotEvent
                             |> inMsg msg
                         ])
@@ -98,9 +95,8 @@ let updateLot (storage: IStorageEngine) (conn: string) (msg: Message<Lot>) = asy
                     yield!
                         deletedLotOwners
                         |> List.map (fun lotOwnerId ->
-                            lotOwnerId
-                            |> CUDEvent.Deleted
-                            |> LotEvent.LotOwnerEvent
+                            (validated.BuildingId, lotOwnerId)
+                            |> LotEvent.LotOwnerWasDeleted
                             |> StorageEvent.LotEvent
                             |> inMsg msg
                         )

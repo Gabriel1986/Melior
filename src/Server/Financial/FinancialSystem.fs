@@ -51,6 +51,9 @@ let build (config: IConfiguration) (store: IStorageEngine): IFinancialSystem =
                 | _ ->
                     return None
             }
+            member _.CreateInvoicePayment msg = Workflow.createInvoicePayment store msg
+            member _.UpdateInvoicePayment msg = Workflow.updateInvoicePayment store msg
+            member _.DeleteInvoicePayment msg = Workflow.deleteInvoicePayment store msg
 
             member _.CreateFinancialYear msg = Workflow.createFinancialYear store msg
             member _.UpdateFinancialYear msg = Workflow.updateFinancialYear store msg

@@ -77,7 +77,6 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         let newLotOwner: LotOwner = {
             LotId = state.Lot.LotId
             LotOwnerId = Guid.NewGuid()
-            BuildingId = state.Lot.BuildingId
             LotOwnerType = lotOwnerType
             StartDate = DateTimeOffset.Now
             EndDate = None
@@ -151,7 +150,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
 
 let renderEditLotOwners (state: State) (dispatch: Message -> unit) =
     let errorMessageFor index s = 
-        let path = sprintf "%s.[%i].%s" (nameof (state.Lot.Owners)) index s
+        let path = sprintf "%s[%i].%s" (nameof (state.Lot.Owners)) index s
         match state.Errors |> List.tryPick (fun (p, error) -> if p = path then Some error else None) with
         | Some error -> div [ Class Bootstrap.invalidFeedback ] [ str error ]
         | None -> null
@@ -412,7 +411,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 Label "Omschrijving"
                 TextArea [
                     Rows 4
-                    Helpers.valueOrDefault state.Lot.Description
+                    Helpers.valueOrDefault (state.Lot.Description |> Option.defaultValue "")
                     OnChange (fun e -> DescriptionChanged e.Value |> dispatch)
                 ]
                 FieldError (errorFor (nameof state.Lot.Description))

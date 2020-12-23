@@ -168,6 +168,16 @@
                 createMsg (buildingId, invoiceId)
                 |> environment.FinancialSystem.DeleteInvoice
 
+            CreateInvoicePayment = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.CreateInvoicePayment
+            UpdateInvoicePayment = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.UpdateInvoicePayment
+            DeleteInvoicePayment = fun (buildingId, paymentId) ->
+                createMsg (buildingId, paymentId)
+                |> environment.FinancialSystem.DeleteInvoicePayment
+
             GetFinancialYears = fun buildingId ->
                 createMsg buildingId
                 |> environment.FinancialSystem.GetFinancialYears

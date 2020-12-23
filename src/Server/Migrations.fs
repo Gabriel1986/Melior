@@ -595,3 +595,41 @@ type AddLinkBetweenFinancialCategoryAndLotOwner() =
             """
     override u.Down () =
         ()
+
+[<Migration(20L, "Add invoice payments and invoice payment history tables")>]
+type AddInvoicePaymentsTable() =
+    inherit Migration ()
+    override u.Up () = 
+        u.Execute
+            """
+                CREATE TABLE IF NOT EXISTS InvoicePayments (
+                    InvoiceId UUID References Invoices(InvoiceId) NOT NULL,
+                    BuildingId UUID References Buildings(BuildingId) NOT NULL,
+                    InvoicePaymentId UUID PRIMARY KEY,
+                    Amount Decimal NOT NULL,
+                    Date TIMESTAMP NOT NULL,
+                    FromBankAccount JSONB,
+                    FinancialCategoryId UUID References FinancialCategories(FinancialCategoryId) NOT NULL,
+                    CreatedAt TIMESTAMP NOT NULL,
+                    CreatedBy VARCHAR(255) NOT NULL,
+                    LastUpdatedAt TIMESTAMP NOT NULL,
+                    LastUpdatedBy VARCHAR(255) NOT NULL,
+                    IsDeleted BOOLEAN DEFAULT FALSE
+                );
+
+                CREATE TABLE IF NOT EXISTS InvoicePayments_History (
+                    InvoiceId UUID References Invoices(InvoiceId) NOT NULL,
+                    BuildingId UUID References Buildings(BuildingId) NOT NULL,
+                    InvoicePaymentId UUID,
+                    Amount Decimal NOT NULL,
+                    Date TIMESTAMP NOT NULL,
+                    FromBankAccount JSONB,
+                    FinancialCategoryId UUID References FinancialCategories(FinancialCategoryId) NOT NULL,
+                    LastUpdatedAt TIMESTAMP NOT NULL,
+                    LastUpdatedBy VARCHAR(255) NOT NULL
+                );
+
+                ALTER TABLE Invoices_History DROP CONSTRAINT invoices_history_pkey;
+            """
+    override u.Down () =
+        ()

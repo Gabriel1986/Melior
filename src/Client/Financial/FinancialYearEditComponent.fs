@@ -68,10 +68,7 @@ let update (msg: Message) (state: State): State * Cmd<Message> =
     |> (fun (state, cmd) -> recalculateValidationErrors state, cmd)
 
 let view (state: State) (dispatch: Message -> unit) =
-    let errorFor (path: string) =
-        printf "All errors: %A" state.Errors
-        printf "Path: %s" path
-        state.Errors |> List.tryPick (fun (p, error) -> if p = path then Some error else None)
+    let errorFor (path: string) = state.Errors |> List.tryPick (fun (p, error) -> if p = path then Some error else None)
 
     div [] [
         formGroup [
@@ -91,7 +88,6 @@ let view (state: State) (dispatch: Message -> unit) =
                     Flatpickr.Value (state.FinancialYear.StartDate)
                     Flatpickr.SelectionMode Flatpickr.Mode.Single
                     Flatpickr.EnableTimePicker false
-                    Flatpickr.Locale Flatpickr.Locales.dutch
                     Flatpickr.DateFormat "d/m/Y"
                 ]
                 FieldError (errorFor (nameof state.FinancialYear.StartDate))
@@ -105,7 +101,6 @@ let view (state: State) (dispatch: Message -> unit) =
                     Flatpickr.Value (state.FinancialYear.EndDate)
                     Flatpickr.SelectionMode Flatpickr.Mode.Single
                     Flatpickr.EnableTimePicker false
-                    Flatpickr.Locale Flatpickr.Locales.dutch
                     Flatpickr.DateFormat "d/m/Y"
                 ]
                 FieldError (errorFor (nameof state.FinancialYear.EndDate))

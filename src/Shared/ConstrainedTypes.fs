@@ -135,6 +135,33 @@ type VatNumber =
         else
             sprintf "%s %s" countryCode value
 
+type BelgianOGM = 
+    private | BelgianOGM of string
+    member me.Value () = match me with | BelgianOGM value -> value
+    override me.ToString () =
+        let value = me.Value ()
+        sprintf "+++%s/%s/%s+++" (value.Substring(0, 3)) (value.Substring(3, 4)) (value.Substring(7, 5))
+
+module BelgianOGM =
+    let Of path value =
+        let validationError =
+            let allDigits = value |> String.filter Char.IsDigit
+            if allDigits.Length <> 12 then
+                Some "De OGM is verkeerd geformatteerd, verwacht 123/1234/12345"
+            else
+                let digits = Int32.Parse(allDigits.Substring(0, 10))
+                let checkDigits = Int32.Parse(allDigits.Substring(10, 2))
+                if (digits + checkDigits) = 0 then
+                    None
+                else
+                    Some "Er werd een ongeldige OGM opgegeven"
+        match validationError with
+        | Some validationError -> Trial.ofError (path, validationError)
+        | None -> Trial.Pass (BelgianOGM value)
+
+    let OfOptional path value =
+        Option.map (Of path) value
+
 module VatNumber =
     let Of path (countryCode: string) (vatNumber: string) =
         let vatNumberDigits = vatNumber |> String.filter Char.IsDigit
@@ -144,7 +171,7 @@ module VatNumber =
                 None
             elif countryCode = "BE" && (vatNumberDigits.Length < 9 || vatNumberDigits.Length > 10)
             then
-                Some "Het btw nummer is verkeerd geformatteerd, verwacht BE (0)XXX.XXX.XXX of BE(0)XXXXXXXXX"
+                Some "Het BTW nummer is verkeerd geformatteerd, verwacht BE (0)123.456.789 of BE(0)123456789"
             else
                 None
         let validationError =
@@ -161,7 +188,7 @@ module VatNumber =
                 then
                     None
                 else
-                    Some "U heeft een ongeldig BTW nummer ingevoerd"
+                    Some "Er werd een ongeldig BTW nummer ingevoerd"
             else
                 //Let Vies worry about the actual validity... 
                 //There are too many ways to validate VAT numbers which differ for every EU member

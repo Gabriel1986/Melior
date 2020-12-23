@@ -1,4 +1,4 @@
-module Shared.Read
+module rec Shared.Read
 
 open System
 open Library
@@ -19,6 +19,7 @@ type BankAccount =
         IBAN: string
         BIC: string
         Validated: bool option
+        FinancialCategoryId: Guid option
     }
     override me.ToString () =
         [
@@ -32,6 +33,7 @@ type BankAccount =
         IBAN = ""
         BIC = ""
         Validated = None
+        FinancialCategoryId = None
     }
 
 type User = 
@@ -687,7 +689,7 @@ type InvoiceListItem =
         CategoryDescription: string
         InvoiceDate: DateTimeOffset
         DueDate: DateTimeOffset
-        //HasBeenPaid: bool TODO
+        IsPaid: bool
     }
     member me.LocalInvoiceNumber = Invoice.calculateLocalInvoiceNumber (me.FinancialYearCode, me.InvoiceNumber)
 
@@ -718,10 +720,47 @@ type Invoice =
         OrganizationInvoiceNumber: string option //Number @ supplier
         InvoiceDate: DateTimeOffset //Date on the invoice
         DueDate: DateTimeOffset //Due date of the invoice
-        //PaymentIds: Guid list
+        Payments: InvoicePayment list
         MediaFiles: MediaFile list
     }
     member me.LocalInvoiceNumber = Invoice.calculateLocalInvoiceNumber (me.FinancialYear.Code, me.InvoiceNumber)
+
+and InvoicePayment = {
+    InvoiceId: Guid
+    BuildingId: BuildingId
+    InvoicePaymentId: Guid
+    Amount: Decimal
+    Date: DateTime
+    FromBankAccount: BankAccount
+    FinancialCategoryId: Guid
+    MediaFiles: MediaFile list
+}
+
+type PaymentRequestReference =
+    | BelgianOGMReference of string
+
+type OwnerDepositRequest = {
+    OwnerId: Guid
+    BuildingId: Guid
+    OwnerDepositRequestId: Guid
+    MatchingOwnerDeposits: OwnerDeposit list
+    Amount: Decimal
+    CreationDate: DateTime
+    RequestDate: DateTime
+    RequestReference: PaymentRequestReference
+    RequestInfo: string
+    MediaFiles: MediaFile list
+}
+and OwnerDeposit = {
+    OwnerDepositId: Guid
+    Amount: Decimal
+    Date: DateTime
+    OwnerDepositRequestId: Guid
+    FromBankAccount: BankAccount
+    ToBankAccount: BankAccount
+    ToFinancialCategory: FinancialCategory
+    MediaFiles: MediaFile list
+}
 
 [<RequireQualifiedAccess>]
 type Concept =

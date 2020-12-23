@@ -22,7 +22,7 @@ let render (address: Address) (onChange: (Address -> unit) option) (basePath: st
                     Input [
                         Type "text"
                         MaxLength 255.0 
-                        Helpers.valueOrDefault address.Street
+                        Helpers.valueOrDefault (address.Street |> Option.defaultValue "")
                         match onChange with
                         | Some onChange -> OnChange (fun e -> { address with Street = e.Value |> String.toOption } |> onChange)
                         | None -> Disabled true
@@ -36,7 +36,7 @@ let render (address: Address) (onChange: (Address -> unit) option) (basePath: st
                     Input [ 
                         Type "text"
                         MaxLength 16.0 
-                        Helpers.valueOrDefault address.MailboxNumber
+                        Helpers.valueOrDefault (address.MailboxNumber |> Option.defaultValue "")
                         match onChange with
                         | Some onChange -> OnChange (fun e -> { address with MailboxNumber = e.Value |> String.toOption } |> onChange)
                         | None -> Disabled true
@@ -52,7 +52,7 @@ let render (address: Address) (onChange: (Address -> unit) option) (basePath: st
                     Input [ 
                         Type "text"
                         MaxLength 12.0 
-                        Helpers.valueOrDefault address.ZipCode
+                        Helpers.valueOrDefault (address.ZipCode |> Option.defaultValue "")
                         match onChange with
                         | Some onChange -> OnChange (fun e -> { address with ZipCode = e.Value |> String.toOption } |> onChange)
                         | None -> Disabled true                        
@@ -66,7 +66,7 @@ let render (address: Address) (onChange: (Address -> unit) option) (basePath: st
                     Input [ 
                         Type "text"
                         MaxLength 255.0
-                        Helpers.valueOrDefault address.Town
+                        Helpers.valueOrDefault (address.Town |> Option.defaultValue "")
                         match onChange with
                         | Some onChange -> OnChange (fun e -> { address with Town = e.Value |> String.toOption } |> onChange)
                         | None -> Disabled true                        
@@ -80,7 +80,7 @@ let render (address: Address) (onChange: (Address -> unit) option) (basePath: st
                     Input [ 
                         Type "text"
                         MaxLength 255.0 
-                        Helpers.valueOrDefault address.Country
+                        Helpers.valueOrDefault (address.Country |> Option.defaultValue "")
                         match onChange with
                         | Some onChange -> OnChange (fun e -> { address with Country = e.Value |> String.toOption } |> onChange)
                         | None -> Disabled true

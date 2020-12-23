@@ -102,8 +102,10 @@ let init (props: OrganizationEditComponentProps) =
     let componentState, componentCmd =
         BankAccountEditComponent.init
             {|
+                CurrentBuildingId = None
                 BankAccounts = organization.BankAccounts
                 BasePath = nameof (organization.BankAccounts)
+                ShowFinancialCategorySelection = false
             |}
 
     { 
@@ -530,7 +532,7 @@ let private renderOrganizationNumber state dispatch =
                         Pattern "[0-9]{4}\.[0-9]{3}\.[0-9]{3}"
                         MaxLength 12.0
                         Placeholder "xxxx.xxx.xxx"
-                        Helpers.valueOrDefault state.Organization.OrganizationNumber
+                        Helpers.valueOrDefault (state.Organization.OrganizationNumber |> Option.defaultValue "")
                         OnChange (fun e -> OrganizationNumberChanged e.Value |> dispatch)
                     ]
                 ]
@@ -541,7 +543,7 @@ let private renderOrganizationNumber state dispatch =
                         Type "text"
                         MinLength 4.0
                         MaxLength 15.0
-                        Helpers.valueOrDefault state.Organization.VatNumber
+                        Helpers.valueOrDefault (state.Organization.VatNumber |> Option.defaultValue "")
                         OnChange (fun e -> VatNumberChanged e.Value |> dispatch)
                     ]
                     InputAppend [
@@ -623,7 +625,7 @@ let view (state: State) (dispatch: Message -> unit) =
             Input [ 
                 Type "tel"
                 MaxLength 32.0 
-                Helpers.valueOrDefault state.Organization.MainTelephoneNumber
+                Helpers.valueOrDefault (state.Organization.MainTelephoneNumber |> Option.defaultValue "")
                 OnChange (fun e -> MainTelephoneNumberChanged e.Value |> dispatch)
             ] 
         ]
@@ -632,7 +634,7 @@ let view (state: State) (dispatch: Message -> unit) =
             Input [ 
                 Type "text"
                 MaxLength 255.0 
-                Helpers.valueOrDefault state.Organization.MainTelephoneNumberComment
+                Helpers.valueOrDefault (state.Organization.MainTelephoneNumberComment |> Option.defaultValue "")
                 OnChange (fun e -> MainTelephoneNumberCommentChanged e.Value |> dispatch)
             ] 
         ]
@@ -641,7 +643,7 @@ let view (state: State) (dispatch: Message -> unit) =
             Input [ 
                 Type "email"
                 MaxLength 255.0 
-                Helpers.valueOrDefault state.Organization.MainEmailAddress
+                Helpers.valueOrDefault (state.Organization.MainEmailAddress |> Option.defaultValue "")
                 OnChange (fun e -> MainEmailAddressChanged e.Value |> dispatch)
             ] 
         ]
@@ -650,7 +652,7 @@ let view (state: State) (dispatch: Message -> unit) =
             Input [
                 Type "text"
                 MaxLength 255.0
-                Helpers.valueOrDefault state.Organization.MainEmailAddressComment
+                Helpers.valueOrDefault (state.Organization.MainEmailAddressComment |> Option.defaultValue "")
                 OnChange (fun e -> MainEmailAddressCommentChanged e.Value |> dispatch)
             ] 
         ]

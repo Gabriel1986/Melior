@@ -87,7 +87,7 @@ module Helpers =
             }
         ]
 
-    let private formRadio (props: FormRadio) =
+    let private formRadio (props: FormRadio) (hasError: bool) =
         let toRadio (radio: FormRadioButton) =
             div [ 
                     classes [ yield Bootstrap.formCheck; if props.Inline then yield Bootstrap.formCheckInline ]
@@ -109,14 +109,14 @@ module Helpers =
                             ] [ str radio.Label ]
                 ]
 
-        div [] (props.RadioButtons |> List.map toRadio)
+        div [ if hasError then yield Class Bootstrap.isInvalid ] (props.RadioButtons |> List.map toRadio)
 
-    let private formSelect (props: FormSelect) =
+    let private formSelect (props: FormSelect) (hasError: bool) =
         let selected = props.Options |> List.tryFind (fun opt -> opt.IsSelected)
         let toOption (opt: FormSelectOption) =
             option [ Value opt.Key ] [ str opt.Label ]
 
-        select [ Class Bootstrap.formControl; Id props.Identifier; Value (selected |> Option.map (fun s -> s.Key) |> Option.defaultValue "") ; OnChange (fun e -> props.OnChanged e.Value) ] [
+        select [ classes [ yield Bootstrap.formControl; if hasError then yield Bootstrap.isInvalid ]; Id props.Identifier; Value (selected |> Option.map (fun s -> s.Key) |> Option.defaultValue "") ; OnChange (fun e -> props.OnChanged e.Value) ] [
             yield! props.Options |> List.map toOption
         ]
 
@@ -153,9 +153,9 @@ module Helpers =
             if textAreaAttributes.IsSome then
                 yield textarea (Seq.append textAreaAttributes.Value [ classes [ yield Bootstrap.formControl; if error.IsSome then yield Bootstrap.isInvalid ] ]) []
             if selectProps.IsSome then
-                yield formSelect selectProps.Value
+                yield formSelect selectProps.Value (error.IsSome)
             if radioProps.IsSome then
-                yield formRadio radioProps.Value
+                yield formRadio radioProps.Value (error.IsSome)
             if dateProps.IsSome then
                 yield
                     Flatpickr.flatpickr ([

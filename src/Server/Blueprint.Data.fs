@@ -28,6 +28,7 @@ module Financial =
                 IBAN = get.Required.Field "IBAN" Decode.string
                 BIC = get.Required.Field "BIC" Decode.string
                 Validated = get.Optional.Field "Validated" Decode.bool
+                FinancialCategoryId = get.Optional.Field "FinancialCategoryId" Decode.guid
             })
         let private bankAccountListEncoder = Encode.Auto.generateEncoderCached<BankAccount list>()
     
@@ -60,6 +61,7 @@ module Financial =
             IBAN = match validated.IBAN with | Some iban -> string iban | None -> ""
             BIC = match validated.BIC with | Some bic -> string bic | None -> ""
             Validated = validated.Validated
+            FinancialCategoryId = validated.FinancialCategoryId
         }
 
         let toJson (validated: ValidatedBankAccount): string =
@@ -199,6 +201,7 @@ module Storage =
     type FinancialEvent =
         | DistributionKeyEvent of BuildingSpecificCUDEvent<ValidatedDistributionKey>
         | InvoiceEvent of BuildingSpecificCUDEvent<ValidatedInvoice>
+        | InvoicePaymentEvent of BuildingSpecificCUDEvent<ValidatedInvoicePayment>
         | FinancialCategoryEvent of BuildingSpecificCUDEvent<ValidatedFinancialCategory>
         | FinancialYearEvent of BuildingSpecificCUDEvent<ValidatedFinancialYear>
         | FinancialYearWasClosed of ValidatedFinancialYear

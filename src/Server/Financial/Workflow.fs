@@ -139,6 +139,59 @@ let deleteInvoice (store: IStorageEngine) (msg: Message<BuildingId * Guid>) = as
         return Error DeleteInvoiceError.AuthorizationError
 }
 
+let createInvoicePayment (store: IStorageEngine) (msg: Message<InvoicePayment>) = async {
+    match (msg.CurrentUser, Some msg.Payload.BuildingId) with
+    | Authorized ->
+        match ValidatedInvoicePayment.Validate msg.Payload with
+        | Ok validated ->
+            let! _ = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Created
+                |> FinancialEvent.InvoicePaymentEvent
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg
+            ]
+            return Ok ()
+        | Error validationErrors ->
+            return Error (SaveInvoicePaymentError.Validation validationErrors)
+    | Unauthorized ->
+        return Error SaveInvoicePaymentError.AuthorizationError
+}
+
+let updateInvoicePayment (store: IStorageEngine) (msg: Message<InvoicePayment>) = async {
+    match (msg.CurrentUser, Some msg.Payload.BuildingId) with
+    | Authorized ->
+        match ValidatedInvoicePayment.Validate msg.Payload with
+        | Ok validated ->
+            let! nbUpdated = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Updated
+                |> FinancialEvent.InvoicePaymentEvent
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg
+            ]
+            return if nbUpdated > 0 then Ok () else Error (SaveInvoicePaymentError.NotFound)
+        | Error validationErrors ->
+            return Error (SaveInvoicePaymentError.Validation validationErrors)
+    | Unauthorized ->
+        return Error SaveInvoicePaymentError.AuthorizationError
+}
+
+let deleteInvoicePayment (store: IStorageEngine) (msg: Message<BuildingId * Guid>) = async {
+    match (msg.CurrentUser, Some (fst msg.Payload)) with
+    | Authorized ->
+        let! nbRows = store.PersistTransactional [
+            msg.Payload
+            |> BuildingSpecificCUDEvent.Deleted
+            |> FinancialEvent.InvoicePaymentEvent
+            |> StorageEvent.FinancialEvent
+            |> inMsg msg
+        ]
+        return if nbRows > 0 then Ok () else Error DeleteInvoicePaymentError.NotFound
+    | Unauthorized ->
+        return Error DeleteInvoicePaymentError.AuthorizationError
+}
+
 let createFinancialYear (store: IStorageEngine) (msg: Message<FinancialYear>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->

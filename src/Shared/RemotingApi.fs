@@ -100,6 +100,15 @@ type DeleteInvoiceError =
     | AuthorizationError
     | NotFound
 
+type SaveInvoicePaymentError =
+    | AuthorizationError
+    | Validation of (string * string) list
+    | NotFound
+
+type DeleteInvoicePaymentError =
+    | AuthorizationError
+    | NotFound
+
 type SaveUserError =
     | AuthorizationError
     | Validation of (string * string) list
@@ -193,6 +202,10 @@ type RemotingApi = {
     CreateInvoice: Invoice -> Async<Result<unit, SaveInvoiceError>>
     UpdateInvoice: Invoice -> Async<Result<unit, SaveInvoiceError>>
     DeleteInvoice: BuildingId * Guid -> Async<Result<unit, DeleteInvoiceError>>
+
+    CreateInvoicePayment: InvoicePayment -> Async<Result<unit, SaveInvoicePaymentError>>
+    UpdateInvoicePayment: InvoicePayment -> Async<Result<unit, SaveInvoicePaymentError>>
+    DeleteInvoicePayment: BuildingId * Guid -> Async<Result<unit, DeleteInvoicePaymentError>>
 
     GetFinancialYears: BuildingId -> Async<FinancialYear list>
     CloseFinancialYear: BuildingId * Guid -> Async<Result<unit, SaveFinancialYearError>>

@@ -74,6 +74,7 @@ type SortableInvoiceListItemAttribute =
     | DistributionKey
     | Cost
     | DueDate
+    | IsPaid
     override me.ToString () =
         match me with
         | InvoiceNumber -> "Nr."
@@ -81,6 +82,7 @@ type SortableInvoiceListItemAttribute =
         | DistributionKey -> "Sleutel"
         | Cost -> "Totaal"
         | DueDate -> "Betaaldag"
+        | IsPaid -> "Betaald"
     member me.ReactElementFor': InvoiceListItem -> ReactElement =
         match me with
         | Organization -> (fun li -> 
@@ -96,15 +98,20 @@ type SortableInvoiceListItemAttribute =
         | DistributionKey -> (fun li -> li.DistributionKeyName)
         | Cost -> (fun li -> string li.Cost)
         | DueDate -> (fun li -> sprintf "%02i-%02i-%i" li.DueDate.Day li.DueDate.Month li.DueDate.Year)
+        | IsPaid -> (fun li -> if li.IsPaid then "Ja" else "Nee")
     member me.Compare': InvoiceListItem -> InvoiceListItem -> int =
         match me with
         | DueDate -> 
             fun li otherLi -> li.DueDate.CompareTo(otherLi.DueDate)
         | Cost ->
             fun li otherLi -> int li.Cost - int otherLi.Cost
-        | _     -> 
+        | IsPaid ->
+            fun li otherLi ->
+                if li.IsPaid = otherLi.IsPaid then 0 
+                elif li.IsPaid && not otherLi.IsPaid then 1 else -1
+        | _ ->
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
-    static member All = [ InvoiceNumber; Organization; DistributionKey; Cost; DueDate ]
+    static member All = [ InvoiceNumber; Organization; DistributionKey; Cost; DueDate; IsPaid ]
     interface ISortableAttribute<InvoiceListItem> with
         member me.ReactElementFor = me.ReactElementFor'
         member _.ExtraHeaderAttributes = Seq.empty
@@ -193,6 +200,10 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         CategoryCode = invoice.FinancialCategory.Code
         CategoryDescription = invoice.FinancialCategory.Description
         DueDate = invoice.DueDate
+        IsPaid =
+            let cost = invoice.Cost
+            let paidAmount = invoice.Payments |> List.sumBy (fun payment -> payment.Amount)
+            cost - paidAmount = Decimal.Zero
     }
 
     let periodChanged (period: InvoiceFilterPeriod) =

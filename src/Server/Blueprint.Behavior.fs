@@ -164,6 +164,10 @@ module Financial =
         abstract UpdateInvoice: Message<Invoice> -> Async<Result<unit, SaveInvoiceError>>
         abstract DeleteInvoice: Message<BuildingId * Guid> -> Async<Result<unit, DeleteInvoiceError>>
 
+        abstract CreateInvoicePayment: Message<InvoicePayment> -> Async<Result<unit, SaveInvoicePaymentError>>
+        abstract UpdateInvoicePayment: Message<InvoicePayment> -> Async<Result<unit, SaveInvoicePaymentError>>
+        abstract DeleteInvoicePayment: Message<BuildingId * Guid> -> Async<Result<unit, DeleteInvoicePaymentError>>
+
         abstract CreateFinancialYear: Message<FinancialYear> -> Async<Result<unit, SaveFinancialYearError>>
         abstract UpdateFinancialYear: Message<FinancialYear> -> Async<Result<unit, SaveFinancialYearError>>
         abstract CloseFinancialYear: Message<BuildingId * Guid> -> Async<Result<unit, SaveFinancialYearError>>

@@ -39,6 +39,7 @@ type InvoiceInputModel =
         OrganizationBankAccount: BankAccount option
         OrganizationInvoiceNumber: string option //Number @ supplier
         MediaFiles: MediaFile list
+        Payments: InvoicePayment list
     }
     static member Init (buildingId: BuildingId): InvoiceInputModel = {
         InvoiceId = Guid.NewGuid()
@@ -57,6 +58,7 @@ type InvoiceInputModel =
         OrganizationInvoiceNumber = None
         OrganizationBankAccount = None
         MediaFiles = []
+        Payments = []
     } 
     static member fromInvoice (invoice: Invoice): InvoiceInputModel = {
         InvoiceId = invoice.InvoiceId
@@ -64,7 +66,7 @@ type InvoiceInputModel =
         FinancialYear = Some invoice.FinancialYear
         InvoiceNumber = Some invoice.InvoiceNumber
         Description = invoice.Description
-        Cost = Some (invoice.Cost.ToString().Replace(".", ","))
+        Cost = Some (String.Format("{0:0.00}", invoice.Cost).Replace(".", ","))
         VatRate = invoice.VatRate
         FinancialCategory = Some invoice.FinancialCategory
         BookingDate = invoice.BookingDate
@@ -75,6 +77,7 @@ type InvoiceInputModel =
         OrganizationInvoiceNumber = invoice.OrganizationInvoiceNumber
         OrganizationBankAccount = Some invoice.OrganizationBankAccount
         MediaFiles = invoice.MediaFiles
+        Payments = invoice.Payments
     }
 
     member me.Validate (): Result<Invoice, (string * string) list> = 
@@ -114,7 +117,8 @@ type InvoiceInputModel =
                 OrganizationInvoiceNumber = me.OrganizationInvoiceNumber
                 InvoiceDate = me.InvoiceDate
                 DueDate = me.DueDate
-                MediaFiles = []
+                MediaFiles = me.MediaFiles
+                Payments = me.Payments
             }
         }
         |> Trial.toResult
@@ -123,6 +127,7 @@ type Message =
     | CostChanged of string
     | VatRateChanged of int
     | FinancialYearChanged of FinancialYear
+    | FinancialYearsLoaded of FinancialYear list
     | ChangeCategory
     | CategoryChanged of FinancialCategory option
     | CancelChangeFinancialCategory
@@ -141,8 +146,6 @@ type Message =
     | OrganizationAccountBICChanged of string
     | OrganizationAccountIBANChanged of string
 
-    | FinancialYearsLoaded of FinancialYear list
-    | FinancialCategoriesLoaded of FinancialCategory list
     | DistributionKeysLoaded of DistributionKeyListItem list
     | OrganizationsLoaded of OrganizationListItem list
     | RemotingException of exn
@@ -150,15 +153,10 @@ type Message =
     | MediaFileAdded of MediaFile
     | MediaFileRemoved of MediaFile
 
-    | AddPayment
-    | CancelPayment
-
 type State = {
     Invoice: InvoiceInputModel
     FinancialYears: FinancialYear list
     LoadingFinancialYears: bool
-    FinancialCategories: FinancialCategory list
-    LoadingFinancialCategories: bool
     DistributionKeys: DistributionKeyListItem list
     LoadingDistributionKeys: bool
     Organizations: OrganizationListItem list
@@ -169,24 +167,27 @@ type State = {
     CurrentBuilding: BuildingListItem
     Errors: (string * string) list
     SelectedOrganization: OrganizationListItem option
-    ShowingPaymentModal: bool
 }
 
-let init (invoice: Invoice option, currentBuilding: BuildingListItem) =
+type InvoiceEditComponentProps =
+    {|
+        Invoice: Invoice option
+        CurrentBuilding: BuildingListItem
+    |}
+
+let init (props: InvoiceEditComponentProps) =
     let remotingApi = Client.Remoting.getRemotingApi()
     let inputModel =
-        match invoice with
+        match props.Invoice with
         | Some invoice ->
             InvoiceInputModel.fromInvoice (invoice)
         | None ->
-            InvoiceInputModel.Init (currentBuilding.BuildingId)
+            InvoiceInputModel.Init (props.CurrentBuilding.BuildingId)
 
     {
         Invoice = inputModel
         FinancialYears = []
         LoadingFinancialYears = true
-        FinancialCategories = []
-        LoadingFinancialCategories = true
         DistributionKeys = []
         LoadingDistributionKeys = true
         Organizations = []
@@ -195,13 +196,11 @@ let init (invoice: Invoice option, currentBuilding: BuildingListItem) =
         ShowingDistributionKeyModal = false
         ShowingOrganizationModal = false
         Errors = []
-        CurrentBuilding = currentBuilding
+        CurrentBuilding = props.CurrentBuilding
         SelectedOrganization = None
-        ShowingPaymentModal = false
     }
     , Cmd.batch [
         Cmd.OfAsync.either remotingApi.GetFinancialYears inputModel.BuildingId FinancialYearsLoaded RemotingException
-        Cmd.OfAsync.either remotingApi.GetFinancialCategories inputModel.BuildingId FinancialCategoriesLoaded RemotingException
         Cmd.OfAsync.either remotingApi.GetDistributionKeyListItems inputModel.BuildingId DistributionKeysLoaded RemotingException
         Cmd.OfAsync.either remotingApi.GetOrganizations inputModel.BuildingId OrganizationsLoaded RemotingException
     ]
@@ -301,9 +300,12 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         |> changeInvoice (fun invoice -> { invoice with OrganizationBankAccount = Some { account with IBAN = newIban' } })
         , Cmd.none        
     | FinancialYearsLoaded financialYears ->
-        { state with LoadingFinancialYears = false; FinancialYears = financialYears }, Cmd.none
-    | FinancialCategoriesLoaded financialCategories ->
-        { state with LoadingFinancialCategories = false; FinancialCategories = financialCategories }, Cmd.none 
+        { state with LoadingFinancialYears = false; FinancialYears = financialYears }
+        |> changeInvoice (fun invoice -> 
+            match invoice.FinancialYear with 
+            | None -> { invoice with FinancialYear = financialYears |> List.tryHead } 
+            | Some _ -> invoice)
+        , Cmd.none
     | DistributionKeysLoaded distributionKeys ->
         { state with LoadingDistributionKeys = false; DistributionKeys = distributionKeys }, Cmd.none
     | OrganizationsLoaded organizations ->
@@ -315,10 +317,6 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         }, Cmd.none
     | RemotingException error ->
         state, showGenericErrorModalCmd error
-    | AddPayment ->
-        { state with ShowingPaymentModal = true }, Cmd.none
-    | CancelPayment ->
-        { state with ShowingPaymentModal = false }, Cmd.none
     | MediaFileAdded mediaFile ->
         state |> changeInvoice (fun i -> { i with MediaFiles = mediaFile::i.MediaFiles })
         , Cmd.none
@@ -331,7 +329,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
 let inColumn x = div [ Class Bootstrap.col ] [ x ]
 let inColumn' colClass x = div [ Class colClass ] [ x ]
 
-let view (state: State) (dispatch: Message -> unit) =
+let view (financialCategories: FinancialCategory list) (state: State) (dispatch: Message -> unit) =
     let errorFor (path: string) =
         state.Errors |> List.tryPick (fun (p, error) -> if p = path then Some error else None)
 
@@ -396,37 +394,6 @@ let view (state: State) (dispatch: Message -> unit) =
         | None ->
             0 |> decimal
 
-    let renderFinancialCategoryModal (props: {| SelectedCategoryCode: string option; FinancialCategories: FinancialCategory list; Showing: bool |}) =
-        BasicModal.render 
-            {| 
-                ModalProps = [
-                    IsOpen props.Showing
-                    DisableBackgroundClick false
-                    OnDismiss (fun _ -> dispatch CancelChangeFinancialCategory)
-                    Header [
-                        HeaderProp.Title "Boekhoudkundige rekening selecteren"
-                        HeaderProp.HasDismissButton true
-                    ]
-                    Body [
-                        SelectionList.render (
-                            {|
-                                SelectionMode = SelectionMode.SingleSelect
-                                //Only financial categories starting with 6 should be shown.
-                                AllItems = props.FinancialCategories |> List.filter (fun cat -> cat.Code.StartsWith("6")) |> List.sortBy (fun cat -> cat.Code)
-                                SelectedItems = 
-                                    match props.SelectedCategoryCode with
-                                    | Some selected -> props.FinancialCategories |> List.filter (fun cat -> cat.Code = selected)
-                                    | None -> []
-                                OnSelectionChanged = fun selection -> Message.CategoryChanged (selection |> List.tryHead) |> dispatch
-                                ListItemToString = (fun financialCategory -> sprintf "%s - %s" financialCategory.Code financialCategory.Description)
-                            |}, "FinancialCategorySelectionList")
-                    ]
-                    Footer [
-                        //yield FooterProp.Buttons []
-                    ]
-                ]
-            |}
-
     let renderDistributionKeyModal (props: {| SelectedDistributionKey: DistributionKeyListItem option; AllDistributionKeys: DistributionKeyListItem list; Showing: bool |}) =
         BasicModal.render
             {| 
@@ -484,26 +451,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 ]
             |}
 
-    let renderPaymentModal (isOpen: {| Showing: bool |}) =
-        BasicModal.render 
-            {|
-                ModalProps = [
-                    ModalProp.IsOpen isOpen.Showing
-                    OnDismiss (fun _ -> CancelPayment |> dispatch)
-                    ModalProp.Header [
-                        HeaderProp.HasDismissButton true
-                        HeaderProp.Title "Betaling"
-                    ]
-                    ModalProp.Body [
-                        div [] [ str "Deze pagina is nog niet beschikbaar" ]
-                    ]
-                    ModalProp.Footer [
-                        FooterProp.ShowDismissButton (Some "Annuleren")
-                    ]
-                ]
-            |}
-
-    div [] [
+    [
         div [ Class Bootstrap.row ] [
             formGroup [ 
                 Label "Boekjaar"
@@ -519,7 +467,6 @@ let view (state: State) (dispatch: Message -> unit) =
                     Flatpickr.Value (state.Invoice.BookingDate)
                     Flatpickr.SelectionMode Flatpickr.Mode.Single
                     Flatpickr.EnableTimePicker false
-                    Flatpickr.Locale Flatpickr.Locales.dutch
                     Flatpickr.DateFormat "d/m/Y"
                 ]
                 FieldError (errorFor (nameof state.Invoice.BookingDate))
@@ -548,6 +495,7 @@ let view (state: State) (dispatch: Message -> unit) =
                         span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
                     ]
                 ]
+                FieldError (errorFor (nameof state.Invoice.FinancialCategory))
             ]
             |> inColumn
         ]
@@ -559,7 +507,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     ReadOnly true
                     Style [ BackgroundColor "unset"; Cursor "pointer" ]
                     OnClick (fun _ -> ChangeOrganization |> dispatch)
-                    Helpers.valueOrDefault (state.Invoice.Organization |> Option.map (fun o -> o.Name))
+                    valueOrDefault (state.Invoice.Organization |> Option.map (fun o -> o.Name) |> Option.defaultValue "")
                 ]
                 InputAppend [
                     button [ 
@@ -573,19 +521,6 @@ let view (state: State) (dispatch: Message -> unit) =
             ]
             |> inColumn
 
-            //formGroup [
-            //    Label "Leverancier"
-            //    InputWithIcon ([ FontAwesome.fas; FontAwesome.faSearch ], [
-            //        Type "text"
-            //        Style [ Cursor "pointer"; BackgroundColor "unset" ]
-            //        ReadOnly true
-            //        OnClick (fun _ -> ChangeOrganization |> dispatch)
-            //        valueOrDefault 
-            //    ])
-            //    FieldError ()
-            //]
-            //|> inColumn
-
             match state.Invoice.Organization |> Option.map (fun o -> o.VatNumber), state.Invoice.Organization |> Option.map (fun o -> o.OrganizationNumber) with
             | Some vatNumber, _ ->               
                 formGroup [
@@ -593,7 +528,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Input [
                         Type "text"
                         Disabled true
-                        valueOrDefault vatNumber
+                        valueOrDefault (vatNumber |> Option.defaultValue "")
                     ]
                 ]
             | _, Some orgNr ->
@@ -602,7 +537,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Input [
                         Type "text"
                         Disabled true
-                        valueOrDefault orgNr
+                        valueOrDefault (orgNr |> Option.defaultValue "")
                     ]
                 ]
             | _ ->
@@ -623,7 +558,7 @@ let view (state: State) (dispatch: Message -> unit) =
                 Input [
                     Type "text"
                     OnChange (fun e -> ExternalInvoiceNumberChanged e.Value |> dispatch)
-                    valueOrDefault (state.Invoice.OrganizationInvoiceNumber)
+                    valueOrDefault (state.Invoice.OrganizationInvoiceNumber |> Option.defaultValue "")
                 ]
                 FieldError (errorFor (nameof state.Invoice.InvoiceNumber))
             ]
@@ -635,7 +570,6 @@ let view (state: State) (dispatch: Message -> unit) =
                     Flatpickr.Value (state.Invoice.InvoiceDate.LocalDateTime)
                     Flatpickr.SelectionMode Flatpickr.Mode.Single
                     Flatpickr.EnableTimePicker false
-                    Flatpickr.Locale Flatpickr.Locales.dutch
                     Flatpickr.DateFormat "d/m/Y"
                 ]
                 FieldError (errorFor (nameof state.Invoice.InvoiceDate))
@@ -648,7 +582,6 @@ let view (state: State) (dispatch: Message -> unit) =
                     Flatpickr.Value (state.Invoice.DueDate.LocalDateTime)
                     Flatpickr.SelectionMode Flatpickr.Mode.Single
                     Flatpickr.EnableTimePicker false
-                    Flatpickr.Locale Flatpickr.Locales.dutch
                     Flatpickr.DateFormat "d/m/Y"
                 ]
                 FieldError (errorFor (nameof state.Invoice.DueDate))
@@ -658,10 +591,13 @@ let view (state: State) (dispatch: Message -> unit) =
         div [ Class Bootstrap.row ] [
             formGroup [
                 Label "Bedrag (Incl. BTW)"
+                InputPrepend [
+                    span [ Class Bootstrap.inputGroupText ] [ str "€" ]
+                ]
                 Input [
                     Type "text"
                     OnChange (fun e -> CostChanged e.Value |> dispatch)
-                    valueOrDefault (state.Invoice.Cost)
+                    valueOrDefault (state.Invoice.Cost |> Option.defaultValue "")
                 ]
                 FieldError (errorFor (nameof state.Invoice.Cost))
             ]
@@ -699,6 +635,7 @@ let view (state: State) (dispatch: Message -> unit) =
                         span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
                     ]
                 ]
+                FieldError (errorFor (nameof state.Invoice.DistributionKey))
             ]
             |> inColumn
         ]
@@ -727,7 +664,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Type "text"
                     MaxLength 64.0
                     Disabled (noOrgFound || orgBankAccountSelected)
-                    valueOrDefault (state.Invoice.OrganizationBankAccount |> Option.map (fun account -> account.IBAN))
+                    valueOrDefault (state.Invoice.OrganizationBankAccount |> Option.map (fun account -> account.IBAN) |> Option.defaultValue "")
                 ]
                 FieldError (errorFor (nameof state.Invoice.OrganizationBankAccount))
             ]
@@ -738,7 +675,7 @@ let view (state: State) (dispatch: Message -> unit) =
                     Type "text"
                     MaxLength 11.0
                     Disabled (noOrgFound || orgBankAccountSelected)
-                    valueOrDefault (state.Invoice.OrganizationBankAccount |> Option.map (fun account -> account.BIC))
+                    valueOrDefault (state.Invoice.OrganizationBankAccount |> Option.map (fun account -> account.BIC) |> Option.defaultValue "")
                 ]
                 FieldError (errorFor (nameof state.Invoice.OrganizationBankAccount))
             ]
@@ -770,25 +707,14 @@ let view (state: State) (dispatch: Message -> unit) =
                 |}
         ]
 
-        //div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
-        //    div [ Class Bootstrap.cardBody ] [
-        //        button [ 
-        //            classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ] 
-        //            OnClick (fun _ -> AddPayment |> dispatch)
-        //        ][
-        //            i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
-        //            str " "
-        //            str "Betaling toevoegen"
-        //        ]
-        //    ]
-        //]
-
-
-        renderFinancialCategoryModal 
+        FinancialCategorySelectionModal.render 
             {|
-                SelectedCategoryCode = state.Invoice.FinancialCategory |> Option.map (fun cat -> cat.Code)
-                FinancialCategories = state.FinancialCategories 
+                SelectedCategoryId = state.Invoice.FinancialCategory |> Option.map (fun cat -> cat.FinancialCategoryId)
+                FinancialCategories = financialCategories 
                 Showing = state.ShowingFinancialCategoryModal
+                OnCancelSelection = fun () -> dispatch (CancelChangeFinancialCategory)
+                OnSelectionChanged = fun (selected) -> dispatch (CategoryChanged selected)
+                Filter = Some (fun cat -> cat.Code.StartsWith("6"))
             |}
         renderDistributionKeyModal 
             {| 
@@ -802,8 +728,5 @@ let view (state: State) (dispatch: Message -> unit) =
                 AllOrganizations = state.Organizations 
                 Showing = state.ShowingOrganizationModal
             |}
-        renderPaymentModal 
-            {|
-                Showing = state.ShowingPaymentModal
-            |}
     ]
+    |> fragment []

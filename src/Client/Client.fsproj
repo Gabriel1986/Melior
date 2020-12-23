@@ -45,6 +45,7 @@
     <Compile Include="Routing.fs" />
     <Compile Include="Components\BasicModal.fs" />
     <Compile Include="Components\SelectionModal.fs" />
+    <Compile Include="Components\FinancialCategorySelectionModal.fs" />
     <Compile Include="Components\BankAccountEditComponent.fs" />
     <Compile Include="Components\AddressEditComponent.fs" />
     <Compile Include="Components\PersonViewComponent.fs" />
@@ -85,6 +86,10 @@
     <Compile Include="Users\UserDetails.fs" />
     <Compile Include="Users\UsersPage.fs" />
     <Compile Include="Users\MyAccount.fs" />
+    <Compile Include="Financial\Invoicing\InvoicePaymentTypes.fs" />
+    <Compile Include="Financial\Invoicing\InvoicePaymentViewComponent.fs" />
+    <Compile Include="Financial\Invoicing\InvoicePaymentEditComponent.fs" />
+    <Compile Include="Financial\Invoicing\InvoicePaymentModal.fs" />
     <Compile Include="Financial\Invoicing\InvoiceEditComponent.fs" />
     <Compile Include="Financial\Invoicing\InvoiceViewComponent.fs" />
     <Compile Include="Financial\Invoicing\InvoiceDetails.fs" />
@@ -104,6 +109,10 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Financial\Deposits\" />
+    <Folder Include="Financial\FinancialTransactions\" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

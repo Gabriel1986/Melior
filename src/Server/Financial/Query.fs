@@ -102,10 +102,13 @@ let readInvoiceListItem (reader: CaseInsensitiveRowReader): InvoiceListItem = {
     InvoiceDate = 
         let dt = reader.dateTime "InvoiceDate"
         new DateTimeOffset(dt.Year, dt.Month, dt.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
-
     DueDate = 
         let dt = reader.dateTime "DueDate"
         new DateTimeOffset(dt.Year, dt.Month, dt.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
+    IsPaid =
+        let cost = reader.decimal "Cost"
+        let paidAmount = reader.decimalOrNone "PaidAmount" |> Option.defaultValue Decimal.Zero
+        cost - paidAmount = Decimal.Zero
 }
 
 let readFinancialYear (reader: CaseInsensitiveRowReader): FinancialYear = {
@@ -211,8 +214,8 @@ let getDistributionKeysByIds (conn: string) (buildingId: BuildingId, distributio
                 DistributionKeyId,
                 BuildingId,
                 Name,
-                DistributionKeyType
-            FROM DistributionKeys WHERE BuildingId = @BuildingId AND DistributionKeyId = ANY (@DistributionKeyIds) AND IsDeleted = FALSE
+                DistributionType
+            FROM DistributionKeys WHERE (BuildingId = @BuildingId OR BuildingId IS NULL) AND DistributionKeyId = ANY (@DistributionKeyIds)
         """
     |> Sql.parameters [ 
         "@DistributionKeyIds", Sql.uuidArray (distributionKeyIds |> List.toArray)
@@ -257,13 +260,14 @@ let getInvoices (conn: string) (filter: InvoiceFilter): Async<InvoiceListItem li
                     cat.Code AS CategoryCode,
                     cat.Description AS CategoryDescription,
                     invoice.InvoiceDate,
-                    invoice.DueDate
+                    invoice.DueDate,
+                    (SELECT SUM(Amount) FROM InvoicePayments payment WHERE invoice.InvoiceId = payment.InvoiceId AND payment.IsDeleted = FALSE) AS PaidAmount
                 FROM Invoices invoice
                 LEFT JOIN FinancialYears year ON invoice.FinancialYearId = year.FinancialYearId
                 LEFT JOIN DistributionKeys dKey ON invoice.DistributionKeyId = dKey.DistributionKeyId
                 LEFT JOIN FinancialCategories cat ON invoice.FinancialCategoryId = cat.FinancialCategoryId
                 LEFT JOIN Organizations org ON invoice.OrganizationId = org.OrganizationId
-                WHERE invoice.BuildingId = @BuildingId AND %s
+                WHERE invoice.BuildingId = @BuildingId AND invoice.IsDeleted = FALSE AND %s
             """
             whereFilter)
     |> Sql.parameters ([ "@BuildingId", Sql.uuid filter.BuildingId ] @ whereParameters)
@@ -297,7 +301,7 @@ let getFinancialYearsByIds (conn: string) (buildingId: BuildingId, financialYear
                 StartDate,
                 EndDate,
                 IsClosed
-            FROM FinancialYears WHERE BuildingId = @BuildingId AND FincialYearId = ANY (@FinancialYearIds) AND IsDeleted = FALSE
+            FROM FinancialYears WHERE BuildingId = @BuildingId AND FinancialYearId = ANY (@FinancialYearIds)
         """
     |> Sql.parameters [
         "@BuildingId", Sql.uuid buildingId
@@ -332,13 +336,42 @@ let getFinancialCategoriesByIds (conn: string) (buildingId: BuildingId, financia
                 Code,
                 Description,
                 LotOwnerId
-            FROM FinancialCategories WHERE BuildingId = @BuildingId AND FincialCategoryId = ANY (@FinancialCategoryIds) AND IsDeleted = FALSE
+            FROM FinancialCategories WHERE BuildingId = @BuildingId AND FinancialCategoryId = ANY (@FinancialCategoryIds)
         """
     |> Sql.parameters [
         "@BuildingId", Sql.uuid buildingId
         "@FinancialCategoryIds", Sql.uuidArray (financialCategoryIds |> List.toArray)
     ]
     |> Sql.read readFinancialCategory
+
+let private readInvoicePayment (reader: CaseInsensitiveRowReader): InvoicePayment = {
+    InvoiceId = reader.uuid "InvoiceId"
+    BuildingId = reader.uuid "BuildingId"
+    InvoicePaymentId = reader.uuid "InvoicePaymentId"
+    Amount = reader.decimal "Amount"
+    Date = reader.dateTime "Date"
+    FromBankAccount = BankAccount.fromJson (reader.string "FromBankAccount")
+    FinancialCategoryId = reader.uuid "FinancialCategoryId"
+    MediaFiles = []
+}
+
+let getInvoicePaymentsByInvoiceId (conn: string) (buildingId: BuildingId, invoiceId: Guid): Async<InvoicePayment list> = async {
+    let! payments =
+        Sql.connect conn
+        |> Sql.query
+            """
+                SELECT InvoiceId, BuildingId, InvoicePaymentId, Amount, Date, FromBankAccount, FinancialCategoryId
+                FROM InvoicePayments WHERE InvoiceId = @InvoiceId AND BuildingId = @BuildingId AND IsDeleted = FALSE
+            """
+        |> Sql.parameters [
+            "@InvoiceId", Sql.uuid invoiceId
+            "@BuildingId", Sql.uuid buildingId
+        ]
+        |> Sql.read readInvoicePayment
+    let paymentIds = payments |> List.map (fun payment -> payment.InvoicePaymentId)
+    let! mediaFiles = Server.Media.Query.getMediaFilesForEntities conn Partitions.InvoicePayments paymentIds
+    return payments |> List.map (fun payment -> { payment with MediaFiles = mediaFiles |> List.filter (fun file -> file.EntityId = payment.InvoicePaymentId) })
+}
 
 let getInvoice (conn: string) (invoiceId: Guid): Async<Invoice option> = async {
     let! dbRowOption =
@@ -362,7 +395,7 @@ let getInvoice (conn: string) (invoiceId: Guid): Async<Invoice option> = async {
                     InvoiceDate,
                     DueDate
                 FROM Invoices
-                WHERE InvoiceId = @InvoiceId
+                WHERE InvoiceId = @InvoiceId AND IsDeleted = FALSE
             """
         |> Sql.parameters [ "@InvoiceId", Sql.uuid invoiceId ]
         |> Sql.readSingle readInvoice
@@ -374,6 +407,9 @@ let getInvoice (conn: string) (invoiceId: Guid): Async<Invoice option> = async {
         let! distributionKey = getDistributionKeysByIds conn (dbRow.BuildingId, [ dbRow.DistributionKeyId ]) |> Async.map List.head
         let! mediaFiles = Server.Media.Query.getMediaFilesForEntities conn (Partitions.Invoices) [ dbRow.InvoiceId ]
         let! organization = Server.Organizations.Query.getOrganizationsByIds conn [ dbRow.OrganizationId ] |> Async.map List.head
+        let! payments = getInvoicePaymentsByInvoiceId conn (dbRow.BuildingId, dbRow.InvoiceId)
+        let invoiceDate = dbRow.InvoiceDate
+        let dueDate = dbRow.DueDate
         return Some {
             InvoiceId = dbRow.InvoiceId
             BuildingId = dbRow.BuildingId
@@ -388,15 +424,10 @@ let getInvoice (conn: string) (invoiceId: Guid): Async<Invoice option> = async {
             Organization = organization
             OrganizationBankAccount = dbRow.OrganizationBankAccount
             OrganizationInvoiceNumber = dbRow.OrganizationInvoiceNumber
-            InvoiceDate =
-                let dt = dbRow.InvoiceDate
-                new DateTimeOffset(dt.Year, dt.Month, dt.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
-
-            DueDate =
-                let dt = dbRow.DueDate
-                new DateTimeOffset(dt.Year, dt.Month, dt.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
-
+            InvoiceDate = new DateTimeOffset(invoiceDate.Year, invoiceDate.Month, invoiceDate.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
+            DueDate = new DateTimeOffset(dueDate.Year, dueDate.Month, dueDate.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
             MediaFiles = mediaFiles
+            Payments = payments
         }
     | None ->
         return None

@@ -54,21 +54,33 @@ type ValidatedBankAccount =
         IBAN: IBAN option
         BIC: String16 option
         Validated: bool option
+        FinancialCategoryId: Guid option
     }
-    static member BasicValidate (basePath: string) (bankAccount: BankAccount) =
+    static member BasicValidate (basePath: string) (bankAccount: BankAccount) (mandatoryFinancialCategory: bool) =
+        let validateFinancialCategory (path: string) (catId: Guid option) =
+            match catId with
+            | Some catId -> Trial.Pass (Some catId)
+            | None when mandatoryFinancialCategory -> Trial.ofError (path, "Verplicht veld")
+            | None -> Trial.Pass None
+
         let onBasePath s = if String.IsNullOrWhiteSpace basePath then s else sprintf "%s.%s" basePath s
         trial {
             from description in String255.OfOptional (onBasePath (nameof bankAccount.Description)) bankAccount.Description
             also iban in IBAN.OfOptional (onBasePath (nameof bankAccount.IBAN)) bankAccount.IBAN
             also bic in String16.OfOptional (onBasePath (nameof bankAccount.BIC)) bankAccount.BIC
+            also financialCategoryId in validateFinancialCategory (onBasePath (nameof bankAccount.FinancialCategoryId)) bankAccount.FinancialCategoryId
             yield {
                 Description = description
                 IBAN = iban
                 BIC = bic
                 Validated = bankAccount.Validated
+                FinancialCategoryId = financialCategoryId
             }
         }
-
+    static member ValidateWithMandatoryFinancialCategory (basePath: string) (bankAccount: BankAccount) =
+        ValidatedBankAccount.BasicValidate basePath bankAccount true
+    static member Validate (basePath: string) (bankAccount: BankAccount) =
+        ValidatedBankAccount.BasicValidate basePath bankAccount false
 
 type ValidatedContactMethod = 
     {
@@ -123,9 +135,9 @@ type ValidatedPerson =
            also mainEmailAddressComment in validateOptional (String255.Of (nameof person.MainEmailAddressComment |> onBasePath))  person.MainEmailAddressComment
            also mainAddress in ValidatedAddress.BasicValidate (nameof person.MainAddress |> onBasePath) person.MainAddress
            also contactAddress in validateContactAddress (nameof person.ContactAddress |> onBasePath) person.ContactAddress
-           also otherContactMethods in person.OtherContactMethods |> List.mapi (fun index c -> ValidatedContactMethod.BasicValidate (sprintf "%s.[%i]" (nameof person.OtherContactMethods) index |> onBasePath) c) |> Trial.sequence
-           also otherAddresses in person.OtherAddresses |> List.mapi (fun index a -> ValidatedOtherAddress.BasicValidate (sprintf "%s.[%i]" (nameof person.OtherAddresses) index |> onBasePath) a) |> Trial.sequence
-           also bankAccounts in person.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.BasicValidate (sprintf "%s.[%i]" (nameof person.BankAccounts) index |> onBasePath) b) |> Trial.sequence
+           also otherContactMethods in person.OtherContactMethods |> List.mapi (fun index c -> ValidatedContactMethod.BasicValidate (sprintf "%s[%i]" (nameof person.OtherContactMethods) index |> onBasePath) c) |> Trial.sequence
+           also otherAddresses in person.OtherAddresses |> List.mapi (fun index a -> ValidatedOtherAddress.BasicValidate (sprintf "%s[%i]" (nameof person.OtherAddresses) index |> onBasePath) a) |> Trial.sequence
+           also bankAccounts in person.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.Validate (sprintf "%s[%i]" (nameof person.BankAccounts) index |> onBasePath) b) |> Trial.sequence
            yield {
                PersonId = person.PersonId
                FirstName = firstName
@@ -213,7 +225,7 @@ type ValidatedBuilding =
             also yearOfDelivery in validateOptional (PositiveInt.Of (nameof building.YearOfDelivery)) building.YearOfDelivery
             also address in ValidatedAddress.BasicValidate (nameof building.Address) building.Address
             also orgNr in validateOptional (OrganizationNumber.OfString (nameof building.OrganizationNumber)) building.OrganizationNumber
-            also bankAccounts in building.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.BasicValidate (sprintf "%s.[%i]" (nameof building.BankAccounts) index) b) |> Trial.sequence
+            also bankAccounts in building.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.ValidateWithMandatoryFinancialCategory (sprintf "%s[%i]" (nameof building.BankAccounts) index) b) |> Trial.sequence
             also sharesTotal in validateOptional (PositiveInt.Of (nameof building.SharesTotal)) building.SharesTotal
             yield {
                 BuildingId = building.BuildingId
@@ -284,7 +296,7 @@ type ValidatedLotOwner =
 
         let validateContacts (path: string) (contacts: LotOwnerContact list) =
             contacts
-            |> List.mapi (fun index contact -> ValidatedLotOwnerContact.BasicValidate (sprintf "%s.[%i]" path index) contact)
+            |> List.mapi (fun index contact -> ValidatedLotOwnerContact.BasicValidate (sprintf "%s[%i]" path index) contact)
             |> Trial.sequence
             |> Trial.map List.ofSeq
 
@@ -318,7 +330,7 @@ type ValidatedLot =
     static member Validate (lot: Lot) = 
         let validateLotOwners (path: string) (owners: LotOwner list) =
             owners 
-            |> List.mapi (fun index owner -> ValidatedLotOwner.BasicValidate (sprintf "%s.[%i]" path index) owner) 
+            |> List.mapi (fun index owner -> ValidatedLotOwner.BasicValidate (sprintf "%s[%i]" path index) owner) 
             |> Trial.sequence
 
         trial {
@@ -388,8 +400,8 @@ type ValidatedOrganization =
             also mainTelephoneNumberComment in validateOptional (String255.Of (nameof organization.MainTelephoneNumberComment |> onBasePath)) organization.MainTelephoneNumberComment
             also mainEmailAddress in validateOptional (String255.Of (nameof organization.MainEmailAddress |> onBasePath)) organization.MainEmailAddress
             also mainEmailAddressComment in validateOptional (String255.Of (nameof organization.MainEmailAddressComment |> onBasePath))  organization.MainEmailAddressComment
-            also otherContactMethods in organization.OtherContactMethods |> List.mapi (fun index c -> ValidatedContactMethod.BasicValidate (sprintf "%s.[%i]" (nameof organization.OtherContactMethods) index |> onBasePath) c) |> Trial.sequence
-            also bankAccounts in organization.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.BasicValidate (sprintf "%s.[%i]" (nameof organization.BankAccounts) index |> onBasePath) b) |> Trial.sequence
+            also otherContactMethods in organization.OtherContactMethods |> List.mapi (fun index c -> ValidatedContactMethod.BasicValidate (sprintf "%s[%i]" (nameof organization.OtherContactMethods) index |> onBasePath) c) |> Trial.sequence
+            also bankAccounts in organization.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.Validate (sprintf "%s[%i]" (nameof organization.BankAccounts) index |> onBasePath) b) |> Trial.sequence
             yield {
                 OrganizationId = organization.OrganizationId
                 BuildingId = organization.BuildingId
@@ -583,7 +595,7 @@ type ValidatedInvoice =
     static member Validate (invoice: Invoice) =
         trial {
             from vatRate in validatePositiveInt (nameof invoice.VatRate) invoice.VatRate
-            also organizationBankAccount in ValidatedBankAccount.BasicValidate (nameof invoice.OrganizationBankAccount) invoice.OrganizationBankAccount
+            also organizationBankAccount in ValidatedBankAccount.Validate (nameof invoice.OrganizationBankAccount) invoice.OrganizationBankAccount
             also organizationInvoiceNumber in validateOptional (String64.Of (nameof invoice.OrganizationInvoiceNumber)) invoice.OrganizationInvoiceNumber
             yield {
                 InvoiceId = invoice.InvoiceId
@@ -604,6 +616,96 @@ type ValidatedInvoice =
             }
         }        
         |> Trial.toResult
+
+type ValidatedInvoicePayment = 
+    {
+        InvoiceId: Guid
+        BuildingId: BuildingId
+        InvoicePaymentId: Guid
+        Amount: Decimal
+        Date: DateTime
+        FromBankAccount: ValidatedBankAccount
+        FinancialCategoryId: Guid
+        MediaFileIds: Guid list
+    }
+    static member Validate (payment: InvoicePayment) =
+        trial {
+            from bankAccount in ValidatedBankAccount.Validate (nameof (payment.FromBankAccount)) payment.FromBankAccount
+            yield {
+                InvoiceId = payment.InvoiceId
+                BuildingId = payment.BuildingId
+                InvoicePaymentId = payment.InvoicePaymentId
+                Amount = payment.Amount
+                Date = payment.Date
+                FromBankAccount = bankAccount
+                FinancialCategoryId = payment.FinancialCategoryId
+                MediaFileIds = payment.MediaFiles |> List.map (fun m -> m.FileId)
+            }
+        }
+        |> Trial.toResult
+
+type ValidatedPaymentRequestReference =
+    | ValidatedBelgianOGMReference of BelgianOGM
+    static member Validate (path: string) (reference: PaymentRequestReference) =
+        match reference with
+        | BelgianOGMReference ogmReferenceString ->
+            BelgianOGM.Of path ogmReferenceString
+            |> Trial.map ValidatedBelgianOGMReference
+
+type ValidatedOwnerDepositRequest = 
+    {
+        OwnerId: Guid
+        BuildingId: BuildingId
+        OwnerDepositRequestId: Guid
+        Amount: Decimal
+        CreationDate: DateTime
+        RequestDate: DateTime
+        RequestReference: ValidatedPaymentRequestReference
+        RequestInfo: string
+        MediaFileIds: Guid list
+    }
+    static member Validate (request: OwnerDepositRequest) =
+        trial {
+            from reference in ValidatedPaymentRequestReference.Validate (nameof request.RequestReference) request.RequestReference
+            yield {
+                OwnerId = request.OwnerId
+                BuildingId = request.BuildingId
+                OwnerDepositRequestId = request.OwnerDepositRequestId
+                Amount = request.Amount
+                CreationDate = request.CreationDate
+                RequestDate = request.RequestDate
+                RequestReference = reference
+                RequestInfo = request.RequestInfo
+                MediaFileIds = request.MediaFiles |> List.map (fun m -> m.FileId)
+            }
+        }
+
+type ValidatedOwnerDeposit = 
+    {
+        OwnerDepositId: Guid
+        Amount: Decimal
+        Date: DateTime
+        OwnerDepositRequestId: Guid
+        FromBankAccount: ValidatedBankAccount
+        ToBankAccount: ValidatedBankAccount
+        ToFinancialCategoryId: Guid
+        MediaFileIds: Guid list
+    }
+    static member Validate (deposit: OwnerDeposit) =
+        trial {
+            from fromBankAccount in ValidatedBankAccount.Validate (nameof deposit.FromBankAccount) deposit.FromBankAccount
+            also toBankAccount in ValidatedBankAccount.Validate (nameof deposit.ToBankAccount) deposit.ToBankAccount
+            yield {
+                OwnerDepositId = deposit.OwnerDepositId
+                Amount = deposit.Amount
+                Date = deposit.Date
+                OwnerDepositRequestId = deposit.OwnerDepositRequestId
+                FromBankAccount = fromBankAccount
+                ToBankAccount = toBankAccount
+                ToFinancialCategoryId = deposit.ToFinancialCategory.FinancialCategoryId
+                MediaFileIds = deposit.MediaFiles |> List.map (fun m -> m.FileId) 
+            }
+        }
 
 type ValidatedFinancialYear =
     {
