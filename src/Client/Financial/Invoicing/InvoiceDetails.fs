@@ -24,6 +24,8 @@ type Model = {
     State: State
     NotifyCreated: Invoice -> unit
     NotifyEdited:  Invoice -> unit
+    NotifyPaymentAdded: Invoice * InvoicePaymentInput -> unit
+    NotifyPaymentUpdated: Invoice * InvoicePaymentInput -> unit
     PaymentModalIsOpenOn: InvoicePaymentTypes.CreateOrUpdate option
     LoadingFinancialCategories: bool
     FinancialCategories: FinancialCategory list
@@ -61,6 +63,8 @@ type DetailsProps = {|
     IsNew: bool
     NotifyCreated: Invoice -> unit
     NotifyEdited: Invoice -> unit
+    NotifyPaymentAdded: Invoice * InvoicePaymentInput -> unit
+    NotifyPaymentUpdated: Invoice * InvoicePaymentInput -> unit
 |}
 
 module Server =
@@ -102,6 +106,8 @@ let init (props: DetailsProps): Model * Cmd<Msg> =
         State = state
         NotifyCreated = props.NotifyCreated
         NotifyEdited = props.NotifyEdited
+        NotifyPaymentAdded = props.NotifyPaymentAdded
+        NotifyPaymentUpdated = props.NotifyPaymentUpdated
         PaymentModalIsOpenOn = None
         FinancialCategories = []
         LoadingFinancialCategories = true
@@ -228,14 +234,11 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
         | State.Viewing detail ->
             match createdOrUpdated with
             | InvoicePaymentTypes.CreatedOrUpdated.Created payment ->
-                model.NotifyEdited { detail with Payments = payment::detail.Payments }
-            | InvoicePaymentTypes.CreatedOrUpdated.Updated updated ->
-                let updatedPayments = 
-                    detail.Payments 
-                    |> List.map (fun existing -> if existing.InvoicePaymentId = updated.InvoicePaymentId then updated else existing)
-                model.NotifyEdited { detail with Payments = updatedPayments }
+                model.NotifyPaymentAdded (detail, payment)
+            | InvoicePaymentTypes.CreatedOrUpdated.Updated payment ->
+                model.NotifyPaymentUpdated (detail, payment)
         | _ -> ()
-        model, Cmd.none
+        { model with State = Loading }, Server.getInvoiceCmd model.InvoiceId
     | PaymentWasRemoved removed ->
         match model.State with
         | State.Viewing detail ->
@@ -288,9 +291,7 @@ let view (model: Model) (dispatch: Msg -> unit) =
                                 {|
                                     Index = index
                                     InvoicePayment = payment
-                                    FinancialCategory =
-                                        model.FinancialCategories
-                                        |> List.tryFind (fun cat -> cat.FinancialCategoryId = payment.FinancialCategoryId)
+                                    FinancialCategory = Some payment.FinancialCategory
                                     OnEdit = EditPayment >> dispatch
                                     OnRemove = RemovePayment >> dispatch
                                 |}

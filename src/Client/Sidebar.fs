@@ -101,6 +101,8 @@ let convertCurrentPageForNavigation page =
     | Some (Page.FinancialSettings p)         -> Some (Page.FinancialSettings { BuildingId = p.BuildingId })
     | Some (Page.BankNotes p)                 -> Some (Page.BankNotes p)
     | Some (Page.Provisions p)                -> Some (Page.Provisions p)
+    | Some (Page.FinancialTransactions p)     -> Some (Page.FinancialTransactions p)
+    | Some (Page.Balance p)                   -> Some (Page.Balance p)
     | Some (Page.UserList)
     | Some (Page.UserDetails _)               -> Some (Page.UserList)
     | Some (Page.NotFound)
@@ -191,7 +193,10 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
                     | Some(Page.DistributionKeyList _)
                     | Some(Page.Provisions _) 
                     | Some(Page.Invoices _) 
-                    | Some(Page.BankNotes _) -> true | _ -> false
+                    | Some(Page.BankNotes _)
+                    | Some(Page.FinancialTransactions _)
+                    | Some(Page.Balance _) -> true 
+                    | _ -> false
 
                 if state.FinancialSubmenuIsOpen || currentPageIsFinancialPage then
                     ul [ classes [ Bootstrap.navbarNav; Bootstrap.flexColumn; Bootstrap.ml4 ] ] [
@@ -207,12 +212,12 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
                                 OnClick (fun _ -> NavigateToPage (Page.DistributionKeyList buildingSpecificProps) |> dispatch)
                             ] [ str "Verdeelsleutels" ]
                         ]
-                        li [ Class Bootstrap.navItem ] [
-                            a [
-                                Class (determineStyle currentPage (Page.Provisions buildingSpecificProps))
-                                OnClick (fun _ -> NavigateToPage (Page.Provisions buildingSpecificProps) |> dispatch)
-                            ] [ str "Provisies" ]
-                        ]
+                        //li [ Class Bootstrap.navItem ] [
+                        //    a [
+                        //        Class (determineStyle currentPage (Page.Provisions buildingSpecificProps))
+                        //        OnClick (fun _ -> NavigateToPage (Page.Provisions buildingSpecificProps) |> dispatch)
+                        //    ] [ str "Provisies" ]
+                        //]
                         li [ Class Bootstrap.navItem ] [
                             a [
                                 Class (determineStyle currentPage (Page.Invoices buildingSpecificProps))
@@ -221,10 +226,22 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
                         ]
                         li [ Class Bootstrap.navItem ] [
                             a [
-                                Class (determineStyle currentPage (Page.BankNotes buildingSpecificProps))
-                                OnClick (fun _ -> NavigateToPage (Page.BankNotes buildingSpecificProps) |> dispatch)
-                            ] [ str "Bankuittreksels" ]
+                                Class (determineStyle currentPage (Page.FinancialTransactions buildingSpecificProps))
+                                OnClick (fun _ -> NavigateToPage (Page.FinancialTransactions buildingSpecificProps) |> dispatch)
+                            ] [ str "Transacties" ]
                         ]
+                        li [ Class Bootstrap.navItem ] [
+                            a [
+                                Class (determineStyle currentPage (Page.Balance buildingSpecificProps))
+                                OnClick (fun _ -> NavigateToPage (Page.Balance buildingSpecificProps) |> dispatch)
+                            ] [ str "Balans" ]
+                        ]
+                        //li [ Class Bootstrap.navItem ] [
+                        //    a [
+                        //        Class (determineStyle currentPage (Page.BankNotes buildingSpecificProps))
+                        //        OnClick (fun _ -> NavigateToPage (Page.BankNotes buildingSpecificProps) |> dispatch)
+                        //    ] [ str "Bankuittreksels" ]
+                        //]
                     ]
                 else
                     null

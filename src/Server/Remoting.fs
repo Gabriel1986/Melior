@@ -191,6 +191,19 @@
                 createMsg input
                 |> environment.FinancialSystem.UpdateFinancialYear
 
+            GetFinancialTransactions = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.GetFinancialTransactions
+            //CreateFinancialTransaction = fun input ->
+            //    createMsg input
+            //    |> environment.FinancialSystem.CreateFinancialTransaction
+            //UpdateFinancialTransaction = fun input ->
+            //    createMsg input
+            //    |> environment.FinancialSystem.UpdateFinancialTransaction
+            //DeleteFinancialTransaction = fun input ->
+            //    createMsg input
+            //    |> environment.FinancialSystem.DeleteFinancialTransaction
+
             GetFinancialCategories = fun buildingId ->
                 createMsg buildingId
                 |> environment.FinancialSystem.GetFinancialCategories

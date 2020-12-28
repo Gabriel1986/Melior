@@ -41,9 +41,9 @@ let build (config: IConfiguration) (store: IStorageEngine): IFinancialSystem =
             member _.UpdateInvoice msg = Workflow.updateInvoice store msg
             member _.DeleteInvoice msg = Workflow.deleteInvoice store msg
             member _.GetInvoices msg =
-                if msg.CurrentUser.HasAccessToBuilding msg.Payload.BuildingId
-                then Query.getInvoices conn msg.Payload
-                else Async.lift []
+                match msg.CurrentUser.HasAccessToBuilding msg.Payload.BuildingId with
+                | true  -> Query.getInvoices conn msg.Payload
+                | false -> Async.lift []
             member _.GetInvoice msg = async {
                 match! Query.getInvoice conn msg.Payload with
                 | Some invoice when msg.CurrentUser.HasAccessToBuilding invoice.BuildingId ->
@@ -65,6 +65,14 @@ let build (config: IConfiguration) (store: IStorageEngine): IFinancialSystem =
             member _.UpdateFinancialCategory msg = Workflow.updateFinancialCategory store msg
             member _.DeleteFinancialCategory msg = Workflow.deleteFinancialCategory store msg
             member _.GetFinancialCategories msg = Query.getAllFinancialCategories conn msg.Payload
+
+            //member _.CreateFinancialTransaction msg = Workflow.createFinancialTransaction store msg
+            //member _.UpdateFinancialTransaction msg = Workflow.updateFinancialTransaction store msg
+            //member _.DeleteFinancialTransaction msg = Workflow.deleteFinancialTransaction store msg
+            member _.GetFinancialTransactions msg =
+                match msg.CurrentUser.HasAccessToBuilding msg.Payload.BuildingId with
+                | true -> Query.getFinancialTransactions conn msg.Payload
+                | false -> Async.lift []
     }
 
 type ReactiveBehavior (config: IConfiguration) =

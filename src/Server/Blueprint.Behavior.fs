@@ -164,8 +164,8 @@ module Financial =
         abstract UpdateInvoice: Message<Invoice> -> Async<Result<unit, SaveInvoiceError>>
         abstract DeleteInvoice: Message<BuildingId * Guid> -> Async<Result<unit, DeleteInvoiceError>>
 
-        abstract CreateInvoicePayment: Message<InvoicePayment> -> Async<Result<unit, SaveInvoicePaymentError>>
-        abstract UpdateInvoicePayment: Message<InvoicePayment> -> Async<Result<unit, SaveInvoicePaymentError>>
+        abstract CreateInvoicePayment: Message<InvoicePaymentInput> -> Async<Result<unit, SaveInvoicePaymentError>>
+        abstract UpdateInvoicePayment: Message<InvoicePaymentInput> -> Async<Result<unit, SaveInvoicePaymentError>>
         abstract DeleteInvoicePayment: Message<BuildingId * Guid> -> Async<Result<unit, DeleteInvoicePaymentError>>
 
         abstract CreateFinancialYear: Message<FinancialYear> -> Async<Result<unit, SaveFinancialYearError>>
@@ -177,14 +177,19 @@ module Financial =
         abstract UpdateFinancialCategory: Message<FinancialCategory> -> Async<Result<unit, SaveFinancialCategoryError>>
         abstract DeleteFinancialCategory: Message<BuildingId * Guid> -> Async<Result<unit, DeleteFinancialCategoryError>>
 
+        //abstract CreateFinancialTransaction: Message<FinancialTransaction> -> Async<Result<unit, SaveFinancialTransactionError>>
+        //abstract UpdateFinancialTransaction: Message<FinancialTransaction> -> Async<Result<unit, SaveFinancialTransactionError>>
+        //abstract DeleteFinancialTransaction: Message<BuildingId * Guid> -> Async<Result<unit, DeleteFinancialTransactionError>>
+
         //Queries
         abstract GetDistributionKeys: Message<BuildingId> -> Async<DistributionKey list>
         abstract GetDistributionKey: Message<Guid> -> Async<DistributionKey option>
         abstract GetDistributionKeyListItems: Message<BuildingId> -> Async<DistributionKeyListItem list>
-        abstract GetInvoices: Message<InvoiceFilter> -> Async<InvoiceListItem list>
+        abstract GetInvoices: Message<FinancialTransactionFilter> -> Async<InvoiceListItem list>
         abstract GetInvoice: Message<Guid> -> Async<Invoice option>
         abstract GetFinancialYears: Message<BuildingId> -> Async<FinancialYear list>
         abstract GetFinancialCategories: Message<BuildingId> -> Async<FinancialCategory list>
+        abstract GetFinancialTransactions: Message<FinancialTransactionFilter> -> Async<FinancialTransaction list>
 
         //Seeding
         abstract SeedDistributionKeys: DistributionKey list -> Async<unit>

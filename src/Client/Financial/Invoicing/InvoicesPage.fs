@@ -5,12 +5,12 @@ open Elmish
 open Fable
 open Fable.React
 open Fable.React.Props
-open Fable.SimpleJson
 open Feliz
 open Feliz.ElmishComponents
 open Thoth.Elmish
 
 open Shared.Read
+open Shared.Write
 open Shared.Remoting
 open Shared.Library
 
@@ -26,18 +26,22 @@ type State = {
     CurrentBuilding: BuildingListItem
     SelectedListItems: InvoiceListItem list
     SelectedTab: Tab
-    LoadingFilters: bool
-    LoadingListItems: bool
-    ListItems: InvoiceListItem list
-    LoadingFinancialYears: bool
-    FinancialYears: FinancialYear list
-    Filter: InvoiceFilter
-    Debouncer: Debouncer.State
+    ListItemsState: ListItemsState
+    Filter: FinancialTransactionFilter
 }
 and Tab =
     | List
     | Details of invoiceId: Guid
     | New
+and ListItemsState =
+    | PreparingToLoad
+    | Loading
+    | Loaded of InvoiceListItem list
+    member me.ListItems =
+        match me with
+        | PreparingToLoad
+        | Loading -> []
+        | Loaded listItems -> listItems
 
 type Msg =
     | AddDetailTab of InvoiceListItem
@@ -45,22 +49,14 @@ type Msg =
     | SelectTab of Tab
     | RemotingError of exn
     | Loaded of listItems: InvoiceListItem list * selectedListItem: Guid option
-    | FinancialYearsLoaded of financialYears: FinancialYear list
     | RemoveListItem of InvoiceListItem
     | ConfirmRemoveListItem of InvoiceListItem
     | ListItemRemoved of Result<InvoiceListItem, DeleteInvoiceError>
     | Created of Invoice
     | Edited of Invoice
-    | InvoiceFilterPeriodChanged of InvoiceFilterPeriod
-    | InvoiceFilterPeriodTypeChanged of PeriodType
-    | GetInvoices of InvoiceFilter
+    | GetInvoices of FinancialTransactionFilter
+    | ChangeListItemsState of ListItemsState
     | NoOp
-    | DebouncerSelfMsg  of Debouncer.SelfMessage<Msg>
-
-and PeriodType =
-    | FinancialYearType
-    | YearType
-    | MonthType
 
 type InvoicesPageProps = {|
     CurrentUser: User
@@ -104,7 +100,7 @@ type SortableInvoiceListItemAttribute =
         | DueDate -> 
             fun li otherLi -> li.DueDate.CompareTo(otherLi.DueDate)
         | Cost ->
-            fun li otherLi -> int li.Cost - int otherLi.Cost
+            fun li otherLi -> int (li.Cost - otherLi.Cost)
         | IsPaid ->
             fun li otherLi ->
                 if li.IsPaid = otherLi.IsPaid then 0 
@@ -120,7 +116,7 @@ type SortableInvoiceListItemAttribute =
         member _.IsFilterable = true
 
 
-let getInvoices (filter: InvoiceFilter, selectedTab: Tab) =
+let getInvoices (filter: FinancialTransactionFilter, selectedTab: Tab) =
     let invoiceId =
         match selectedTab with
         | List -> None
@@ -140,50 +136,13 @@ let init (props: InvoicesPageProps) =
             match props.InvoiceId with
             | Some invoiceId -> Tab.Details invoiceId
             | None -> Tab.List
-        ListItems = []
-        LoadingFilters = true
-        LoadingListItems = true
-        FinancialYears = []
-        LoadingFinancialYears = true
+        ListItemsState = Loading
         Filter = { 
             BuildingId = props.CurrentBuilding.BuildingId
             Period = Year (DateTime.Now.Year) 
         }
-        Debouncer = Debouncer.create ()
     }
-
-    let cmd =
-        Cmd.OfAsync.either
-            (Remoting.getRemotingApi().GetFinancialYears)
-            props.CurrentBuilding.BuildingId
-            (fun years -> FinancialYearsLoaded years)
-            RemotingError
-    state, cmd
-
-let private getInvoiceFilter (currentBuildingId: Guid, financialYears: FinancialYear list) =
-    let invoiceFilter = Browser.Dom.window.localStorage.getItem("InvoiceFilter")
-    let parsedInvoiceFilter =
-        if String.IsNullOrWhiteSpace(invoiceFilter) then
-            None
-        else
-            match Json.tryParseAs<InvoiceFilter> invoiceFilter with
-            | Ok invoiceFilter -> 
-                Some invoiceFilter
-            | Error e ->
-                Browser.Dom.console.error("Failed to parse invoice filter: ", e)
-                None
-    match parsedInvoiceFilter with
-    | Some invoiceFilter when invoiceFilter.BuildingId = currentBuildingId ->
-        invoiceFilter
-    | Some _
-    | None ->
-        {
-            BuildingId = currentBuildingId
-            Period =
-                match financialYears |> List.tryHead with
-                | Some financialYear -> FinancialYear financialYear.FinancialYearId 
-                | None -> Year DateTime.Now.Year
-        }
+    state, Cmd.none
 
 let update (msg: Msg) (state: State): State * Cmd<Msg> =
     let toListItem (invoice: Invoice): InvoiceListItem = {
@@ -205,20 +164,6 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             let paidAmount = invoice.Payments |> List.sumBy (fun payment -> payment.Amount)
             cost - paidAmount = Decimal.Zero
     }
-
-    let periodChanged (period: InvoiceFilterPeriod) =
-        if period = state.Filter.Period then
-            state, Cmd.none
-        else
-            let newFilter = { state.Filter with Period = period }
-            Browser.Dom.window.localStorage.setItem("InvoiceFilter", SimpleJson.Json.stringify(newFilter))
-
-            let newDebouncerState, newDebouncerCmd =
-                Debouncer.create ()
-                |> Debouncer.bounce (TimeSpan.FromSeconds 1.0) (sprintf "filter::%A" newFilter) (GetInvoices newFilter)
-
-            { state with Filter = newFilter; Debouncer = newDebouncerState; LoadingListItems = true }
-            , newDebouncerCmd |> Cmd.map DebouncerSelfMsg
 
     match msg with
     | AddDetailTab listItem ->
@@ -242,7 +187,7 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | SelectTab tab ->
         { state with SelectedTab = tab }, Cmd.none
     | Loaded (invoices, selectedInvoiceId) ->
-        let newState = { state with ListItems = invoices; LoadingFilters = false; LoadingListItems = false }
+        let newState = { state with ListItemsState = ListItemsState.Loaded invoices }
         let cmd =
             match selectedInvoiceId with
             | Some selectedInvoiceId ->
@@ -252,6 +197,8 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
                 | None -> Cmd.none
             | None -> Cmd.none
         newState, cmd
+    | ChangeListItemsState newState ->
+        { state with ListItemsState = newState }, Cmd.none
     | RemoveListItem invoice ->
         state, 
             showConfirmationModal
@@ -269,13 +216,19 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
                 (fun r -> r |> Result.map (fun _ -> invoice) |> ListItemRemoved)
                 RemotingError
 
+        let currentListItems =
+            match state.ListItemsState with
+            | ListItemsState.PreparingToLoad
+            | ListItemsState.Loading -> []
+            | ListItemsState.Loaded listItems -> listItems
+
         let newSelection =
             state.SelectedListItems |> List.filter (fun selected -> selected.InvoiceId <> invoice.InvoiceId)
 
         let newItems =
-            state.ListItems |> List.filter (fun item -> item.InvoiceId <> invoice.InvoiceId)
+            currentListItems |> List.filter (fun item -> item.InvoiceId <> invoice.InvoiceId)
 
-        { state with SelectedListItems = newSelection; ListItems = newItems }, cmd
+        { state with SelectedListItems = newSelection; ListItemsState = ListItemsState.Loaded newItems }, cmd
     | ListItemRemoved result ->
         match result with
         | Ok _ -> state, Cmd.none
@@ -285,170 +238,25 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             printf "The invoice that was being deleted was not found in the DB... Somehow..."
             state, showErrorToastCmd "De factuur werd niet gevonden in de databank"
     | RemotingError e ->
-        { state with ListItems = []; LoadingListItems = false; LoadingFilters = false }, showGenericErrorModalCmd e
+        { state with ListItemsState = ListItemsState.Loaded [] }, showGenericErrorModalCmd e
     | Created invoice ->
+        let currentListItems = state.ListItemsState.ListItems
         let listItem = toListItem invoice
-        let newListItems = listItem :: state.ListItems
+        let newListItems = listItem :: currentListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, showSuccessToastCmd "De factuur is aangemaakt"
+        { state with ListItemsState = ListItemsState.Loaded newListItems; SelectedListItems = newSelectedListItems }
+        , showSuccessToastCmd "De factuur is aangemaakt"
     | Edited invoice ->
+        let currentListItems = state.ListItemsState.ListItems
         let listItem = toListItem invoice
-        let newListItems = state.ListItems |> List.map (fun li -> if li.InvoiceId = invoice.InvoiceId then listItem else li)
+        let newListItems = currentListItems |> List.map (fun li -> if li.InvoiceId = invoice.InvoiceId then listItem else li)
         let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.InvoiceId = invoice.InvoiceId then listItem else li)
-        { state with ListItems = newListItems; SelectedListItems = newSelectedListItems }, showSuccessToastCmd "De factuur is gewijzigd"
-    | FinancialYearsLoaded financialYears ->
-        let sortedFinancialYears = financialYears |> List.sortBy (fun fy -> fy.EndDate)
-        let filter = getInvoiceFilter (state.CurrentBuilding.BuildingId, sortedFinancialYears)
-
-        { state with FinancialYears = sortedFinancialYears; Filter = filter }
-        , getInvoices (filter, state.SelectedTab)
-    | InvoiceFilterPeriodChanged period ->
-        periodChanged period
+        { state with ListItemsState = ListItemsState.Loaded newListItems; SelectedListItems = newSelectedListItems }
+        , showSuccessToastCmd "De factuur is gewijzigd"
     | GetInvoices filter ->
-        { state with LoadingFilters = true }, getInvoices (filter, state.SelectedTab)
-    | InvoiceFilterPeriodTypeChanged periodType ->
-        let newFilterPeriodResult =
-            match periodType with
-            | PeriodType.FinancialYearType ->
-                match state.FinancialYears with
-                | [] -> Error "Gelieve eerst een boekjaar in te geven bij de instellingen"
-                | financialYears -> Ok (FinancialYear (financialYears.Head.FinancialYearId))
-            | PeriodType.YearType ->
-                match state.Filter.Period with
-                | Year year ->
-                    Ok (Year year)
-                | Month (_month, year) ->
-                    Ok (Year year)
-                | _ ->
-                    Ok (Year DateTime.Now.Year)
-            | PeriodType.MonthType ->
-                let now = DateTime.Now
-                match state.Filter.Period with
-                | Year year ->
-                    Ok (Month (now.Month, year))
-                | Month (month, year) ->
-                    Ok (Month (month, year))
-                | _ ->
-                    Ok (Month (now.Month, now.Year))
-
-        match newFilterPeriodResult with
-        | Ok newPeriod ->
-            periodChanged newPeriod
-        | Error e ->
-            state, showErrorToastCmd e
+        { state with ListItemsState = ListItemsState.Loading }, getInvoices (filter, state.SelectedTab)
     | NoOp ->
         state, Cmd.none
-    | DebouncerSelfMsg debouncerMsg ->
-        let (debouncerModel, debouncerCmd) = Debouncer.update debouncerMsg state.Debouncer
-        { state with Debouncer = debouncerModel }, debouncerCmd
-
-let private leftChevronBtn (onClick: unit -> unit) =
-    button [
-        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm; Bootstrap.floatLeft ]
-        OnClick (fun _ -> onClick ())
-    ] [
-        i [ classes [ FontAwesome.fa; FontAwesome.faChevronLeft ] ] []
-    ]
-
-let private rightChevronBtn (onClick: unit -> unit) =
-    button [
-        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.btnSm; Bootstrap.floatRight ]
-        OnClick (fun _ -> onClick ())
-    ] [
-        i [ classes [ FontAwesome.fa; FontAwesome.faChevronRight ] ] []
-    ]
-
-let private periodFilterPeriodTypes (state: State) (dispatch: Msg -> unit): FormRadioButton list = [
-    {
-        Id = "Month"
-        Key = "Month"
-        Label = "Maand"
-        IsSelected = match state.Filter.Period with | Month _ -> true | _ -> false
-        OnClick = fun _ -> InvoiceFilterPeriodTypeChanged MonthType |> dispatch
-    }
-    {
-        Id = "Year"
-        Key = "Year"
-        Label = "Jaar"
-        IsSelected = match state.Filter.Period with | Year _ -> true | _ -> false
-        OnClick = fun _ ->  InvoiceFilterPeriodTypeChanged YearType |> dispatch
-    }
-    {
-        Id = "FinancialYear"
-        Key = "FinancialYear"
-        Label = "Boekjaar"
-        IsSelected = match state.Filter.Period with | FinancialYear _ -> true | _ -> false
-        OnClick = fun _ -> InvoiceFilterPeriodTypeChanged FinancialYearType |> dispatch
-    }
-]
-
-let private months =
-    [ "Januari"; "Februari"; "Maart"; "April"; "Mei"; "Juni"; "Juli"; "Augustus"; "September"; "Oktober"; "November"; "December" ]
-
-let private renderPeriodFilter (state: State) (dispatch: Msg -> unit): ReactElement =
-    fieldset [ Disabled state.LoadingFilters ] [
-        div [ classes [ Bootstrap.card; Bootstrap.textCenter ] ] [
-            div [ Class Bootstrap.cardHeader ] [
-                formGroup [
-                    Label "Periode"
-                    Radio {
-                        Inline = true
-                        RadioButtons = periodFilterPeriodTypes state dispatch
-                    }
-                ]
-                let today = DateTime.Now
-
-                match state.Filter.Period with
-                | FinancialYear financialYearId ->
-                    let matchingIndex, matchingFinancialYear = 
-                        state.FinancialYears
-                        |> List.indexed
-                        |> List.find (fun (_, fy) -> fy.FinancialYearId = financialYearId)
-                    div [ Style [ Width "200px" ]; Class Bootstrap.dInlineBlock ] [
-                        match matchingIndex with
-                        | 0 -> null
-                        | _ -> leftChevronBtn (fun _ -> InvoiceFilterPeriodChanged (FinancialYear (state.FinancialYears.[matchingIndex-1].FinancialYearId)) |> dispatch)
-                        span [ 
-                            classes [ Bootstrap.cardText; "pointer" ]
-                            OnClick (fun _ -> InvoiceFilterPeriodTypeChanged FinancialYearType |> dispatch) 
-                        ] [ str matchingFinancialYear.Code ]
-                        match matchingIndex with
-                        | x when x = (state.FinancialYears.Length - 1) -> null
-                        | _ -> rightChevronBtn (fun _ -> InvoiceFilterPeriodChanged (FinancialYear (state.FinancialYears.[matchingIndex+1].FinancialYearId)) |> dispatch)
-                    ]
-                | Year year ->
-                    div [ Style [ Width "200px" ]; Class Bootstrap.dInlineBlock ] [
-                        leftChevronBtn (fun _ -> InvoiceFilterPeriodChanged (Year (year-1)) |> dispatch)
-                        span [ 
-                            classes [ Bootstrap.cardText; "pointer" ]
-                            OnClick (fun _ -> InvoiceFilterPeriodChanged (Year today.Year) |> dispatch) 
-                        ] [ str (string year) ]
-                        rightChevronBtn (fun _ -> InvoiceFilterPeriodChanged (Year (year+1)) |> dispatch)
-                    ]
-                | Month (month, year) ->
-                    div [ Style [ Width "200px" ]; classes [ Bootstrap.dInlineBlock ] ] [
-                        leftChevronBtn (fun _ -> InvoiceFilterPeriodChanged (Month ((if month = 1 then 12 else month-1), year)) |> dispatch)
-                        span [
-                            classes [ Bootstrap.cardText; "pointer" ]
-                            OnClick (fun _ -> 
-                                InvoiceFilterPeriodChanged (InvoiceFilterPeriod.Month (today.Month, year))
-                                |> dispatch) 
-                        ] [ str (months.[month-1]) ]
-                        rightChevronBtn (fun _ -> InvoiceFilterPeriodChanged (Month ((if month = 12 then 1 else month+1), year)) |> dispatch)
-                    ]
-                    div [ Style [ Width "200px" ]; classes [ Bootstrap.dInlineBlock; Bootstrap.ml1 ] ] [
-                        leftChevronBtn (fun _ -> InvoiceFilterPeriodChanged (Month (month, year-1)) |> dispatch)
-                        span [ 
-                            classes [ Bootstrap.cardText; "pointer" ]
-                            OnClick (fun _ ->
-                                InvoiceFilterPeriodChanged (InvoiceFilterPeriod.Month (month, today.Year))
-                                |> dispatch) 
-                        ] [ str (string year) ]
-                        rightChevronBtn (fun _ -> InvoiceFilterPeriodChanged (Month (month, year+1)) |> dispatch)
-                    ]
-            ]
-        ]
-    ]
 
 let view (state: State) (dispatch: Msg -> unit): ReactElement =
     let determineNavItemStyle (tab: Tab) =
@@ -463,10 +271,24 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
     div [ Class Bootstrap.row ] [
         let list (state: State) =
             [
-                renderPeriodFilter state dispatch
+                let disableFilter =
+                    match state.ListItemsState with
+                    | Loading -> true
+                    | _ -> false
+                fieldset [ Disabled disableFilter ] [
+                    Client.Financial.FinancialTransactionFilterComponent.render
+                        {|
+                            CurrentBuildingId = state.CurrentBuilding.BuildingId
+                            FilterKey = "Invoicefilter"
+                            OnPrepareToChangeFilter = fun _ -> ChangeListItemsState ListItemsState.PreparingToLoad |> dispatch
+                            OnFilterChanged = GetInvoices >> dispatch
+                            OnError = RemotingError >> dispatch
+                            OnlyShowFinancialYears = false
+                        |}
+                ]
                 SortableTable.render 
                     {|
-                        ListItems = if state.LoadingListItems then [] else state.ListItems
+                        ListItems = state.ListItemsState.ListItems
                         DisplayAttributes = SortableInvoiceListItemAttribute.All
                         IsSelected = None
                         OnSelect = None
@@ -476,14 +298,18 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                         OnDelete = Some (RemoveListItem >> dispatch)
                         Key = "InvoicesPageTable"
                     |}
-                if state.LoadingListItems then
+                match state.ListItemsState with
+                | ListItemsState.PreparingToLoad
+                | ListItemsState.Loading ->
                     div [ Class Bootstrap.textCenter ] [
                         str "Facturen worden geladen..."
                     ]
-                elif state.ListItems |> List.length = 0 then
+                | ListItemsState.Loaded [] ->
                     div [ Class Bootstrap.textCenter ] [
                         str "Er werden geen resultaten gevonden..."
                     ]
+                | ListItemsState.Loaded _ ->
+                    null
             ]
             |> fragment []
 
@@ -517,8 +343,10 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                             CurrentBuilding = state.CurrentBuilding
                             Identifier = invoiceId
                             IsNew = false
-                            NotifyCreated = fun b -> dispatch (Created b)
-                            NotifyEdited = fun b -> dispatch (Edited b)
+                            NotifyCreated = Created >> dispatch
+                            NotifyEdited = Edited >> dispatch
+                            NotifyPaymentAdded = fun _ -> GetInvoices (state.Filter) |> dispatch
+                            NotifyPaymentUpdated = fun _ -> GetInvoices (state.Filter) |> dispatch
                         |}
                 | New ->
                     InvoiceDetails.render 
@@ -527,8 +355,10 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                             CurrentBuilding = state.CurrentBuilding
                             Identifier = Guid.NewGuid()
                             IsNew = true
-                            NotifyCreated = fun b -> dispatch (Created b)
-                            NotifyEdited = fun b -> dispatch (Edited b)
+                            NotifyCreated = Created >> dispatch
+                            NotifyEdited = Edited >> dispatch
+                            NotifyPaymentAdded = fun _ -> GetInvoices (state.Filter) |> dispatch
+                            NotifyPaymentUpdated = fun _ -> GetInvoices (state.Filter) |> dispatch
                         |}
             ]
         ]

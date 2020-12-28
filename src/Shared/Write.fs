@@ -617,6 +617,17 @@ type ValidatedInvoice =
         }        
         |> Trial.toResult
 
+type InvoicePaymentInput = {
+    InvoiceId: Guid
+    BuildingId: BuildingId
+    InvoicePaymentId: Guid
+    Amount: string
+    Date: DateTime
+    FromBankAccount: BankAccount option
+    FinancialCategoryId: Guid option
+    MediaFiles: MediaFile list
+}
+
 type ValidatedInvoicePayment = 
     {
         InvoiceId: Guid
@@ -628,17 +639,34 @@ type ValidatedInvoicePayment =
         FinancialCategoryId: Guid
         MediaFileIds: Guid list
     }
-    static member Validate (payment: InvoicePayment) =
+    static member Validate (payment: InvoicePaymentInput) =
+        let validateAmount (path: string) (amount: string) =
+            match Decimal.TryParse (amount.Replace(',', '.')) with
+            | true, parsed -> Trial.Pass parsed
+            | false, _ -> Trial.ofError (path, "De waarde die u heeft opgegeven is niet geldig")
+
+        let validateMandatory (path: string) (opt: 'a option) =
+            match opt with
+            | Some filledIn -> Trial.Pass filledIn
+            | None -> Trial.ofError (path, "Verplicht veld")
+
+        let validateBankAccount (path: string) (opt: BankAccount option) =
+            match opt with
+            | None -> Trial.ofError (path, "Verplicht veld")
+            | Some bankAccount -> ValidatedBankAccount.Validate path bankAccount
+
         trial {
-            from bankAccount in ValidatedBankAccount.Validate (nameof (payment.FromBankAccount)) payment.FromBankAccount
+            from bankAccount in validateBankAccount (nameof payment.FromBankAccount) payment.FromBankAccount
+            also amount in validateAmount (nameof payment.Amount) payment.Amount
+            also financialCategoryId in validateMandatory (nameof payment.FinancialCategoryId) payment.FinancialCategoryId
             yield {
                 InvoiceId = payment.InvoiceId
                 BuildingId = payment.BuildingId
                 InvoicePaymentId = payment.InvoicePaymentId
-                Amount = payment.Amount
+                Amount = amount
                 Date = payment.Date
                 FromBankAccount = bankAccount
-                FinancialCategoryId = payment.FinancialCategoryId
+                FinancialCategoryId = financialCategoryId
                 MediaFileIds = payment.MediaFiles |> List.map (fun m -> m.FileId)
             }
         }

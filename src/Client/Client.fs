@@ -27,6 +27,7 @@ open Client.ProfessionalSyndics
 open Client.Contracts
 open Client.Financial.DistributionKeys
 open Client.Financial.Invoicing
+open Client.Financial.FinancialTransactions
 open Client.Users
 
 module Client =
@@ -389,6 +390,16 @@ module Client =
                             CurrentUser = runningState.CurrentUser
                             CurrentBuilding = building
                             InvoiceId = Some props.DetailId
+                        |}
+                | Page.FinancialTransactions _, Some building ->
+                    FinancialTransactionsOverview.render
+                        {|
+                            CurrentBuilding = building
+                        |}
+                | Page.Balance _, Some building ->
+                    Balance.render
+                        {|
+                            CurrentBuilding = building
                         |}
                 | Page.UserList _, _ ->
                     UsersPage.render

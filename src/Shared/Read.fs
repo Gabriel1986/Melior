@@ -693,14 +693,14 @@ type InvoiceListItem =
     }
     member me.LocalInvoiceNumber = Invoice.calculateLocalInvoiceNumber (me.FinancialYearCode, me.InvoiceNumber)
 
-type InvoiceFilterPeriod =
+type FinancialTransactionFilterPeriod =
     | FinancialYear of financialYearId: Guid
     | Month of month: int * year: int
     | Year of year: int
 
-type InvoiceFilter = {
+type FinancialTransactionFilter = {
     BuildingId: Guid
-    Period: InvoiceFilterPeriod
+    Period: FinancialTransactionFilterPeriod
 }
 
 type Invoice = 
@@ -732,7 +732,9 @@ and InvoicePayment = {
     Amount: Decimal
     Date: DateTime
     FromBankAccount: BankAccount
-    FinancialCategoryId: Guid
+    FinancialCategory: FinancialCategory
+    FinancialYear: FinancialYear
+    OrganizationName: string
     MediaFiles: MediaFile list
 }
 
@@ -771,3 +773,32 @@ type Warning = {
     Concept: Concept
     Message: string
 }
+
+type FinancialTransactionSource =
+    | Invoice of InvoiceSource
+    | InvoicePayment of InvoicePaymentSource
+    //| OwnerDepositRequest of requestId: Guid
+    //| OwnerDeposit of requestId: Guid * depositId: Guid
+and InvoiceSource = {
+    InvoiceId: Guid
+    OrganizationName: string
+}
+and InvoicePaymentSource = {
+    InvoiceId: Guid
+    InvoicePaymentId: Guid
+    OrganizationName: string
+}
+
+type FinancialTransaction = {
+    FinancialTransactionId: Guid
+    BuildingId: BuildingId
+    Date: DateTime
+    Source: FinancialTransactionSource option
+    FinancialCategoryCode: string
+    FinancialCategoryDescription: string
+    Amount: DebitOrCredit
+    FinancialYearIsClosed: bool
+}
+and DebitOrCredit = 
+    | Debit of amount: Decimal 
+    | Credit of amount: Decimal

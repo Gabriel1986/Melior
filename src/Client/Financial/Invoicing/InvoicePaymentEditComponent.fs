@@ -6,6 +6,7 @@ open Fable.React
 open Fable.React.Props
 open Elmish.React
 open Shared.Read
+open Shared.Write
 open Shared.Library
 open Shared.MediaLibrary
 open Client.Upload
@@ -16,7 +17,7 @@ open InvoicePaymentTypes
 
 type State = {
     CreateOrUpdate: CreateOrUpdate
-    Payment: InvoicePaymentForm
+    Payment: InvoicePaymentInput
     CurrentBuilding: BuildingListItem
     FinancialCategories: FinancialCategory list
     ShowingFinancialCategoryModal: bool
@@ -46,8 +47,8 @@ let init (props: InvoicePaymentEditComponentProps) =
         CreateOrUpdate = props.CreateOrUpdate
         Payment =
             match props.CreateOrUpdate with
-            | Create -> InvoicePaymentForm.Init props.CurrentBuilding props.InvoiceId
-            | Update payment -> InvoicePaymentForm.FromInvoicePayment payment
+            | Create -> InvoicePaymentInput.Init props.CurrentBuilding props.InvoiceId
+            | Update payment -> InvoicePaymentInput.FromInvoicePayment payment
         FinancialCategories = props.FinancialCategories
         CurrentBuilding = props.CurrentBuilding
         ShowingFinancialCategoryModal = false
@@ -55,7 +56,7 @@ let init (props: InvoicePaymentEditComponentProps) =
     }, Cmd.none
 
 let update (msg: Msg) (state: State): State * Cmd<Msg> =
-    let changePayment (changeFunc: InvoicePaymentForm -> InvoicePaymentForm): State =
+    let changePayment (changeFunc: InvoicePaymentInput -> InvoicePaymentInput): State =
         { state with Payment = changeFunc state.Payment }
 
     match msg with

@@ -57,7 +57,7 @@ let view (props: Props) =
                         div [ Class Bootstrap.formGroup ] [
                             label [] [ str "Document" ]
                             div [ Class Bootstrap.inputGroup ] [
-                                a [ Href (downloadUri Partitions.Contracts mediaFile.FileId); Target "_blank"; Class Bootstrap.formControl ] [
+                                a [ Href (downloadUri Partitions.InvoicePayments mediaFile.FileId); Target "_blank"; Class Bootstrap.formControl ] [
                                     str (sprintf "%s (%s)" mediaFile.FileName (mediaFile.FileSizeString ()))
                                 ]
                             ]

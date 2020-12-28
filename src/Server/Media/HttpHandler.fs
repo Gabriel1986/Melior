@@ -246,7 +246,7 @@ module Internals =
             setHttpHeader "Upload-Offset" ((latestChunkFileIndex + 1.0) * DefaultChunkSizeInBytes)
         >=> setStatusCode (Net.HttpStatusCode.OK |> int)
 
-    let download (config: IConfiguration) (system: IMediaSystem)  (partition: string, fileId: Guid) =
+    let download (config: IConfiguration) (system: IMediaSystem) (partition: string, fileId: Guid) =
         fun nxt (ctx: HttpContext) ->
             task {
                 match! system.GetMediaFile partition fileId with

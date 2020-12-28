@@ -35,6 +35,8 @@
         | InvoiceDetails of BuildingSpecificDetailProps
         | Provisions of BuildingSpecificProps //Management of owner deposits
         | BankNotes of BuildingSpecificProps //Bank debit/credit
+        | FinancialTransactions of BuildingSpecificProps //Financial transaction overview
+        | Balance of BuildingSpecificProps
         | UserList
         | UserDetails of Guid
         | NotFound
@@ -44,14 +46,14 @@
         | MyContracts
         | MyFinancials
     
-    let [<Literal>] private BuildingsPage: string = "buildings"
-    let [<Literal>] private PortalPage: string = ""
-    let [<Literal>] private OwnersPage: string = "owners"
-    let [<Literal>] private LotsPage: string = "lots"
-    let [<Literal>] private OrganizationsPage: string = "organizations"
-    let [<Literal>] private ProfessionalSyndicsPage: string = "professionalSyndics"
-    let [<Literal>] private OrganizationTypesPage: string = "organizationTypes"
-    let [<Literal>] private ContractsPage: string = "contracts"
+    let [<Literal>] private BuildingsPage = "buildings"
+    let [<Literal>] private PortalPage = ""
+    let [<Literal>] private OwnersPage = "owners"
+    let [<Literal>] private LotsPage = "lots"
+    let [<Literal>] private OrganizationsPage = "organizations"
+    let [<Literal>] private ProfessionalSyndicsPage = "professionalSyndics"
+    let [<Literal>] private OrganizationTypesPage = "organizationTypes"
+    let [<Literal>] private ContractsPage = "contracts"
     let [<Literal>] private MyContractsPage = "myContracts"
     let [<Literal>] private MyEventsPage = "myEvents"
     let [<Literal>] private MyLotsPage = "myLots"
@@ -62,6 +64,8 @@
     let [<Literal>] private InvoicesPage = "invoices"
     let [<Literal>] private ProvisionsPage = "provisions"
     let [<Literal>] private BankNotesPage = "banknotes"
+    let [<Literal>] private FinancialTransactionsPage = "financialtransactions"
+    let [<Literal>] private BalancePage = "balance"
     let [<Literal>] private UsersPage = "users"
 
     let private navigateToDetailsPage (identifier: Guid) (page: string) =
@@ -133,6 +137,10 @@
             routeToSpecificPage(ProvisionsPage, specifics)
         | Page.BankNotes specifics ->
             routeToSpecificPage(BankNotesPage, specifics)
+        | Page.FinancialTransactions specifics ->
+            routeToSpecificPage(FinancialTransactionsPage, specifics)
+        | Page.Balance specifics ->
+            routeToSpecificPage(BalancePage, specifics)
         | Page.UserList ->
             Router.format(UsersPage)
         | Page.UserDetails userId ->
@@ -190,6 +198,10 @@
             ProvisionsPage |> navigateToBuildingSpecificPage props
         | Page.BankNotes props ->
             BankNotesPage |> navigateToBuildingSpecificPage props
+        | Page.FinancialTransactions props ->
+            FinancialTransactionsPage |> navigateToBuildingSpecificPage props
+        | Page.Balance props ->
+            BalancePage |> navigateToBuildingSpecificPage props
         | Page.UserList ->
             Cmd.navigate(UsersPage)
         | Page.UserDetails props ->
@@ -203,19 +215,19 @@
             Page.Portal
         | [ BuildingsPage ] -> 
             Page.BuildingList
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId ] -> 
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId ] -> 
             Page.BuildingDetails buildingId
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; OwnersPage ] -> 
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; OwnersPage ] -> 
             Page.OwnerList { BuildingId = buildingId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; OwnersPage ; Feliz.Router.Route.Guid personId ] -> 
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; OwnersPage ; Feliz.Router.Route.Guid personId ] -> 
             Page.OwnerDetails { BuildingId = buildingId; DetailId = personId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; LotsPage ] -> 
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; LotsPage ] -> 
             Page.LotList { BuildingId = buildingId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; LotsPage ; Feliz.Router.Route.Guid lotId ] -> 
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; LotsPage ; Feliz.Router.Route.Guid lotId ] -> 
             Page.LotDetails { BuildingId = buildingId; DetailId = lotId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; OrganizationsPage ] -> 
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; OrganizationsPage ] -> 
             Page.OrganizationList { BuildingId = buildingId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; OrganizationsPage ; Feliz.Router.Route.Guid orgId ] -> 
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; OrganizationsPage ; Feliz.Router.Route.Guid orgId ] -> 
             Page.OrganizationDetails { BuildingId = buildingId; DetailId = orgId }
         | [ ProfessionalSyndicsPage ] ->
             Page.ProfessionalSyndicList
@@ -223,22 +235,26 @@
             Page.ProfessionalSyndicDetails proSyndicId
         | [ OrganizationTypesPage ] ->
             Page.OrganizationTypeList
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; ContractsPage ] ->
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; ContractsPage ] ->
             Page.Contracts { BuildingId = buildingId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; FinancialSettingsPage ] ->
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; FinancialSettingsPage ] ->
             Page.FinancialSettings { BuildingId = buildingId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; DistributionKeysPage ] ->
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; DistributionKeysPage ] ->
             Page.DistributionKeyList { BuildingId = buildingId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; DistributionKeysPage ; Feliz.Router.Route.Guid distributionKeyId ] -> 
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; DistributionKeysPage ; Feliz.Router.Route.Guid distributionKeyId ] -> 
             Page.DistributionKeyDetails { BuildingId = buildingId; DetailId = distributionKeyId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; InvoicesPage ] ->
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; InvoicesPage ] ->
             Page.Invoices { BuildingId = buildingId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; InvoicesPage ; Feliz.Router.Route.Guid invoiceId ] ->
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; InvoicesPage ; Feliz.Router.Route.Guid invoiceId ] ->
             Page.InvoiceDetails { BuildingId = buildingId; DetailId = invoiceId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; ProvisionsPage ] ->
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; ProvisionsPage ] ->
             Page.Provisions { BuildingId = buildingId }
-        | [ BuildingsPage ; Feliz.Router.Route.Guid buildingId; BankNotesPage ] ->
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; BankNotesPage ] ->
             Page.BankNotes { BuildingId = buildingId }
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; FinancialTransactionsPage ] ->
+            Page.FinancialTransactions { BuildingId = buildingId }
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; BalancePage ] ->
+            Page.Balance { BuildingId = buildingId }
         | [ MyContractsPage ] ->
             Page.MyContracts
         | [ MyEventsPage ] ->
@@ -251,7 +267,7 @@
             Page.NoticeBoard
         | [ UsersPage ] ->
             Page.UserList
-        | [ UsersPage ; Feliz.Router.Route.Guid userId ] ->
+        | [ UsersPage; Feliz.Router.Route.Guid userId ] ->
             Page.UserDetails userId
         | _ -> 
             Page.NotFound

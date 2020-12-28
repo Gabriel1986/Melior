@@ -38,7 +38,7 @@ type Model = {
 }
 type Msg =
     | SaveModal
-    | InvoicePaymentSaved of Result<InvoicePayment, SaveInvoicePaymentError>
+    | InvoicePaymentSaved of Result<InvoicePaymentInput, SaveInvoicePaymentError>
     | RemotingErrorOccured of exn
     | InvoicePaymentEditComponentMsg of InvoicePaymentEditComponent.Msg
     | CloseModal
@@ -61,13 +61,13 @@ let private init (props: InvoicePaymentModalProps) =
     }, componentCmd |> Cmd.map InvoicePaymentEditComponentMsg
 
 module Server =
-    let createInvoicePayment (payment: InvoicePayment) =
+    let createInvoicePayment (payment: InvoicePaymentInput) =
         Cmd.OfAsync.either
             (Client.Remoting.getRemotingApi()).CreateInvoicePayment
                 payment
                 (Result.map (fun () -> payment) >> InvoicePaymentSaved)
                 RemotingErrorOccured
-    let updateInvoicePayment (payment: InvoicePayment) =
+    let updateInvoicePayment (payment: InvoicePaymentInput) =
         Cmd.OfAsync.either
             (Client.Remoting.getRemotingApi()).UpdateInvoicePayment
                 payment
@@ -92,15 +92,12 @@ let private update (msg: Msg) (model: Model): Model * Cmd<Msg> =
         model.OnCanceled ()
         model, Cmd.none
     | SaveModal ->
-        match model.InvoicePaymentEditComponentState.Payment.ToInvoicePayment() |> Trial.toResult with
-        | Ok payment ->
-            match ValidatedInvoicePayment.Validate payment with
-            | Ok validated ->
-                match model.InvoicePaymentEditComponentState.CreateOrUpdate with
-                | Create   -> { model with IsSaving = true }, Server.createInvoicePayment payment
-                | Update _ -> { model with IsSaving = true }, Server.updateInvoicePayment payment
-            | Error errors ->
-                setComponentErrors errors, Cmd.none
+        let payment = model.InvoicePaymentEditComponentState.Payment
+        match ValidatedInvoicePayment.Validate payment with
+        | Ok validated ->
+            match model.InvoicePaymentEditComponentState.CreateOrUpdate with
+            | Create   -> { model with IsSaving = true }, Server.createInvoicePayment payment
+            | Update _ -> { model with IsSaving = true }, Server.updateInvoicePayment payment
         | Error errors ->
             setComponentErrors errors, Cmd.none
     | InvoicePaymentSaved result ->

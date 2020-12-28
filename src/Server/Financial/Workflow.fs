@@ -139,7 +139,7 @@ let deleteInvoice (store: IStorageEngine) (msg: Message<BuildingId * Guid>) = as
         return Error DeleteInvoiceError.AuthorizationError
 }
 
-let createInvoicePayment (store: IStorageEngine) (msg: Message<InvoicePayment>) = async {
+let createInvoicePayment (store: IStorageEngine) (msg: Message<InvoicePaymentInput>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedInvoicePayment.Validate msg.Payload with
@@ -158,7 +158,7 @@ let createInvoicePayment (store: IStorageEngine) (msg: Message<InvoicePayment>) 
         return Error SaveInvoicePaymentError.AuthorizationError
 }
 
-let updateInvoicePayment (store: IStorageEngine) (msg: Message<InvoicePayment>) = async {
+let updateInvoicePayment (store: IStorageEngine) (msg: Message<InvoicePaymentInput>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedInvoicePayment.Validate msg.Payload with
@@ -334,3 +334,56 @@ let seedFinancialCategories (msg: Message<FinancialCategory list>) =
                     failwithf "Precondition failed: An error occured while seeding financial categories: %A" e
             )
     ]
+
+//let createFinancialTransaction (store: IStorageEngine) (msg: Message<FinancialTransaction>) = async {
+//    match (msg.CurrentUser, Some msg.Payload.BuildingId) with
+//    | Authorized ->
+//        match ValidatedFinancialTransaction.Validate msg.Payload with
+//        | Ok validated -> 
+//            let! _ = store.PersistTransactional [
+//                validated
+//                |> BuildingSpecificCUDEvent.Created
+//                |> FinancialEvent.FinancialTransactionEvent
+//                |> StorageEvent.FinancialEvent
+//                |> inMsg msg
+//            ]
+//            return Ok ()
+//        | Error validationErrors ->
+//            return Error (SaveFinancialTransactionError.Validation validationErrors)
+//    | Unauthorized ->
+//        return Error SaveFinancialTransactionError.AuthorizationError
+//}
+
+//let updateFinancialTransaction (store: IStorageEngine) (msg: Message<FinancialTransaction>) = async {
+//    match (msg.CurrentUser, Some msg.Payload.BuildingId) with
+//    | Authorized ->
+//        match ValidatedFinancialTransaction.Validate msg.Payload with
+//        | Ok validated ->
+//            let! nbUpdated = store.PersistTransactional [
+//                validated
+//                |> BuildingSpecificCUDEvent.Updated
+//                |> FinancialEvent.FinancialTransactionEvent
+//                |> StorageEvent.FinancialEvent
+//                |> inMsg msg
+//            ]
+//            return if nbUpdated > 0 then Ok () else Error (SaveFinancialTransactionError.NotFound)
+//        | Error validationErrors ->
+//            return Error (SaveFinancialTransactionError.Validation validationErrors)
+//    | Unauthorized ->
+//        return Error SaveFinancialTransactionError.AuthorizationError
+//}
+
+//let deleteFinancialCategory (store: IStorageEngine) (msg: Message<BuildingId * Guid>) = async {
+//    match (msg.CurrentUser, Some (fst msg.Payload)) with
+//    | Authorized ->
+//        let! nbRows = store.PersistTransactional [
+//            msg.Payload
+//            |> BuildingSpecificCUDEvent.Deleted
+//            |> FinancialEvent.FinancialTransactionEvent
+//            |> StorageEvent.FinancialEvent
+//            |> inMsg msg
+//        ]
+//        return if nbRows > 0 then Ok () else Error DeleteFinancialTransactionError.NotFound
+//    | Unauthorized ->
+//        return Error DeleteFinancialTransactionError.AuthorizationError
+//}

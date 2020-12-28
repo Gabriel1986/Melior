@@ -127,6 +127,15 @@ type DeleteFinancialYearError =
     | AuthorizationError
     | NotFound
 
+type SaveFinancialTransactionError =
+    | AuthorizationError
+    | Validation of (string * string) list
+    | NotFound
+
+type DeleteFinancialTransactionError =
+    | AuthorizationError
+    | NotFound
+
 type SaveFinancialCategoryError =
     | AuthorizationError
     | Validation of (string * string) list
@@ -197,20 +206,25 @@ type RemotingApi = {
     UpdateDistributionKey: DistributionKey -> Async<Result<unit, SaveDistributionKeyError>>
     DeleteDistributionKey: BuildingId * Guid -> Async<Result<unit, DeleteDistributionKeyError>>
 
-    GetInvoices: InvoiceFilter -> Async<InvoiceListItem list>
+    GetInvoices: FinancialTransactionFilter -> Async<InvoiceListItem list>
     GetInvoice: Guid -> Async<Invoice option>
     CreateInvoice: Invoice -> Async<Result<unit, SaveInvoiceError>>
     UpdateInvoice: Invoice -> Async<Result<unit, SaveInvoiceError>>
     DeleteInvoice: BuildingId * Guid -> Async<Result<unit, DeleteInvoiceError>>
 
-    CreateInvoicePayment: InvoicePayment -> Async<Result<unit, SaveInvoicePaymentError>>
-    UpdateInvoicePayment: InvoicePayment -> Async<Result<unit, SaveInvoicePaymentError>>
+    CreateInvoicePayment: InvoicePaymentInput -> Async<Result<unit, SaveInvoicePaymentError>>
+    UpdateInvoicePayment: InvoicePaymentInput -> Async<Result<unit, SaveInvoicePaymentError>>
     DeleteInvoicePayment: BuildingId * Guid -> Async<Result<unit, DeleteInvoicePaymentError>>
 
     GetFinancialYears: BuildingId -> Async<FinancialYear list>
     CloseFinancialYear: BuildingId * Guid -> Async<Result<unit, SaveFinancialYearError>>
     CreateFinancialYear: FinancialYear -> Async<Result<unit, SaveFinancialYearError>>
     UpdateFinancialYear: FinancialYear -> Async<Result<unit, SaveFinancialYearError>>
+
+    GetFinancialTransactions: FinancialTransactionFilter -> Async<FinancialTransaction list>
+    //CreateFinancialTransaction: FinancialTransaction -> Async<Result<unit, SaveFinancialTransactionError>>
+    //UpdateFinancialTransaction: FinancialTransaction -> Async<Result<unit, SaveFinancialTransactionError>>
+    //DeleteFinancialTransaction: BuildingId * Guid -> Async<Result<unit, DeleteFinancialTransactionError>>
 
     GetFinancialCategories: BuildingId -> Async<FinancialCategory list>
     CreateFinancialCategory: FinancialCategory -> Async<Result<unit, SaveFinancialCategoryError>>

@@ -11,7 +11,6 @@ open Shared.Library
 open Shared.Trial
 open Shared.Trial.Control
 open Shared.MediaLibrary
-open Shared.Write
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Library
@@ -230,7 +229,6 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         state |> changeInvoice (fun invoice -> { invoice with Description = newDescription })
         , Cmd.none
     | VatRateChanged vatRate ->
-        printf "New vat rate: %i" vatRate
         state |> changeInvoice (fun invoice -> { invoice with VatRate = vatRate })
         , Cmd.none
     | ChangeCategory ->
