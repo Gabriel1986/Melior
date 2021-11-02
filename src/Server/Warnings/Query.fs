@@ -7,35 +7,35 @@ open Server.Library
 open Server.PostgreSQL
 open Shared.Read
 
-let private warningsForLots (conn: string) (buildingId: Guid) = async {
-    let! lotShareCount =
+let warningsForLots (conn: string) (buildingId: Guid) = async {
+    let! actualTotal, expectedTotal =
         Sql.connect conn
-        |> Sql.query "SELECT COALESCE(SUM(Share), 0) AS Sum FROM Lots WHERE BuildingId = @BuildingId"
+        |> Sql.query 
+            """
+                SELECT COALESCE(SUM(Share), 0) AS ActualTotal, COALESCE(SharesTotal, 0) As ExpectedTotal
+                FROM Lots lot
+                JOIN Buildings building ON lot.BuildingId = building.BuildingId
+                WHERE lot.IsActive = TRUE AND building.BuildingId = @BuildingId
+                GROUP BY building.BuildingId
+            """
         |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
-        |> Sql.readSingle (fun reader -> reader.int "Sum")
-        |> Async.map (Option.defaultValue 0)
-
-    let! expectedTotal =
-        Sql.connect conn
-        |> Sql.query "SELECT COALESCE(SharesTotal, 0) AS SharesTotal FROM Buildings WHERE BuildingId = @BuildingId"
-        |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
-        |> Sql.readSingle (fun reader -> reader.int "SharesTotal")
-        |> Async.map (Option.defaultValue 0)
+        |> Sql.readSingle (fun reader -> reader.int "ActualTotal", reader.int "ExpectedTotal")
+        |> Async.map (Option.defaultValue (0, 0))
 
     return [
-        if lotShareCount <> expectedTotal then 
+        if actualTotal <> expectedTotal then 
             {
                 Concept = Concept.Lot
                 Message =
                     sprintf
                         "De som van de quotiteiten van de kavels (%i) komt niet overeen met het verwachte totaal gedefinieerd op het gebouw (%i)" 
-                        lotShareCount 
+                        actualTotal 
                         expectedTotal
             }
     ]
 }
 
-let private warningsForContracts (conn: string) (buildingId: Guid) = async {
+let warningsForContracts (conn: string) (buildingId: Guid) = async {
     let! contractAnswers = Server.Contracts.Query.getContractTypeAnswers conn buildingId
     let allContractTypeQuestions = 
         ContractTypeQuestion.AllValues ()

@@ -139,7 +139,7 @@ let deleteInvoice (store: IStorageEngine) (msg: Message<BuildingId * Guid>) = as
         return Error DeleteInvoiceError.AuthorizationError
 }
 
-let createInvoicePayment (store: IStorageEngine) (msg: Message<InvoicePaymentInput>) = async {
+let createInvoicePayment (store: IStorageEngine) (msg: Message<InvoicePayment>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedInvoicePayment.Validate msg.Payload with
@@ -158,7 +158,7 @@ let createInvoicePayment (store: IStorageEngine) (msg: Message<InvoicePaymentInp
         return Error SaveInvoicePaymentError.AuthorizationError
 }
 
-let updateInvoicePayment (store: IStorageEngine) (msg: Message<InvoicePaymentInput>) = async {
+let updateInvoicePayment (store: IStorageEngine) (msg: Message<InvoicePayment>) = async {
     match (msg.CurrentUser, Some msg.Payload.BuildingId) with
     | Authorized ->
         match ValidatedInvoicePayment.Validate msg.Payload with
@@ -230,10 +230,10 @@ let updateFinancialYear (store: IStorageEngine) (msg: Message<FinancialYear>) = 
         return Error SaveFinancialYearError.AuthorizationError
 }
 
-let closeFinancialYear (store: IStorageEngine) (conn: string) (msg: Message<BuildingId * Guid>) = async {
+let closeFinancialYear (store: IStorageEngine) (getFinancialYearsByIds: BuildingId -> Guid list -> Async<FinancialYear list>) (msg: Message<BuildingId * Guid>) = async {
     match (msg.CurrentUser, Some (fst msg.Payload)) with
     | Authorized ->
-        let! financialYears = Query.getFinancialYearsByIds conn (fst msg.Payload, [ snd msg.Payload ])
+        let! financialYears = getFinancialYearsByIds (fst msg.Payload) [ snd msg.Payload ]
         match financialYears |> List.map ValidatedFinancialYear.Validate with
         | [] -> 
             return Error SaveFinancialYearError.NotFound
@@ -373,7 +373,7 @@ let seedFinancialCategories (msg: Message<FinancialCategory list>) =
 //        return Error SaveFinancialTransactionError.AuthorizationError
 //}
 
-//let deleteFinancialCategory (store: IStorageEngine) (msg: Message<BuildingId * Guid>) = async {
+//let deleteFinancialTransaction (store: IStorageEngine) (msg: Message<BuildingId * Guid>) = async {
 //    match (msg.CurrentUser, Some (fst msg.Payload)) with
 //    | Authorized ->
 //        let! nbRows = store.PersistTransactional [
@@ -387,3 +387,109 @@ let seedFinancialCategories (msg: Message<FinancialCategory list>) =
 //    | Unauthorized ->
 //        return Error DeleteFinancialTransactionError.AuthorizationError
 //}
+
+let createDepositRequest (store: IStorageEngine) (msg: Message<DepositRequest>) = async {
+    match (msg.CurrentUser, Some msg.Payload.BuildingId) with
+    | Authorized ->
+        match ValidatedDepositRequest.Validate msg.Payload with
+        | Ok validated ->
+            let! _ = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Created
+                |> FinancialEvent.DepositRequestEvent
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg
+            ]
+            return Ok ()
+        | Error validationErrors ->
+            return Error (SaveDepositRequestError.Validation validationErrors)
+    | Unauthorized ->
+        return Error SaveDepositRequestError.AuthorizationError
+}
+
+let updateDepositRequest (store: IStorageEngine) (msg: Message<DepositRequest>) = async {
+    match (msg.CurrentUser, Some msg.Payload.BuildingId) with
+    | Authorized ->
+        match ValidatedDepositRequest.Validate msg.Payload with
+        | Ok validated ->
+            let! nbUpdated = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Updated
+                |> FinancialEvent.DepositRequestEvent
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg
+            ]
+            return if nbUpdated > 0 then Ok () else Error (SaveDepositRequestError.NotFound)
+        | Error validationErrors ->
+            return Error (SaveDepositRequestError.Validation validationErrors)
+    | Unauthorized ->
+        return Error SaveDepositRequestError.AuthorizationError
+}
+
+let deleteDepositRequest (store: IStorageEngine) (msg: Message<BuildingId * Guid>) = async {
+    match (msg.CurrentUser, Some (fst msg.Payload)) with
+    | Authorized ->
+        let! nbRows = store.PersistTransactional [
+            msg.Payload
+            |> BuildingSpecificCUDEvent.Deleted
+            |> FinancialEvent.DepositRequestEvent
+            |> StorageEvent.FinancialEvent
+            |> inMsg msg
+        ]
+        return if nbRows > 0 then Ok () else Error DeleteDepositRequestError.NotFound
+    | Unauthorized ->
+        return Error DeleteDepositRequestError.AuthorizationError
+}
+
+let createDeposit (store: IStorageEngine) (msg: Message<Deposit>) = async {
+    match (msg.CurrentUser, Some msg.Payload.BuildingId) with
+    | Authorized ->
+        match ValidatedDeposit.Validate msg.Payload with
+        | Ok validated ->
+            let! _ = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Created
+                |> FinancialEvent.DepositEvent
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg
+            ]
+            return Ok ()
+        | Error validationErrors ->
+            return Error (SaveDepositError.Validation validationErrors)
+    | Unauthorized ->
+        return Error SaveDepositError.AuthorizationError
+}
+
+let updateDeposit (store: IStorageEngine) (msg: Message<Deposit>) = async {
+    match (msg.CurrentUser, Some msg.Payload.BuildingId) with
+    | Authorized ->
+        match ValidatedDeposit.Validate msg.Payload with
+        | Ok validated ->
+            let! nbUpdated = store.PersistTransactional [
+                validated
+                |> BuildingSpecificCUDEvent.Updated
+                |> FinancialEvent.DepositEvent
+                |> StorageEvent.FinancialEvent
+                |> inMsg msg
+            ]
+            return if nbUpdated > 0 then Ok () else Error (SaveDepositError.NotFound)
+        | Error validationErrors ->
+            return Error (SaveDepositError.Validation validationErrors)
+    | Unauthorized ->
+        return Error SaveDepositError.AuthorizationError
+}
+
+let deleteDeposit (store: IStorageEngine) (msg: Message<BuildingId * Guid>) = async {
+    match (msg.CurrentUser, Some (fst msg.Payload)) with
+    | Authorized ->
+        let! nbRows = store.PersistTransactional [
+            msg.Payload
+            |> BuildingSpecificCUDEvent.Deleted
+            |> FinancialEvent.DepositEvent
+            |> StorageEvent.FinancialEvent
+            |> inMsg msg
+        ]
+        return if nbRows > 0 then Ok () else Error DeleteDepositError.NotFound
+    | Unauthorized ->
+        return Error DeleteDepositError.AuthorizationError
+}

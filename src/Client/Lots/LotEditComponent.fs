@@ -76,6 +76,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
     | AddLotOwnerOfType lotOwnerType ->
         let newLotOwner: LotOwner = {
             LotId = state.Lot.LotId
+            BuildingId = state.Lot.BuildingId
             LotOwnerId = Guid.NewGuid()
             LotOwnerType = lotOwnerType
             StartDate = DateTimeOffset.Now
@@ -426,7 +427,10 @@ let view (state: State) (dispatch: Message -> unit) =
             {|
                 IsOpen = state.ShowingLotOwnerModal
                 BuildingId = state.Lot.BuildingId
-                LotOwnerTypes = state.Lot.Owners |> List.map (fun ownerType -> ownerType.LotOwnerType)
+                Selected = state.Lot.Owners |> List.map (fun ownerType -> 
+                    match ownerType.LotOwnerType with
+                    | LotOwnerType.Owner owner -> LotOwnerTypeListItem.Owner {| Name = owner.FullName(); PersonId = owner.PersonId |}
+                    | LotOwnerType.Organization org -> LotOwnerTypeListItem.Organization {| Name = org.Name; OrganizationId = org.OrganizationId |})
                 OnSelected = (fun owners -> AddLotOwnerOfType owners |> dispatch)
                 OnCanceled = (fun _ -> ChangeLotOwnersCanceled |> dispatch) 
             |}

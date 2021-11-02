@@ -1,4 +1,4 @@
-﻿module Client.Financial.Invoicing.InvoiceViewComponent
+﻿module Client.Financial.Deposits.DepositRequestViewComponent
 
 open System
 open Fable.React
@@ -10,38 +10,27 @@ open Client.ClientStyle
 open Client.ClientStyle.Helpers
 
 type Props = {|
-    Invoice: Invoice
+    DepositRequest: DepositRequest
 |}
 
 let view (props: Props) =
-    let detail = props.Invoice
+    let detail = props.DepositRequest
     div [] [
         fieldset [] [
             legend [] [ h4 [] [ str "Algemeen" ] ]
-            readonlyFormElement "Boekingsnummer" detail.LocalInvoiceNumber
+            readonlyFormElement "Boekingsnummer" detail.LocalRequestNumber
             readonlyFormElement "Boekingsdatum" (detail.BookingDate.ToString("dd/MM/yyyy"))
-            readonlyFormElement "Boekhoudkundige rekening" (sprintf "%s - %s" detail.FinancialCategory.Code detail.FinancialCategory.Description)
+            readonlyFormElement "Boekhoudkundige rekening" (sprintf "%s - %s" detail.ToFinancialCategory.Code detail.ToFinancialCategory.Description)
             readonlyFormElement "Omschrijving" (detail.Description |> Option.defaultValue "")
             readonlyFormElement "Verdeelsleutel" detail.DistributionKey.Name
         ]
         fieldset [] [
-            legend [] [ h4 [] [ str "Leverancier" ] ]
-            readonlyFormElement "Naam" detail.Organization.Name
-            match detail.Organization.OrganizationNumber, detail.Organization.VatNumber with
-            | Some orgNr, _ ->
-                readonlyFormElement "Ondernemingsnr" orgNr
-            | _, Some vatNr ->
-                readonlyFormElement "BTW nr." vatNr
-            | _ ->
-                null
-        ]
-        fieldset [] [
-            legend [] [ h4 [] [ str "Factuur" ] ]
-            readonlyFormElement "Nr." (detail.OrganizationInvoiceNumber |> Option.defaultValue "")
-            readonlyFormElement "Opmaakdatum" (detail.InvoiceDate.ToString("dd/MM/yyyy"))
+            legend [] [ h4 [] [ str "Aanvraag details" ] ]
+            //readonlyFormElement "Referentie" (match detail.Reference with BelgianOGMReference ref -> ref)
+            readonlyFormElement "Aanvraagdatum" (detail.RequestDate.ToString("dd/MM/yyyy"))
             readonlyFormElement "Einddatum betaling" (detail.DueDate.ToString("dd/MM/yyyy"))
-            readonlyFormElement "Bedrag" (String.Format("€{0:0.00}", detail.Cost).Replace('.', ','))
-            readonlyFormElement "Naar rekening" (string detail.OrganizationBankAccount)
+            readonlyFormElement "Bedrag" (String.Format("€{0:0.00}", detail.Amount).Replace('.', ','))
+            readonlyFormElement "Naar rekening" (string detail.ToBankAccount)
         ]
         match detail.MediaFiles with
         | [] ->

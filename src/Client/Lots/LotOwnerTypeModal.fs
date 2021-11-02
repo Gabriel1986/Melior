@@ -56,17 +56,17 @@ type Message =
 type LotOwnerTypeModalProps = {|
     IsOpen: bool
     BuildingId: Guid
-    LotOwnerTypes: LotOwnerType list
+    Selected: LotOwnerTypeListItem list
     OnSelected: LotOwnerType -> unit
     OnCanceled: unit -> unit
 |}
 
 let init (props: LotOwnerTypeModalProps) =
     let state, cmd, lotOwnerType =
-        match props.LotOwnerTypes with
+        match props.Selected with
         | [] -> 
             SelectingLotOwnerType, Cmd.none, None
-        | x when props.LotOwnerTypes |> List.forall (function | LotOwnerType.Organization _ -> true | LotOwnerType.Owner _ -> false) ->
+        | x when props.Selected |> List.forall (function | LotOwnerTypeListItem.Organization _ -> true | LotOwnerTypeListItem.Owner _ -> false) ->
             LoadingOrganizations, Cmd.ofMsg LoadOrganizations, Some Organization
         | _ ->
             LoadingOwners, Cmd.ofMsg LoadOwners, Some Owner

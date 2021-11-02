@@ -1,4 +1,4 @@
-﻿module Client.Financial.Invoicing.InvoiceDetails
+﻿module Client.Financial.Deposits.DepositRequestDetails
 
 open System
 open Elmish
@@ -16,41 +16,41 @@ open Client
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open Client.Library
+open DepositTypes
 
 type Model = {
-    InvoiceId: Guid
+    DepositRequestId: Guid
     CurrentBuilding: BuildingListItem
     CurrentUser: User
     State: State
-    NotifyCreated: Invoice -> unit
-    NotifyEdited:  Invoice -> unit
-    PaymentModalIsOpenOn: InvoicePaymentTypes.CreateOrUpdate option
-    LoadingFinancialCategories: bool
     FinancialCategories: FinancialCategory list
+    NotifyCreated: DepositRequest -> unit
+    NotifyEdited:  DepositRequest -> unit
+    DepositModalIsOpenOn: DepositTypes.CreateOrUpdate option
 }
 and State =
     | Loading
-    | Viewing  of detail: Invoice
-    | Editing  of isSaving: bool * invoiceEditState: InvoiceEditComponent.State
-    | Creating of isSaving: bool * invoiceEditState: InvoiceEditComponent.State
+    | Viewing  of detail: DepositRequest
+    | Editing  of isSaving: bool * depositRequestEditState: DepositRequestEditComponent.State
+    | Creating of isSaving: bool * depositRequestEditState: DepositRequestEditComponent.State
     | InvoiceNotFound
 
 type Msg =
-    | InvoiceEditMsg of InvoiceEditComponent.Message
-    | View of Invoice option
-    | Edit of Invoice
+    | InvoiceEditMsg of DepositRequestEditComponent.Message
+    | View of DepositRequest option
+    | Edit of DepositRequest
     | RemotingError of exn
     | Save
-    | ProcessCreateResult of Result<Invoice, SaveInvoiceError>
-    | ProcessUpdateResult of Result<Invoice, SaveInvoiceError>
+    | ProcessCreateResult of Result<DepositRequest, SaveDepositRequestError>
+    | ProcessUpdateResult of Result<DepositRequest, SaveDepositRequestError>
 
-    | AddPayment
-    | EditPayment of InvoicePayment
-    | RemovePayment of InvoicePayment
-    | ConfirmRemovePayment of InvoicePayment
-    | PaymentWasCanceled
-    | PaymentWasAdded of InvoicePaymentTypes.CreatedOrUpdated
-    | PaymentWasRemoved of InvoicePayment
+    | AddDeposit
+    | EditDeposit of Deposit
+    | RemoveDeposit of Deposit
+    | ConfirmRemoveDeposit of Deposit
+    | DepositWasCanceled
+    | DepositWasAdded of DepositTypes.CreatedOrUpdated
+    | DepositWasRemoved of Deposit
     | FinancialCategoriesLoaded of FinancialCategory list
     | NoOp
 
@@ -59,23 +59,23 @@ type DetailsProps = {|
     CurrentBuilding: BuildingListItem
     Identifier: Guid
     IsNew: bool
-    NotifyCreated: Invoice -> unit
-    NotifyEdited: Invoice -> unit
+    NotifyCreated: DepositRequest -> unit
+    NotifyEdited: DepositRequest -> unit
 |}
 
 module Server =
-    let getInvoiceCmd invoiceId =
+    let getDepositRequestCmd identifier =
         Cmd.OfAsync.either
-            (Remoting.getRemotingApi().GetInvoice)
-            invoiceId
+            (Remoting.getRemotingApi().GetDepositRequest)
+            identifier
             View
             RemotingError
 
-    let removePayment (buildingId: BuildingId, invoicePayment: InvoicePayment) =
+    let removeDeposit (buildingId: BuildingId, deposit: Deposit) =
         Cmd.OfAsync.either
-            (Remoting.getRemotingApi().DeleteInvoicePayment)
-            (buildingId, invoicePayment.InvoicePaymentId)
-            (fun _ -> PaymentWasRemoved invoicePayment)
+            (Remoting.getRemotingApi().DeleteDeposit)
+            (buildingId, deposit.DepositId)
+            (fun _ -> DepositWasRemoved deposit)
             RemotingError
 
     let getFinancialCategories (buildingId: BuildingId) =
@@ -84,37 +84,35 @@ module Server =
                 buildingId 
                 FinancialCategoriesLoaded 
                 RemotingError
-    
 
 let init (props: DetailsProps): Model * Cmd<Msg> =
     let state, cmd =
         if props.IsNew then
             let invoiceEditState, invoiceEditCmd = 
-                InvoiceEditComponent.init {| CurrentBuilding = props.CurrentBuilding; Invoice = None |}
+                DepositRequestEditComponent.init {| CurrentBuilding = props.CurrentBuilding; DepositRequest = None |}
             Creating (false, invoiceEditState), invoiceEditCmd |> Cmd.map InvoiceEditMsg
         else
-            Loading, Server.getInvoiceCmd props.Identifier
+            Loading, Server.getDepositRequestCmd props.Identifier
 
     {
         CurrentUser = props.CurrentUser
         CurrentBuilding = props.CurrentBuilding
-        InvoiceId = props.Identifier
+        DepositRequestId = props.Identifier
         State = state
         NotifyCreated = props.NotifyCreated
         NotifyEdited = props.NotifyEdited
-        PaymentModalIsOpenOn = None
         FinancialCategories = []
-        LoadingFinancialCategories = true
-    }, Cmd.batch [ cmd; Server.getFinancialCategories props.CurrentBuilding.BuildingId ]
+        DepositModalIsOpenOn = None
+    }, Cmd.batch [ cmd; Server.getFinancialCategories (props.CurrentBuilding.BuildingId) ]
 
 let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
     let processSaveInvoiceError =
         function
-        | SaveInvoiceError.AuthorizationError ->
-            model, showErrorToastCmd "U heeft geen toestemming om deze factuur te bewaren"
-        | SaveInvoiceError.NotFound ->
-            model, showErrorToastCmd "De factuur werd niet gevonden in de databank"
-        | SaveInvoiceError.Validation errors ->
+        | SaveDepositRequestError.AuthorizationError ->
+            model, showErrorToastCmd "U heeft geen toestemming om deze provisie te bewaren"
+        | SaveDepositRequestError.NotFound ->
+            model, showErrorToastCmd "De provisie werd niet gevonden in de databank"
+        | SaveDepositRequestError.Validation errors ->
             match model.State with
             | Creating (_, componentState) ->
                 { model with State = Creating (false, { componentState with Errors = errors }) }, Cmd.none
@@ -124,20 +122,18 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
                 model, Cmd.none
 
     match msg with
-    | View invoice ->
-        match invoice with
-        | Some invoice ->
-            { model with State = Viewing invoice }, Cmd.none
+    | View request ->
+        match request with
+        | Some request ->
+            { model with State = Viewing request }, Cmd.none
         | None ->
             { model with State = InvoiceNotFound }, Cmd.none
-    | Edit invoice ->
-        let invoiceEditState, invoiceEditCmd = InvoiceEditComponent.init {| Invoice = Some invoice; CurrentBuilding = model.CurrentBuilding |}
-        { model with State = Editing (false, invoiceEditState) }, invoiceEditCmd |> Cmd.map InvoiceEditMsg
-    | FinancialCategoriesLoaded categories ->
-        { model with FinancialCategories = categories; LoadingFinancialCategories = false }, Cmd.none
+    | Edit request ->
+        let invoiceEditState, invoiceEditCmd = DepositRequestEditComponent.init {| DepositRequest = Some request; CurrentBuilding = model.CurrentBuilding |}
+        { model with State = Editing (false, invoiceEditState) }, invoiceEditCmd |> Cmd.map InvoiceEditMsg    
     | InvoiceEditMsg componentMsg ->
         let updateComponentState s (isSaving, componentState) =
-            let newComponentState, newComponentCmd = InvoiceEditComponent.update componentMsg componentState
+            let newComponentState, newComponentCmd = DepositRequestEditComponent.update componentMsg componentState
             { model with State = s (isSaving, newComponentState) }, 
             newComponentCmd |> Cmd.map InvoiceEditMsg
 
@@ -152,15 +148,15 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
     | Save ->
         match model.State with
         | Editing (_, componentState) ->
-            match componentState.Invoice.Validate () with
-            | Ok invoice ->
-                match ValidatedInvoice.Validate invoice with
+            match componentState.Request.Validate () with
+            | Ok request ->
+                match ValidatedDepositRequest.Validate request with
                 | Ok _ ->
                     let cmd = 
                         Cmd.OfAsync.either
-                            (Remoting.getRemotingApi().UpdateInvoice)
-                            invoice
-                            (fun result -> result |> Result.map (fun _ -> invoice) |> ProcessUpdateResult)
+                            (Remoting.getRemotingApi().UpdateDepositRequest)
+                            request
+                            (fun result -> result |> Result.map (fun _ -> request) |> ProcessUpdateResult)
                             RemotingError
                     { model with State = Editing (true, componentState) }, cmd
                 | Error e ->
@@ -168,15 +164,15 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             | Error e ->
                 { model with State = Editing (false, { componentState with Errors = e }) }, Cmd.none
         | Creating (_, componentState) ->
-            match componentState.Invoice.Validate () with
-            | Ok invoice ->
-                match ValidatedInvoice.Validate invoice with
+            match componentState.Request.Validate () with
+            | Ok request ->
+                match ValidatedDepositRequest.Validate request with
                 | Ok _ ->
                     let cmd = 
                         Cmd.OfAsync.either
-                            (Remoting.getRemotingApi().CreateInvoice)
-                            invoice
-                            (fun result -> result |> Result.map (fun _ -> invoice) |> ProcessCreateResult)
+                            (Remoting.getRemotingApi().CreateDepositRequest)
+                            request
+                            (fun result -> result |> Result.map (fun _ -> request) |> ProcessCreateResult)
                             RemotingError
                     { model with State = Creating (true, componentState) }, cmd
                 | Error e ->
@@ -188,6 +184,8 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             model, Cmd.none
     | RemotingError e ->
         model, showGenericErrorModalCmd e
+    | FinancialCategoriesLoaded financialCategories ->
+        { model with FinancialCategories = financialCategories }, Cmd.none
     | ProcessCreateResult result ->
         match result with
         | Ok result ->
@@ -206,40 +204,40 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
             { model with State = Viewing result }, Cmd.none
         | Error e ->
             processSaveInvoiceError e
-    | AddPayment ->
-        { model with PaymentModalIsOpenOn = Some (InvoicePaymentTypes.CreateOrUpdate.Create) }, Cmd.none
-    | EditPayment payment ->
-        { model with PaymentModalIsOpenOn = Some (InvoicePaymentTypes.CreateOrUpdate.Update payment) }, Cmd.none
-    | RemovePayment toRemove ->
+    | AddDeposit ->
+        { model with DepositModalIsOpenOn = Some Create }, Cmd.none
+    | EditDeposit payment ->
+        { model with DepositModalIsOpenOn = Some (Update payment) }, Cmd.none
+    | RemoveDeposit toRemove ->
         model
         , showConfirmationModal 
             {| 
                 Title = "Betaling verwijderen"
                 Message = "Bent u er zeker van dat u de betaling wilt verwijderen?"
-                OnConfirmed = (fun () -> ConfirmRemovePayment toRemove)
+                OnConfirmed = (fun () -> ConfirmRemoveDeposit toRemove)
                 OnDismissed = (fun () -> NoOp)
             |}
-    | ConfirmRemovePayment payment ->
-        model, Server.removePayment (model.CurrentBuilding.BuildingId, payment)
-    | PaymentWasCanceled ->
-        { model with PaymentModalIsOpenOn = None }, Cmd.none
-    | PaymentWasAdded createdOrUpdated ->
+    | ConfirmRemoveDeposit payment ->
+        model, Server.removeDeposit (model.CurrentBuilding.BuildingId, payment)
+    | DepositWasCanceled ->
+        { model with DepositModalIsOpenOn = None }, Cmd.none
+    | DepositWasAdded createdOrUpdated ->
         match model.State with
         | State.Viewing detail ->
-            let updatedPayments =
+            let updatedDeposits =
                 match createdOrUpdated with
-                | InvoicePaymentTypes.CreatedOrUpdated.Created payment ->
-                    payment::detail.Payments
-                | InvoicePaymentTypes.CreatedOrUpdated.Updated payment ->
-                    detail.Payments |> List.map (fun p -> if p.InvoicePaymentId = payment.InvoicePaymentId then payment else p)
-            model.NotifyEdited { detail with Payments = updatedPayments }
+                | DepositTypes.CreatedOrUpdated.Created deposit ->
+                    deposit::detail.Deposits
+                | DepositTypes.CreatedOrUpdated.Updated deposit ->
+                    detail.Deposits |> List.map (fun p -> if p.DepositId = deposit.DepositId then deposit else p)
+            model.NotifyEdited { detail with Deposits = updatedDeposits }
         | _ -> ()
-        { model with State = Loading }, Server.getInvoiceCmd model.InvoiceId
-    | PaymentWasRemoved removed ->
+        { model with State = Loading }, Server.getDepositRequestCmd model.DepositRequestId
+    | DepositWasRemoved removed ->
         match model.State with
         | State.Viewing detail ->
-            let updatedPayments = detail.Payments |> List.filter ((<>) removed)
-            model.NotifyEdited { detail with Payments = updatedPayments }
+            let updatedDeposits = detail.Deposits |> List.filter ((<>) removed)
+            model.NotifyEdited { detail with Deposits = updatedDeposits }
         | _ -> ()
         model, Cmd.none
     | NoOp ->
@@ -248,16 +246,14 @@ let update (msg: Msg) (model: Model): Model * Cmd<Msg> =
 let view (model: Model) (dispatch: Msg -> unit) =
     match model.State with
     | Loading ->  div [] [ str "Details worden geladen" ]
-    | InvoiceNotFound -> div [] [ str "De door u gekozen factuur werd niet gevonden in de databank..." ]
+    | InvoiceNotFound -> div [] [ str "De door u gekozen provisie werd niet gevonden in de databank..." ]
     | Editing (isSaving, editState)
     | Creating (isSaving, editState) ->
         if isSaving then
-            div [] [ str "De factuur wordt bewaard" ]
-        elif model.LoadingFinancialCategories then
-            div [] [ str "Details worden geladen" ]
+            div [] [ str "De provisie wordt bewaard" ]
         else
             div [] [
-                InvoiceEditComponent.view model.FinancialCategories editState (InvoiceEditMsg >> dispatch)
+                DepositRequestEditComponent.view editState (InvoiceEditMsg >> dispatch)
 
                 div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
                     div [ Class Bootstrap.cardBody ] [
@@ -274,23 +270,20 @@ let view (model: Model) (dispatch: Msg -> unit) =
             ]
     | Viewing detail ->
         div [] [
-            InvoiceViewComponent.render {| Invoice = detail |}
-            match detail.Payments with
+            DepositRequestViewComponent.render {| DepositRequest = detail |}
+            match detail.Deposits with
             | [] -> null
-            | payments ->
+            | deposits ->
                 fieldset [] [
-                    if model.LoadingFinancialCategories then
-                        yield div [] [ str "Details worden geladen..." ]
-                    else
-                        yield! payments |> List.sortBy (fun payment -> payment.Date) |> List.mapi (fun index payment ->
-                            InvoicePaymentViewComponent.render
-                                {|
-                                    Index = index
-                                    Deposit = payment
-                                    OnEdit = EditPayment >> dispatch
-                                    OnRemove = RemovePayment >> dispatch
-                                |}
-                        )
+                    yield! deposits |> List.sortBy (fun deposit -> deposit.Date) |> List.mapi (fun index deposit ->
+                        DepositViewComponent.render
+                            {|
+                                Index = index
+                                Deposit = deposit
+                                OnEdit = EditDeposit >> dispatch
+                                OnRemove = RemoveDeposit >> dispatch
+                            |}
+                    )
                 ]
             div [ classes [ Bootstrap.card; Bootstrap.bgLight; Bootstrap.dInlineBlock ] ] [
                 div [ Class Bootstrap.cardBody ] [
@@ -300,11 +293,11 @@ let view (model: Model) (dispatch: Msg -> unit) =
                     ] [
                         i [ classes [ FontAwesome.fa; FontAwesome.faEdit ] ] []
                         str " "
-                        str "Factuur aanpassen"
+                        str "Provisie aanpassen"
                     ]
                     button [
                         classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary; Bootstrap.mr1 ]
-                        OnClick (fun _ -> dispatch AddPayment)
+                        OnClick (fun _ -> dispatch AddDeposit)
                     ] [
                         i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
                         str " "
@@ -312,16 +305,16 @@ let view (model: Model) (dispatch: Msg -> unit) =
                     ]
                 ]
             ]
-            match model.PaymentModalIsOpenOn with
+            match model.DepositModalIsOpenOn with
             | Some createOrUpdate ->
-                InvoicePaymentModal.render
+                DepositModal.render
                     {|
-                        InvoiceId = detail.InvoiceId
+                        DepositRequest = detail
                         CreateOrUpdate = createOrUpdate
                         CurrentBuilding = model.CurrentBuilding
                         FinancialCategories = model.FinancialCategories
-                        OnSaved = fun createdOrUpdated -> dispatch (PaymentWasAdded createdOrUpdated)
-                        OnCanceled = fun () -> dispatch PaymentWasCanceled
+                        OnSaved = fun createdOrUpdated -> dispatch (DepositWasAdded createdOrUpdated)
+                        OnCanceled = fun () -> dispatch DepositWasCanceled
                     |}
             | None ->
                 null
@@ -330,5 +323,4 @@ let view (model: Model) (dispatch: Msg -> unit) =
 
 
 let render (props: DetailsProps) =
-    React.elmishComponent ("InvoiceDetails", init props, update, view, string props.Identifier)
-
+    React.elmishComponent ("DepositDetails", init props, update, view, string props.Identifier)

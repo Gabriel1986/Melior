@@ -77,7 +77,7 @@ let private getFilter (currentBuildingId: Guid, filterKey: string) (financialYea
             BuildingId = currentBuildingId
             Period =
                 match financialYears |> List.tryHead with
-                | Some financialYear -> FinancialYear financialYear.FinancialYearId 
+                | Some financialYear -> FinancialTransactionFilterPeriod.FinancialYear financialYear.FinancialYearId 
                 | None -> Year DateTime.Now.Year
         }
 
@@ -137,7 +137,7 @@ let private update (msg: Msg) (state: State): State * Cmd<Msg> =
             | PeriodType.FinancialYearType ->
                 match state.FinancialYears with
                 | [] -> Error "Gelieve eerst een boekjaar in te geven bij de instellingen"
-                | financialYears -> Ok (FinancialYear (financialYears.Head.FinancialYearId))
+                | financialYears -> Ok (FinancialTransactionFilterPeriod.FinancialYear (financialYears.Head.FinancialYearId))
             | PeriodType.YearType ->
                 match state.Filter.Period with
                 | Year year ->
@@ -208,7 +208,7 @@ let private periodTypesToOptions (period: FinancialTransactionFilterPeriod) (onP
         Id = "FinancialYear"
         Key = "FinancialYear"
         Label = "Boekjaar"
-        IsSelected = match period with | FinancialYear _ -> true | _ -> false
+        IsSelected = match period with | FinancialTransactionFilterPeriod.FinancialYear _ -> true | _ -> false
         OnClick = fun _ -> onPeriodTypeChanged(FinancialYearType)
     }
 ]
@@ -219,7 +219,6 @@ let private months =
 let private view (state: State) (dispatch: Msg -> unit): ReactElement =
     div [ classes [ Bootstrap.card; Bootstrap.textCenter ] ] [
         div [ Class Bootstrap.cardHeader ] [
-            printf "only show financial years %A" state.OnlyShowFinancialYears
             if not state.OnlyShowFinancialYears then
                 formGroup [
                     Label "Periode"
@@ -231,7 +230,7 @@ let private view (state: State) (dispatch: Msg -> unit): ReactElement =
             let today = DateTime.Now
 
             match state.Filter.Period with
-            | FinancialYear financialYearId ->
+            | FinancialTransactionFilterPeriod.FinancialYear financialYearId ->
                 let matchingIndex, matchingFinancialYear = 
                     state.FinancialYears
                     |> List.indexed
@@ -239,14 +238,14 @@ let private view (state: State) (dispatch: Msg -> unit): ReactElement =
                 div [ Style [ Width "200px" ]; Class Bootstrap.dInlineBlock ] [
                     match matchingIndex with
                     | 0 -> null
-                    | _ -> leftChevronBtn (fun _ -> FilterPeriodChanged (FinancialYear (state.FinancialYears.[matchingIndex-1].FinancialYearId)) |> dispatch)
+                    | _ -> leftChevronBtn (fun _ -> FilterPeriodChanged (FinancialTransactionFilterPeriod.FinancialYear (state.FinancialYears.[matchingIndex-1].FinancialYearId)) |> dispatch)
                     span [ 
                         classes [ Bootstrap.cardText; "pointer" ]
                         OnClick (fun _ -> PeriodTypeChanged FinancialYearType |> dispatch) 
                     ] [ str matchingFinancialYear.Code ]
                     match matchingIndex with
                     | x when x = (state.FinancialYears.Length - 1) -> null
-                    | _ -> rightChevronBtn (fun _ -> FilterPeriodChanged (FinancialYear (state.FinancialYears.[matchingIndex+1].FinancialYearId)) |> dispatch)
+                    | _ -> rightChevronBtn (fun _ -> FilterPeriodChanged (FinancialTransactionFilterPeriod.FinancialYear (state.FinancialYears.[matchingIndex+1].FinancialYearId)) |> dispatch)
                 ]
             | Year _ when state.OnlyShowFinancialYears ->
                 div [] [ str "Gelieve een boekjaar te starten" ]

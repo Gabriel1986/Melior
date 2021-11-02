@@ -1,4 +1,4 @@
-﻿module Client.Financial.Invoicing.InvoicePaymentModal
+﻿module Client.Financial.Deposits.DepositModal
 
 open System
 open Elmish
@@ -14,14 +14,14 @@ open Shared.Remoting
 open Client.Library
 open Client.Components
 open Client.Components.BasicModal
-open Client.Financial.Invoicing.InvoicePaymentEditComponent
+open Client.Financial.Deposits.DepositEditComponent
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
-open InvoicePaymentTypes
+open DepositTypes
 
-type InvoicePaymentModalProps =
+type DepositModalProps =
     {|
-        InvoiceId: Guid
+        DepositRequest: DepositRequest
         CreateOrUpdate: CreateOrUpdate
         CurrentBuilding: BuildingListItem
         FinancialCategories: FinancialCategory list
@@ -32,58 +32,58 @@ type InvoicePaymentModalProps =
 type Model = {
     IsSaving: bool
     OnSaved: CreatedOrUpdated -> unit
-    InvoicePaymentEditComponentState: InvoicePaymentEditComponent.State
+    DepositEditComponentState: DepositEditComponent.State
     OnCanceled: unit -> unit
 }
 type Msg =
     | SaveModal
-    | InvoicePaymentSaved of Result<InvoicePayment, SaveInvoicePaymentError>
+    | DepositSaved of Result<Deposit, SaveDepositError>
     | RemotingErrorOccured of exn
-    | InvoicePaymentEditComponentMsg of InvoicePaymentEditComponent.Msg
+    | DepositEditComponentMsg of DepositEditComponent.Msg
     | CloseModal
 
-let private init (props: InvoicePaymentModalProps) =
+let private init (props: DepositModalProps) =
     let componentState, componentCmd = 
-        InvoicePaymentEditComponent.init 
+        DepositEditComponent.init 
             {|
-                InvoiceId = props.InvoiceId
+                DepositRequest = props.DepositRequest
+                FinancialCategories = props.FinancialCategories
                 CurrentBuilding = props.CurrentBuilding
                 CreateOrUpdate = props.CreateOrUpdate
-                FinancialCategories = props.FinancialCategories
             |}
 
     {
         OnCanceled = props.OnCanceled
         OnSaved = props.OnSaved
         IsSaving = false
-        InvoicePaymentEditComponentState = componentState
-    }, componentCmd |> Cmd.map InvoicePaymentEditComponentMsg
+        DepositEditComponentState = componentState
+    }, componentCmd |> Cmd.map DepositEditComponentMsg
 
 module Server =
-    let createInvoicePayment (payment: InvoicePayment) =
+    let createDeposit (deposit: Deposit) =
         Cmd.OfAsync.either
-            (Client.Remoting.getRemotingApi()).CreateInvoicePayment
-                payment
-                (Result.map (fun () -> payment) >> InvoicePaymentSaved)
+            (Client.Remoting.getRemotingApi()).CreateDeposit
+                deposit
+                (Result.map (fun () -> deposit) >> DepositSaved)
                 RemotingErrorOccured
-    let updateInvoicePayment (payment: InvoicePayment) =
+    let updateDeposit (deposit: Deposit) =
         Cmd.OfAsync.either
-            (Client.Remoting.getRemotingApi()).UpdateInvoicePayment
-                payment
-                (Result.map (fun () -> payment) >> InvoicePaymentSaved)
+            (Client.Remoting.getRemotingApi()).UpdateDeposit
+                deposit
+                (Result.map (fun () -> deposit) >> DepositSaved)
                 RemotingErrorOccured
 
 let private update (msg: Msg) (model: Model): Model * Cmd<Msg> =
     let setComponentErrors (errors: (string * string) list) =
-        { model with InvoicePaymentEditComponentState = { model.InvoicePaymentEditComponentState with Errors = errors } }
+        { model with DepositEditComponentState = { model.DepositEditComponentState with Errors = errors } }
 
-    let processSaveInvoiceError =
+    let processSaveDepositError =
         function
-        | SaveInvoicePaymentError.AuthorizationError ->
+        | SaveDepositError.AuthorizationError ->
             model, showErrorToastCmd "U heeft geen toestemming om deze betaling te bewaren"
-        | SaveInvoicePaymentError.NotFound ->
+        | SaveDepositError.NotFound ->
             model, showErrorToastCmd "De betaling werd niet gevonden in de databank"
-        | SaveInvoicePaymentError.Validation errors ->
+        | SaveDepositError.Validation errors ->
             setComponentErrors errors, Cmd.none
 
     match msg with
@@ -91,32 +91,32 @@ let private update (msg: Msg) (model: Model): Model * Cmd<Msg> =
         model.OnCanceled ()
         model, Cmd.none
     | SaveModal ->
-        let paymentForm = model.InvoicePaymentEditComponentState.Payment
-        match paymentForm.Validate () with
-        | Ok payment ->
-            match ValidatedInvoicePayment.Validate payment with
+        let depositForm = model.DepositEditComponentState.Deposit
+        match depositForm.Validate () with
+        | Ok deposit ->
+            match ValidatedDeposit.Validate deposit with
             | Ok _ ->
-                match model.InvoicePaymentEditComponentState.CreateOrUpdate with
-                | Create   -> { model with IsSaving = true }, Server.createInvoicePayment payment
-                | Update _ -> { model with IsSaving = true }, Server.updateInvoicePayment payment
+                match model.DepositEditComponentState.CreateOrUpdate with
+                | Create   -> { model with IsSaving = true }, Server.createDeposit deposit
+                | Update _ -> { model with IsSaving = true }, Server.updateDeposit deposit
             | Error errors ->
                 setComponentErrors errors, Cmd.none
         | Error errors ->
             setComponentErrors errors, Cmd.none
-    | InvoicePaymentSaved result ->
+    | DepositSaved result ->
         match result with
-        | Ok invoicePayment ->
-            match model.InvoicePaymentEditComponentState.CreateOrUpdate with
-            | Create   -> model.OnSaved (Created invoicePayment)
-            | Update _ -> model.OnSaved (Updated invoicePayment)
+        | Ok deposit ->
+            match model.DepositEditComponentState.CreateOrUpdate with
+            | Create   -> model.OnSaved (Created deposit)
+            | Update _ -> model.OnSaved (Updated deposit)
             model, Cmd.none
         | Error error ->
-            processSaveInvoiceError error
+            processSaveDepositError error
     | RemotingErrorOccured e ->
         model, showGenericErrorModalCmd e
-    | InvoicePaymentEditComponentMsg msg ->
-        let componentState, componentCmd = InvoicePaymentEditComponent.update msg model.InvoicePaymentEditComponentState
-        { model with InvoicePaymentEditComponentState = componentState }, componentCmd |> Cmd.map InvoicePaymentEditComponentMsg
+    | DepositEditComponentMsg msg ->
+        let componentState, componentCmd = DepositEditComponent.update msg model.DepositEditComponentState
+        { model with DepositEditComponentState = componentState }, componentCmd |> Cmd.map DepositEditComponentMsg
 
 let private renderModalButtons (state: Model) (dispatch: Msg -> unit) = [
     button [ 
@@ -138,9 +138,9 @@ let private view (model: Model) (dispatch: Msg -> unit) =
                     HeaderProp.HasDismissButton true
                 ]
                 ModalProp.Body [
-                    InvoicePaymentEditComponent.view 
-                        (model.InvoicePaymentEditComponentState) 
-                        (InvoicePaymentEditComponentMsg >> dispatch)
+                    DepositEditComponent.view 
+                        (model.DepositEditComponentState) 
+                        (DepositEditComponentMsg >> dispatch)
                 ]
                 ModalProp.Footer [
                     FooterProp.ShowDismissButton (Some "Annuleren")
@@ -152,5 +152,5 @@ let private view (model: Model) (dispatch: Msg -> unit) =
             ]
         |}
 
-let render (props: InvoicePaymentModalProps) =
-    React.elmishComponent ("InvoicePaymentModal", init props, update, view)
+let render (props: DepositModalProps) =
+    React.elmishComponent ("DepositModal", init props, update, view)

@@ -33,7 +33,8 @@
         | DistributionKeyDetails of BuildingSpecificDetailProps
         | Invoices of BuildingSpecificProps //Invoices
         | InvoiceDetails of BuildingSpecificDetailProps
-        | Provisions of BuildingSpecificProps //Management of owner deposits
+        | DepositRequests of BuildingSpecificProps //Deposits
+        | DepositRequestDetails of BuildingSpecificDetailProps
         | BankNotes of BuildingSpecificProps //Bank debit/credit
         | FinancialTransactions of BuildingSpecificProps //Financial transaction overview
         | Balance of BuildingSpecificProps
@@ -62,7 +63,7 @@
     let [<Literal>] private DistributionKeysPage = "distributionKeys"
     let [<Literal>] private FinancialSettingsPage = "financialsettings"
     let [<Literal>] private InvoicesPage = "invoices"
-    let [<Literal>] private ProvisionsPage = "provisions"
+    let [<Literal>] private OwnerDepositsPage = "ownerdeposits"
     let [<Literal>] private BankNotesPage = "banknotes"
     let [<Literal>] private FinancialTransactionsPage = "financialtransactions"
     let [<Literal>] private BalancePage = "balance"
@@ -133,8 +134,10 @@
             routeToSpecificPage(InvoicesPage, specifics)
         | Page.InvoiceDetails specifics ->
             routeToSpecificDetailsPage(InvoicesPage, specifics)
-        | Page.Provisions specifics ->
-            routeToSpecificPage(ProvisionsPage, specifics)
+        | Page.DepositRequests specifics ->
+            routeToSpecificPage(OwnerDepositsPage, specifics)
+        | Page.DepositRequestDetails specifics ->
+            routeToSpecificDetailsPage(OwnerDepositsPage, specifics)
         | Page.BankNotes specifics ->
             routeToSpecificPage(BankNotesPage, specifics)
         | Page.FinancialTransactions specifics ->
@@ -193,9 +196,11 @@
         | Page.Invoices props ->
             InvoicesPage |> navigateToBuildingSpecificPage props
         | Page.InvoiceDetails props ->
-           InvoicesPage |> navigateToBuildingSpecificDetailsPage props
-        | Page.Provisions props ->
-            ProvisionsPage |> navigateToBuildingSpecificPage props
+            InvoicesPage |> navigateToBuildingSpecificDetailsPage props
+        | Page.DepositRequests props ->
+            OwnerDepositsPage |> navigateToBuildingSpecificPage props
+        | Page.DepositRequestDetails props ->
+            OwnerDepositsPage |> navigateToBuildingSpecificDetailsPage props
         | Page.BankNotes props ->
             BankNotesPage |> navigateToBuildingSpecificPage props
         | Page.FinancialTransactions props ->
@@ -219,15 +224,15 @@
             Page.BuildingDetails buildingId
         | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; OwnersPage ] -> 
             Page.OwnerList { BuildingId = buildingId }
-        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; OwnersPage ; Feliz.Router.Route.Guid personId ] -> 
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; OwnersPage; Feliz.Router.Route.Guid personId ] -> 
             Page.OwnerDetails { BuildingId = buildingId; DetailId = personId }
         | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; LotsPage ] -> 
             Page.LotList { BuildingId = buildingId }
-        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; LotsPage ; Feliz.Router.Route.Guid lotId ] -> 
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; LotsPage; Feliz.Router.Route.Guid lotId ] -> 
             Page.LotDetails { BuildingId = buildingId; DetailId = lotId }
         | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; OrganizationsPage ] -> 
             Page.OrganizationList { BuildingId = buildingId }
-        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; OrganizationsPage ; Feliz.Router.Route.Guid orgId ] -> 
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; OrganizationsPage; Feliz.Router.Route.Guid orgId ] -> 
             Page.OrganizationDetails { BuildingId = buildingId; DetailId = orgId }
         | [ ProfessionalSyndicsPage ] ->
             Page.ProfessionalSyndicList
@@ -241,14 +246,16 @@
             Page.FinancialSettings { BuildingId = buildingId }
         | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; DistributionKeysPage ] ->
             Page.DistributionKeyList { BuildingId = buildingId }
-        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; DistributionKeysPage ; Feliz.Router.Route.Guid distributionKeyId ] -> 
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; DistributionKeysPage; Feliz.Router.Route.Guid distributionKeyId ] -> 
             Page.DistributionKeyDetails { BuildingId = buildingId; DetailId = distributionKeyId }
         | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; InvoicesPage ] ->
             Page.Invoices { BuildingId = buildingId }
-        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; InvoicesPage ; Feliz.Router.Route.Guid invoiceId ] ->
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; InvoicesPage; Feliz.Router.Route.Guid invoiceId ] ->
             Page.InvoiceDetails { BuildingId = buildingId; DetailId = invoiceId }
-        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; ProvisionsPage ] ->
-            Page.Provisions { BuildingId = buildingId }
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; OwnerDepositsPage ] ->
+            Page.DepositRequests { BuildingId = buildingId }
+        | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; OwnerDepositsPage; Feliz.Router.Route.Guid requestId ] ->
+            Page.DepositRequestDetails { BuildingId = buildingId; DetailId = requestId }
         | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; BankNotesPage ] ->
             Page.BankNotes { BuildingId = buildingId }
         | [ BuildingsPage; Feliz.Router.Route.Guid buildingId; FinancialTransactionsPage ] ->

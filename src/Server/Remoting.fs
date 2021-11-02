@@ -3,6 +3,7 @@
     open Microsoft.AspNetCore.Http
 
     open Shared.Remoting
+    open Shared.Read
     open Server.Library
     open Server.Blueprint.Behavior
     open LibraryExtensions
@@ -50,7 +51,7 @@
                 |> environment.OwnerSystem.DeleteOwner
             GetOwners = fun buildingId ->
                 createMsg buildingId
-                |> environment.OwnerSystem.GetOwners            
+                |> environment.OwnerSystem.GetOwners
             GetOwner = fun ownerId ->
                 createMsg ownerId
                 |> environment.OwnerSystem.GetOwner
@@ -69,6 +70,26 @@
             GetLot = fun lotId ->
                 createMsg lotId
                 |> environment.LotSystem.GetLot
+            GetFinancialLotOwners = fun filter -> async {
+                //TODO: move logic to financial system.
+                let! lotOwners =
+                    createMsg filter
+                    |> environment.LotSystem.GetFinancialLotOwners
+                let! distributionKey =
+                    createMsg filter.DistributionKeyId
+                    |> environment.FinancialSystem.GetDistributionKey
+                return
+                    match distributionKey with
+                    | None ->
+                        failwithf "Distribution key with identifier '%A' was not found in the DB..." filter.DistributionKeyId
+                    | Some distributionKey ->
+                        lotOwners 
+                        |> List.filter (fun lotOwner ->
+                            match distributionKey.LotsOrLotTypes with
+                            | Lots lotIds -> lotIds |> List.contains (lotOwner.LotId)
+                            | LotTypes types -> types |> List.contains (lotOwner.LotType)
+                        )
+            }
             CreateOrganization = fun org ->
                 createMsg org
                 |> environment.OrganizationSystem.CreateOrganization
@@ -177,6 +198,32 @@
             DeleteInvoicePayment = fun (buildingId, paymentId) ->
                 createMsg (buildingId, paymentId)
                 |> environment.FinancialSystem.DeleteInvoicePayment
+
+            GetDepositRequests = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.GetDepositRequests
+            GetDepositRequest = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.GetDepositRequest
+            CreateDepositRequest = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.CreateDepositRequest
+            UpdateDepositRequest = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.UpdateDepositRequest
+            DeleteDepositRequest = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.DeleteDepositRequest
+
+            CreateDeposit = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.CreateDeposit
+            UpdateDeposit = fun input ->
+                createMsg input
+                |> environment.FinancialSystem.UpdateDeposit
+            DeleteDeposit =  fun input ->
+                createMsg input
+                |> environment.FinancialSystem.DeleteDeposit
 
             GetFinancialYears = fun buildingId ->
                 createMsg buildingId

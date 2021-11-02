@@ -6,6 +6,7 @@ open Server.Blueprint.Data.Storage
 open Shared.Remoting
 open Shared.Read
 open Shared.Write
+open Shared.ConstrainedTypes
 open Server.Library
 open Server.LibraryExtensions
 

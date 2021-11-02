@@ -100,7 +100,8 @@ let convertCurrentPageForNavigation page =
     | Some (Page.InvoiceDetails p)            -> Some (Page.Invoices { BuildingId = p.BuildingId })
     | Some (Page.FinancialSettings p)         -> Some (Page.FinancialSettings { BuildingId = p.BuildingId })
     | Some (Page.BankNotes p)                 -> Some (Page.BankNotes p)
-    | Some (Page.Provisions p)                -> Some (Page.Provisions p)
+    | Some (Page.DepositRequests p)      -> Some (Page.DepositRequests p)
+    | Some (Page.DepositRequestDetails p)-> Some (Page.DepositRequests { BuildingId = p.BuildingId })
     | Some (Page.FinancialTransactions p)     -> Some (Page.FinancialTransactions p)
     | Some (Page.Balance p)                   -> Some (Page.Balance p)
     | Some (Page.UserList)
@@ -191,7 +192,7 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
                     match currentPage with 
                     | Some(Page.FinancialSettings _)
                     | Some(Page.DistributionKeyList _)
-                    | Some(Page.Provisions _) 
+                    | Some(Page.DepositRequests _) 
                     | Some(Page.Invoices _) 
                     | Some(Page.BankNotes _)
                     | Some(Page.FinancialTransactions _)
@@ -212,12 +213,12 @@ let renderAdminMode (state: State) (currentPage: Page option) (dispatch: Msg -> 
                                 OnClick (fun _ -> NavigateToPage (Page.DistributionKeyList buildingSpecificProps) |> dispatch)
                             ] [ str "Verdeelsleutels" ]
                         ]
-                        //li [ Class Bootstrap.navItem ] [
-                        //    a [
-                        //        Class (determineStyle currentPage (Page.Provisions buildingSpecificProps))
-                        //        OnClick (fun _ -> NavigateToPage (Page.Provisions buildingSpecificProps) |> dispatch)
-                        //    ] [ str "Provisies" ]
-                        //]
+                        li [ Class Bootstrap.navItem ] [
+                            a [
+                                Class (determineStyle currentPage (Page.DepositRequests buildingSpecificProps))
+                                OnClick (fun _ -> NavigateToPage (Page.DepositRequests buildingSpecificProps) |> dispatch)
+                            ] [ str "Provisies" ]
+                        ]
                         li [ Class Bootstrap.navItem ] [
                             a [
                                 Class (determineStyle currentPage (Page.Invoices buildingSpecificProps))

@@ -109,6 +109,24 @@ type DeleteInvoicePaymentError =
     | AuthorizationError
     | NotFound
 
+type SaveDepositError =
+    | AuthorizationError
+    | Validation of (string * string) list
+    | NotFound
+
+type DeleteDepositError =
+    | AuthorizationError
+    | NotFound
+
+type SaveDepositRequestError =
+    | AuthorizationError
+    | Validation of (string * string) list
+    | NotFound
+    
+type DeleteDepositRequestError =
+    | AuthorizationError
+    | NotFound
+
 type SaveUserError =
     | AuthorizationError
     | Validation of (string * string) list
@@ -167,6 +185,8 @@ type RemotingApi = {
     DeleteLot: BuildingId * Guid -> Async<Result<unit, DeleteLotError>>
     GetLot: Guid -> Async<Lot option>
     GetLots: BuildingId -> Async<LotListItem list>
+
+    GetFinancialLotOwners: LotOwnerFilter -> Async<FinancialLotOwner list>
     
     CreateOwner: Owner -> Async<Result<unit, SaveOwnerError>>
     UpdateOwner: Owner -> Async<Result<unit, SaveOwnerError>>
@@ -212,9 +232,19 @@ type RemotingApi = {
     UpdateInvoice: Invoice -> Async<Result<unit, SaveInvoiceError>>
     DeleteInvoice: BuildingId * Guid -> Async<Result<unit, DeleteInvoiceError>>
 
-    CreateInvoicePayment: InvoicePaymentInput -> Async<Result<unit, SaveInvoicePaymentError>>
-    UpdateInvoicePayment: InvoicePaymentInput -> Async<Result<unit, SaveInvoicePaymentError>>
+    CreateInvoicePayment: InvoicePayment -> Async<Result<unit, SaveInvoicePaymentError>>
+    UpdateInvoicePayment: InvoicePayment -> Async<Result<unit, SaveInvoicePaymentError>>
     DeleteInvoicePayment: BuildingId * Guid -> Async<Result<unit, DeleteInvoicePaymentError>>
+
+    GetDepositRequests: FinancialTransactionFilter -> Async<DepositRequestListItem list>
+    GetDepositRequest: Guid -> Async<DepositRequest option>
+    CreateDepositRequest: DepositRequest -> Async<Result<unit, SaveDepositRequestError>>
+    UpdateDepositRequest: DepositRequest -> Async<Result<unit, SaveDepositRequestError>>
+    DeleteDepositRequest: BuildingId * Guid -> Async<Result<unit, DeleteDepositRequestError>> 
+
+    CreateDeposit: Deposit -> Async<Result<unit, SaveDepositError>>
+    UpdateDeposit: Deposit -> Async<Result<unit, SaveDepositError>>
+    DeleteDeposit: BuildingId * Guid -> Async<Result<unit, DeleteDepositError>>
 
     GetFinancialYears: BuildingId -> Async<FinancialYear list>
     CloseFinancialYear: BuildingId * Guid -> Async<Result<unit, SaveFinancialYearError>>

@@ -25,14 +25,15 @@ let private paramsForLotOwner (validated: ValidatedLotOwner) =
             Some owner.PersonId, None
         | (LotOwnerType.Organization org) ->
             None, Some org.OrganizationId
-    [[
+    [
         "@LotId", Sql.uuid validated.LotId
+        "@BuildingId", Sql.uuid validated.BuildingId
         "@LotOwnerId", Sql.uuid validated.LotOwnerId
         "@PersonId", Sql.uuidOrNone personId
         "@OrganizationId", Sql.uuidOrNone orgId
         "@StartDate", Sql.timestamp (validated.StartDate.AddHours(2.0).Date)
         "@EndDate", Sql.timestampOrNone (validated.EndDate |> Option.map (fun dt -> (dt.AddHours(2.0).Date)))
-    ]]
+    ]
 
 let private setLotOwnerContactsFor (msg: Message<ValidatedLotOwner>) =
     let validated = msg.Payload
@@ -113,26 +114,45 @@ let transformEventToSql (msg: Message<LotEvent>) =
                     "@BuildingId", Sql.uuid buildingId
                 ] ]
             ]
-    | LotOwnerWasAdded (_, validated) ->
+    | LotOwnerEvent e ->
+        match e with
+        | BuildingSpecificCUDEvent.Created (_, validated) ->
+            [
+                """
+                    INSERT INTO LotOwners
+                        (LotId, BuildingId, LotOwnerId, Role, PersonId, OrganizationId, StartDate, EndDate, OGMReference)
+                    VALUES
+                        (@LotId, @BuildingId, @LotOwnerId, @Role, @PersonId, @OrganizationId, @StartDate, @EndDate, @OGMReference)
+                """, [
+                    paramsForLotOwner validated @ [
+                        "@OGMReference", Sql.string ((Shared.ConstrainedTypes.BelgianOGM.Generate ()).Value ())
+                    ]
+                ]
+
+                yield! setLotOwnerContactsFor (validated |> inMsg msg)
+            ]
+        | BuildingSpecificCUDEvent.Updated (_, validated) ->
+            [
+                "UPDATE LotOwners SET StartDate = @StartDate, EndDate = @EndDate WHERE LotOwnerId = @LotOwnerId AND BuildingId = @BuildingId"
+                , [ paramsForLotOwner validated ]
+
+                yield! setLotOwnerContactsFor (validated |> inMsg msg)
+            ]
+        | BuildingSpecificCUDEvent.Deleted (buildingId, lotOwnerId) ->
+            [
+                "UPDATE LotOwners SET ISDELETED = TRUE WHERE LotOwnerId = @LotOwnerId AND BuildingId = @BuildingId"
+                , [[ 
+                    "@LotOwnerId", Sql.uuid lotOwnerId
+                    "@BuildingId", Sql.uuid buildingId
+                ]]
+            ]
+    | LotOwnerOGMReferenceWasUpdated (lotOwnerId, newOgm) ->
         [
             """
-                INSERT INTO LotOwners
-                    (LotId, LotOwnerId, Role, PersonId, OrganizationId, StartDate, EndDate)
-                VALUES
-                    (@LotId, @LotOwnerId, @Role, @PersonId, @OrganizationId, @StartDate, @EndDate)
-            """, paramsForLotOwner validated
-
-            yield! setLotOwnerContactsFor (validated |> inMsg msg)
-        ]
-    | LotOwnerWasUpdated (_, validated) ->
-        [
-            "UPDATE LotOwners SET StartDate = @StartDate, EndDate = @EndDate WHERE LotOwnerId = @LotOwnerId"
-            , paramsForLotOwner validated
-
-            yield! setLotOwnerContactsFor (validated |> inMsg msg)
-        ]
-    | LotOwnerWasDeleted (buildingId, lotOwnerId) ->
-        [
-            "UPDATE LotOwners SET ISDELETED = TRUE WHERE LotOwnerId = @LotOwnerId"
-            , [[ "@LotOwnerId", Sql.uuid lotOwnerId ]]
+                UPDATE LotOwners SET OGMReference = @OGMReference WHERE LotOwnerId = @LotOwnerId
+            """
+            , [[
+                "@LotOwnerId", Sql.uuid lotOwnerId
+                "@OGMReference", Sql.string (newOgm.Value ())
+            ]]
         ]

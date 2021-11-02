@@ -142,8 +142,6 @@ type Message =
     | DueDateChanged of DateTimeOffset
     | ExternalInvoiceNumberChanged of string
     | OrganizationBankAccountChanged of BankAccount option
-    | OrganizationAccountBICChanged of string
-    | OrganizationAccountIBANChanged of string
 
     | DistributionKeysLoaded of DistributionKeyListItem list
     | OrganizationsLoaded of OrganizationListItem list
@@ -278,25 +276,7 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         state |> changeInvoice (fun invoice -> { invoice with OrganizationInvoiceNumber = newInvoiceNumber }), Cmd.none
     | OrganizationBankAccountChanged account ->
         state |> changeInvoice (fun invoice -> { invoice with OrganizationBankAccount = account })
-        , Cmd.none
-    | OrganizationAccountBICChanged newBic ->
-        let account = 
-            state.Invoice.OrganizationBankAccount 
-            |> Option.defaultValue { BankAccount.Init () with Description = "Ander" }
-        let newBic' = if String.IsNullOrEmpty(newBic) then "" else newBic
-
-        state
-        |> changeInvoice (fun invoice -> { invoice with OrganizationBankAccount = Some { account with BIC = newBic' } })
-        , Cmd.none
-    | OrganizationAccountIBANChanged newIban ->
-        let account = 
-            state.Invoice.OrganizationBankAccount 
-            |> Option.defaultValue { BankAccount.Init () with Description = "Ander" }
-        let newIban' = if String.IsNullOrEmpty(newIban) then "" else newIban
-
-        state
-        |> changeInvoice (fun invoice -> { invoice with OrganizationBankAccount = Some { account with IBAN = newIban' } })
-        , Cmd.none        
+        , Cmd.none 
     | FinancialYearsLoaded financialYears ->
         { state with LoadingFinancialYears = false; FinancialYears = financialYears }
         |> changeInvoice (fun invoice -> 
@@ -331,6 +311,9 @@ let view (financialCategories: FinancialCategory list) (state: State) (dispatch:
     let errorFor (path: string) =
         state.Errors |> List.tryPick (fun (p, error) -> if p = path then Some error else None)
 
+    let bankAccountErrorFor (path: string) =
+        errorFor (sprintf "%s.%s" (nameof state.Invoice.OrganizationBankAccount) path)
+
     let vatRateToOption (vatRate: int): FormSelectOption = {
         Key = sprintf "%i%%" (int vatRate)
         Label = sprintf "%i%%" (int vatRate)
@@ -360,10 +343,8 @@ let view (financialCategories: FinancialCategory list) (state: State) (dispatch:
     let organizationBankAccountSelection: FormSelect = 
         let possibleBankAccounts = 
             match state.SelectedOrganization with
-            | Some org ->
-                org.BankAccounts @ [ { (BankAccount.Init ()) with Description = "Ander" } ]
-            | None ->
-                []
+            | Some org -> org.BankAccounts
+            | None -> []
 
         let organizationBankAccountToOption (index: int) (account: BankAccount): FormSelectOption = {
             Key = string index
@@ -650,34 +631,30 @@ let view (financialCategories: FinancialCategory list) (state: State) (dispatch:
             ]
             |> inColumn' Bootstrap.col5
 
-            let noOrgFound = state.Invoice.Organization.IsNone
-            let orgBankAccountSelected = 
-                match state.Invoice.OrganizationBankAccount, state.Invoice.Organization |> Option.map (fun o -> o.BankAccounts) with
-                | Some bankAccount, Some bankAccounts -> bankAccounts |> List.contains bankAccount
-                | _ -> false
-
             formGroup [
                 Label "IBAN"
                 Input [
                     Type "text"
                     MaxLength 64.0
-                    Disabled (noOrgFound || orgBankAccountSelected)
+                    Disabled true
                     valueOrDefault (state.Invoice.OrganizationBankAccount |> Option.map (fun account -> account.IBAN) |> Option.defaultValue "")
                 ]
-                FieldError (errorFor (nameof state.Invoice.OrganizationBankAccount))
+                FieldError (bankAccountErrorFor (nameof state.Invoice.OrganizationBankAccount.Value.IBAN))
             ]
             |> inColumn
+
             formGroup [
                 Label "BIC"
                 Input [
                     Type "text"
                     MaxLength 11.0
-                    Disabled (noOrgFound || orgBankAccountSelected)
+                    Disabled true
                     valueOrDefault (state.Invoice.OrganizationBankAccount |> Option.map (fun account -> account.BIC) |> Option.defaultValue "")
                 ]
-                FieldError (errorFor (nameof state.Invoice.OrganizationBankAccount))
+                FieldError (bankAccountErrorFor (nameof state.Invoice.OrganizationBankAccount.Value.BIC))
             ]
-            |> inColumn        ]
+            |> inColumn
+        ]
 
         div [] [
             filePond 

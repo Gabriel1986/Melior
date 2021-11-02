@@ -10,6 +10,11 @@ let validateOptional (validate: 'T -> Trial<'U, _>) (x: 'T option) =
     | None -> Trial.Pass None
 
 module List =
+    let tryMax (list: 'T list) =
+        match list with
+        | [] -> None
+        | list -> list |> List.max |> Some
+
     let tryMaxBy (projection: 'T -> 'U) (list: 'T list) =
         match list with
         | [] -> None

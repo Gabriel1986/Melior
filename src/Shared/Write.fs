@@ -50,37 +50,27 @@ type ValidatedOtherAddress =
 
 type ValidatedBankAccount = 
     {
-        Description: String255 option
+        Description: String255
         IBAN: IBAN option
         BIC: String16 option
         Validated: bool option
-        FinancialCategoryId: Guid option
     }
-    static member BasicValidate (basePath: string) (bankAccount: BankAccount) (mandatoryFinancialCategory: bool) =
-        let validateFinancialCategory (path: string) (catId: Guid option) =
-            match catId with
-            | Some catId -> Trial.Pass (Some catId)
-            | None when mandatoryFinancialCategory -> Trial.ofError (path, "Verplicht veld")
-            | None -> Trial.Pass None
-
+    static member BasicValidate (basePath: string) (bankAccount: BankAccount) =
         let onBasePath s = if String.IsNullOrWhiteSpace basePath then s else sprintf "%s.%s" basePath s
         trial {
-            from description in String255.OfOptional (onBasePath (nameof bankAccount.Description)) bankAccount.Description
+            from description in String255.Of (onBasePath (nameof bankAccount.Description)) bankAccount.Description
             also iban in IBAN.OfOptional (onBasePath (nameof bankAccount.IBAN)) bankAccount.IBAN
             also bic in String16.OfOptional (onBasePath (nameof bankAccount.BIC)) bankAccount.BIC
-            also financialCategoryId in validateFinancialCategory (onBasePath (nameof bankAccount.FinancialCategoryId)) bankAccount.FinancialCategoryId
             yield {
                 Description = description
                 IBAN = iban
                 BIC = bic
                 Validated = bankAccount.Validated
-                FinancialCategoryId = financialCategoryId
             }
         }
-    static member ValidateWithMandatoryFinancialCategory (basePath: string) (bankAccount: BankAccount) =
-        ValidatedBankAccount.BasicValidate basePath bankAccount true
+
     static member Validate (basePath: string) (bankAccount: BankAccount) =
-        ValidatedBankAccount.BasicValidate basePath bankAccount false
+        ValidatedBankAccount.BasicValidate basePath bankAccount
 
 type ValidatedContactMethod = 
     {
@@ -213,7 +203,8 @@ type ValidatedBuilding =
         GeneralMeetingPeriod: GeneralMeetingPeriod option
         YearOfConstruction: PositiveInt option
         YearOfDelivery: PositiveInt option
-        BankAccounts: ValidatedBankAccount list
+        SavingsBankAccount: ValidatedBankAccount option
+        CheckingBankAccount: ValidatedBankAccount option
         PictureId: Guid option
         SharesTotal: PositiveInt option
     }
@@ -225,7 +216,8 @@ type ValidatedBuilding =
             also yearOfDelivery in validateOptional (PositiveInt.Of (nameof building.YearOfDelivery)) building.YearOfDelivery
             also address in ValidatedAddress.BasicValidate (nameof building.Address) building.Address
             also orgNr in validateOptional (OrganizationNumber.OfString (nameof building.OrganizationNumber)) building.OrganizationNumber
-            also bankAccounts in building.BankAccounts |> List.mapi (fun index b -> ValidatedBankAccount.ValidateWithMandatoryFinancialCategory (sprintf "%s[%i]" (nameof building.BankAccounts) index) b) |> Trial.sequence
+            also savingsBankAccount in validateOptional (ValidatedBankAccount.Validate (nameof building.SavingsBankAccount)) building.SavingsBankAccount
+            also checkingBankAccount in validateOptional (ValidatedBankAccount.Validate (nameof building.CheckingBankAccount)) building.CheckingBankAccount
             also sharesTotal in validateOptional (PositiveInt.Of (nameof building.SharesTotal)) building.SharesTotal
             yield {
                 BuildingId = building.BuildingId
@@ -237,7 +229,8 @@ type ValidatedBuilding =
                 GeneralMeetingPeriod = building.GeneralMeetingPeriod
                 YearOfConstruction = yearOfConstruction
                 YearOfDelivery = yearOfDelivery
-                BankAccounts = bankAccounts |> List.ofSeq
+                SavingsBankAccount = savingsBankAccount
+                CheckingBankAccount = checkingBankAccount
                 PictureId = building.PictureId
                 SharesTotal = sharesTotal
             }
@@ -281,6 +274,7 @@ type ValidatedLotOwnerContact =
 type ValidatedLotOwner = 
     {
         LotId: Guid
+        BuildingId: Guid
         LotOwnerId: Guid
         LotOwnerType: LotOwnerType
         StartDate: DateTimeOffset
@@ -305,6 +299,7 @@ type ValidatedLotOwner =
             also contacts in validateContacts (nameof lotOwner.Contacts |> onBasePath) lotOwner.Contacts
             yield {
                 LotId = lotOwner.LotId
+                BuildingId = lotOwner.BuildingId
                 LotOwnerId = lotOwner.LotOwnerId
                 LotOwnerType = lotOwner.LotOwnerType
                 StartDate = startDate
@@ -325,7 +320,7 @@ type ValidatedLot =
         LotType: LotType
         Description: string option
         Floor: int option //Floor can be negative, it's only constrained in range
-        Share: PositiveInt option
+        Share: PositiveNotZeroInt option
     }
     static member Validate (lot: Lot) = 
         let validateLotOwners (path: string) (owners: LotOwner list) =
@@ -335,7 +330,7 @@ type ValidatedLot =
 
         trial {
             from code in String16.Of (nameof lot.Code) lot.Code
-            also share in validateOptional (PositiveInt.Of (nameof lot.Share)) lot.Share
+            also share in validateOptional (PositiveNotZeroInt.Of (nameof lot.Share)) lot.Share
             also owners in validateLotOwners (nameof lot.Owners) lot.Owners
             yield {
                 LotId = lot.LotId
@@ -617,17 +612,6 @@ type ValidatedInvoice =
         }        
         |> Trial.toResult
 
-type InvoicePaymentInput = {
-    InvoiceId: Guid
-    BuildingId: BuildingId
-    InvoicePaymentId: Guid
-    Amount: string
-    Date: DateTime
-    FromBankAccount: BankAccount option
-    FinancialCategoryId: Guid option
-    MediaFiles: MediaFile list
-}
-
 type ValidatedInvoicePayment = 
     {
         InvoiceId: Guid
@@ -639,34 +623,17 @@ type ValidatedInvoicePayment =
         FinancialCategoryId: Guid
         MediaFileIds: Guid list
     }
-    static member Validate (payment: InvoicePaymentInput) =
-        let validateAmount (path: string) (amount: string) =
-            match Decimal.TryParse (amount.Replace(',', '.')) with
-            | true, parsed -> Trial.Pass parsed
-            | false, _ -> Trial.ofError (path, "De waarde die u heeft opgegeven is niet geldig")
-
-        let validateMandatory (path: string) (opt: 'a option) =
-            match opt with
-            | Some filledIn -> Trial.Pass filledIn
-            | None -> Trial.ofError (path, "Verplicht veld")
-
-        let validateBankAccount (path: string) (opt: BankAccount option) =
-            match opt with
-            | None -> Trial.ofError (path, "Verplicht veld")
-            | Some bankAccount -> ValidatedBankAccount.Validate path bankAccount
-
+    static member Validate (payment: InvoicePayment) =
         trial {
-            from bankAccount in validateBankAccount (nameof payment.FromBankAccount) payment.FromBankAccount
-            also amount in validateAmount (nameof payment.Amount) payment.Amount
-            also financialCategoryId in validateMandatory (nameof payment.FinancialCategoryId) payment.FinancialCategoryId
+            from bankAccount in ValidatedBankAccount.Validate (nameof payment.FromBankAccount) payment.FromBankAccount
             yield {
                 InvoiceId = payment.InvoiceId
                 BuildingId = payment.BuildingId
                 InvoicePaymentId = payment.InvoicePaymentId
-                Amount = amount
+                Amount = payment.Amount
                 Date = payment.Date
                 FromBankAccount = bankAccount
-                FinancialCategoryId = financialCategoryId
+                FinancialCategoryId = payment.FinancialCategory.FinancialCategoryId
                 MediaFileIds = payment.MediaFiles |> List.map (fun m -> m.FileId)
             }
         }
@@ -674,66 +641,82 @@ type ValidatedInvoicePayment =
 
 type ValidatedPaymentRequestReference =
     | ValidatedBelgianOGMReference of BelgianOGM
+    member me.Value () =
+        match me with
+        | ValidatedBelgianOGMReference ogmFormat -> ogmFormat.Value ()
     static member Validate (path: string) (reference: PaymentRequestReference) =
         match reference with
         | BelgianOGMReference ogmReferenceString ->
             BelgianOGM.Of path ogmReferenceString
             |> Trial.map ValidatedBelgianOGMReference
 
-type ValidatedOwnerDepositRequest = 
+type ValidatedDepositRequest = 
     {
-        OwnerId: Guid
         BuildingId: BuildingId
-        OwnerDepositRequestId: Guid
+        DepositRequestId: Guid
+        FinancialYearId: Guid
         Amount: Decimal
-        CreationDate: DateTime
-        RequestDate: DateTime
-        RequestReference: ValidatedPaymentRequestReference
-        RequestInfo: string
+        ToFinancialCategoryId: Guid
+        ToBankAccount: ValidatedBankAccount
+        BookingDate: DateTimeOffset
+        RequestDate: DateTimeOffset
+        DueDate: DateTimeOffset
+        //Reference: ValidatedPaymentRequestReference
+        Description: String255 option
         MediaFileIds: Guid list
+        DistributionKeyId: Guid
     }
-    static member Validate (request: OwnerDepositRequest) =
+    static member Validate (request: DepositRequest) =
         trial {
-            from reference in ValidatedPaymentRequestReference.Validate (nameof request.RequestReference) request.RequestReference
+            //from reference in ValidatedPaymentRequestReference.Validate (nameof request.Reference) request.Reference
+            from description in String255.OfOptional (nameof request.Description) request.Description
+            also toBankAccount in ValidatedBankAccount.Validate (nameof request.ToBankAccount) request.ToBankAccount
             yield {
-                OwnerId = request.OwnerId
                 BuildingId = request.BuildingId
-                OwnerDepositRequestId = request.OwnerDepositRequestId
+                DepositRequestId = request.DepositRequestId
+                FinancialYearId = request.FinancialYear.FinancialYearId
                 Amount = request.Amount
-                CreationDate = request.CreationDate
+                ToFinancialCategoryId = request.ToFinancialCategory.FinancialCategoryId
+                ToBankAccount = toBankAccount
+                BookingDate = request.BookingDate
                 RequestDate = request.RequestDate
-                RequestReference = reference
-                RequestInfo = request.RequestInfo
+                DueDate = request.DueDate
+                //Reference = reference
+                Description = description
                 MediaFileIds = request.MediaFiles |> List.map (fun m -> m.FileId)
+                DistributionKeyId = request.DistributionKey.DistributionKeyId
             }
         }
+        |> Trial.toResult
 
-type ValidatedOwnerDeposit = 
+type ValidatedDeposit = 
     {
-        OwnerDepositId: Guid
+        DepositId: Guid
+        DepositRequestId: Guid
+        BuildingId: Guid
         Amount: Decimal
         Date: DateTime
-        OwnerDepositRequestId: Guid
-        FromBankAccount: ValidatedBankAccount
-        ToBankAccount: ValidatedBankAccount
+        FromBankAccount: ValidatedBankAccount option
+        FromFinancialCategoryId: Guid
         ToFinancialCategoryId: Guid
         MediaFileIds: Guid list
     }
-    static member Validate (deposit: OwnerDeposit) =
+    static member Validate (deposit: Deposit) =
         trial {
-            from fromBankAccount in ValidatedBankAccount.Validate (nameof deposit.FromBankAccount) deposit.FromBankAccount
-            also toBankAccount in ValidatedBankAccount.Validate (nameof deposit.ToBankAccount) deposit.ToBankAccount
+            from bankAccount in validateOptional (ValidatedBankAccount.Validate (nameof deposit.FromBankAccount)) deposit.FromBankAccount
             yield {
-                OwnerDepositId = deposit.OwnerDepositId
+                DepositId = deposit.DepositId
+                BuildingId = deposit.BuildingId
                 Amount = deposit.Amount
                 Date = deposit.Date
-                OwnerDepositRequestId = deposit.OwnerDepositRequestId
-                FromBankAccount = fromBankAccount
-                ToBankAccount = toBankAccount
+                DepositRequestId = deposit.DepositRequestId
+                FromBankAccount = bankAccount
+                FromFinancialCategoryId = deposit.FromFinancialCategory.FinancialCategoryId
                 ToFinancialCategoryId = deposit.ToFinancialCategory.FinancialCategoryId
                 MediaFileIds = deposit.MediaFiles |> List.map (fun m -> m.FileId) 
             }
         }
+        |> Trial.toResult
 
 type ValidatedFinancialYear =
     {

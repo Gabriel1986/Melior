@@ -29,12 +29,14 @@ type Message =
     | CloseImageUploadDialog
     | TemporaryPictureIdSet of pictureId: Guid option
     | SaveImageUploadDialog of pictureId: Guid
-    | BankAccountEditComponentMsg of BankAccountEditComponent.Msg
+    | CheckingBankAccountEditComponentMsg of BankAccountEditComponent.Msg
+    | SavingsBankAccountEditComponentMsg of BankAccountEditComponent.Msg
 
 type State = {
     Building: Building
     GeneralMeetingPeriod: (DateTime * DateTime) option
-    BankAccountsComponentState: BankAccountEditComponent.State
+    SavingsBankAccountComponentState: BankAccountEditComponent.State
+    CheckingBankAccountComponentState: BankAccountEditComponent.State
     ShowingDefaultImage: bool
     ShowingImageUploadDialog: bool
     TemporaryPictureId: Guid option
@@ -51,13 +53,18 @@ let init (building: Building) =
         |> Option.map (fun p -> Some (dateTime(p.FromMonth, p.FromDay), dateTime(p.UntilMonth, p.UntilDay)))
         |> Option.defaultValue None
 
-    let componentState, componentCmd = 
+    let savingsAccountComponentState, savingsAccountComponentCmd = 
         BankAccountEditComponent.init 
             {|
-                CurrentBuildingId = Some building.BuildingId
-                BankAccounts = building.BankAccounts
-                BasePath = nameof (building.BankAccounts)
-                ShowFinancialCategorySelection = true
+                Settings = BankAccountEditComponent.EditComponentSettings.Single (Some "Rekening reservekapitaal", building.SavingsBankAccount |> Option.defaultValue (BankAccount.Init()))
+                BasePath = nameof (building.SavingsBankAccount)
+            |}
+
+    let checkingAccountComponentState, checkingAccountComponentCmd =
+        BankAccountEditComponent.init 
+            {|
+                Settings = BankAccountEditComponent.EditComponentSettings.Single (Some "Rekening werkkapitaal", building.SavingsBankAccount |> Option.defaultValue (BankAccount.Init()))
+                BasePath = nameof (building.CheckingBankAccount)
             |}
 
     { 
@@ -66,9 +73,13 @@ let init (building: Building) =
         ShowingDefaultImage = false
         ShowingImageUploadDialog = false
         TemporaryPictureId = None
-        BankAccountsComponentState = componentState
+        SavingsBankAccountComponentState = savingsAccountComponentState
+        CheckingBankAccountComponentState = checkingAccountComponentState
         Errors = []
-    }, componentCmd |> Cmd.map BankAccountEditComponentMsg
+    }, Cmd.batch [
+        savingsAccountComponentCmd |> Cmd.map SavingsBankAccountEditComponentMsg
+        checkingAccountComponentCmd |> Cmd.map CheckingBankAccountEditComponentMsg
+    ]
 
 let private formatOrganizationNumber (orgNr: string) =
     let digitString = orgNr |> String.filter Char.IsDigit
@@ -132,13 +143,20 @@ let update (message: Message) (state: State): State * Cmd<Message> =
         changeBuilding (fun b -> { b with PictureId = Some pictureId })
         |> (fun state -> { state with ShowingImageUploadDialog = false; ShowingDefaultImage = false; TemporaryPictureId = None })
         , Cmd.none
-    | BankAccountEditComponentMsg msg ->
+    | CheckingBankAccountEditComponentMsg msg ->
         let componentState, componentCmd =
-            BankAccountEditComponent.update msg state.BankAccountsComponentState
+            BankAccountEditComponent.update msg state.CheckingBankAccountComponentState
         { state with 
-            BankAccountsComponentState = componentState
-            Building = { state.Building with BankAccounts = componentState.BankAccounts }
-        }, componentCmd |> Cmd.map BankAccountEditComponentMsg
+            CheckingBankAccountComponentState = componentState
+            Building = { state.Building with CheckingBankAccount = componentState.BankAccounts |> List.tryHead }
+        }, componentCmd |> Cmd.map CheckingBankAccountEditComponentMsg
+    | SavingsBankAccountEditComponentMsg msg ->
+        let componentState, componentCmd =
+            BankAccountEditComponent.update msg state.SavingsBankAccountComponentState
+        { state with 
+            SavingsBankAccountComponentState = componentState
+            Building = { state.Building with SavingsBankAccount = componentState.BankAccounts |> List.tryHead }
+        }, componentCmd |> Cmd.map SavingsBankAccountEditComponentMsg
 
     |> (fun (state, cmd) -> state |> recalculateValidationErrors, cmd)
 
@@ -146,10 +164,12 @@ let inColumn x = div [ Class Bootstrap.col ] [ x ]
 let inColumn' columnClass x = div [ Class columnClass ] [ x ]
 
 let private renderBankAccounts (state: State) (dispatch: Message -> unit) =
-    fieldset [] [
-        legend [] [ str "Bankrekeningen" ]
+    fragment [] [
         div [] [
-            BankAccountEditComponent.view (state.Errors) (state.BankAccountsComponentState) (BankAccountEditComponentMsg >> dispatch)
+            BankAccountEditComponent.view (state.Errors) (state.CheckingBankAccountComponentState) (CheckingBankAccountEditComponentMsg >> dispatch)
+        ]
+        div [] [
+            BankAccountEditComponent.view (state.Errors) (state.SavingsBankAccountComponentState) (SavingsBankAccountEditComponentMsg >> dispatch)
         ]
     ]
 

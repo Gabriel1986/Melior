@@ -9,15 +9,84 @@ open Shared.Read
 open Shared.Write
 open Shared.Library
 open Shared.MediaLibrary
+open Shared
+open Shared.Trial
+open Shared.Trial.Control
 open Client.Upload
 open Client.Components
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 open InvoicePaymentTypes
 
+type InvoicePaymentForm = 
+    {
+        InvoiceId: Guid
+        BuildingId: BuildingId
+        InvoicePaymentId: Guid
+        Amount: string
+        Date: DateTime
+        FromBankAccount: BankAccount option
+        FinancialCategory: FinancialCategory option
+        MediaFiles: MediaFile list
+    }
+    static member Init (financialCategories: FinancialCategory list) (currentBuilding: BuildingListItem) (invoiceId: Guid) =
+        let checkingAccount = currentBuilding.CheckingBankAccount
+        let savingsAccount = currentBuilding.SavingsBankAccount
+        {
+            InvoiceId = invoiceId
+            BuildingId = currentBuilding.BuildingId
+            InvoicePaymentId = Guid.NewGuid()
+            Amount = ""
+            Date = DateTime.Today
+            FromBankAccount = checkingAccount |> Option.orElse savingsAccount
+            FinancialCategory =
+                match checkingAccount, savingsAccount with
+                | Some _, _ -> financialCategories |> List.tryFind (fun cat -> cat.Code = "551")
+                | None, Some _ -> financialCategories |> List.tryFind (fun cat -> cat.Code = "550")
+                | _ -> None
+            MediaFiles = []
+        }
+    static member FromInvoicePayment (payment: InvoicePayment) = {
+        InvoiceId = payment.InvoiceId
+        BuildingId = payment.BuildingId
+        InvoicePaymentId = payment.InvoicePaymentId
+        Amount = String.Format("{0:0.00}", payment.Amount).Replace(".", ",")
+        Date = payment.Date
+        FromBankAccount = Some payment.FromBankAccount
+        FinancialCategory = Some payment.FinancialCategory
+        MediaFiles = payment.MediaFiles
+    }
+    member me.Validate (): Result<InvoicePayment, (string * string) list> =
+        let validateAmount (path: string) (amount: string) =
+            match Decimal.TryParse (amount.Replace(',', '.')) with
+            | true, parsed -> Trial.Pass parsed
+            | false, _ -> Trial.ofError (path, "De waarde die u heeft opgegeven is niet geldig")
+
+        let validateMandatory (path: string) (opt: 'a option) =
+            match opt with
+            | Some filledIn -> Trial.Pass filledIn
+            | None -> Trial.ofError (path, "Verplicht veld")
+
+        trial {
+            from bankAccount in validateMandatory (nameof me.FromBankAccount) me.FromBankAccount
+            also amount in validateAmount (nameof me.Amount) me.Amount
+            also financialCategory in validateMandatory (nameof me.FinancialCategory) me.FinancialCategory
+            yield {
+                InvoicePayment.InvoiceId = me.InvoiceId
+                BuildingId = me.BuildingId
+                InvoicePaymentId = me.InvoicePaymentId
+                Amount = amount
+                Date = me.Date
+                FromBankAccount = bankAccount
+                FinancialCategory = financialCategory
+                MediaFiles = me.MediaFiles
+            }
+        }
+        |> Trial.toResult
+
 type State = {
     CreateOrUpdate: CreateOrUpdate
-    Payment: InvoicePaymentInput
+    Payment: InvoicePaymentForm
     CurrentBuilding: BuildingListItem
     FinancialCategories: FinancialCategory list
     ShowingFinancialCategoryModal: bool
@@ -47,8 +116,8 @@ let init (props: InvoicePaymentEditComponentProps) =
         CreateOrUpdate = props.CreateOrUpdate
         Payment =
             match props.CreateOrUpdate with
-            | Create -> InvoicePaymentInput.Init props.CurrentBuilding props.InvoiceId
-            | Update payment -> InvoicePaymentInput.FromInvoicePayment payment
+            | Create -> InvoicePaymentForm.Init props.FinancialCategories props.CurrentBuilding props.InvoiceId
+            | Update payment -> InvoicePaymentForm.FromInvoicePayment payment
         FinancialCategories = props.FinancialCategories
         CurrentBuilding = props.CurrentBuilding
         ShowingFinancialCategoryModal = false
@@ -56,7 +125,7 @@ let init (props: InvoicePaymentEditComponentProps) =
     }, Cmd.none
 
 let update (msg: Msg) (state: State): State * Cmd<Msg> =
-    let changePayment (changeFunc: InvoicePaymentInput -> InvoicePaymentInput): State =
+    let changePayment (changeFunc: InvoicePaymentForm -> InvoicePaymentForm): State =
         { state with Payment = changeFunc state.Payment }
 
     match msg with
@@ -67,13 +136,24 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
         changePayment (fun payment -> { payment with Date = date })
         , Cmd.none
     | FromBankAccountChanged bankAccount ->
-        changePayment (fun payment -> { payment with FromBankAccount = bankAccount; FinancialCategoryId = bankAccount |> Option.bind (fun b -> b.FinancialCategoryId) })
+        changePayment (fun payment -> { 
+            payment with 
+                FromBankAccount = bankAccount
+                FinancialCategory =
+                    match bankAccount with
+                    | Some acc when Some acc = state.CurrentBuilding.CheckingBankAccount ->
+                        state.FinancialCategories |> List.tryFind (fun cat -> cat.Code = "551")
+                    | Some acc when Some acc = state.CurrentBuilding.SavingsBankAccount ->
+                        state.FinancialCategories |> List.tryFind (fun cat -> cat.Code = "550")
+                    | _ ->
+                        None
+        })
         , Cmd.none
     | ChangeCategory ->
         { state with ShowingFinancialCategoryModal = true }
         , Cmd.none
     | CategoryChanged category ->
-        changePayment (fun payment -> { payment with FinancialCategoryId = category |> Option.map (fun cat -> cat.FinancialCategoryId) })
+        changePayment (fun payment -> { payment with FinancialCategory = category })
         , Cmd.none
     | CancelChangeFinancialCategory ->
         { state with ShowingFinancialCategoryModal = false }
@@ -133,15 +213,21 @@ let view (state: State) (dispatch: Msg -> unit) =
 
         div [ Class Bootstrap.row ] [
             div [ Class Bootstrap.colMd ] [
+                let bankAccounts =
+                    [ state.CurrentBuilding.CheckingBankAccount; state.CurrentBuilding.SavingsBankAccount ] 
+                    |> List.choose id
+
                 formGroup [
                     Label "Rekening"
                     Select {
                         Identifier = "FromBankAccount"
                         OnChanged = (fun key ->
-                            state.CurrentBuilding.BankAccounts
+                            bankAccounts
                             |> List.tryItem (Int32.Parse key)
                             |> FromBankAccountChanged |> dispatch)
-                        Options = state.CurrentBuilding.BankAccounts |> List.mapi (bankAccountToOption state)
+                        Options =
+                            bankAccounts
+                            |> List.mapi (bankAccountToOption state)
                     }
                 ]
             ]
@@ -149,12 +235,9 @@ let view (state: State) (dispatch: Msg -> unit) =
                 formGroup [
                     Label "Boekhoudkundige rekening"
 
-                    let shown =
-                        match state.Payment.FinancialCategoryId with
-                        | Some categoryId ->
-                            match state.FinancialCategories |> List.tryFind (fun cat -> cat.FinancialCategoryId = categoryId) with
-                            | Some category -> sprintf "%s - %s" category.Code category.Description
-                            | None -> ""
+                    let shown =                        
+                        match state.Payment.FinancialCategory with
+                        | Some category -> sprintf "%s - %s" category.Code category.Description
                         | _ -> ""
                     Input [
                         Type "text"
@@ -171,7 +254,7 @@ let view (state: State) (dispatch: Msg -> unit) =
                             span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
                         ]
                     ]
-                    FieldError (errorFor (nameof state.Payment.FinancialCategoryId))
+                    FieldError (errorFor (nameof state.Payment.FinancialCategory))
                 ]
             ]
         ]
@@ -204,7 +287,7 @@ let view (state: State) (dispatch: Msg -> unit) =
 
         FinancialCategorySelectionModal.render 
             {|
-                SelectedCategoryId = state.Payment.FinancialCategoryId
+                SelectedCategoryId = state.Payment.FinancialCategory |> Option.map (fun cat -> cat.FinancialCategoryId)
                 FinancialCategories = state.FinancialCategories
                 Showing = state.ShowingFinancialCategoryModal
                 OnCancelSelection = fun () -> dispatch (CancelChangeFinancialCategory)

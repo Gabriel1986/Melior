@@ -29,8 +29,17 @@ module Partitions =
     let [<Literal>] Invoices = "Invoices"
     let [<Literal>] BuildingImages = "BuildingImages"
     let [<Literal>] InvoicePayments = "InvoicePayments"
+    let [<Literal>] Deposits = "Deposits"
+    let [<Literal>] DepositRequests = "DepositRequests"
 
-    let possiblePartitions = [ Contracts; Invoices; BuildingImages; InvoicePayments ]
+    let possiblePartitions = [ 
+        Contracts
+        Invoices
+        BuildingImages
+        InvoicePayments
+        Deposits
+        DepositRequests
+    ]
 
 module MimeTypes =
     let private mimeTypeDictionary =

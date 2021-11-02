@@ -95,6 +95,14 @@
     <Compile Include="Financial\Invoicing\InvoiceViewComponent.fs" />
     <Compile Include="Financial\Invoicing\InvoiceDetails.fs" />
     <Compile Include="Financial\Invoicing\InvoicesPage.fs" />
+    <Compile Include="Financial\Deposits\DepositTypes.fs" />
+    <Compile Include="Financial\Deposits\DepositViewComponent.fs" />
+    <Compile Include="Financial\Deposits\DepositEditComponent.fs" />
+    <Compile Include="Financial\Deposits\DepositModal.fs" />
+    <Compile Include="Financial\Deposits\DepositRequestViewComponent.fs" />
+    <Compile Include="Financial\Deposits\DepositRequestEditComponent.fs" />
+    <Compile Include="Financial\Deposits\DepositRequestDetail.fs" />
+    <Compile Include="Financial\Deposits\DepositRequestsPage.fs" />
     <Compile Include="Financial\DistributionKeys\Types.fs" />
     <Compile Include="Financial\DistributionKeys\DistributionKeyEditComponent.fs" />
     <Compile Include="Financial\DistributionKeys\DistributionKeyViewComponent.fs" />
@@ -112,9 +120,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.fsproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Financial\Deposits\" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

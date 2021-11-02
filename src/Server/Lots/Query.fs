@@ -7,6 +7,7 @@ open Server.Library
 open Npgsql.FSharp
 open Server.PostgreSQL
 open Server.PostgreSQL.Sql
+open Server.Blueprint.Data.Financial
 
 [<AutoOpen>]
 module private Readers =
@@ -32,6 +33,7 @@ module private Readers =
 
     type LotOwnerDbModel = {
         LotId: Guid
+        BuildingId: Guid
         LotOwnerId: Guid
         PersonId: Guid option
         OrganizationId: Guid option
@@ -41,6 +43,7 @@ module private Readers =
 
     let readLotOwner (reader: CaseInsensitiveRowReader): LotOwnerDbModel = {
         LotId = reader.uuid "LotId"
+        BuildingId = reader.uuid "BuildingId"
         LotOwnerId = reader.uuid "LotOwnerId"
         OrganizationId = reader.uuidOrNone "OrganizationId"
         PersonId = reader.uuidOrNone "PersonId"
@@ -48,17 +51,17 @@ module private Readers =
         EndDate = reader.dateTimeOrNone "EndDate"
     }
 
-    let readLegalRepresentative (reader: CaseInsensitiveRowReader): LotOwnerListItem option =
+    let readLegalRepresentative (reader: CaseInsensitiveRowReader): LotOwnerTypeListItem option =
         let personId = reader.uuidOrNone "LegalRepresentativePersonId"
         let firstName = reader.stringOrNone "LegalRepresentativePersonFirstName"
         let lastName = reader.stringOrNone "LegalRepresentativePersonLastName"
         match personId, firstName, lastName with
-        | Some pId, Some fName, Some lName -> Some (LotOwnerListItem.Owner {| PersonId = pId; Name = sprintf "%s %s" fName lName |})
+        | Some pId, Some fName, Some lName -> Some (LotOwnerTypeListItem.Owner {| PersonId = pId; Name = sprintf "%s %s" fName lName |})
         | _ ->
             let orgId = reader.uuidOrNone "LegalRepresentativeOrgId"
             let orgName = reader.stringOrNone "LegalRepresentativeOrgName"
             match orgId, orgName with
-            | Some orgId, Some orgName -> Some (LotOwnerListItem.Organization {| OrganizationId = orgId; Name = orgName |})
+            | Some orgId, Some orgName -> Some (LotOwnerTypeListItem.Organization {| OrganizationId = orgId; Name = orgName |})
             | _ -> None
 
     let readLotListItem (reader: CaseInsensitiveRowReader): LotListItem = {
@@ -136,6 +139,7 @@ let getLot (connectionString: string) (lotId: Guid): Async<Lot option> = async {
                 """
                     SELECT
                         lotOwner.LotId,
+                        lotOwner.BuildingId,
                         lotOwner.LotOwnerId,
                         lotOwner.OrganizationId,
                         lotOwner.PersonId,
@@ -156,6 +160,7 @@ let getLot (connectionString: string) (lotId: Guid): Async<Lot option> = async {
 
         let mapLotOwnerDbRowAndRoleToLotOwner (lotOwnerType: LotOwnerType, contacts: LotOwnerContact list, dbRow: LotOwnerDbModel) = { 
             LotId = dbRow.LotId
+            BuildingId = dbRow.BuildingId
             LotOwnerId = dbRow.LotOwnerId
             LotOwnerType = lotOwnerType
             StartDate = new DateTimeOffset(dbRow.StartDate.Year, dbRow.StartDate.Month, dbRow.StartDate.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
@@ -230,3 +235,81 @@ let getLots (connectionString: string) (buildingId: Guid): Async<LotListItem lis
         )
     |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId; "@Now", Sql.timestamp DateTime.Now ]
     |> Sql.read readLotListItem
+
+let private filterToQuery (filter: LotOwnerFilter) =
+    match filter.Period with
+    | LotOwnerFilterPeriod.FinancialYear financialYearId ->
+        {|
+            Join = "LEFT JOIN FinancialYears financialYear ON financialYear.FinancialYearId = lotOwner.FinancialYearId"
+            Where = "lotOwner.FinancialYearId = @FinancialYearId AND lotOwner.StartDate <= financialYear.EndDate AND (lotOwner.EndDate IS NULL OR lotOwner.EndDate >= financialYear.StartDate)"
+            Parameters = [ "@FinancialYearId", Sql.uuid financialYearId ]
+        |}
+
+
+let [<Literal>] private lotOwnersQuery =
+    """
+        SELECT lotOwner.LotId, lotOwner.BuildingId, lot.Code AS LotCode, lot.LotType, lotOwner.LotOwnerId, person.PersonId, person.FirstName AS PersonFirstName, person.LastName as PersonLastName, person.BankAccounts AS PersonBankAccounts, org.OrganizationId, org.Name AS OrganizationName, org.BankAccounts as OrganizationBankAccounts
+        FROM LotOwners lotOwner
+        LEFT JOIN Lots lot ON lotOwner.LotId = lot.LotId
+        LEFT JOIN Persons person ON lotOwner.PersonId = person.PersonId
+        LEFT JOIN Organizations organization ON lotOwner.OrganizationId = organization.OrganizationId
+    """
+
+let private readLotOwnerListItem (reader: CaseInsensitiveRowReader): FinancialLotOwner = {
+    LotId = reader.uuid "LotId"
+    BuildingId = reader.uuid "BuildingId"
+    LotCode = reader.string "LotCode"
+    LotType = LotType.OfString (reader.string "LotType")
+    LotOwnerId = reader.uuid "LotOwnerId"
+    LotOwnerType =
+        match reader.uuidOrNone "PersonId", reader.uuidOrNone "OrganizationId" with
+        | Some personId, _ -> 
+            FinancialLotOwnerType.Owner 
+                {| 
+                    Name = [ reader.stringOrNone "PersonFirstName"; reader.stringOrNone "PersonLastName" ] |> List.choose id |> String.joinWith " "
+                    PersonId = personId
+                    BankAccounts = reader.stringOrNone "PersonBankAccounts" |> Option.either BankAccount.listFromJson [] 
+                |}
+        | _, Some orgId    -> 
+            FinancialLotOwnerType.Organization 
+                {| 
+                    Name = reader.string "OrganizationName"
+                    OrganizationId = orgId
+                    BankAccounts = reader.stringOrNone "OrganizationBankAccounts" |> Option.either BankAccount.listFromJson [] 
+                |}
+        | _ -> failwithf "Failed to find the person / organization in the database"
+}
+
+let getLotOwnersByIds (conn: string) (identifiers: Guid list): Async<FinancialLotOwner list> =
+    Sql.connect conn
+    |> Sql.query
+        (sprintf
+            """
+                %s
+                WHERE lotOwner.LotOwnerId = ANY(@LotOwnerIds)
+            """
+            lotOwnersQuery)
+    |> Sql.parameters [ "@LotOwnerIds", Sql.uuidArray (identifiers |> List.toArray) ]
+    |> Sql.read readLotOwnerListItem
+
+let getLotOwners (conn: string) (filter: LotOwnerFilter): Async<FinancialLotOwner list> =
+    let query = filterToQuery filter
+    Sql.connect conn
+    |> Sql.query
+        (sprintf
+            """
+                %s
+                %s
+                WHERE BuildingId = @BuildingId AND (%s)
+            """
+            lotOwnersQuery
+            query.Join
+            query.Where)
+    |> Sql.parameters ([ "@BuildingId", Sql.uuid filter.BuildingId ] @ query.Parameters)
+    |> Sql.read readLotOwnerListItem
+
+/// Used by background services, this does a cross-boundry query, so don't use for any other purpose!
+let getAllLotOwners (conn: string) (): Async<FinancialLotOwner list> =
+    Sql.connect conn
+    |> Sql.query lotOwnersQuery
+    |> Sql.read readLotOwnerListItem

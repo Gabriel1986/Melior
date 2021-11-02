@@ -589,6 +589,7 @@ type AddLinkBetweenFinancialCategoryAndLotOwner() =
         u.Execute
             """
                 ALTER TABLE FinancialCategories ADD COLUMN IF NOT EXISTS LotOwnerId UUID;
+                ALTER TABLE FinancialCategories DROP CONSTRAINT IF EXISTS fk_LotOwnerId;
                 ALTER TABLE FinancialCategories ADD CONSTRAINT fk_LotOwnerId
                     FOREIGN KEY (LotOwnerId)
                     REFERENCES LotOwners(LotOwnerId);
@@ -620,7 +621,7 @@ type AddInvoicePaymentsTable() =
                 CREATE TABLE IF NOT EXISTS InvoicePayments_History (
                     InvoiceId UUID References Invoices(InvoiceId) NOT NULL,
                     BuildingId UUID References Buildings(BuildingId) NOT NULL,
-                    InvoicePaymentId UUID,
+                    InvoicePaymentId UUID NOT NULL,
                     Amount Decimal NOT NULL,
                     Date TIMESTAMP NOT NULL,
                     FromBankAccount JSONB,
@@ -630,6 +631,125 @@ type AddInvoicePaymentsTable() =
                 );
 
                 ALTER TABLE Invoices_History DROP CONSTRAINT invoices_history_pkey;
+            """
+    override u.Down () =
+        ()
+
+[<Migration(21L, "Add lot owner deposit requests, owner deposit and history tables")>]
+type AddDepositTable() =
+    inherit Migration ()
+    override u.Up () = 
+        u.Execute
+            """
+                CREATE TABLE IF NOT EXISTS DepositRequests (
+                    DepositRequestId UUID PRIMARY KEY,
+                    DepositRequestNumber INT NOT NULL,
+                    BuildingId UUID REFERENCES Buildings(BuildingId) NOT NULL,
+                    FinancialYearId UUID REFERENCES FinancialYears(FinancialYearId) NOT NULL,
+                    DistributionKeyId UUID REFERENCES DistributionKeys(DistributionKeyId) NOT NULL,
+                    ToFinancialCategoryId UUID REFERENCES FinancialCategories(FinancialCategoryId) NOT NULL,
+                    ToBankAccount JSONB NOT NULL,
+                    Amount DECIMAL NOT NULL,
+                    BookingDate Timestamp NOT NULL,
+                    RequestDate Timestamp NOT NULL,
+                    DueDate Timestamp NOT NULL,
+                    Description VARCHAR(255) NOT NULL,
+                    CreatedAt TIMESTAMP NOT NULL,
+                    CreatedBy VARCHAR(255) NOT NULL,
+                    LastUpdatedAt TIMESTAMP NOT NULL,
+                    LastUpdatedBy VARCHAR(255) NOT NULL,
+                    IsDeleted BOOLEAN DEFAULT FALSE
+                );
+                CREATE Index IF NOT EXISTS idx_DepositRequests_BuildingId ON DepositRequests(BuildingId);
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_DepositRequests_FinancialYearId_DepositRequestNumber ON DepositRequests(FinancialYearId, DepositRequestNumber);
+
+                CREATE TABLE IF NOT EXISTS DepositRequests_History (
+                    DepositRequestId UUID NOT NULL,
+                    DepositRequestNumber INT NOT NULL,
+                    BuildingId UUID NOT NULL,
+                    FinancialYearId UUID NOT NULL,
+                    DistributionKeyId UUID NOT NULL,
+                    ToFinancialCategoryId UUID NOT NULL,
+                    ToBankAccount JSONB NOT NULL,
+                    Amount DECIMAL NOT NULL,
+                    BookingDate Timestamp NOT NULL,
+                    RequestDate Timestamp NOT NULL,
+                    DueDate Timestamp NOT NULL,
+                    Description VARCHAR(255) NOT NULL,
+                    LastUpdatedAt TIMESTAMP NOT NULL,
+                    LastUpdatedBy VARCHAR(255) NOT NULL,
+                    IsDeleted BOOLEAN DEFAULT FALSE
+                );
+
+                CREATE TABLE IF NOT EXISTS Deposits (
+                    DepositId UUID PRIMARY KEY,
+                    DepositRequestId UUID References DepositRequests(DepositRequestId) NOT NULL,
+                    BuildingId UUID References Buildings(BuildingId) NOT NULL,
+                    Amount DECIMAL NOT NULL,
+                    Date TimeStamp NOT NULL,
+                    FromBankAccount JSONB,
+                    FromFinancialCategoryId UUID References FinancialCategories(FinancialCategoryId) NOT NULL,
+                    ToFinancialCategoryId UUID References FinancialCategories(FinancialCategoryId) NOT NULL,
+                    CreatedAt TIMESTAMP NOT NULL,
+                    CreatedBy VARCHAR(255) NOT NULL,
+                    LastUpdatedAt TIMESTAMP NOT NULL,
+                    LastUpdatedBy VARCHAR(255) NOT NULL,
+                    IsDeleted BOOLEAN DEFAULT FALSE
+                );
+                CREATE Index IF NOT EXISTS idx_Deposits_BuildingId ON Deposits(BuildingId);
+
+                CREATE TABLE IF NOT EXISTS Deposits_History (
+                    DepositId UUID NOT NULL,
+                    DepositRequestId UUID NOT NULL,
+                    BuildingId UUID NOT NULL,
+                    Amount DECIMAL NOT NULL,
+                    Date TimeStamp NOT NULL,
+                    FromBankAccount JSONB,
+                    FromFinancialCategoryId UUID NOT NULL,
+                    ToFinancialCategoryId UUID NOT NULL,
+                    LastUpdatedAt TIMESTAMP NOT NULL,
+                    LastUpdatedBy VARCHAR(255) NOT NULL,
+                    IsDeleted BOOLEAN DEFAULT FALSE
+                );
+            """
+    override u.Down () =
+        ()
+
+[<Migration(22L, "Add OGMReference to a LotOwner")>]
+type AddOGMReferenceToOwner() =
+    inherit Migration ()
+    override u.Up () = 
+        u.Execute
+            """
+                ALTER TABLE LotOwners ADD COLUMN IF NOT EXISTS BuildingId UUID References Buildings(BuildingId);
+                ALTER TABLE LotOwners ADD COLUMN IF NOT EXISTS OGMReference VARCHAR(12);
+            """
+        //This is just to make the NOT NULL contraint happy, we will generate OGM references @ the seeding step
+        u.Execute
+            """
+                UPDATE LotOwners SET OGMReference = floor(random() * 1000000000)::text WHERE OGMReference IS NULL;
+
+                UPDATE LotOwners SET BuildingId = Lots.BuildingId FROM Lots WHERE Lots.LotId = LotOwners.LotId;
+            """
+        u.Execute
+            """
+                ALTER TABLE LotOwners ALTER COLUMN OGMReference SET NOT NULL;
+                ALTER TABLE LotOwners ALTER COLUMN BuildingId SET NOT NULL;
+                ALTER TABLE LotOwners DROP CONSTRAINT IF EXISTS UQ_LotOwners_OGMReference;
+                ALTER TABLE LotOwners ADD CONSTRAINT UQ_LotOwners_OGMReference UNIQUE (BuildingId, OGMReference);
+            """
+    override u.Down () =
+        ()
+
+[<Migration(23L, "Add SavingsBankAccount and CheckingBankAccount to Buildings")>]
+type AddSavingsBankAccountAndCheckingBankAccountToBuildings() =
+    inherit Migration ()
+    override u.Up () =
+        u.Execute
+            """
+                ALTER TABLE Buildings ADD COLUMN IF NOT EXISTS SavingsBankAccount jsonb;
+                ALTER TABLE Buildings ADD COLUMN IF NOT EXISTS CheckingBankAccount jsonb;
+                ALTER TABLE Buildings DROP COLUMN IF EXISTS BankAccounts;
             """
     override u.Down () =
         ()

@@ -2,6 +2,7 @@
 
 open System
 open Server.Library
+open Shared.Library
 open Shared.Read
 open Npgsql.FSharp
 open Server.PostgreSQL
@@ -97,8 +98,8 @@ let readInvoiceListItem (reader: CaseInsensitiveRowReader): InvoiceListItem = {
     DistributionKeyName = reader.string "DistributionKeyName"
     OrganizationName = reader.string "OrganizationName"
     OrganizationId = reader.uuid "OrganizationId"
-    CategoryCode = reader.string "CategoryCode"
-    CategoryDescription = reader.string "CategoryDescription"
+    FinancialCategoryCode = reader.string "CategoryCode"
+    FinancialCategoryDescription = reader.string "CategoryDescription"
     InvoiceDate = 
         let dt = reader.dateTime "InvoiceDate"
         new DateTimeOffset(dt.Year, dt.Month, dt.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
@@ -290,7 +291,7 @@ let getAllFinancialYears (conn: string) (buildingId: BuildingId): Async<Financia
     |> Sql.read readFinancialYear
 
 
-let getFinancialYearsByIds (conn: string) (buildingId: BuildingId, financialYearIds: Guid list): Async<FinancialYear list> =
+let getFinancialYearsByIds (conn: string) (buildingId: BuildingId) (financialYearIds: Guid list): Async<FinancialYear list> =
     Sql.connect conn
     |> Sql.query 
         """
@@ -326,7 +327,7 @@ let getAllFinancialCategories (conn: string) (buildingId: BuildingId) =
     ]
     |> Sql.read readFinancialCategory
 
-let getFinancialCategoriesByIds (conn: string) (buildingId: BuildingId, financialCategoryIds: Guid list): Async<FinancialCategory list> =
+let getFinancialCategoriesByIds (conn: string) (buildingId: BuildingId) (financialCategoryIds: Guid list): Async<FinancialCategory list> =
     Sql.connect conn
     |> Sql.query 
         """
@@ -352,8 +353,6 @@ type InvoicePaymentDbRow = {
     Date: DateTime
     FromBankAccount: BankAccount
     FinancialCategoryId: Guid
-    FinancialYearId: Guid
-    OrganizationName: string
 }
 
 let private readInvoicePayment (reader: CaseInsensitiveRowReader): InvoicePaymentDbRow = {
@@ -364,8 +363,6 @@ let private readInvoicePayment (reader: CaseInsensitiveRowReader): InvoicePaymen
     Date = reader.dateTime "Date"
     FromBankAccount = BankAccount.fromJson (reader.string "FromBankAccount")
     FinancialCategoryId = reader.uuid "FinancialCategoryId"
-    FinancialYearId = reader.uuid "FinancialYearId"
-    OrganizationName = reader.string "OrganizationName"
 }
 
 let getInvoicePaymentsByInvoiceIds (conn: string) (buildingId: BuildingId, invoiceIds: Guid list): Async<InvoicePayment list> = async {
@@ -381,27 +378,20 @@ let getInvoicePaymentsByInvoiceIds (conn: string) (buildingId: BuildingId, invoi
                     payment.Date,
                     payment.FromBankAccount,
                     payment.FinancialCategoryId,
-                    invoice.FinancialYearId,
-                    organization.Name AS OrganizationName
                 FROM InvoicePayments payment
-                LEFT JOIN Invoices invoice ON payment.InvoiceId = invoice.InvoiceId
-                LEFT JOIN Organizations organization ON organization.OrganizationId = invoice.OrganizationId
-                WHERE payment.InvoiceId = ANY (@InvoiceIds) AND payment.BuildingId = @BuildingId AND payment.IsDeleted = FALSE AND invoice.IsDeleted = FALSE
-            """
+                WHERE payment.BuildingId = @BuildingId AND payment.IsDeleted = FALSE AND payment.InvoiceId = ANY (@InvoiceIds)
+           """
         |> Sql.parameters [
             "@InvoiceIds", Sql.uuidArray (invoiceIds |> List.toArray)
             "@BuildingId", Sql.uuid buildingId
         ]
         |> Sql.read readInvoicePayment
     let! financialCategories = 
-        getFinancialCategoriesByIds conn (buildingId, payments |> List.map (fun p -> p.FinancialCategoryId) |> List.distinct)
+        getFinancialCategoriesByIds conn buildingId (payments |> List.map (fun p -> p.FinancialCategoryId) |> List.distinct)
         |> Async.map (List.map (fun cat -> cat.FinancialCategoryId, cat) >> Map.ofList)
     let! mediaFiles = 
         Server.Media.Query.getMediaFilesForEntities conn Partitions.InvoicePayments (payments |> List.map (fun p -> p.InvoicePaymentId))
         |> Async.map (List.groupBy (fun file -> file.EntityId) >> Map.ofList)
-    let! financialYears =
-        getFinancialYearsByIds conn (buildingId, payments |> List.map (fun p -> p.FinancialYearId) |> List.distinct)
-        |> Async.map (List.map (fun year -> year.FinancialYearId, year) >> Map.ofList)
     return payments |> List.map (fun dbPayment -> {
         InvoiceId = dbPayment.InvoiceId
         BuildingId = dbPayment.BuildingId
@@ -410,8 +400,6 @@ let getInvoicePaymentsByInvoiceIds (conn: string) (buildingId: BuildingId, invoi
         Date = dbPayment.Date
         FromBankAccount = dbPayment.FromBankAccount
         FinancialCategory = financialCategories |> Map.find (dbPayment.FinancialCategoryId)
-        FinancialYear = financialYears |> Map.find (dbPayment.FinancialYearId)
-        OrganizationName = dbPayment.OrganizationName
         MediaFiles = mediaFiles |> Map.tryFind (dbPayment.InvoicePaymentId) |> Option.defaultValue [] 
     })
 }
@@ -445,8 +433,8 @@ let getInvoice (conn: string) (invoiceId: Guid): Async<Invoice option> = async {
 
     match dbRowOption with
     | Some dbRow ->
-        let! financialYear = getFinancialYearsByIds conn (dbRow.BuildingId, [ dbRow.FinancialYearId ]) |> Async.map List.head
-        let! financialCategory = getFinancialCategoriesByIds conn (dbRow.BuildingId, [ dbRow.FinancialCategoryId ]) |> Async.map List.head
+        let! financialYear = getFinancialYearsByIds conn dbRow.BuildingId [ dbRow.FinancialYearId ] |> Async.map List.head
+        let! financialCategory = getFinancialCategoriesByIds conn dbRow.BuildingId [ dbRow.FinancialCategoryId ] |> Async.map List.head
         let! distributionKey = getDistributionKeysByIds conn (dbRow.BuildingId, [ dbRow.DistributionKeyId ]) |> Async.map List.head
         let! mediaFiles = Server.Media.Query.getMediaFilesForEntities conn (Partitions.Invoices) [ dbRow.InvoiceId ]
         let! organization = Server.Organizations.Query.getOrganizationsByIds conn [ dbRow.OrganizationId ] |> Async.map List.head
@@ -499,31 +487,67 @@ let private getFinancialCategoryByCode (conn: string) (buildingId: BuildingId, c
     |> Sql.readSingle readFinancialCategory
     |> Async.map (function | None -> failwithf "Failed to find financial category with code %s..." code | Some cat -> cat)
 
-let getNewFinancialCategoryCodeForLotOwner (conn: string) (buildingId: BuildingId, lotOwner: ValidatedLotOwner): Async<string option> = async {
+let getNewFinancialCategoryCodesForLotOwner (conn: string) (buildingId: BuildingId, lotOwner: ValidatedLotOwner): Async<string list> = async {
     match! getFinancialCategoryByLotOwnerId conn (buildingId, lotOwner.LotOwnerId) with
     | Some category -> 
-        return None
+        return []
     | None ->
-        let! currentMaxCode =
+        let! relevantCodes =
             Sql.connect conn
             |> Sql.query
                 """
-                    SELECT MAX(Code) as MaxCode FROM FinancialCategories
-                    WHERE Code like '400%'
+                    SELECT Code FROM
+                    FROM FinancialCategories
+                    WHERE Code like '400%' OR Code like '4100%' OR Code like '4101%'
+                    AND BuildingId = @BuildingId
                 """
-            |> Sql.readSingle (fun reader -> reader.stringOrNone "MaxCode")
-            |> Async.map Option.flatten
+            |> Sql.parameters [ "@BuildingId", Sql.uuid buildingId ]
+            |> Sql.read (fun reader -> reader.string "Code")
 
-        match currentMaxCode with
-        | Some max -> 
-            match Int32.TryParse(max.Substring(1)) with
-            | true, parsed -> 
-                return Some (string (parsed + 1 + 40000000))
-            | false, _ -> 
-                failwithf "Invalid value for financial category: %s" max
-                return None
-        | None ->
-            return Some "40000001"
+        let max400, max4100, max4101 =
+            relevantCodes
+            |> List.fold (fun (c400, c4100, c4101) next -> 
+                if next.StartsWith("400") then next::c400,c4100,c4101
+                elif next.StartsWith("4100") then c400,next::c4100,c4101
+                else c400,c4100,next::c4101
+            ) ([], [], [])
+            |> (fun (c400, c4100, c4101) -> c400 |> List.tryMax, c4100 |> List.tryMax, c4101 |> List.tryMax)
+
+        let next400 =
+            match max400 with
+            | Some max -> 
+                match Int32.TryParse(max.Substring(1)) with
+                | true, parsed -> 
+                    Some (string (parsed + 1 + 40000000))
+                | false, _ -> 
+                    failwithf "Invalid value for financial category: %s" max
+                    None
+            | None ->
+                Some "40000001"
+        let next4100 =
+            match max4100 with
+            | Some max -> 
+                match Int32.TryParse(max.Substring(2)) with
+                | true, parsed -> 
+                    Some (string (parsed + 1 + 410000000))
+                | false, _ -> 
+                    failwithf "Invalid value for financial category: %s" max
+                    None
+            | None ->
+                Some "410000001"
+        let next4101 =
+            match max4101 with
+            | Some max -> 
+                match Int32.TryParse(max.Substring(3)) with
+                | true, parsed -> 
+                    Some (string (parsed + 1 + 410100000))
+                | false, _ -> 
+                    failwithf "Invalid value for financial category: %s" max
+                    None
+            | None ->
+                Some "410100001"
+
+        return [ next400; next4100; next4101 ] |> List.choose id
 }
 
 let private invoiceToFinancialTransactions (supplierFinancialCategory: FinancialCategory) (invoice: InvoiceListItem): FinancialTransaction list = [
@@ -532,8 +556,8 @@ let private invoiceToFinancialTransactions (supplierFinancialCategory: Financial
         BuildingId = invoice.BuildingId
         Date = invoice.InvoiceDate.DateTime
         Source = Some (Invoice { InvoiceId = invoice.InvoiceId; OrganizationName = invoice.OrganizationName })
-        FinancialCategoryCode = invoice.CategoryCode
-        FinancialCategoryDescription = invoice.CategoryDescription
+        FinancialCategoryCode = invoice.FinancialCategoryCode
+        FinancialCategoryDescription = invoice.FinancialCategoryDescription
         Amount = Debit invoice.Cost
         FinancialYearIsClosed = invoice.FinancialYearIsClosed
     }
@@ -549,40 +573,292 @@ let private invoiceToFinancialTransactions (supplierFinancialCategory: Financial
     }
 ]
 
-let private invoicePaymentToFinancialTransactions (supplierFinancialCategory: FinancialCategory) (payment: InvoicePayment): FinancialTransaction list = [
+let private invoicePaymentToFinancialTransactions (supplierFinancialCategory: FinancialCategory) (invoice: InvoiceListItem, payment: InvoicePayment): FinancialTransaction list = [
     {
         FinancialTransactionId = Guid.NewGuid()
         BuildingId = payment.BuildingId
         Date = payment.Date
-        Source = Some (InvoicePayment { InvoiceId = payment.InvoiceId; InvoicePaymentId = payment.InvoicePaymentId; OrganizationName = payment.OrganizationName })
+        Source = Some (InvoicePayment { InvoiceId = payment.InvoiceId; InvoicePaymentId = payment.InvoicePaymentId; OrganizationName = invoice.OrganizationName })
         FinancialCategoryCode = supplierFinancialCategory.Code
         FinancialCategoryDescription = supplierFinancialCategory.Description
         Amount = Debit payment.Amount
-        FinancialYearIsClosed = payment.FinancialYear.IsClosed
+        FinancialYearIsClosed = invoice.FinancialYearIsClosed
     }
     {
         FinancialTransactionId = Guid.NewGuid()
         BuildingId = payment.BuildingId
         Date = payment.Date
-        Source = Some (InvoicePayment { InvoiceId = payment.InvoiceId; InvoicePaymentId = payment.InvoicePaymentId; OrganizationName = payment.OrganizationName })
+        Source = Some (InvoicePayment { InvoiceId = payment.InvoiceId; InvoicePaymentId = payment.InvoicePaymentId; OrganizationName = invoice.OrganizationName })
         FinancialCategoryCode = payment.FinancialCategory.Code
         FinancialCategoryDescription = payment.FinancialCategory.Description
         Amount = Credit payment.Amount
-        FinancialYearIsClosed = payment.FinancialYear.IsClosed
+        FinancialYearIsClosed = invoice.FinancialYearIsClosed
     }
 ]
+
+let private readDepositRequestListItem (reader: CaseInsensitiveRowReader): DepositRequestListItem = 
+    let amount = reader.decimal "Amount"
+    {
+        BuildingId = reader.uuid "BuildingId"
+        DepositRequestId = reader.uuid "DepositRequestId"
+        DepositRequestNumber = reader.int "DepositRequestNumber"
+        FinancialYearCode = reader.string "FinancialYearCode"
+        FinancialYearIsClosed = reader.bool "FinancialYearIsClosed"
+        Amount = amount
+        RequestDate =
+            let requestDate = reader.dateTime "RequestDate"
+            new DateTimeOffset (requestDate.Year, requestDate.Month, requestDate.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
+        BookingDate =
+            let bookingDate = reader.dateTime "BookingDate"
+            new DateTimeOffset (bookingDate.Year, bookingDate.Month, bookingDate.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
+        DueDate =
+            let dueDate = reader.dateTime "DueDate"
+            new DateTimeOffset (dueDate.Year, dueDate.Month, dueDate.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
+        ToFinancialCategoryCode = reader.string "ToFinancialCategoryCode"
+        ToFinancialCategoryDescription = reader.string "ToFinancialCategoryDescription"
+        DistributionKeyName = reader.string "DistributionKeyName"
+        IsPaid =
+            let deposited = 
+                reader.decimalOrNone "DepositedAmount" 
+                |> Option.defaultValue Decimal.Zero
+            amount - deposited = Decimal.Zero        
+    }
+
+let getDepositRequests (conn: string) (filter: FinancialTransactionFilter): Async<DepositRequestListItem list> =
+    let whereFilter, whereParameters =
+        match filter.Period with
+        | FinancialTransactionFilterPeriod.FinancialYear financialYearId -> 
+            "request.FinancialYearId = @FinancialYearId", [
+                "@FinancialYearId", Sql.uuid financialYearId
+            ]
+        | FinancialTransactionFilterPeriod.Month (month, year) ->
+            let date = new DateTime(year, month, 1)
+            "request.RequestDate >= @FilterStartDate AND request.RequestDate < @FilterEndDate", [
+                "@FilterStartDate", Sql.timestamp date 
+                "@FilterEndDate", Sql.timestamp (date.AddMonths(1))
+            ]
+        | FinancialTransactionFilterPeriod.Year year ->
+            let date = new DateTime(year, 1, 1)
+            "request.RequestDate >= @FilterStartDate AND request.RequestDate < @FilterEndDate", [
+                "@FilterStartDate", Sql.timestamp date
+                "@FilterEndDate", Sql.timestamp (date.AddYears(1))
+            ]
+
+    Sql.connect conn
+    |> Sql.query
+        (sprintf
+            """
+                SELECT
+                    request.BuildingId,
+                    request.DepositRequestId,
+                    request.DepositRequestNumber,
+                    year.Code AS FinancialYearCode,
+                    year.IsClosed AS FinancialYearIsClosed,
+                    request.Amount,
+                    request.RequestDate,
+                    request.BookingDate,
+                    request.DueDate,
+                    toCat.Code AS ToFinancialCategoryCode,
+                    toCat.Description AS ToFinancialCategoryDescription,
+                    (SELECT SUM(Amount) FROM Deposits deposit WHERE request.DepositRequestId = deposit.DepositRequestId AND deposit.IsDeleted = FALSE) AS DepositedAmount,
+                    distributionKey.Name AS DistributionKeyName
+                FROM DepositRequests request
+                LEFT JOIN FinancialYears year ON request.FinancialYearId = year.FinancialYearId
+                LEFT JOIN FinancialCategories toCat ON request.ToFinancialCategoryId = toCat.FinancialCategoryId
+                LEFT JOIN DistributionKeys distributionKey ON request.DistributionKeyId = distributionKey.DistributionKeyId
+                WHERE request.BuildingId = @BuildingId AND request.IsDeleted = FALSE AND %s
+            """
+            whereFilter)
+    |> Sql.parameters ([ "@BuildingId", Sql.uuid filter.BuildingId ] @ whereParameters)
+    |> Sql.read readDepositRequestListItem
+
+type DepositRequestDbRow = {
+    BuildingId: Guid
+    DepositRequestId: Guid
+    DepositRequestNumber: int
+    FinancialYearId: Guid
+    Amount: Decimal
+    BookingDate: DateTime
+    RequestDate: DateTime
+    DueDate: DateTime
+    Description: string option
+    ToBankAccount: BankAccount
+    ToFinancialCategoryId: Guid
+    DistributionKeyId: Guid
+}
+
+let private readDepositRequest (reader: CaseInsensitiveRowReader): DepositRequestDbRow = {
+    BuildingId = reader.uuid "BuildingId"
+    DepositRequestId = reader.uuid "DepositRequestId"
+    DepositRequestNumber = reader.int "DepositRequestNumber"
+    FinancialYearId = reader.uuid "FinancialYearId"
+    ToFinancialCategoryId = reader.uuid "ToFinancialCategoryId"
+    Amount = reader.decimal "Amount"
+    BookingDate = reader.dateTime "BookingDate"
+    RequestDate = reader.dateTime "RequestDate"
+    DueDate = reader.dateTime "DueDate"
+    Description = reader.stringOrNone "Description"
+    ToBankAccount = BankAccount.fromJson (reader.string "ToBankAccount")
+    DistributionKeyId = reader.uuid "DistributionKeyId"
+}
+
+type DepositDbRow = {
+    DepositId: Guid
+    DepositRequestId: Guid
+    BuildingId: Guid
+    Amount: Decimal
+    Date: DateTime
+    FromBankAccount: BankAccount option
+    LotOwnerId: Guid
+    FromFinancialCategoryId: Guid
+    ToFinancialCategoryId: Guid
+}
+
+let private readDeposit (reader: CaseInsensitiveRowReader): DepositDbRow = {
+    DepositId = reader.uuid "DepositId"
+    DepositRequestId = reader.uuid "DepositRequestId"
+    BuildingId = reader.uuid "BuildingId"
+    Amount = reader.decimal "Amount"
+    Date = reader.dateTime "Date"
+    FromBankAccount = reader.stringOrNone "FromBankAccount" |> Option.map BankAccount.fromJson
+    LotOwnerId = reader.uuid "LotOwnerId"
+    FromFinancialCategoryId = reader.uuid "FromFinancialCategoryId"
+    ToFinancialCategoryId = reader.uuid "ToFinancialCategoryId"
+}
+
+let getDepositsByDepositRequestIds (conn: string) (buildingId: BuildingId, requestIds: Guid list): Async<Deposit list> = async {
+    let! deposits =
+        Sql.connect conn
+        |> Sql.query
+            """
+                SELECT
+                    deposit.LotOwnerId,
+                    deposit.DepositId,
+                    deposit.DepositRequestId,
+                    deposit.BuildingId,
+                    deposit.Amount,
+                    deposit.Date,
+                    deposit.FromBankAccount,
+                    deposit.FromFinancialCategoryId,
+                    deposit.ToFinancialCategoryId
+                FROM Deposits
+                WHERE BuildingId = @BuildingId AND IsDeleted = FALSE AND DepositRequestId = ANY(@RequestIds)
+            """
+        |> Sql.parameters [
+            "@BuildingId", Sql.uuid buildingId
+            "@RequestIds", Sql.uuidArray (requestIds |> List.toArray)
+        ]
+        |> Sql.read readDeposit
+
+    let! mediaFiles =
+        deposits
+        |> List.map (fun d -> d.DepositId)
+        |> Server.Media.Query.getMediaFilesForEntities conn Partitions.Deposits
+        |> Async.map (List.groupBy (fun file -> file.EntityId) >> Map.ofList)
+
+    let! financialCategories =
+        deposits
+        |> List.collect (fun d -> [ d.FromFinancialCategoryId; d.ToFinancialCategoryId ])
+        |> List.distinct
+        |> getFinancialCategoriesByIds conn buildingId
+        |> Async.map (List.map (fun cat -> cat.FinancialCategoryId, cat) >> Map.ofList)
+
+    let! lotOwners =
+        deposits
+        |> List.map (fun d -> d.LotOwnerId)
+        |> List.distinct
+        |> Server.Lots.Query.getLotOwnersByIds conn
+        |> Async.map (List.map (fun o -> o.LotOwnerId, o) >> Map.ofList)
+
+    return deposits |> List.map (fun dbPayment -> {
+        Deposit.DepositId = dbPayment.DepositId
+        Deposit.DepositRequestId = dbPayment.DepositRequestId
+        Deposit.BuildingId = dbPayment.BuildingId
+        Deposit.Amount = dbPayment.Amount
+        Deposit.Date = dbPayment.Date
+        Deposit.FromBankAccount = dbPayment.FromBankAccount
+        Deposit.MediaFiles = mediaFiles |> Map.tryFind (dbPayment.DepositRequestId) |> Option.defaultValue [] 
+        Deposit.LotOwner = lotOwners |> Map.find (dbPayment.LotOwnerId)
+        Deposit.FromFinancialCategory = financialCategories |> Map.find (dbPayment.FromFinancialCategoryId)
+        Deposit.ToFinancialCategory = financialCategories |> Map.find (dbPayment.ToFinancialCategoryId)
+    })
+}
+
+let getDepositRequest (conn: string) (requestId: Guid): Async<DepositRequest option> = async {   
+    let! dbRowOption =
+        Sql.connect conn
+        |> Sql.query
+            """ 
+                SELECT
+                    request.BuildingId,
+                    request.DepositRequestId,
+                    request.DepositRequestNumber,
+                    request.FinancialYearId,
+                    request.Amount,
+                    request.BookingDate,
+                    request.RequestDate,
+                    request.DueDate,
+                    request.Description,
+                    request.ToBankAccount,
+                    request.DistributionKeyId,
+                    request.ToFinancialCategoryId
+                FROM DepositRequests request
+                WHERE request.DepositRequestId = @DepositRequestId AND request.IsDeleted = FALSE
+            """
+        |> Sql.parameters [ "@DepositRequestId", Sql.uuid requestId ]
+        |> Sql.readSingle readDepositRequest
+
+    match dbRowOption with
+    | Some dbRow ->
+        let! financialYear = getFinancialYearsByIds conn dbRow.BuildingId [ dbRow.FinancialYearId ] |> Async.map List.head
+        let! financialCategories = getFinancialCategoriesByIds conn dbRow.BuildingId [ dbRow.ToFinancialCategoryId ]
+        let toFinancialCategory = financialCategories |> List.find (fun cat -> cat.FinancialCategoryId = dbRow.ToFinancialCategoryId)
+        let! mediaFiles = Server.Media.Query.getMediaFilesForEntities conn (Partitions.DepositRequests) [ dbRow.DepositRequestId ]
+        let! deposits = getDepositsByDepositRequestIds conn (dbRow.BuildingId, [ dbRow.DepositRequestId ])
+        let! distributionKey = getDistributionKeysByIds conn (dbRow.BuildingId, [ dbRow.DistributionKeyId ]) |> Async.map List.head
+        let dueDate = dbRow.DueDate
+        let requestDate = dbRow.RequestDate
+        let creationDate = dbRow.BookingDate
+        return Some {
+            DepositRequest.DepositRequestId = dbRow.DepositRequestId
+            DepositRequest.DepositRequestNumber = dbRow.DepositRequestNumber
+            DepositRequest.BuildingId = dbRow.BuildingId
+            DepositRequest.Description = dbRow.Description
+            DepositRequest.FinancialYear = financialYear
+            DepositRequest.ToBankAccount = dbRow.ToBankAccount
+            DepositRequest.Amount = dbRow.Amount
+            //DepositRequest.Reference = BelgianOGMReference dbRow.Reference
+            DepositRequest.ToFinancialCategory = toFinancialCategory
+            DepositRequest.RequestDate = new DateTimeOffset(requestDate.Year, requestDate.Month, requestDate.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
+            DepositRequest.BookingDate = new DateTimeOffset(creationDate.Year, creationDate.Month, creationDate.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
+            DepositRequest.DueDate = new DateTimeOffset(dueDate.Year, dueDate.Month, dueDate.Day, 2, 0, 0, TimeSpan.FromHours(2.0))
+            DepositRequest.MediaFiles = mediaFiles
+            DepositRequest.Deposits = deposits
+            DepositRequest.DistributionKey = distributionKey
+        }
+    | None ->
+        return None
+}
 
 let getFinancialTransactions (conn: string) (filter: FinancialTransactionFilter): Async<FinancialTransaction list> = async {
     let! supplierFinancialCategory = getFinancialCategoryByCode conn (filter.BuildingId, "440")
     let! invoices = getInvoices conn filter
+    let invoicesMap = invoices |> List.map (fun invoice -> invoice.InvoiceId, invoice) |> Map.ofList
     let! payments = getInvoicePaymentsByInvoiceIds conn (filter.BuildingId, invoices |> List.map (fun invoice -> invoice.InvoiceId))
+    let! depositRequests = getDepositRequests conn filter
+    let depositRequestsMap = depositRequests |> List.map (fun req -> req.DepositRequestId, req) |> Map.ofList
+    let! deposits = getDepositsByDepositRequestIds conn (filter.BuildingId, depositRequests |> List.map (fun req -> req.DepositRequestId))
 
     let invoiceTransactions =
         invoices
         |> List.collect (invoiceToFinancialTransactions supplierFinancialCategory)
     let invoicePaymentTransactions =
         payments
+        |> List.map (fun payment -> invoicesMap |> Map.find payment.InvoiceId, payment)
         |> List.collect (invoicePaymentToFinancialTransactions supplierFinancialCategory)
+    //let depositRequestTransactions =
+    //    depositRequests
+    //    |> List.map (depositRequestToFinancialTransactions )
 
     return invoiceTransactions @ invoicePaymentTransactions
 }

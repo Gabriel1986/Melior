@@ -56,6 +56,7 @@ type State = {
     ListItems: BuildingListItem list
 
     OnCurrentBuildingChanged: BuildingListItem -> unit
+    Warnings: Warning list
 }
 and Tab =
     | List
@@ -80,6 +81,7 @@ type BuildingsPageProps = {|
     CurrentBuildingId: Guid option
     BuildingId: Guid option
     OnCurrentBuildingChanged: BuildingListItem -> unit
+    Warnings: Warning list
 |}
 
 let init (props: BuildingsPageProps) =
@@ -93,8 +95,8 @@ let init (props: BuildingsPageProps) =
         ListItems = []
         LoadingListItems = true
         CurrentBuildingId = props.CurrentBuildingId
-
         OnCurrentBuildingChanged = props.OnCurrentBuildingChanged
+        Warnings = props.Warnings
     }
     
     let cmd =
@@ -273,16 +275,21 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
 
             div [ Class Bootstrap.tabContent ] [
                 match state.SelectedTab with
-                | List -> list state
+                | List -> 
+                    list state
                 | Details buildingId -> 
-                    BuildingDetails.render 
-                        {| 
-                            CurrentUser = state.CurrentUser 
-                            Identifier = buildingId
-                            IsNew = false
-                            NotifyCreated = fun b -> dispatch (Created b)
-                            NotifyEdited = fun b -> dispatch (Edited b)
-                        |}
+                    [
+                        Helpers.renderWarnings state.Warnings
+                        BuildingDetails.render 
+                            {| 
+                                CurrentUser = state.CurrentUser 
+                                Identifier = buildingId
+                                IsNew = false
+                                NotifyCreated = fun b -> dispatch (Created b)
+                                NotifyEdited = fun b -> dispatch (Edited b)
+                            |}
+                    ]
+                    |> fragment []
                 | New ->
                     BuildingDetails.render 
                         {| 

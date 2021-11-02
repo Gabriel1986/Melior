@@ -13,22 +13,21 @@ open Client.IbanValidator
 open Client.ClientStyle
 open Client.ClientStyle.Helpers
 
+type EditComponentSettings =
+    | Multiple of BankAccount list
+    | Single of description: string option * BankAccount
+
 type BankAccountEditComponentProps = 
     {|
-        CurrentBuildingId: Guid option
-        BankAccounts: BankAccount list
+        Settings: EditComponentSettings
         BasePath: string
-        ShowFinancialCategorySelection: bool
     |} 
 
 type State = {
+    Settings: EditComponentSettings
     BankAccounts: BankAccount list
     BasePath: string
     ValidatingIban: bool
-    FinancialCategoriesLoaded: bool
-    FinancialCategories: FinancialCategory list
-    ShowFinancialCategorySelection: bool
-    ShowingFinancialCategoryModalOn: int option
 }
 
 type Msg =
@@ -39,33 +38,19 @@ type Msg =
     | BankAccountRemoved of int
     | BankAccountAdded
     | ExceptionOccured of exn
-    | ChangeCategory of int
-    | CategoryChanged of (int * FinancialCategory option)
-    | CancelChangeFinancialCategory
-    | FinancialCategoriesLoaded of FinancialCategory list
     | NoOp
-
-module Server =
-    let getFinancialCategories (buildingId: BuildingId) =
-        Cmd.OfAsync.either
-            (Client.Remoting.getRemotingApi()).GetFinancialCategories 
-                buildingId
-                FinancialCategoriesLoaded
-                ExceptionOccured
 
 let init (props: BankAccountEditComponentProps) =
     {
-        BankAccounts = props.BankAccounts
+        Settings = props.Settings
+        BankAccounts =
+            match props.Settings with
+            | Multiple bankAccounts -> bankAccounts
+            | Single (Some description, bankAccount) -> [ { bankAccount with Description = description } ]
+            | Single (None, bankAccount) -> [ bankAccount ]
         BasePath = props.BasePath
         ValidatingIban = false
-        FinancialCategoriesLoaded = false
-        FinancialCategories = []
-        ShowFinancialCategorySelection = props.ShowFinancialCategorySelection
-        ShowingFinancialCategoryModalOn = None
-    },
-        match props.CurrentBuildingId with
-        | Some buildingId when props.ShowFinancialCategorySelection -> Server.getFinancialCategories buildingId
-        | _ -> Cmd.none
+    }, Cmd.none
 
 let formatIban (iban: string) =
     if not (String.IsNullOrWhiteSpace iban) 
@@ -79,7 +64,7 @@ let formatIban (iban: string) =
 
 let update (msg: Msg) (state: State): State * Cmd<Msg> =
     let changeBankAccount (index: int) (apply: BankAccount -> BankAccount) (state: State) =
-        { state with BankAccounts = (state.BankAccounts |> List.mapi (fun i b -> if i = index then apply b else b)) }
+        { state with BankAccounts = state.BankAccounts |> List.mapi (fun i b -> if i = index then apply b else b) }
 
     match msg with
     | IbanChanged (index, newIban) ->
@@ -140,41 +125,46 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
     | BankAccountAdded ->
         { state with BankAccounts = state.BankAccounts @ [ BankAccount.Init () ] }
         , Cmd.none
-    | ChangeCategory index ->
-        { state with ShowingFinancialCategoryModalOn = Some index }, Cmd.none
-    | CategoryChanged (index, financialCategory) ->
-        let updatedBankAccounts =
-            state.BankAccounts 
-            |> List.mapi (fun i bankAccount -> if i = index then { bankAccount with FinancialCategoryId = financialCategory |> Option.map (fun cat -> cat.FinancialCategoryId) } else bankAccount)
-        { state with ShowingFinancialCategoryModalOn = None; BankAccounts = updatedBankAccounts }
-        , Cmd.none
-    | CancelChangeFinancialCategory ->
-        { state with ShowingFinancialCategoryModalOn = None }, Cmd.none
-    | FinancialCategoriesLoaded financialCategories ->
-        { state with FinancialCategories = financialCategories; FinancialCategoriesLoaded = true }, Cmd.none 
-
-
 
 let view (errors: (string * string) list) (state: State) (dispatch: Msg -> unit) =
     let errorFor path index = 
-        errors |> List.tryPick (fun (ePath, error) -> if ePath = (sprintf "%s[%i].%s" state.BasePath index path) then Some error else None)
+        match state.Settings with
+        | Single _ ->
+            errors |> List.tryPick (fun (ePath, error) -> if ePath = (sprintf "%s.%s" state.BasePath path) then Some error else None)
+        | Multiple _ ->
+            errors |> List.tryPick (fun (ePath, error) -> if ePath = (sprintf "%s[%i].%s" state.BasePath index path) then Some error else None)
 
     [
         yield! state.BankAccounts 
         |> List.mapi (fun index bankAccount ->
             div [ classes [ Bootstrap.row; "full-width" ] ] [
-                div [ Class Bootstrap.colMd ] [
-                    formGroup [
-                        Label "Naam rekening"
-                        Input [ 
-                            Type "text"
-                            MaxLength 255.0 
-                            Helpers.valueOrDefault bankAccount.Description
-                            OnChange (fun e -> DescriptionChanged (index, e.Value) |> dispatch)
+                match state.Settings with
+                | Single (Some _, _) ->
+                    div [ Class Bootstrap.colMd ] [
+                        formGroup [
+                            Label "Naam rekening"
+                            Input [ 
+                                Type "text"
+                                MaxLength 255.0 
+                                Helpers.valueOrDefault bankAccount.Description
+                                Disabled true
+                            ]
+                            FieldError (errorFor (nameof bankAccount.Description) index)
                         ]
-                        FieldError (errorFor (nameof bankAccount.Description) index)
                     ]
-                ]
+                | _ ->
+                    div [ Class Bootstrap.colMd ] [
+                        formGroup [
+                            Label "Naam rekening"
+                            Input [ 
+                                Type "text"
+                                MaxLength 255.0 
+                                Helpers.valueOrDefault bankAccount.Description
+                                OnChange (fun e -> DescriptionChanged (index, e.Value) |> dispatch)
+                            ]
+                            FieldError (errorFor (nameof bankAccount.Description) index)
+                        ]
+                    ]
                 div [ Class Bootstrap.colMd ] [
                     formGroup [
                         Label "IBAN"
@@ -238,81 +228,43 @@ let view (errors: (string * string) list) (state: State) (dispatch: Msg -> unit)
                         FieldError (errorFor (nameof bankAccount.BIC) index)
                     ]
                 ]
-                if state.ShowFinancialCategorySelection && state.FinancialCategoriesLoaded then
-                    let currentFinancialCategory = 
-                        bankAccount.FinancialCategoryId 
-                        |> Option.bind (fun catId -> state.FinancialCategories |> List.tryFind (fun cat -> cat.FinancialCategoryId = catId))
+                match state.Settings with
+                | Single _ -> null
+                | Multiple _ ->
                     div [ Class Bootstrap.colMd ] [
-                        formGroup [
-                            Label "Boekhoudkundige rekening"
-
-                            let shown =
-                                match currentFinancialCategory with
-                                | Some category -> sprintf "%s - %s" category.Code category.Description
-                                | _ -> ""
-                            Input [
-                                Type "text"
-                                Style [ Cursor "pointer"; BackgroundColor "unset" ]
-                                ReadOnly true
-                                OnClick (fun _ -> dispatch (ChangeCategory index))
-                                valueOrDefault shown
-                            ]
-                            InputAppend [
+                        [
+                            label [ Style [ Visibility "hidden" ]; classes [ Bootstrap.dNone; Bootstrap.dMdBlock ] ] [ str "_" ]
+                            div [ Class Bootstrap.formGroup ] [
                                 button [ 
-                                    classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
-                                    OnClick (fun _ -> dispatch (ChangeCategory index ))
+                                    classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]
+                                    OnClick (fun _ -> BankAccountRemoved index |> dispatch)
                                 ] [
-                                    span [ classes [ FontAwesome.fas; FontAwesome.faSearch ] ] []
+                                    i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
+                                    str " "
+                                    str "Verwijderen"
                                 ]
                             ]
-                            FieldError (errorFor (nameof bankAccount.FinancialCategoryId) index)
                         ]
+                        |> fragment []
                     ]
-                else
-                    null
-                div [ Class Bootstrap.colMd ] [
-                    [
-                        label [ Style [ Visibility "hidden" ]; classes [ Bootstrap.dNone; Bootstrap.dMdBlock ] ] [ str "_" ]
-                        div [ Class Bootstrap.formGroup ] [
-                            button [ 
-                                classes [ Bootstrap.btn; Bootstrap.btnOutlineDanger ]
-                                OnClick (fun _ -> BankAccountRemoved index |> dispatch)
-                            ] [
-                                i [ classes [ FontAwesome.fa; FontAwesome.faTrashAlt ] ] []
-                                str " "
-                                str "Verwijderen"
-                            ]
-                        ]
-                    ]
-                    |> fragment []
-                ]
             ]
         )
-        yield
-            formGroup [
-                OtherChildren [
-                    button [ 
-                        classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
-                        OnClick (fun _ -> BankAccountAdded |> dispatch) 
-                    ] [ 
-                        i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
-                        str " "
-                        str "Bankrekening toevoegen" 
+        match state.Settings with
+        | Single _ ->
+            ()
+        | Multiple _ -> 
+            yield
+                formGroup [
+                    OtherChildren [
+                        button [ 
+                            classes [ Bootstrap.btn; Bootstrap.btnOutlinePrimary ]
+                            OnClick (fun _ -> BankAccountAdded |> dispatch) 
+                        ] [ 
+                            i [ classes [ FontAwesome.fa; FontAwesome.faPlus ] ] []
+                            str " "
+                            str "Bankrekening toevoegen" 
+                        ]
                     ]
                 ]
-            ]
-        match state.ShowingFinancialCategoryModalOn with
-        | None -> ()
-        | Some index ->
-            yield
-                Client.Components.FinancialCategorySelectionModal.render
-                    {|
-                        SelectedCategoryId = (state.BankAccounts.[index]).FinancialCategoryId
-                        FinancialCategories = state.FinancialCategories
-                        Showing = true
-                        OnCancelSelection = fun () -> dispatch CancelChangeFinancialCategory
-                        OnSelectionChanged = fun cat -> dispatch (CategoryChanged (index, cat))
-                        Filter = Some (fun cat -> cat.Code.StartsWith("55"))
-                    |}
     ]
     |> fragment []

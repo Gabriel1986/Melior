@@ -301,8 +301,6 @@ let view (model: Model) (dispatch: Msg -> unit) =
                 |}
         ]
 
-
-
 let render (props: DetailsProps) =
     React.elmishComponent ("BuildingDetails", init props, update, view, string props.Identifier)
 

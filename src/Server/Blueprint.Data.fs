@@ -28,7 +28,6 @@ module Financial =
                 IBAN = get.Required.Field "IBAN" Decode.string
                 BIC = get.Required.Field "BIC" Decode.string
                 Validated = get.Optional.Field "Validated" Decode.bool
-                FinancialCategoryId = get.Optional.Field "FinancialCategoryId" Decode.guid
             })
         let private bankAccountListEncoder = Encode.Auto.generateEncoderCached<BankAccount list>()
     
@@ -57,11 +56,10 @@ module Financial =
     [<RequireQualifiedAccess>]
     module ValidatedBankAccount =
         let toBankAccount (validated: ValidatedBankAccount): BankAccount = { 
-            Description = match validated.Description with | Some d -> string d | None -> ""
+            Description = string validated.Description
             IBAN = match validated.IBAN with | Some iban -> string iban | None -> ""
             BIC = match validated.BIC with | Some bic -> string bic | None -> ""
             Validated = validated.Validated
-            FinancialCategoryId = validated.FinancialCategoryId
         }
 
         let toJson (validated: ValidatedBankAccount): string =
@@ -180,9 +178,9 @@ module Storage =
 
     type LotEvent =
         | LotEvent of BuildingSpecificCUDEvent<ValidatedLot>
-        | LotOwnerWasAdded of ValidatedLot * ValidatedLotOwner
-        | LotOwnerWasUpdated of ValidatedLot * ValidatedLotOwner
-        | LotOwnerWasDeleted of buildingId: BuildingId * lotOwnerId: Guid
+        | LotOwnerEvent of BuildingSpecificCUDEvent<ValidatedLot * ValidatedLotOwner>
+        ///Used by migration
+        | LotOwnerOGMReferenceWasUpdated of lotOwnerId: Guid * BelgianOGM
 
     type ProfessionalSyndicEvent =
         | ProfessionalSyndicEvent of CUDEvent<ValidatedProfessionalSyndic>
@@ -205,6 +203,8 @@ module Storage =
         | FinancialCategoryEvent of BuildingSpecificCUDEvent<ValidatedFinancialCategory>
         | FinancialYearEvent of BuildingSpecificCUDEvent<ValidatedFinancialYear>
         | FinancialYearWasClosed of ValidatedFinancialYear
+        | DepositRequestEvent of BuildingSpecificCUDEvent<ValidatedDepositRequest>
+        | DepositEvent of BuildingSpecificCUDEvent<ValidatedDeposit>
 
     type UserEvent =
         | UserEvent of CUDEvent<ValidatedUser>

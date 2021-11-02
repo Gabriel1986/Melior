@@ -51,13 +51,34 @@ let build (config: IConfiguration) (store: IStorageEngine): IFinancialSystem =
                 | _ ->
                     return None
             }
+
+            member _.CreateDepositRequest msg = Workflow.createDepositRequest store msg
+            member _.UpdateDepositRequest msg = Workflow.updateDepositRequest store msg
+            member _.DeleteDepositRequest msg = Workflow.deleteDepositRequest store msg
+            member _.GetDepositRequests msg =
+                match msg.CurrentUser.HasAccessToBuilding msg.Payload.BuildingId with
+                | true -> Query.getDepositRequests conn msg.Payload
+                | false -> Async.lift []
+
+            member _.GetDepositRequest msg = async {
+                match! Query.getDepositRequest conn msg.Payload with
+                | Some request when msg.CurrentUser.HasAccessToBuilding request.BuildingId ->
+                    return Some request
+                | _ ->
+                    return None
+            }
+
             member _.CreateInvoicePayment msg = Workflow.createInvoicePayment store msg
             member _.UpdateInvoicePayment msg = Workflow.updateInvoicePayment store msg
             member _.DeleteInvoicePayment msg = Workflow.deleteInvoicePayment store msg
 
+            member _.CreateDeposit msg = Workflow.createDeposit store msg
+            member _.UpdateDeposit msg = Workflow.updateDeposit store msg
+            member _.DeleteDeposit msg = Workflow.deleteDeposit store msg
+
             member _.CreateFinancialYear msg = Workflow.createFinancialYear store msg
             member _.UpdateFinancialYear msg = Workflow.updateFinancialYear store msg
-            member _.CloseFinancialYear msg = Workflow.closeFinancialYear store conn msg
+            member _.CloseFinancialYear msg = Workflow.closeFinancialYear store (Query.getFinancialYearsByIds conn) msg
             member _.DeleteFinancialYear msg = Workflow.deleteFinancialYear store msg
             member _.GetFinancialYears msg = Query.getAllFinancialYears conn msg.Payload
 
@@ -87,33 +108,35 @@ type ReactiveBehavior (config: IConfiguration) =
                     let! categories = FinancialCategories.readPredefined (validated.BuildingId)
                     return Workflow.seedFinancialCategories (categories |> inMsg message)
                 }
-            | StorageEvent.LotEvent (LotEvent.LotOwnerWasAdded (validatedLot, validatedLotOwner)) ->                
+            | StorageEvent.LotEvent (LotEvent.LotOwnerEvent (BuildingSpecificCUDEvent.Created (validatedLot, validatedLotOwner))) ->
                 async {
-                    match! Query.getNewFinancialCategoryCodeForLotOwner conn (validatedLot.BuildingId, validatedLotOwner) with
-                    | Some financialCategoryCode ->
-                        let newFinancialCategory: FinancialCategory = {
-                            FinancialCategoryId = Guid.NewGuid()
-                            BuildingId = validatedLot.BuildingId
-                            Code = financialCategoryCode
-                            Description =
-                                let name =
-                                    match validatedLotOwner.LotOwnerType with
-                                    | LotOwnerType.Organization org -> org.Name
-                                    | LotOwnerType.Owner owner -> owner.FullName ()
-                                let lotName = string validatedLot.Code
-                                sprintf "%s - %s" name lotName
-                            LotOwnerId = Some validatedLotOwner.LotOwnerId
-                        }
-                        match ValidatedFinancialCategory.Validate (newFinancialCategory) with
-                        | Ok validated ->
-                            return [ StorageEvent.FinancialEvent (FinancialEvent.FinancialCategoryEvent (BuildingSpecificCUDEvent.Created validated)) ]
-                        | Error e ->
-                            Serilog.Log.Logger.Error(sprintf "A validation error occured while trying to create a financial category for lotowner '%A': %A" validatedLotOwner.LotOwnerId e)
-                            return []
-                    | None ->
-                        return []
+                    let! financialCategoryCodes = Query.getNewFinancialCategoryCodesForLotOwner conn (validatedLot.BuildingId, validatedLotOwner)
+                    return
+                        financialCategoryCodes
+                        |> List.choose (fun financialCategoryCode -> 
+                            {
+                                FinancialCategory.FinancialCategoryId = Guid.NewGuid()
+                                BuildingId = validatedLot.BuildingId
+                                Code = financialCategoryCode
+                                Description =
+                                    let name =
+                                        match validatedLotOwner.LotOwnerType with
+                                        | LotOwnerType.Organization org -> org.Name
+                                        | LotOwnerType.Owner owner -> owner.FullName ()
+                                    let lotName = string validatedLot.Code
+                                    sprintf "%s - %s" name lotName
+                                LotOwnerId = Some validatedLotOwner.LotOwnerId
+                            }
+                            |> ValidatedFinancialCategory.Validate
+                            |> (function 
+                                | Ok validated -> Some validated
+                                | Error e ->
+                                    Serilog.Log.Logger.Error(sprintf "A validation error occured while trying to create a financial category for lotowner '%A': %A" validatedLotOwner.LotOwnerId e)
+                                    None
+                            ))
+                        |> List.map (BuildingSpecificCUDEvent.Created >> FinancialEvent.FinancialCategoryEvent >> StorageEvent.FinancialEvent)
                 }
-            | StorageEvent.LotEvent (LotEvent.LotOwnerWasDeleted (buildingId: BuildingId, lotOwnerId: Guid)) ->
+            | StorageEvent.LotEvent (LotEvent.LotOwnerEvent (BuildingSpecificCUDEvent.Deleted (buildingId: BuildingId, lotOwnerId: Guid))) ->
                 async {
                     match! Query.getFinancialCategoryByLotOwnerId conn (buildingId, lotOwnerId) with
                     | Some financialCategory ->

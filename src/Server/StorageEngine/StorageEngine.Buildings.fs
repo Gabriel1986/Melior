@@ -22,19 +22,20 @@ let private buildingToSqlProps (validated: ValidatedBuilding) =
         |> Option.map (fun d -> (new LocalDate(today.Year, d.UntilMonth, d.UntilDay)).ToDateTimeUnspecified())
     
     [
-        "@BuildingId"         , Sql.uuid validated.BuildingId
-        "@Code"               , Sql.string (string validated.Code)
-        "@Name"               , Sql.string (string validated.Name)
-        "@Address"            , Sql.jsonb (ValidatedAddress.toJson validated.Address)
-        "@OrganizationNumber" , Sql.stringOrNone (validated.OrganizationNumber |> Option.map string)
-        "@Remarks"            , Sql.stringOrNone validated.Remarks
-        "@GeneralMeetingFrom" , Sql.timestampOrNone generalMeetingFrom
+        "@BuildingId", Sql.uuid validated.BuildingId
+        "@Code", Sql.string (string validated.Code)
+        "@Name", Sql.string (string validated.Name)
+        "@Address", Sql.jsonb (ValidatedAddress.toJson validated.Address)
+        "@OrganizationNumber", Sql.stringOrNone (validated.OrganizationNumber |> Option.map string)
+        "@Remarks", Sql.stringOrNone validated.Remarks
+        "@GeneralMeetingFrom", Sql.timestampOrNone generalMeetingFrom
         "@GeneralMeetingUntil", Sql.timestampOrNone  generalMeetingUntil
-        "@YearOfConstruction" , Sql.intOrNone (validated.YearOfConstruction |> Option.map (fun x -> x.Value ()))
-        "@YearOfDelivery"     , Sql.intOrNone (validated.YearOfDelivery |> Option.map (fun x -> x.Value ()))
-        "@BankAccounts"       , Sql.jsonb (validated.BankAccounts |> ValidatedBankAccount.listToJson)
-        "@PictureId"          , Sql.uuidOrNone validated.PictureId
-        "@SharesTotal"        , Sql.intOrNone (validated.SharesTotal |> Option.map (fun x -> x.Value ()))
+        "@YearOfConstruction", Sql.intOrNone (validated.YearOfConstruction |> Option.map (fun x -> x.Value ()))
+        "@YearOfDelivery", Sql.intOrNone (validated.YearOfDelivery |> Option.map (fun x -> x.Value ()))
+        "@SavingsBankAccount", Sql.jsonbOrNone (validated.SavingsBankAccount |> Option.map ValidatedBankAccount.toJson)
+        "@CheckingBankAccount", Sql.jsonbOrNone (validated.CheckingBankAccount |> Option.map ValidatedBankAccount.toJson)
+        "@PictureId", Sql.uuidOrNone validated.PictureId
+        "@SharesTotal", Sql.intOrNone (validated.SharesTotal |> Option.map (fun x -> x.Value ()))
     ]
 
 let transformEventToSql (msg: Message<BuildingEvent>) =
@@ -55,7 +56,8 @@ let transformEventToSql (msg: Message<BuildingEvent>) =
                         GeneralMeetingUntil,
                         YearOfConstruction,
                         YearOfDelivery,
-                        BankAccounts,
+                        SavingsBankAccount,
+                        CheckingBankAccount,
                         PictureId,
                         SharesTotal
                     ) VALUES (
@@ -69,7 +71,8 @@ let transformEventToSql (msg: Message<BuildingEvent>) =
                         @GeneralMeetingUntil,
                         @YearOfConstruction,
                         @YearOfDelivery,
-                        @BankAccounts,
+                        @SavingsBankAccount,
+                        @CheckingBankAccount,
                         @PictureId,
                         @SharesTotal
                     )
@@ -89,7 +92,8 @@ let transformEventToSql (msg: Message<BuildingEvent>) =
                         GeneralMeetingUntil= @GeneralMeetingUntil,
                         YearOfConstruction = @YearOfConstruction,
                         YearOfDelivery = @YearOfDelivery,
-                        BankAccounts = @BankAccounts,
+                        SavingsBankAccount = @SavingsBankAccount,
+                        CheckingBankAccount = @CheckingBankAccount,
                         PictureId = @PictureId,
                         SharesTotal = @SharesTotal
                     WHERE BuildingId = @BuildingId

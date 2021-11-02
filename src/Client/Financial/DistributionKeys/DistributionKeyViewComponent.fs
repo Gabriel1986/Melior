@@ -56,8 +56,8 @@ type SortableLotListItemAttribute =
         match me with
         | OwnerName -> (fun li ->
             match li.LegalRepresentative with 
-            | Some (LotOwnerListItem.Owner o) -> o.Name 
-            | Some (LotOwnerListItem.Organization o) -> o.Name
+            | Some (LotOwnerTypeListItem.Owner o) -> o.Name 
+            | Some (LotOwnerTypeListItem.Organization o) -> o.Name
             | None -> "")
         | Code -> (fun li -> li.Code)
         | LotType -> (fun li -> string li.LotType)

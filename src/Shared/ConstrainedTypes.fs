@@ -56,12 +56,17 @@ module String255 =
     let Of path = validateStringOfLength path 255 >> Trial.map String255
     let OfOptional path =
         function
-        | x when String.IsNullOrWhiteSpace(x) -> Trial.Pass None
-        | x -> Of path x |> Trial.map Some
+        | None -> Trial.Pass None
+        | Some x when String.IsNullOrWhiteSpace(x) -> Trial.Pass None
+        | Some x -> Of path x |> Trial.map Some
 
 type PositiveInt = 
     private | PositiveInt of int
     member me.Value () = match me with | PositiveInt x -> x
+
+type PositiveNotZeroInt =
+    private | PositiveNotZeroInt of int
+    member me.Value () = match me with | PositiveNotZeroInt x -> x
 
 type PositiveFloat =
     private | PositiveFloat of float
@@ -74,11 +79,17 @@ type PositiveDecimal =
 let validatePositiveInt path x =
     if x < 0 then Trial.ofError (path, "De waarde moet groter zijn dan, of gelijk zijn aan 0...") else Trial.Pass (PositiveInt x)
 
+let validatePositiveNotZeroInt path x =
+    if x <= 0 then Trial.ofError (path, "De waarde moet groter zijn dan, of gelijk zijn aan 0...") else Trial.Pass (PositiveNotZeroInt x)
+
 let validatePositiveFloat path x =
     if x < 0.0 then Trial.ofError (path, "De waarde moet groter zijn dan, of gelijk zijn aan 0...") else Trial.Pass (PositiveFloat x)
 
 module PositiveInt =
     let Of path = validatePositiveInt path
+
+module PositiveNotZeroInt =
+    let Of path = validatePositiveNotZeroInt path
 
 /// String of 4 digits + 3 digits + 3 digits (xxxx.xxx.xxx)
 type OrganizationNumber = 
@@ -143,15 +154,27 @@ type BelgianOGM =
         sprintf "+++%s/%s/%s+++" (value.Substring(0, 3)) (value.Substring(3, 4)) (value.Substring(7, 5))
 
 module BelgianOGM =
+    let Generate () =
+        let random = new System.Random()
+        let number =
+            seq { for _ in 1..10 do yield (random.Next(0, 10)) } 
+            |> Seq.map string
+            |> Seq.fold (+) ""
+            |> System.Int64.Parse;
+        let checkDigit =
+            match number % 97L with
+            | 0L -> 97L
+            | result -> result
+        BelgianOGM (sprintf "%d%d" number checkDigit)
     let Of path value =
         let validationError =
             let allDigits = value |> String.filter Char.IsDigit
             if allDigits.Length <> 12 then
-                Some "De OGM is verkeerd geformatteerd, verwacht 123/1234/12345"
+                Some "De OGM is verkeerd geformatteerd, verwacht XXX/XXXX/XXXXX"
             else
-                let digits = Int32.Parse(allDigits.Substring(0, 10))
-                let checkDigits = Int32.Parse(allDigits.Substring(10, 2))
-                if (digits + checkDigits) = 0 then
+                let digits = Int64.Parse(allDigits.Substring(0, 10))
+                let checkDigits = Int64.Parse(allDigits.Substring(10, 2))
+                if (digits + checkDigits) = 0L then
                     None
                 else
                     Some "Er werd een ongeldige OGM opgegeven"

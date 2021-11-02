@@ -49,6 +49,12 @@ let private seedDistributionKeys (logger: ILogger) (environment: IEnv) (migrated
                 logger.Error(error, "Something went wrong while seeding the financial categories")
         }
         |> Async.RunSynchronously
+    if (migratedFrom < 21L && migratedTo >= 21L) then
+        logger.Debug("Seeding OGM References")
+        async {
+            do! environment.LotSystem.GenerateOGMReferences ()
+        }
+        |> Async.RunSynchronously
     else
         ()
 

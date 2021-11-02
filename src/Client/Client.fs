@@ -28,6 +28,7 @@ open Client.Contracts
 open Client.Financial.DistributionKeys
 open Client.Financial.Invoicing
 open Client.Financial.FinancialTransactions
+open Client.Financial.Deposits
 open Client.Users
 
 module Client =
@@ -241,6 +242,18 @@ module Client =
             | Page.DistributionKeyDetails _
             | Page.DistributionKeyList _ -> false
             | _ -> true
+        | Page.InvoiceDetails _
+        | Page.Invoices _ ->
+            match newPage with
+            | Page.InvoiceDetails _
+            | Page.Invoices _ -> false
+            | _ -> true
+        | Page.DepositRequestDetails _
+        | Page.DepositRequests _ ->
+            match newPage with
+            | Page.DepositRequestDetails _
+            | Page.DepositRequests _ -> false
+            | _ -> true
         | Page.UserDetails _
         | Page.UserList ->
             match newPage with
@@ -276,6 +289,7 @@ module Client =
                             CurrentBuildingId = runningState.CurrentBuilding |> Option.map (fun b -> b.BuildingId)
                             BuildingId = None
                             OnCurrentBuildingChanged = fun building -> ChangeCurrentBuildingAndPage (building, Page.BuildingList) |> dispatch
+                            Warnings = []
                         |}
                 | Page.BuildingDetails buildingId, _  ->
                     BuildingsPage.render
@@ -284,7 +298,8 @@ module Client =
                             CurrentBuildingId = runningState.CurrentBuilding |> Option.map (fun b -> b.BuildingId)
                             BuildingId = Some buildingId
                             OnCurrentBuildingChanged = fun building -> ChangeCurrentBuildingAndPage (building, Page.BuildingList) |> dispatch
-                        |}
+                            Warnings = runningState.Warnings |> List.filter (fun w -> match w.Concept with | Concept.Building bId -> bId = buildingId | _ -> false)
+                         |}
                 | Page.OwnerList _, Some building ->
                     OwnersPage.render 
                         {| 
@@ -391,6 +406,20 @@ module Client =
                             CurrentBuilding = building
                             InvoiceId = Some props.DetailId
                         |}
+                | Page.DepositRequests _, Some building ->
+                    DepositRequestsPage.render
+                        {|
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuilding = building
+                            DepositRequestId = None
+                        |}
+                | Page.DepositRequestDetails props, Some building ->
+                    DepositRequestsPage.render
+                        {|
+                            CurrentUser = runningState.CurrentUser
+                            CurrentBuilding = building
+                            DepositRequestId = Some props.DetailId
+                        |}
                 | Page.FinancialTransactions _, Some building ->
                     FinancialTransactionsOverview.render
                         {|
@@ -418,8 +447,6 @@ module Client =
                 | Page.MyLots, _
                 | Page.MyContracts, _
                 | Page.MyFinancials, _
-                | Page.InvoiceDetails _, _
-                | Page.Provisions _, _
                 | Page.BankNotes _, _ ->
                     div [] [
                         str "Deze pagina is nog niet beschikbaar"

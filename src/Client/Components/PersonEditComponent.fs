@@ -51,10 +51,8 @@ let init (person: Person option) =
     let componentState, componentCmd =
         BankAccountEditComponent.init
             {|
-                CurrentBuildingId = None
-                BankAccounts = person.BankAccounts
+                Settings = BankAccountEditComponent.Multiple person.BankAccounts
                 BasePath = nameof (person.BankAccounts)
-                ShowFinancialCategorySelection = false
             |}
 
     { 

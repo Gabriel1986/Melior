@@ -4,6 +4,7 @@ open System
 open Shared.Remoting
 open Shared.Read
 open Shared.Write
+open Shared.ConstrainedTypes
 open Server.Library
 open Server.LibraryExtensions
 open Server.Blueprint.Behavior.Storage
@@ -27,7 +28,8 @@ let createLot (storage: IStorageEngine) (msg: Message<Lot>) = async {
                     validated.Owners
                     |> List.collect (fun owner -> [
                         (validated, owner)
-                        |> LotEvent.LotOwnerWasAdded
+                        |> BuildingSpecificCUDEvent.Created
+                        |> LotEvent.LotOwnerEvent
                         |> StorageEvent.LotEvent
                         |> inMsg msg
                     ])
@@ -39,13 +41,13 @@ let createLot (storage: IStorageEngine) (msg: Message<Lot>) = async {
         return Error SaveLotError.AuthorizationError
 }
 
-let updateLot (storage: IStorageEngine) (conn: string) (msg: Message<Lot>) = async {
+let updateLot (storage: IStorageEngine) (getLot: Guid -> Async<Lot option>) (msg: Message<Lot>) = async {
     if msg.CurrentUser.HasAdminAccessToBuilding (msg.Payload.BuildingId)
     then
         let validated = ValidatedLot.Validate msg.Payload
         match validated with
         | Ok validated ->
-            let! currentLotOpt = Query.getLot conn validated.LotId
+            let! currentLotOpt = getLot validated.LotId
             match currentLotOpt |> Option.map ValidatedLot.Validate with
             | Some (Ok currentLot) ->
                 let createdLotOwners, updatedLotOwners =
@@ -78,7 +80,8 @@ let updateLot (storage: IStorageEngine) (conn: string) (msg: Message<Lot>) = asy
                         createdLotOwners
                         |> List.collect (fun owner -> [
                             (validated, owner)
-                            |> LotEvent.LotOwnerWasAdded
+                            |> BuildingSpecificCUDEvent.Created
+                            |> LotEvent.LotOwnerEvent
                             |> StorageEvent.LotEvent
                             |> inMsg msg
                         ])
@@ -87,7 +90,8 @@ let updateLot (storage: IStorageEngine) (conn: string) (msg: Message<Lot>) = asy
                         updatedLotOwners
                         |> List.collect (fun owner -> [
                             (validated, owner)
-                            |> LotEvent.LotOwnerWasUpdated
+                            |> BuildingSpecificCUDEvent.Updated
+                            |> LotEvent.LotOwnerEvent
                             |> StorageEvent.LotEvent
                             |> inMsg msg
                         ])
@@ -96,7 +100,8 @@ let updateLot (storage: IStorageEngine) (conn: string) (msg: Message<Lot>) = asy
                         deletedLotOwners
                         |> List.map (fun lotOwnerId ->
                             (validated.BuildingId, lotOwnerId)
-                            |> LotEvent.LotOwnerWasDeleted
+                            |> BuildingSpecificCUDEvent.Deleted
+                            |> LotEvent.LotOwnerEvent
                             |> StorageEvent.LotEvent
                             |> inMsg msg
                         )
@@ -129,4 +134,22 @@ let deleteLot (storage: IStorageEngine) (msg: Message<BuildingId * Guid>): Async
         else return Ok ()
     else
         return Error DeleteLotError.AuthorizationError
+}
+
+let generateOGMReferences (storage: IStorageEngine) (getLotOwners: unit -> Async<FinancialLotOwner list>): Async<unit> = async {
+    let! lotOwners = getLotOwners ()
+    let inMsg (payload: 'a): Message<'a> = {
+        CreatedAt = DateTimeOffset.Now
+        Context = None
+        Payload = payload
+    }
+    let events =
+        lotOwners |> List.map (fun lotOwner ->
+            let newOGM = BelgianOGM.Generate ()
+            (lotOwner.LotOwnerId, newOGM)
+            |> LotEvent.LotOwnerOGMReferenceWasUpdated
+            |> StorageEvent.LotEvent
+            |> inMsg
+        )
+    return! storage.PersistTransactional events |> Async.Ignore
 }

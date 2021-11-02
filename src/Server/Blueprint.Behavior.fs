@@ -86,7 +86,11 @@ module Lots =
 
         //Queries
         abstract GetLot: lotId: Message<Guid> -> Async<Lot option>
-        abstract GetLots: filter: Message<BuildingId> -> Async<LotListItem list>
+        abstract GetLots: buildingId: Message<BuildingId> -> Async<LotListItem list>
+        abstract GetFinancialLotOwners: filter: Message<LotOwnerFilter> -> Async<FinancialLotOwner list>
+
+        //Seeding
+        abstract GenerateOGMReferences: unit -> Async<unit>
 
 module ProfessionalSyndics =
     [<NoComparison; NoEquality>]
@@ -164,9 +168,17 @@ module Financial =
         abstract UpdateInvoice: Message<Invoice> -> Async<Result<unit, SaveInvoiceError>>
         abstract DeleteInvoice: Message<BuildingId * Guid> -> Async<Result<unit, DeleteInvoiceError>>
 
-        abstract CreateInvoicePayment: Message<InvoicePaymentInput> -> Async<Result<unit, SaveInvoicePaymentError>>
-        abstract UpdateInvoicePayment: Message<InvoicePaymentInput> -> Async<Result<unit, SaveInvoicePaymentError>>
+        abstract CreateInvoicePayment: Message<InvoicePayment> -> Async<Result<unit, SaveInvoicePaymentError>>
+        abstract UpdateInvoicePayment: Message<InvoicePayment> -> Async<Result<unit, SaveInvoicePaymentError>>
         abstract DeleteInvoicePayment: Message<BuildingId * Guid> -> Async<Result<unit, DeleteInvoicePaymentError>>
+
+        abstract CreateDepositRequest: Message<DepositRequest> -> Async<Result<unit, SaveDepositRequestError>>
+        abstract UpdateDepositRequest: Message<DepositRequest> -> Async<Result<unit, SaveDepositRequestError>>
+        abstract DeleteDepositRequest: Message<BuildingId * Guid> -> Async<Result<unit, DeleteDepositRequestError>> 
+
+        abstract CreateDeposit: Message<Deposit> -> Async<Result<unit, SaveDepositError>>
+        abstract UpdateDeposit: Message<Deposit> -> Async<Result<unit, SaveDepositError>>
+        abstract DeleteDeposit: Message<BuildingId * Guid> -> Async<Result<unit, DeleteDepositError>>
 
         abstract CreateFinancialYear: Message<FinancialYear> -> Async<Result<unit, SaveFinancialYearError>>
         abstract UpdateFinancialYear: Message<FinancialYear> -> Async<Result<unit, SaveFinancialYearError>>
@@ -190,6 +202,8 @@ module Financial =
         abstract GetFinancialYears: Message<BuildingId> -> Async<FinancialYear list>
         abstract GetFinancialCategories: Message<BuildingId> -> Async<FinancialCategory list>
         abstract GetFinancialTransactions: Message<FinancialTransactionFilter> -> Async<FinancialTransaction list>
+        abstract GetDepositRequests: Message<FinancialTransactionFilter> -> Async<DepositRequestListItem list>
+        abstract GetDepositRequest: Message<Guid> -> Async<DepositRequest option>
 
         //Seeding
         abstract SeedDistributionKeys: DistributionKey list -> Async<unit>

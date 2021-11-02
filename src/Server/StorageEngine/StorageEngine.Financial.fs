@@ -62,7 +62,7 @@ let private paramsForInvoicePayment (msg: Message<ValidatedInvoicePayment>) =
         "@CreatedBy", Sql.string (currentUser.Principal ())
         "@CreatedAt", Sql.timestamp DateTime.UtcNow
         "@LastUpdatedBy", Sql.string (currentUser.Principal ())
-        "@LastUpdatedAt", Sql.timestamp (DateTime.UtcNow)
+        "@LastUpdatedAt", Sql.timestamp DateTime.UtcNow
     ]
 
 let private paramsForFinancialYear (year: ValidatedFinancialYear) = [
@@ -80,6 +80,43 @@ let private paramsForFinancialCategory (category: ValidatedFinancialCategory) = 
     "@Description", Sql.string (string category.Description)
     "@LotOwnerId", Sql.uuidOrNone category.LotOwnerId
 ]
+
+let private paramsForDepositRequest (msg: Message<ValidatedDepositRequest>) = 
+    let validated = msg.Payload
+    [
+        "@DepositRequestId", Sql.uuid validated.DepositRequestId
+        "@BuildingId", Sql.uuid validated.BuildingId
+        "@FinancialYearId", Sql.uuid validated.FinancialYearId
+        "@DistributionKeyId", Sql.uuid validated.DistributionKeyId
+        "@ToFinancialCategoryId", Sql.uuid validated.ToFinancialCategoryId
+        "@ToBankAccount", Sql.jsonb (ValidatedBankAccount.toJson validated.ToBankAccount)
+        "@Amount", Sql.decimal validated.Amount
+        "@BookingDate", Sql.timestamp (validated.BookingDate.AddHours(2.0).Date)
+        "@RequestDate", Sql.timestamp (validated.RequestDate.AddHours(2.0).Date)
+        "@DueDate", Sql.timestamp (validated.DueDate.AddHours(2.0).Date)
+        "@Description", Sql.string (string validated.Description)
+        "@CreatedAt", Sql.timestamp DateTime.UtcNow
+        "@CreatedBy", Sql.string (msg.CurrentUser.Principal ())
+        "@LastUpdatedAt", Sql.timestamp DateTime.UtcNow
+        "@LastUpdatedBy", Sql.string (msg.CurrentUser.Principal ())
+    ]
+
+let private paramsForDeposit (msg: Message<ValidatedDeposit>) =
+    let validated = msg.Payload
+    [
+        "@DepositId", Sql.uuid validated.DepositId
+        "@DepositRequestId", Sql.uuid validated.DepositRequestId
+        "@BuildingId", Sql.uuid validated.BuildingId
+        "@Amount", Sql.decimal validated.Amount
+        "@Date", Sql.timestamp validated.Date
+        "@FromBankAccount", Sql.jsonbOrNone (validated.FromBankAccount |> Option.map ValidatedBankAccount.toJson)
+        "@FromFinancialCategoryId", Sql.uuid validated.FromFinancialCategoryId
+        "@ToFinancialCategoryId", Sql.uuid validated.ToFinancialCategoryId
+        "@CreatedAt", Sql.timestamp DateTime.UtcNow
+        "@CreatedBy", Sql.string (msg.CurrentUser.Principal ())
+        "@LastUpdatedAt", Sql.timestamp DateTime.UtcNow
+        "@LastUpdatedBy", Sql.string (msg.CurrentUser.Principal ())
+    ]
 
 let private setLotsOrLotTypesFor (distributionKey: ValidatedDistributionKey) =
     let distributionKeyId = distributionKey.DistributionKeyId
@@ -165,7 +202,8 @@ let private writeHistoricalInvoicePaymentEntry (invoiceId: Guid, buildingId: Bui
             FromBankAccount,
             FinancialCategoryId,
             LastUpdatedAt,
-            LastUpdatedBy
+            LastUpdatedBy,
+            IsDeleted
         ) 
         SELECT
             InvoiceId,
@@ -176,11 +214,52 @@ let private writeHistoricalInvoicePaymentEntry (invoiceId: Guid, buildingId: Bui
             FromBankAccount,
             FinancialCategoryId,
             LastUpdatedAt,
-            LastUpdatedBy
+            LastUpdatedBy,
+            IsDeleted
         FROM InvoicePayments WHERE InvoicePaymentId = @InvoicePaymentId AND BuildingId = @BuildingId
     """
     , [[
         "@InvoicePaymentId", Sql.uuid invoiceId
+        "@BuildingId", Sql.uuid buildingId
+    ]]
+]
+
+let private writeHistoricalDepositRequestEntry (depositRequestId: Guid, buildingId: Guid) = [
+    """
+        INSERT INTO DepositRequests (
+            DepositRequestId,
+            DepositRequestNumber,
+            BuildingId,
+            FinancialYearId,
+            DistributionKeyId,
+            ToFinancialCategoryId,
+            ToBankAccount,
+            Amount,
+            BookingDate,
+            RequestDate,
+            DueDate,
+            Description,
+            LastUpdatedAt,
+            LastUpdatedBy
+        )
+        SELECT
+            DepositRequestId,
+            DepositRequestNumber,
+            BuildingId,
+            FinancialYearId,
+            DistributionKeyId,
+            ToFinancialCategoryId,
+            ToBankAccount,
+            Amount,
+            BookingDate,
+            RequestDate,
+            DueDate,
+            Description,
+            LastUpdatedAt,
+            LastUpdatedBy
+        FROM DepositRequests WHERE DepositRequestId = @DepositRequestId AND BuildingId = @BuildingId
+    """, [[
+        "@DepositRequestId", Sql.uuid depositRequestId
         "@BuildingId", Sql.uuid buildingId
     ]]
 ]
@@ -479,3 +558,136 @@ let transformEventToSql (msg: Message<FinancialEvent>) =
                 WHERE FinancialYearId = @FinancialYearId AND BuildingId = @BuildingId
             """, [[ "@BuildingId", Sql.uuid validated.BuildingId; "FinancialYearId", Sql.uuid validated.FinancialYearId ]]
         ]
+    | DepositRequestEvent e ->
+        match e with
+        | BuildingSpecificCUDEvent.Created validated ->
+            [
+                """
+                    INSERT INTO DepositRequests (
+                        DepositRequestId,
+                        DepositRequestNumber,
+                        BuildingId,
+                        FinancialYearId,
+                        DistributionKeyId,
+                        ToFinancialCategoryId,
+                        ToBankAccount,
+                        Amount,
+                        BookingDate,
+                        RequestDate,
+                        DueDate,
+                        Description,
+                        CreatedAt,
+                        CreatedBy,
+                        LastUpdatedAt,
+                        LastUpdatedBy
+                    ) VALUES (
+                        @DepositRequestId,
+                        (SELECT (coalesce(MAX(DepositRequestNumber),0) + 1) FROM DepositRequests WHERE FinancialYearId = @FinancialYearId),
+                        @BuildingId,
+                        @FinancialYearId,
+                        @DistributionKeyId,
+                        @ToFinancialCategoryId,
+                        @ToBankAccount,
+                        @Amount,
+                        @BookingDate,
+                        @RequestDate,
+                        @DueDate,
+                        @Description,
+                        @CreatedAt,
+                        @CreatedBy,
+                        @LastUpdatedAt,
+                        @LastUpdatedBy
+                    )
+                """, [ paramsForDepositRequest (msg |> Message.replacePayload validated) ]
+            ]
+        | BuildingSpecificCUDEvent.Updated validated ->
+            writeHistoricalDepositRequestEntry (validated.DepositRequestId, validated.BuildingId) @ [
+                """
+                    UPDATE DepositRequests SET
+                        FinancialYearId = @FinancialYearId,
+                        DistributionKeyId = @DistributionKeyId,
+                        ToFinancialCategoryId = @ToFinancialCategoryId,
+                        ToBankAccount = @ToBankAccount,
+                        Amount = @Amount,
+                        BookingDate = @BookingDate,
+                        RequestDate = @RequestDate,
+                        DueDate = @DueDate,
+                        Description = @Description,
+                        LastUpdatedAt = @LastUpdatedAt,
+                        LastUpdatedBy = @LastUpdatedBy
+                    WHERE DepositRequestId = @DepositRequestId AND BuildingId = @BuildingId
+                """, [ paramsForDepositRequest (msg |> Message.replacePayload validated) ]
+            ]
+        | BuildingSpecificCUDEvent.Deleted (buildingId, depositRequestId) ->
+            writeHistoricalDepositRequestEntry (depositRequestId, buildingId) @ [
+                """
+                    UPDATE DepositRequests
+                    SET IsDeleted = TRUE
+                    WHERE BuildingId = @BuildingId AND DepositRequestId = @DepositRequestId
+                """, [[
+                    "@BuildingId", Sql.uuid buildingId
+                    "@DepositRequestId", Sql.uuid depositRequestId
+                ]]
+            ]
+    | DepositEvent e ->
+        match e with
+        | BuildingSpecificCUDEvent.Created validated ->
+            [
+                """
+                    INSERT INTO Deposits (
+                        DepositId,
+                        DepositRequestId,
+                        BuildingId,
+                        Amount,
+                        Date,
+                        FromBankAccount,
+                        FromFinancialCategoryId,
+                        ToFinancialCategoryId,
+                        CreatedAt,
+                        CreatedBy,
+                        LastUpdatedAt,
+                        LastUpdatedBy
+                    ) VALUES (
+                        @DepositId,
+                        @DepositRequestId,
+                        @BuildingId,
+                        @Amount,
+                        @Date,
+                        @FromBankAccount,
+                        @FromFinancialCategoryId,
+                        @ToFinancialCategoryId,
+                        @CreatedAt,
+                        @CreatedBy,
+                        @LastUpdatedAt,
+                        @LastUpdatedBy
+                    )
+                """, [ paramsForDeposit (msg |> Message.replacePayload validated) ]
+            ]
+        | BuildingSpecificCUDEvent.Updated validated ->
+            [
+                """
+                    UPDATE Deposits SET
+                        DepositId = @DepositId,
+                        DepositRequestId = @DepositRequestId,
+                        BuildingId = @BuildingId,
+                        Amount = @Amount,
+                        Date = @Date,
+                        FromBankAccount = @FromBankAccount,
+                        FromFinancialCategoryId = @FromFinancialCategoryId,
+                        ToFinancialCategoryId = @ToFinancialCategoryId,
+                        LastUpdatedAt = @LastUpdatedAt,
+                        LastUpdatedBy = @LastUpdatedBy
+                    WHERE DepositId = @DepositId AND BuildingId = @BuildingId
+                """, [ paramsForDeposit (msg |> Message.replacePayload validated) ]
+            ]
+        | BuildingSpecificCUDEvent.Deleted (buildingId, depositId) ->
+            [
+                """
+                    UPDATE Deposits
+                    SET IsDeleted = TRUE
+                    WHERE DepositId = @DepositId AND BuildingId = @BuildingId
+                """, [[
+                    "@DepositId", Sql.uuid depositId
+                    "@BuildingId", Sql.uuid buildingId
+                ]]
+            ]

@@ -1,4 +1,4 @@
-﻿module Client.Financial.Invoicing.InvoicesPage
+﻿module Client.Financial.Deposits.DepositRequestsPage
 
 open System
 open Elmish
@@ -22,19 +22,19 @@ open Client.Routing
 type State = {
     CurrentUser: User
     CurrentBuilding: BuildingListItem
-    SelectedListItems: InvoiceListItem list
+    SelectedListItems: DepositRequestListItem list
     SelectedTab: Tab
     ListItemsState: ListItemsState
     Filter: FinancialTransactionFilter
 }
 and Tab =
     | List
-    | Details of invoiceId: Guid
+    | Details of depositRequestId: Guid
     | New
 and ListItemsState =
     | PreparingToLoad
     | Loading
-    | Loaded of InvoiceListItem list
+    | Loaded of DepositRequestListItem list
     member me.ListItems =
         match me with
         | PreparingToLoad
@@ -42,97 +42,87 @@ and ListItemsState =
         | Loaded listItems -> listItems
 
 type Msg =
-    | AddDetailTab of InvoiceListItem
-    | RemoveDetailTab of InvoiceListItem
+    | AddDetailTab of DepositRequestListItem
+    | RemoveDetailTab of DepositRequestListItem
     | SelectTab of Tab
     | RemotingError of exn
-    | Loaded of listItems: InvoiceListItem list * selectedListItem: Guid option
-    | RemoveListItem of InvoiceListItem
-    | ConfirmRemoveListItem of InvoiceListItem
-    | ListItemRemoved of Result<InvoiceListItem, DeleteInvoiceError>
-    | Created of Invoice
-    | Edited of Invoice
-    | GetInvoices of FinancialTransactionFilter
+    | Loaded of listItems: DepositRequestListItem list * selectedListItem: Guid option
+    | RemoveListItem of DepositRequestListItem
+    | ConfirmRemoveListItem of DepositRequestListItem
+    | ListItemRemoved of Result<DepositRequestListItem, DeleteDepositRequestError>
+    | Created of DepositRequest
+    | Edited of DepositRequest
+    | GetRequests of FinancialTransactionFilter
     | ChangeListItemsState of ListItemsState
     | NoOp
 
-type InvoicesPageProps = {|
+type DepositRequestsPageProps = {|
     CurrentUser: User
     CurrentBuilding: BuildingListItem
-    InvoiceId: Guid option
+    DepositRequestId: Guid option
 |}
 
-type SortableInvoiceListItemAttribute =
-    | InvoiceNumber
-    | Organization
+type SortableOwnerDepositRequestListItemAttribute =
+    | RequestNumber
     | DistributionKey
-    | Cost
+    | Amount
     | DueDate
     | IsPaid
     override me.ToString () =
         match me with
-        | InvoiceNumber -> "Nr."
-        | Organization -> "Leverancier"
+        | RequestNumber -> "Nr."
         | DistributionKey -> "Sleutel"
-        | Cost -> "Totaal"
+        | Amount -> "Totaal"
         | DueDate -> "Betaaldag"
         | IsPaid -> "Betaald"
-    member me.ReactElementFor': InvoiceListItem -> ReactElement =
+    member me.ReactElementFor': DepositRequestListItem -> ReactElement =
+        fun li -> str (me.StringValueOf' li)
+    member me.StringValueOf': DepositRequestListItem -> string =
         match me with
-        | Organization -> (fun li -> 
-            span [] [
-                str (me.StringValueOf' li)
-                |> wrapInLink (Page.OrganizationDetails { BuildingId = li.BuildingId; DetailId = li.OrganizationId })
-            ])
-        | x -> (fun li -> str (x.StringValueOf' li))
-    member me.StringValueOf': InvoiceListItem -> string =
-        match me with
-        | InvoiceNumber -> (fun li -> li.LocalInvoiceNumber)
-        | Organization -> (fun li -> li.OrganizationName)
+        | RequestNumber -> (fun li -> li.LocalRequestNumber)
         | DistributionKey -> (fun li -> li.DistributionKeyName)
-        | Cost -> (fun li -> String.Format("€{0:0.00}" , li.Cost).Replace(".", ","))
+        | Amount -> (fun li -> String.Format("€{0:0.00}" , li.Amount).Replace(".", ","))
         | DueDate -> (fun li -> sprintf "%02i-%02i-%i" li.DueDate.Day li.DueDate.Month li.DueDate.Year)
         | IsPaid -> (fun li -> if li.IsPaid then "Ja" else "Nee")
-    member me.Compare': InvoiceListItem -> InvoiceListItem -> int =
+    member me.Compare': DepositRequestListItem -> DepositRequestListItem -> int =
         match me with
         | DueDate -> 
             fun li otherLi -> li.DueDate.CompareTo(otherLi.DueDate)
-        | Cost ->
-            fun li otherLi -> int (li.Cost - otherLi.Cost)
+        | Amount ->
+            fun li otherLi -> int (li.Amount - otherLi.Amount)
         | IsPaid ->
             fun li otherLi ->
                 if li.IsPaid = otherLi.IsPaid then 0 
                 elif li.IsPaid && not otherLi.IsPaid then 1 else -1
         | _ ->
             fun li otherLi -> (me.StringValueOf' li).CompareTo(me.StringValueOf' otherLi)
-    static member All = [ InvoiceNumber; Organization; DistributionKey; Cost; DueDate; IsPaid ]
-    interface ISortableAttribute<InvoiceListItem> with
+    static member All = [ RequestNumber; DistributionKey; Amount; DueDate; IsPaid ]
+    interface ISortableAttribute<DepositRequestListItem> with
         member me.ReactElementFor = me.ReactElementFor'
         member _.ExtraHeaderAttributes = Seq.empty
         member me.StringValueOf = me.StringValueOf'
         member me.Compare li otherLi = me.Compare' li otherLi
         member _.IsFilterable = true
 
-
-let getInvoices (filter: FinancialTransactionFilter, selectedTab: Tab) =
-    let invoiceId =
+let getDepositRequests (filter: FinancialTransactionFilter, selectedTab: Tab) =
+    let requestId =
         match selectedTab with
         | List -> None
-        | Details invoiceId -> Some invoiceId
+        | Details requestId -> Some requestId
         | New -> None
     Cmd.OfAsync.either
-        (Remoting.getRemotingApi()).GetInvoices filter
-        (fun invoices -> Loaded (invoices, invoiceId))
+        (Remoting.getRemotingApi()).GetDepositRequests filter
+        (fun requests -> Loaded (requests, requestId))
         RemotingError
 
-let init (props: InvoicesPageProps) =
+let init (props: DepositRequestsPageProps) =
     let state = { 
         CurrentUser = props.CurrentUser
         CurrentBuilding = props.CurrentBuilding
         SelectedListItems = []
         SelectedTab =
-            match props.InvoiceId with
-            | Some invoiceId -> Tab.Details invoiceId
+            match props.DepositRequestId with
+            | Some requestId -> Tab.Details requestId
             | None -> Tab.List
         ListItemsState = Loading
         Filter = { 
@@ -143,75 +133,72 @@ let init (props: InvoicesPageProps) =
     state, Cmd.none
 
 let update (msg: Msg) (state: State): State * Cmd<Msg> =
-    let toListItem (invoice: Invoice): InvoiceListItem = {
-        InvoiceId = invoice.InvoiceId
-        BuildingId = invoice.BuildingId
-        FinancialYearCode = invoice.FinancialYear.Code
-        FinancialYearIsClosed = invoice.FinancialYear.IsClosed
-        InvoiceNumber = invoice.InvoiceNumber
-        InvoiceDate = invoice.InvoiceDate
-        Cost = invoice.Cost
-        DistributionKeyName = invoice.DistributionKey.Name
-        OrganizationName = invoice.Organization.Name
-        OrganizationId = invoice.Organization.OrganizationId
-        FinancialCategoryCode = invoice.FinancialCategory.Code
-        FinancialCategoryDescription = invoice.FinancialCategory.Description
-        DueDate = invoice.DueDate
+    let toListItem (request: DepositRequest): DepositRequestListItem = {
+        DepositRequestId = request.DepositRequestId
+        DepositRequestNumber = request.DepositRequestNumber
+        BuildingId = request.BuildingId
+        FinancialYearCode = request.FinancialYear.Code
+        FinancialYearIsClosed = request.FinancialYear.IsClosed
+        RequestDate = request.RequestDate
+        BookingDate = request.BookingDate
+        DueDate = request.DueDate
+        Amount = request.Amount
+        DistributionKeyName = request.DistributionKey.Name
+        ToFinancialCategoryCode = request.ToFinancialCategory.Code
+        ToFinancialCategoryDescription = request.ToFinancialCategory.Description
         IsPaid =
-            let cost = invoice.Cost
-            let paidAmount = invoice.Payments |> List.sumBy (fun payment -> payment.Amount)
+            let cost = request.Amount
+            let paidAmount = request.Deposits |> List.sumBy (fun payment -> payment.Amount)
             cost - paidAmount = Decimal.Zero
     }
 
     match msg with
     | AddDetailTab listItem ->
         let newlySelectedItems = 
-            if state.SelectedListItems |> List.exists (fun li -> li.InvoiceId = listItem.InvoiceId)
+            if state.SelectedListItems |> List.exists (fun li -> li.DepositRequestId = listItem.DepositRequestId)
             then state.SelectedListItems
             else listItem::state.SelectedListItems
-            |> List.sortBy (fun li -> li.LocalInvoiceNumber)
+            |> List.sortBy (fun li -> li.LocalRequestNumber)
         let updatedState = { state with SelectedListItems = newlySelectedItems }
         match state.SelectedTab with
-        | Details detailId when detailId = listItem.InvoiceId ->
+        | Details detailId when detailId = listItem.DepositRequestId ->
             updatedState, Cmd.none
         | _ ->
-            { updatedState with SelectedTab = Details listItem.InvoiceId }
-            , Routing.navigateToPage (Routing.Page.InvoiceDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.InvoiceId })
+            { updatedState with SelectedTab = Details listItem.DepositRequestId }
+            , Routing.navigateToPage (Routing.Page.DepositRequestDetails { BuildingId = state.CurrentBuilding.BuildingId; DetailId = listItem.DepositRequestId })
     | RemoveDetailTab listItem ->
         let updatedTabs = 
             state.SelectedListItems 
-            |> List.filter (fun li -> li.InvoiceId <> listItem.InvoiceId)
-        { state with SelectedListItems = updatedTabs; SelectedTab = List }, Routing.navigateToPage (Routing.Page.Invoices { BuildingId = state.CurrentBuilding.BuildingId })
+            |> List.filter (fun li -> li.DepositRequestId <> listItem.DepositRequestId)
+        { state with SelectedListItems = updatedTabs; SelectedTab = List }, Routing.navigateToPage (Routing.Page.DepositRequests { BuildingId = state.CurrentBuilding.BuildingId })
     | SelectTab tab ->
         { state with SelectedTab = tab }, Cmd.none
-    | Loaded (invoices, selectedInvoiceId) ->
-        let newState = { state with ListItemsState = ListItemsState.Loaded invoices }
+    | Loaded (requests, selectedDepositRequestId) ->
+        let newState = { state with ListItemsState = ListItemsState.Loaded requests }
         let cmd =
-            match selectedInvoiceId with
-            | Some selectedInvoiceId ->
-                let selectedListItem = invoices |> List.tryFind (fun listItem -> listItem.InvoiceId = selectedInvoiceId)
+            match selectedDepositRequestId with
+            | Some selectedDepositRequestId ->
+                let selectedListItem = requests |> List.tryFind (fun listItem -> listItem.DepositRequestId = selectedDepositRequestId)
                 match selectedListItem with
                 | Some selected -> AddDetailTab selected |> Cmd.ofMsg
                 | None -> Cmd.none
             | None -> Cmd.none
         newState, cmd
-    | ChangeListItemsState newState ->
-        { state with ListItemsState = newState }, Cmd.none
-    | RemoveListItem invoice ->
+    | RemoveListItem request ->
         state, 
             showConfirmationModal
                 {|
-                    Title = "Factuur verwijderen?"
-                    Message = sprintf "Bent u er zeker van dat u %s wilt verwijderen?" invoice.LocalInvoiceNumber
-                    OnConfirmed = fun () -> ConfirmRemoveListItem invoice
+                    Title = "Voorschotaanvraag verwijderen?"
+                    Message = sprintf "Bent u er zeker van dat u %s wilt verwijderen?" request.LocalRequestNumber
+                    OnConfirmed = fun () -> ConfirmRemoveListItem request
                     OnDismissed = fun () -> NoOp
                 |}
-    | ConfirmRemoveListItem invoice ->
+    | ConfirmRemoveListItem request ->
         let cmd =
             Cmd.OfAsync.either
-                (Remoting.getRemotingApi().DeleteInvoice)
-                (invoice.BuildingId, invoice.InvoiceId)
-                (fun r -> r |> Result.map (fun _ -> invoice) |> ListItemRemoved)
+                (Remoting.getRemotingApi().DeleteDepositRequest)
+                (request.BuildingId, request.DepositRequestId)
+                (fun r -> r |> Result.map (fun _ -> request) |> ListItemRemoved)
                 RemotingError
 
         let currentListItems =
@@ -221,38 +208,40 @@ let update (msg: Msg) (state: State): State * Cmd<Msg> =
             | ListItemsState.Loaded listItems -> listItems
 
         let newSelection =
-            state.SelectedListItems |> List.filter (fun selected -> selected.InvoiceId <> invoice.InvoiceId)
+            state.SelectedListItems |> List.filter (fun selected -> selected.DepositRequestId <> request.DepositRequestId)
 
         let newItems =
-            currentListItems |> List.filter (fun item -> item.InvoiceId <> invoice.InvoiceId)
+            currentListItems |> List.filter (fun item -> item.DepositRequestId <> request.DepositRequestId)
 
         { state with SelectedListItems = newSelection; ListItemsState = ListItemsState.Loaded newItems }, cmd
     | ListItemRemoved result ->
         match result with
         | Ok _ -> state, Cmd.none
-        | Error DeleteInvoiceError.AuthorizationError ->
-            state, showErrorToastCmd "U heeft niet genoeg rechten om een factuur te verwijderen"
-        | Error DeleteInvoiceError.NotFound ->
-            printf "The invoice that was being deleted was not found in the DB... Somehow..."
-            state, showErrorToastCmd "De factuur werd niet gevonden in de databank"
+        | Error DeleteDepositRequestError.AuthorizationError ->
+            state, showErrorToastCmd "U heeft niet genoeg rechten om een aanvraag te verwijderen"
+        | Error DeleteDepositRequestError.NotFound ->
+            printf "The request that was being deleted was not found in the DB... Somehow..."
+            state, showErrorToastCmd "De aanvraag werd niet gevonden in de databank"
     | RemotingError e ->
         { state with ListItemsState = ListItemsState.Loaded [] }, showGenericErrorModalCmd e
-    | Created invoice ->
+    | Created request ->
         let currentListItems = state.ListItemsState.ListItems
-        let listItem = toListItem invoice
+        let listItem = toListItem request
         let newListItems = listItem :: currentListItems
         let newSelectedListItems = [ listItem ] |> List.append state.SelectedListItems
         { state with ListItemsState = ListItemsState.Loaded newListItems; SelectedListItems = newSelectedListItems }
-        , showSuccessToastCmd "De factuur is aangemaakt"
-    | Edited invoice ->
+        , showSuccessToastCmd "De aanvraag is aangemaakt"
+    | Edited request ->
         let currentListItems = state.ListItemsState.ListItems
-        let listItem = toListItem invoice
-        let newListItems = currentListItems |> List.map (fun li -> if li.InvoiceId = invoice.InvoiceId then listItem else li)
-        let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.InvoiceId = invoice.InvoiceId then listItem else li)
+        let listItem = toListItem request
+        let newListItems = currentListItems |> List.map (fun li -> if li.DepositRequestId = request.DepositRequestId then listItem else li)
+        let newSelectedListItems = state.SelectedListItems |> List.map (fun li -> if li.DepositRequestId = request.DepositRequestId then listItem else li)
         { state with ListItemsState = ListItemsState.Loaded newListItems; SelectedListItems = newSelectedListItems }
-        , showSuccessToastCmd "De factuur is gewijzigd"
-    | GetInvoices filter ->
-        { state with ListItemsState = ListItemsState.Loading }, getInvoices (filter, state.SelectedTab)
+        , showSuccessToastCmd "De aanvraag is gewijzigd"
+    | GetRequests filter ->
+        { state with ListItemsState = ListItemsState.Loading }, getDepositRequests (filter, state.SelectedTab)
+    | ChangeListItemsState newListItemsState ->
+        { state with ListItemsState = newListItemsState }, Cmd.none
     | NoOp ->
         state, Cmd.none
 
@@ -277,9 +266,9 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                     Client.Financial.FinancialTransactionFilterComponent.render
                         {|
                             CurrentBuildingId = state.CurrentBuilding.BuildingId
-                            FilterKey = "Invoicefilter"
+                            FilterKey = "DepositRequestfilter"
                             OnPrepareToChangeFilter = fun _ -> ChangeListItemsState ListItemsState.PreparingToLoad |> dispatch
-                            OnFilterChanged = GetInvoices >> dispatch
+                            OnFilterChanged = GetRequests >> dispatch
                             OnError = RemotingError >> dispatch
                             OnlyShowFinancialYears = false
                         |}
@@ -287,20 +276,20 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 SortableTable.render 
                     {|
                         ListItems = state.ListItemsState.ListItems
-                        DisplayAttributes = SortableInvoiceListItemAttribute.All
+                        DisplayAttributes = SortableOwnerDepositRequestListItemAttribute.All
                         IsSelected = None
                         OnSelect = None
                         IsEditable = Some (fun li -> not li.FinancialYearIsClosed)
                         OnEdit = Some (AddDetailTab >> dispatch)
                         IsDeletable = Some (fun li -> not li.FinancialYearIsClosed)
                         OnDelete = Some (RemoveListItem >> dispatch)
-                        Key = "InvoicesPageTable"
+                        Key = "DepositRequestsPageTable"
                     |}
                 match state.ListItemsState with
                 | ListItemsState.PreparingToLoad
                 | ListItemsState.Loading ->
                     div [ Class Bootstrap.textCenter ] [
-                        str "Facturen worden geladen..."
+                        str "Aanvragen worden geladen..."
                     ]
                 | ListItemsState.Loaded [] ->
                     div [ Class Bootstrap.textCenter ] [
@@ -321,31 +310,31 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
                 for selected in state.SelectedListItems do
                     yield li [ Class Bootstrap.navItem ] [
                         a 
-                            [ Class (determineNavItemStyle (Details selected.InvoiceId)); OnClick (fun _ -> SelectTab (Details selected.InvoiceId) |> dispatch) ] 
-                            [ str selected.LocalInvoiceNumber ]
+                            [ Class (determineNavItemStyle (Details selected.DepositRequestId)); OnClick (fun _ -> SelectTab (Details selected.DepositRequestId) |> dispatch) ] 
+                            [ str selected.LocalRequestNumber ]
                     ]
                 yield li [ Class Bootstrap.navItem ] [
                     a 
                         [ Class (determineNavItemStyle New); OnClick (fun _ -> SelectTab New |> dispatch) ] 
-                        [ str "Nieuwe factuur" ]
+                        [ str "Nieuwe aanvraag voor voorschot" ]
                 ]
             ]
 
             div [ Class Bootstrap.tabContent ] [
                 match state.SelectedTab with
                 | List -> list state
-                | Details invoiceId -> 
-                    InvoiceDetails.render 
+                | Details requestId -> 
+                    DepositRequestDetails.render 
                         {| 
                             CurrentUser = state.CurrentUser 
                             CurrentBuilding = state.CurrentBuilding
-                            Identifier = invoiceId
+                            Identifier = requestId
                             IsNew = false
                             NotifyCreated = Created >> dispatch
                             NotifyEdited = Edited >> dispatch
                         |}
                 | New ->
-                    InvoiceDetails.render 
+                    DepositRequestDetails.render 
                         {| 
                             CurrentUser = state.CurrentUser 
                             CurrentBuilding = state.CurrentBuilding
@@ -357,7 +346,7 @@ let view (state: State) (dispatch: Msg -> unit): ReactElement =
             ]
         ]
     ]
-    |> withPageHeader "Facturen"
+    |> withPageHeader "Voorschot aanvragen"
 
-let render (props: InvoicesPageProps) =
-    React.elmishComponent ("InvoicesPage", init props, update, view)
+let render (props: DepositRequestsPageProps) =
+    React.elmishComponent ("DepositRequestPage", init props, update, view)

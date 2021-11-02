@@ -93,8 +93,8 @@ type SortableLotListItemAttribute =
         match me with
         | OwnerName -> (fun li ->
             match li.LegalRepresentative with 
-            | Some (LotOwnerListItem.Owner o) -> o.Name 
-            | Some (LotOwnerListItem.Organization o) -> o.Name
+            | Some (LotOwnerTypeListItem.Owner o) -> o.Name 
+            | Some (LotOwnerTypeListItem.Organization o) -> o.Name
             | None -> "")
         | Code -> (fun li -> li.Code)
         | LotType -> (fun li -> string li.LotType)
@@ -139,12 +139,12 @@ let init (props: LotsPageProps) =
             RemotingError
     state, cmd
 
-let private mapCurrentOwner (owner: LotOwner): LotOwnerListItem =
+let private mapCurrentOwner (owner: LotOwner): LotOwnerTypeListItem =
     match owner.LotOwnerType with
     | LotOwnerType.Owner owner -> 
-        LotOwnerListItem.Owner {| PersonId = owner.PersonId; Name = owner.FullName () |}
+        LotOwnerTypeListItem.Owner {| PersonId = owner.PersonId; Name = owner.FullName () |}
     | LotOwnerType.Organization organization -> 
-        LotOwnerListItem.Organization {| OrganizationId = organization.OrganizationId; Name = organization.Name |}
+        LotOwnerTypeListItem.Organization {| OrganizationId = organization.OrganizationId; Name = organization.Name |}
 
 let update (msg: Msg) (state: State): State * Cmd<Msg> =
     let toListItem (lot: Lot): LotListItem = {

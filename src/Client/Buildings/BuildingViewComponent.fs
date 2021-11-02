@@ -68,16 +68,27 @@ let view (props: Props) =
 
                         yield readonlyFormElement "Totale quotiteit van de kavels" (detail.SharesTotal |> Option.defaultValue 0 |> string)
 
-                        yield!
-                            detail.BankAccounts
-                            |> List.mapi (fun i bankAccount -> 
-                                let bankAccountDescription =
-                                    if detail.BankAccounts.Length > 1 then
-                                        sprintf "Bankrekening %i" (i+1)
-                                    else
-                                        "Bankrekening"
-                                readonlyFormElement bankAccountDescription (string bankAccount))
+                        match detail.CheckingBankAccount with
+                        | Some checkingBankAccount ->
+                            yield readonlyFormElement "Rekening werkkapitaal" (string checkingBankAccount)
+                        | None ->
+                            ()
 
+                        match detail.SavingsBankAccount with
+                        | Some savingsBankAccount -> 
+                            yield readonlyFormElement "Rekening reservekapitaal" (string savingsBankAccount)
+                        | None -> 
+                            ()
+
+                        //yield!
+                        //    detail.BankAccounts
+                        //    |> List.mapi (fun i bankAccount -> 
+                        //        let bankAccountDescription =
+                        //            if detail.BankAccounts.Length > 1 then
+                        //                sprintf "Bankrekening %i" (i+1)
+                        //            else
+                        //                "Bankrekening"
+                        //        readonlyFormElement bankAccountDescription (string bankAccount))
                     ]
                 ]
         ]

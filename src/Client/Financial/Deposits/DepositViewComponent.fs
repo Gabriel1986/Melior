@@ -1,4 +1,4 @@
-﻿module Client.Financial.Invoicing.InvoicePaymentViewComponent
+﻿module Client.Financial.Deposits.DepositViewComponent
 
 open System
 open Fable.React
@@ -12,9 +12,9 @@ open Shared.MediaLibrary
 type Props = 
     {|
         Index: int
-        Deposit: InvoicePayment
-        OnEdit: InvoicePayment -> unit
-        OnRemove: InvoicePayment -> unit
+        Deposit: Deposit
+        OnEdit: Deposit -> unit
+        OnRemove: Deposit -> unit
     |}
 
 let view (props: Props) =
@@ -39,8 +39,8 @@ let view (props: Props) =
 
         readonlyFormElement "Bedrag" (String.Format("€{0:0.00}", detail.Amount).Replace('.', ','))
         readonlyFormElement "Datum" (detail.Date.ToString("dd/MM/yyyy"))
+        readonlyFormElement "Betaling door" (detail.LotOwner.LotOwnerType.Name)
         readonlyFormElement "Van rekening" (string detail.FromBankAccount)
-        readonlyFormElement "Boekhoudkundige rekening" (sprintf "%s - %s" detail.FinancialCategory.Code detail.FinancialCategory.Description)
 
         match detail.MediaFiles with
         | [] ->

@@ -27,7 +27,8 @@ module private Internals =
         SyndicPersonId: Guid option
         YearOfConstruction: int option
         YearOfDelivery: int option
-        BankAccounts: string option
+        SavingsBankAccount: string option
+        CheckingBankAccount: string option
         PictureId: Guid option
         SharesTotal: int option
     }
@@ -48,7 +49,8 @@ module private Internals =
         SyndicPersonId = reader.uuidOrNone "SyndicPersonId"
         YearOfConstruction = reader.intOrNone "YearOfConstruction"
         YearOfDelivery = reader.intOrNone "YearOfDelivery"
-        BankAccounts = reader.stringOrNone "BankAccounts"
+        SavingsBankAccount = reader.stringOrNone "SavingsBankAccount"
+        CheckingBankAccount = reader.stringOrNone "CheckingBankAccount"
         PictureId = reader.uuidOrNone "PictureId"
         SharesTotal = reader.intOrNone "SharesTotal"
     }
@@ -59,7 +61,8 @@ module private Internals =
         Name: string
         Address: string
         OrganizationNumber: string option
-        BankAccounts: string option
+        SavingsBankAccount: string option
+        CheckingBankAccount: string option
         PictureId: Guid option
         SharesTotal: int option
     }
@@ -70,7 +73,8 @@ module private Internals =
         Name = reader.string "Name"
         Address = reader.string "Address"
         OrganizationNumber = reader.stringOrNone "OrganizationNumber"
-        BankAccounts = reader.stringOrNone "BankAccounts"
+        SavingsBankAccount = reader.stringOrNone "SavingsBankAccount"
+        CheckingBankAccount = reader.stringOrNone "CheckingBankAccount"
         PictureId = reader.uuidOrNone "PictureId"
         SharesTotal = reader.intOrNone "SharesTotal"
     }
@@ -101,7 +105,8 @@ let getBuilding connectionString (buildingId: Guid): Async<Building option> = as
                     SyndicPersonId,
                     YearOfConstruction,
                     YearOfDelivery,
-                    BankAccounts,
+                    SavingsBankAccount,
+                    CheckingBankAccount,
                     PictureId,
                     SharesTotal
                 FROM Buildings
@@ -152,7 +157,8 @@ let getBuilding connectionString (buildingId: Guid): Async<Building option> = as
             Syndic = syndic
             YearOfConstruction = dbModel.YearOfConstruction
             YearOfDelivery = dbModel.YearOfDelivery
-            BankAccounts = dbModel.BankAccounts |> Option.either BankAccount.listFromJson []
+            CheckingBankAccount = dbModel.CheckingBankAccount |> Option.map BankAccount.fromJson
+            SavingsBankAccount = dbModel.SavingsBankAccount |> Option.map BankAccount.fromJson
             PictureId = dbModel.PictureId
             SharesTotal = dbModel.SharesTotal
         }
@@ -171,7 +177,8 @@ let getAllBuildings connectionString (): Async<BuildingListItem list> = async {
                     Name,
                     Address,
                     OrganizationNumber,
-                    BankAccounts,
+                    CheckingBankAccount,
+                    SavingsBankAccount,
                     PictureId,
                     SharesTotal
                 FROM Buildings
@@ -186,7 +193,8 @@ let getAllBuildings connectionString (): Async<BuildingListItem list> = async {
         Name = dbModel.Name
         Address = dbModel.Address |> forceAddress
         OrganizationNumber = dbModel.OrganizationNumber
-        BankAccounts = dbModel.BankAccounts |> Option.either BankAccount.listFromJson []
+        CheckingBankAccount = dbModel.CheckingBankAccount |> Option.map BankAccount.fromJson
+        SavingsBankAccount = dbModel.SavingsBankAccount |> Option.map BankAccount.fromJson
         PictureId = dbModel.PictureId
         SharesTotal = dbModel.SharesTotal
     })
@@ -203,7 +211,8 @@ let getBuildingsByIds connectionString buildingIds: Async<BuildingListItem list>
                     Name,
                     Address,
                     OrganizationNumber,
-                    BankAccounts,
+                    SavingsBankAccount,
+                    CheckingBankAccount,
                     PictureId,
                     SharesTotal
                 FROM Buildings
@@ -218,7 +227,8 @@ let getBuildingsByIds connectionString buildingIds: Async<BuildingListItem list>
         Name = dbModel.Name
         Address = dbModel.Address |> forceAddress
         OrganizationNumber = dbModel.OrganizationNumber
-        BankAccounts = dbModel.BankAccounts |> Option.either BankAccount.listFromJson []
+        SavingsBankAccount = dbModel.SavingsBankAccount |> Option.map BankAccount.fromJson
+        CheckingBankAccount = dbModel.CheckingBankAccount |> Option.map BankAccount.fromJson
         PictureId = dbModel.PictureId
         SharesTotal = dbModel.SharesTotal
     })

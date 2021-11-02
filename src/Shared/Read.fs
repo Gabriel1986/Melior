@@ -19,7 +19,6 @@ type BankAccount =
         IBAN: string
         BIC: string
         Validated: bool option
-        FinancialCategoryId: Guid option
     }
     override me.ToString () =
         [
@@ -33,7 +32,6 @@ type BankAccount =
         IBAN = ""
         BIC = ""
         Validated = None
-        FinancialCategoryId = None
     }
 
 type User = 
@@ -112,7 +110,8 @@ type Building =
         Syndic: Syndic option
         YearOfConstruction: int option
         YearOfDelivery: int option
-        BankAccounts: BankAccount list
+        SavingsBankAccount: BankAccount option
+        CheckingBankAccount: BankAccount option
         PictureId: Guid option
         SharesTotal: int option
     }
@@ -128,7 +127,8 @@ type Building =
         Syndic = None
         YearOfConstruction = None
         YearOfDelivery = None
-        BankAccounts = []
+        SavingsBankAccount = Some (BankAccount.Init())
+        CheckingBankAccount = Some (BankAccount.Init())
         PictureId = None
         SharesTotal = None
     }
@@ -138,7 +138,8 @@ type Building =
         Name = me.Name
         Address = me.Address
         OrganizationNumber = me.OrganizationNumber
-        BankAccounts = me.BankAccounts
+        SavingsBankAccount = me.SavingsBankAccount
+        CheckingBankAccount = me.CheckingBankAccount
         PictureId = me.PictureId
         SharesTotal = me.SharesTotal
     }
@@ -224,7 +225,10 @@ and BuildingListItem = {
     Name: string
     Address: Address
     OrganizationNumber: string option
-    BankAccounts: BankAccount list
+    /// Rekening reservekapitaal (lange termijn investeringen)
+    SavingsBankAccount: BankAccount option
+    /// Rekening werkkapitaal (korte termijn investeringen)
+    CheckingBankAccount: BankAccount option
     PictureId: Guid option
     SharesTotal: int option
 }
@@ -257,6 +261,7 @@ and Lot =
 and LotOwner = 
     {
         LotId: Guid
+        BuildingId: Guid
         LotOwnerId: Guid
         LotOwnerType: LotOwnerType
         StartDate: DateTimeOffset
@@ -267,6 +272,24 @@ and LotOwner =
         match me.LotOwnerType with
         | LotOwnerType.Organization org -> org.Name
         | LotOwnerType.Owner owner -> owner.FullName ()
+
+/// Lot owner in context of Financial
+type FinancialLotOwner = {
+    LotId: Guid
+    BuildingId: Guid
+    LotCode: string
+    LotType: LotType
+    LotOwnerId: Guid
+    LotOwnerType: FinancialLotOwnerType
+}
+and FinancialLotOwnerType =
+    | Owner of {| PersonId: Guid; Name: string; BankAccounts: BankAccount list |}
+    | Organization of {| OrganizationId: Guid; Name: string; BankAccounts: BankAccount list |}
+    member me.Name =
+        match me with
+        | Owner o -> o.Name
+        | Organization o -> o.Name
+
 and LotOwnerContact =
     | Owner of OwnerListItem
     | NonOwner of Person
@@ -277,6 +300,10 @@ and LotOwnerContact =
 and LotOwnerType =
     | Owner of OwnerListItem
     | Organization of OrganizationListItem
+    member me.Name =
+        match me with
+        | Owner owner -> owner.FullName ()
+        | Organization org -> org.Name
 and LotType =
     | Appartment
     | Studio
@@ -309,14 +336,14 @@ and LotType =
 and LotListItem = {
     LotId: Guid
     BuildingId: BuildingId
-    LegalRepresentative: LotOwnerListItem option
+    LegalRepresentative: LotOwnerTypeListItem option
     Code: string
     LotType: LotType
     Floor: int option
     Description: string option
     Share: int option
 }
-and LotOwnerListItem =
+and LotOwnerTypeListItem =
     | Owner of {| PersonId: Guid; Name: string |}
     | Organization of {| OrganizationId: Guid; Name: string |}
     member me.Name =
@@ -685,8 +712,8 @@ type InvoiceListItem =
         DistributionKeyName: string
         OrganizationId: Guid
         OrganizationName: string
-        CategoryCode: string //Boekhoudkundige rekening
-        CategoryDescription: string
+        FinancialCategoryCode: string //Boekhoudkundige rekening
+        FinancialCategoryDescription: string
         InvoiceDate: DateTimeOffset
         DueDate: DateTimeOffset
         IsPaid: bool
@@ -701,6 +728,15 @@ type FinancialTransactionFilterPeriod =
 type FinancialTransactionFilter = {
     BuildingId: Guid
     Period: FinancialTransactionFilterPeriod
+}
+
+type LotOwnerFilterPeriod =
+    | FinancialYear of financialYearId: Guid
+
+type LotOwnerFilter = {
+    BuildingId: Guid
+    Period: LotOwnerFilterPeriod
+    DistributionKeyId: Guid
 }
 
 type Invoice = 
@@ -733,39 +769,70 @@ and InvoicePayment = {
     Date: DateTime
     FromBankAccount: BankAccount
     FinancialCategory: FinancialCategory
-    FinancialYear: FinancialYear
-    OrganizationName: string
     MediaFiles: MediaFile list
 }
 
 type PaymentRequestReference =
     | BelgianOGMReference of string
 
-type OwnerDepositRequest = {
-    OwnerId: Guid
+module DepositRequest =
+    let calculateLocalRequestNumber (financialYearCode: string, requestNumber: int) =
+        sprintf "%s/%06i" financialYearCode requestNumber
+
+type DepositRequest = 
+    {
+        BuildingId: Guid
+        DepositRequestId: Guid
+        DepositRequestNumber: int
+        FinancialYear: FinancialYear
+        Amount: Decimal
+        BookingDate: DateTimeOffset
+        RequestDate: DateTimeOffset
+        DueDate: DateTimeOffset
+        //Reference: PaymentRequestReference
+        Description: string option
+        ToBankAccount: BankAccount
+        ToFinancialCategory: FinancialCategory
+        Deposits: Deposit list
+        DistributionKey: DistributionKeyListItem
+        MediaFiles: MediaFile list
+    }
+    member me.LocalRequestNumber = DepositRequest.calculateLocalRequestNumber (me.FinancialYear.Code, me.DepositRequestNumber)
+
+type DepositRequestListItem = 
+    {
+        BuildingId: Guid
+        DepositRequestId: Guid
+        DepositRequestNumber: int
+        FinancialYearCode: string
+        FinancialYearIsClosed: bool
+        Amount: Decimal
+        RequestDate: DateTimeOffset
+        BookingDate: DateTimeOffset
+        DueDate: DateTimeOffset
+        ToFinancialCategoryCode: string
+        ToFinancialCategoryDescription: string
+        DistributionKeyName: string
+        IsPaid: bool
+    }
+    member me.LocalRequestNumber = DepositRequest.calculateLocalRequestNumber (me.FinancialYearCode, me.DepositRequestNumber)
+
+and Deposit = {
+    DepositId: Guid
+    DepositRequestId: Guid
+    LotOwner: FinancialLotOwner
     BuildingId: Guid
-    OwnerDepositRequestId: Guid
-    MatchingOwnerDeposits: OwnerDeposit list
-    Amount: Decimal
-    CreationDate: DateTime
-    RequestDate: DateTime
-    RequestReference: PaymentRequestReference
-    RequestInfo: string
-    MediaFiles: MediaFile list
-}
-and OwnerDeposit = {
-    OwnerDepositId: Guid
     Amount: Decimal
     Date: DateTime
-    OwnerDepositRequestId: Guid
-    FromBankAccount: BankAccount
-    ToBankAccount: BankAccount
+    FromBankAccount: BankAccount option
+    FromFinancialCategory: FinancialCategory
     ToFinancialCategory: FinancialCategory
     MediaFiles: MediaFile list
 }
 
 [<RequireQualifiedAccess>]
 type Concept =
+    | Building of BuildingId
     | Lot
     | Contract
 
@@ -777,8 +844,8 @@ type Warning = {
 type FinancialTransactionSource =
     | Invoice of InvoiceSource
     | InvoicePayment of InvoicePaymentSource
-    //| OwnerDepositRequest of requestId: Guid
-    //| OwnerDeposit of requestId: Guid * depositId: Guid
+    | DepositRequest of requestId: Guid
+    | Deposit of requestId: Guid * depositId: Guid
 and InvoiceSource = {
     InvoiceId: Guid
     OrganizationName: string
